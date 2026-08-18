@@ -1,0 +1,46 @@
+# models/schema.yml — the guardrail layer as code.
+# In a dbt project these run on every build; a failure stops the build
+# before a bad number can reach a dashboard, a brief, or an AI narrative.
+version: 2
+
+models:
+  - name: stg_progress_claims
+    columns:
+      - name: claim_id
+        tests: [unique, not_null]
+      - name: package_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_control_account')
+              field: package_id
+      - name: pv_delta
+        tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0        # planned value never negative
+      - name: ev_delta
+        tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0        # earned value never negative
+      - name: ac_delta
+        tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0        # actual cost never negative
+
+  - name: fct_control_account
+    tests:
+      # Physical impossibilities — the invariants the whole framework rests on
+      - dbt_utils.expression_is_true:
+          expression: "ev <= bac + 0.000001"    # cannot earn more than the account's total budget
+      - dbt_utils.expression_is_true:
+          expression: "pct_complete <= 1"
+      - dbt_utils.expression_is_true:
+          expression: "spi between 0.5 and 1.5" # outside this, the inputs are broken, not the project
+    columns:
+      - name: package_id
+        tests: [unique, not_null]
+      - name: bac
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 1        # every control account carries budget

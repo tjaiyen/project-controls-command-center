@@ -7,3 +7,4 @@ node_modules/
 # Internal session research — comp anchors, gate scores, blocklists. Local only,
 # never published to the public repo.
 otak-session-notes.md
+pipeline/output/

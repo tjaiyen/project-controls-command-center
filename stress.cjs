@@ -275,6 +275,41 @@ try {
   ok(R.win._printed === true, "print button invokes window.print");
 } catch (e) { ok(false, "print button", e.message); }
 
+/* ---- AI & data tab ---- */
+console.log("== D3. AI & data tab ==");
+ok(idsA.includes("t-ai") && idsA.includes("p-ai"), "AI tab/panel pair exists");
+try {
+  fire(G["t-ai"], "click");
+  ok(G["p-ai"].hidden === false && G["p-cost"].hidden === true, "AI tab switch works");
+  fire(G["t-over"], "click");
+} catch (e) { ok(false, "AI tab switching", e.message); }
+// integrity gate: every check passes, pill count matches
+const guardPasses = (G.aiGuards._html.match(/>PASS</g) || []).length;
+const guardFails = (G.aiGuards._html.match(/>FAIL</g) || []).length;
+ok(guardPasses === 14 && guardFails === 0, "integrity gate: 14 PASS, 0 FAIL",
+   guardPasses + " pass / " + guardFails + " fail");
+has("aiGuards", "GREEN", "gate shows GREEN");
+ok(G.arch._html.includes("fct_control_account") && G.arch._html.includes("integrity gate"),
+   "architecture diagram renders pipeline stages");
+// narrative: generate, verify every figure, check the contract panel
+try {
+  fire(G.aiNarrBtn, "click");
+  has("aiNarr", "$1,303.7M", "narrative quotes the derived EAC");
+  has("aiNarr", "66.1%", "narrative quotes derived % complete");
+  has("aiNarr", "CP-201", "narrative names the driving package");
+  const figPass = (G.aiNarrChecks._html.match(/>PASS</g) || []).length;
+  const figBlock = (G.aiNarrChecks._html.match(/>BLOCK</g) || []).length;
+  ok(figPass === 14 && figBlock === 0, "narrative verification: 14 figures verified, 0 blocked",
+     figPass + " verified / " + figBlock + " blocked");
+  has("aiNarrChecks", "cleared to publish", "verification clears the draft");
+} catch (e) { ok(false, "AI narrative", e.message); }
+// the displayed SQL is the real model shape
+ok(indexSrc.includes("stg_progress_claims") && indexSrc.includes("fct_control_account"),
+   "displayed SQL references the real model and staging table");
+// pipeline files exist and are current
+ok(fs.existsSync(DIR + "pipeline/run_pipeline.py") && fs.existsSync(DIR + "pipeline/models/fct_control_account.sql")
+   && fs.existsSync(DIR + "pipeline/models/schema.yml"), "pipeline/ files present");
+
 /* =========================================================================
    E. otak.html — runtime + internal consistency
    ========================================================================= */

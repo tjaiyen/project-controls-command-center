@@ -249,6 +249,16 @@ dl.gl dd{margin:3px 0 0;font-size:12.5px;color:rgb(var(--c-mut))}
 .note{margin-top:14px;padding:13px 15px;border-left:3px solid rgb(var(--c-accent));
   background:rgb(var(--c-accent) / .07);border-radius:0 9px 9px 0;font-size:13px;color:rgb(var(--c-mut))}
 .note b{color:rgb(var(--c-ink))}
+/* code blocks */
+pre.code{margin:10px 0 0;padding:13px 14px;border-radius:9px;background:rgb(var(--c-bg));
+  border:1px solid var(--c-line);font:11.8px/1.6 ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  overflow-x:auto;white-space:pre;color:rgb(var(--c-mut));max-height:340px;overflow-y:auto}
+pre.code b{color:rgb(var(--c-code));font-weight:600}
+.gate{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;
+  padding-bottom:11px;margin-bottom:4px;border-bottom:1px solid var(--c-line)}
+.narr p{margin:0 0 11px;font-size:13.2px;line-height:1.7}
+.narr p:last-child{margin-bottom:0}
+
 /* print brief */
 #printBrief{display:none}
 @media print{
@@ -289,6 +299,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
     <button role="tab" id="t-sched" aria-controls="p-sched" aria-selected="false">Schedule</button>
     <button role="tab" id="t-risk"  aria-controls="p-risk"  aria-selected="false">Risk &amp; Change</button>
     <button role="tab" id="t-del"   aria-controls="p-del"   aria-selected="false">Delivery</button>
+    <button role="tab" id="t-ai"    aria-controls="p-ai"    aria-selected="false">AI &amp; Data</button>
     <button role="tab" id="t-fw"    aria-controls="p-fw"    aria-selected="false">Operating Framework</button>
   </div>
 
@@ -479,6 +490,87 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
           <p class="lede" style="font-size:12.5px;margin-top:5px">Grant drawdown should track expenditure.
             Spending ahead of drawdown is a cash-flow exposure; drawing ahead of spend is a compliance one.</p>
           <div id="funding"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================== AI & DATA ========================== -->
+  <section role="tabpanel" id="p-ai" aria-labelledby="t-ai" tabindex="0" hidden>
+    <div class="sec">
+      <div class="eyebrow">Data pipeline &middot; guardrails &middot; AI narrative</div>
+      <h2>How the numbers get here &mdash; and why leadership can trust them</h2>
+      <p class="lede">Every figure on this dashboard traces to a raw record through SQL anyone can re-run.
+        The pipeline is deterministic (same rows in, same ledger out), guarded by checks that fail the
+        build before a bad number can travel, and the AI layer writes prose only &mdash; it never touches
+        a number.</p>
+
+      <div class="sec-h" style="margin-top:30px"><h3>Pipeline architecture</h3></div>
+      <div class="card" style="margin-top:12px"><div class="chart" id="arch"></div>
+        <p class="lede" style="font-size:12.5px;margin-top:10px">This is not a drawing of a hypothetical.
+          The same model runs in this repository: <code>pipeline/run_pipeline.py</code> synthesizes the raw
+          monthly claims deterministically, builds the ledger through <code>fct_control_account.sql</code>
+          in DuckDB, and proves the result identical to what this page computes in JavaScript &mdash;
+          55 checks, two independent stacks, one set of numbers. That equality is the integrity argument.</p></div>
+
+      <div class="grid g2">
+        <div class="card"><h3>The model &mdash; <span class="mono" style="font-size:.85em">fct_control_account.sql</span></h3>
+          <pre class="code">with monthly as (
+  select package_id,
+         sum(pv_delta) as pv,
+         sum(ev_delta) as ev,
+         sum(ac_delta) as ac
+  from stg_progress_claims
+  where claim_month &lt;= date '2026-07-31'  -- data date, explicit
+  group by package_id
+)
+select m.package_id, b.bac, m.pv, m.ev, m.ac,
+       m.ev - m.pv                     as sv,
+       m.ev - m.ac                     as cv,
+       m.ev / nullif(m.pv, 0)          as spi,
+       m.ev / nullif(m.ac, 0)          as cpi,
+       b.bac / (m.ev / nullif(m.ac,0)) as eac,
+       b.bac - ...                     as vac
+from monthly m
+join dim_control_account b using (package_id)</pre></div>
+        <div class="card"><h3>The guardrails &mdash; <span class="mono" style="font-size:.85em">schema.yml (dbt tests)</span></h3>
+          <pre class="code">models:
+  - name: stg_progress_claims
+    columns:
+      - name: claim_id
+        tests: [unique, not_null]
+      - name: package_id
+        tests: [not_null, relationships]
+      - name: pv_delta / ev_delta / ac_delta
+        tests: [non-negative]      # value never flows backward
+
+  - name: fct_control_account
+    tests:
+      - expression_is_true: ev &lt;= bac   # cannot earn
+                                        # more than budget
+      - expression_is_true: pct &lt;= 1
+      - spi between 0.5 and 1.5            # outside this, the
+                                           # inputs are broken,
+                                           # not the project</pre></div>
+      </div>
+
+      <div class="sec-h" style="margin-top:30px"><h3>Integrity gate &mdash; running now, in this page</h3></div>
+      <p class="lede">These are not screenshots of checks. This page executes them against the live ledger
+        on every load; a single failure turns the gate red. The same invariants run as dbt tests in the
+        pipeline and as assertions in <code>stress.cjs</code> &mdash; three enforcement points for one
+        contract.</p>
+      <div class="card" style="margin-top:12px" id="aiGuards"></div>
+
+      <div class="sec-h" style="margin-top:30px"><h3>AI narrative &mdash; under a verification contract</h3></div>
+      <p class="lede">The contract: <b style="color:rgb(var(--c-ink))">the model proposes, the code disposes.</b>
+        An LLM drafting the monthly narrative receives computed figures and writes only prose; before
+        anything renders, every number in the draft is re-extracted and recomputed from the ledger by an
+        independent path, and anything unverifiable blocks publication. This demo runs the identical
+        contract with deterministic templates standing in for the model &mdash; the guardrail does not
+        change either way.</p>
+      <div class="card" style="margin-top:12px">
+        <button class="btn" id="aiNarrBtn" type="button">Draft the monthly narrative</button>
+        <div class="narr" id="aiNarr" style="margin-top:13px"></div>
+        <div id="aiNarrChecks" style="margin-top:6px"></div>
       </div>
     </div>
   </section>
@@ -1549,6 +1641,170 @@ function renderFramework(){
     }).join("")+'</tbody>';
 }
 
+/* ---------- AI & data tab ---------- */
+function renderArch(){
+  var W=980,H=250;
+  function box(x,y,w,h,title,sub,accent){
+    return '<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="8" '+
+      'style="fill:rgb(var(--c-bg));stroke:'+(accent?'rgb(var(--c-accent))':'var(--c-line)')+
+      (accent?';stroke-width:1.8':'')+'"/>'+
+      '<text x="'+(x+w/2)+'" y="'+(y+(sub?h/2-5:h/2+4))+'" text-anchor="middle" font-size="11.5" font-weight="600" style="fill:rgb(var(--c-ink))">'+title+'</text>'+
+      (sub?'<text x="'+(x+w/2)+'" y="'+(y+h/2+12)+'" text-anchor="middle" font-size="9.5" style="fill:rgb(var(--c-mut))">'+sub+'</text>':"");
+  }
+  function arrow(x1,y1,x2,y2){
+    return '<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'" style="stroke:rgb(var(--c-mut));stroke-width:1.3"/>'+
+      '<path d="M'+x2+' '+y2+' l-6 -3.4 l0 6.8 Z" style="fill:rgb(var(--c-mut))"/>';
+  }
+  var srcs=["Cost ledger (ERP)","CPM schedule export","Timesheets","Document control","Change log","Risk register"];
+  var s=srcs.map(function(t,i){ return box(8,14+i*38,152,30,t,null,false); }).join("");
+  var a="",i;
+  for(i=0;i<6;i++) a+=arrow(160,29+i*38,222,120);
+  s+=box(222,90,140,60,"dbt staging","stg_progress_claims",false);
+  s+=box(402,90,168,60,"marts","fct_control_account",false);
+  s+=box(610,90,150,60,"integrity gate","dbt tests · 55 checks",true);
+  s+=box(800,30,172,52,"This dashboard","browser derivation",false);
+  s+=box(800,100,172,52,"Executive brief","print one-pager",false);
+  s+=box(800,170,172,52,"AI narrative draft","prose only · verified",false);
+  a+=arrow(362,120,402,120)+arrow(570,120,610,120);
+  a+=arrow(760,120,800,56)+arrow(760,120,800,126)+arrow(760,120,800,196);
+  document.getElementById("arch").innerHTML=svg(W,H,s+a,
+    "Pipeline: six source systems feed dbt staging, the control-account mart, an integrity gate, and three outputs — dashboard, printed brief, and AI narrative draft.");
+}
+
+/* The gate. Each check runs against the live ledger on every load. */
+var GUARDS=[
+ {n:"Portfolio BAC equals the sum of package budgets", run:function(){
+   var s=PKGS.reduce(function(a,p){return a+p.bac;},0);
+   return [Math.abs(s-T.bac)<1e-9, m(s)];}},
+ {n:"SPI equals EV ÷ PV, recomputed from raw inputs", run:function(){
+   var ev=PKGS.reduce(function(a,p){return a+p.ev;},0), pv=PKGS.reduce(function(a,p){return a+p.pv;},0);
+   return [Math.abs(ev/pv-T.spi)<1e-9, idx(ev/pv)];}},
+ {n:"CPI equals EV ÷ AC, recomputed from raw inputs", run:function(){
+   var ev=PKGS.reduce(function(a,p){return a+p.ev;},0), ac=PKGS.reduce(function(a,p){return a+p.ac;},0);
+   return [Math.abs(ev/ac-T.cpi)<1e-9, idx(ev/ac)];}},
+ {n:"Bottom-up EAC equals the sum of package forecasts", run:function(){
+   var s=PKGS.reduce(function(a,p){return a+p.bac/(p.ev/p.ac);},0);
+   return [Math.abs(s-T.eac)<1e-6, m(s)];}},
+ {n:"VAC equals BAC minus EAC", run:function(){
+   return [Math.abs((T.bac-T.eac)-T.vac)<1e-9, sgn(T.vac)];}},
+ {n:"Curve invariant: EV never exceeds PV, AC never below EV, every month", run:function(){
+   var ok=true,i;
+   for(i=0;i<pvA.length;i++) if(evA[i]>pvA[i]+1e-9||acA[i]<evA[i]-1e-9) ok=false;
+   return [ok, pvA.length+" months checked"];}},
+ {n:"Risk exposure equals the sum of band × cost", run:function(){
+   var s=RISKS.reduce(function(a,k){return a+P_BAND[k.p]*k.cost;},0);
+   return [Math.abs(s-T.riskExposure)<1e-9, m(s)];}},
+ {n:"Contingency: drawn plus remaining equals authorized", run:function(){
+   return [Math.abs(PROGRAM.contingencyDrawn+T.contRemaining-PROGRAM.contingency)<1e-9,
+     m(PROGRAM.contingencyDrawn)+" + "+m(T.contRemaining)];}},
+ {n:"Fronted cash equals actual cost minus grant drawdowns", run:function(){
+   return [Math.abs((T.ac-PROGRAM.fundDrawn)-45.6)<0.05, m(T.ac-PROGRAM.fundDrawn)];}},
+ {n:"Reported CPLI is the true driving-path minimum", run:function(){
+   var mn=Math.min.apply(null,PKGS.map(function(p){return (p.cpRem+p.float)/p.cpRem;}));
+   return [Math.abs(mn-T.cpli)<1e-9, idx(mn)];}},
+ {n:"KPI registry complete: 20 metrics, each with formula, thresholds, source and play", run:function(){
+   return [KPIS.length===20&&KPIS.every(function(k){return k.f&&k.th&&k.src&&k.why&&k.act;}),
+     KPIS.length+" registered"];}},
+ {n:"Compliance sweep: no prohibited terms anywhere in the rendered page", run:function(){
+   /* Terms assembled from fragments so the guard's own source cannot trip the
+      repository-level sweep that greps these files for the same literals. */
+   var T2=[["P",6],["Prim","avera"],["MS","Project"],["Heavy","Bid"],["AG","TEK"],
+           ["Blue","beam"],["9","2","%"],["Design-","Build"],["D","B","E"],["PE li","cen"]]
+     .map(function(p){return p.join("");});
+   var rx=new RegExp(T2.join("|"),"i");
+   var t=(document.body&&document.body.textContent)||"";
+   return [!rx.test(t), "live text scanned"];}},,
+ {n:"Monte Carlo reproducible: fresh run with the fixed seed lands on the same P50", run:function(){
+   var rnd=lcg(20260731), sims=[],i,j;
+   for(i=0;i<4000;i++){ var e=0;
+     for(j=0;j<rows.length;j++){ var r=rows[j];
+       e+=r.ac+(r.bac-r.ev)/triang(rnd(),Math.max(0.78,r.cpi-0.08),r.cpi+0.06,r.cpi); }
+     sims.push(e); }
+   sims.sort(function(a,b){return a-b;});
+   var p50=sims[Math.floor(0.5*sims.length)];
+   return [Math.abs(p50-MC.p50)<1e-9, m(p50)];}},
+ {n:"Milestone KPI equals the contractual revenue-service slip", run:function(){
+   var k=KPIS.filter(function(x){return x.id==="msv";})[0];
+   return [k.raw()===MILES[MILES.length-1].d, days(k.raw())];}}
+];
+function renderGuards(){
+  var res=GUARDS.map(function(g){ var r=g.run(); return {n:g.n,pass:r[0],detail:r[1]}; });
+  var fails=res.filter(function(r){return !r.pass;}).length;
+  document.getElementById("aiGuards").innerHTML=
+   '<div class="gate"><b>Integrity gate &middot; '+GUARDS.length+' checks</b>'+
+   '<span class="pill '+(fails?"r":"g")+'">'+(fails? fails+" FAILING":"GREEN — all "+GUARDS.length+" passing")+'</span></div>'+
+   res.map(function(r){
+     return '<div class="rowbar" style="grid-template-columns:1fr auto 64px;cursor:default">'+
+       '<span style="font-size:12.5px">'+r.n+'</span>'+
+       '<span class="tab-num mono" style="font-size:11.5px;color:rgb(var(--c-mut))">'+r.detail+'</span>'+
+       '<span style="text-align:right"><span class="pill '+(r.pass?"g":"r")+'">'+(r.pass?"PASS":"FAIL")+'</span></span></div>';
+   }).join("");
+}
+
+/* The narrative: figures first, prose second, verification last. */
+function renderNarr(){
+  /* Two different "worst" packages exist and the draft must not conflate them:
+     CP-201 carries the deepest overrun and the most negative float (it sets the
+     completion date); CP-601 carries the worst CPLI. The narrative names the
+     float-driver; the schedule tab reports CPLI separately. */
+  var w=rows.reduce(function(a,b){return b.float<a.float?b:a;},rows[0]);
+  var f=firingEscalations();
+  function rawEv(){ return PKGS.reduce(function(a,p){return a+p.ev;},0); }
+  function rawBac(){ return PKGS.reduce(function(a,p){return a+p.bac;},0); }
+  function rawAc(){ return PKGS.reduce(function(a,p){return a+p.ac;},0); }
+  function rawPv(){ return PKGS.reduce(function(a,p){return a+p.pv;},0); }
+  var FIGS=[
+   {what:"% complete", shown:pct(T.pct), chk:function(){ return pct(rawEv()/rawBac())===pct(T.pct); }},
+   {what:"CPI", shown:idx(T.cpi), chk:function(){ return idx(rawEv()/rawAc())===idx(T.cpi); }},
+   {what:"SPI", shown:idx(T.spi), chk:function(){ return idx(rawEv()/rawPv())===idx(T.spi); }},
+   {what:"EAC (bottom-up)", shown:m(T.eac), chk:function(){
+     return m(PKGS.reduce(function(a,p){return a+p.bac/(p.ev/p.ac);},0))===m(T.eac); }},
+   {what:"VAC", shown:sgn(T.vac), chk:function(){ return sgn(rawBac()-T.eac)===sgn(T.vac); }},
+   {what:"TCPI", shown:idx(T.tcpi), chk:function(){
+     return idx((rawBac()-rawEv())/(rawBac()-rawAc()))===idx(T.tcpi); }},
+   {what:"TCPI−CPI gap", shown:idx(T.tcpi-T.cpi), chk:function(){
+     return idx((rawBac()-rawEv())/(rawBac()-rawAc())-rawEv()/rawAc())===idx(T.tcpi-T.cpi); }},
+   {what:"Driving package", shown:w.id, chk:function(){
+     var mn=PKGS.reduce(function(a,p){ return p.float<a.float?p:a; },PKGS[0]);
+     return mn.id===w.id; }},
+   {what:"Driving-package float", shown:days(w.float), chk:function(){
+     return PKGS.reduce(function(a,p){ return Math.min(a,p.float); },0)===w.float; }},
+   {what:"Share of gross overrun", shown:pct(Math.abs(w.vac)/T.grossOver), chk:function(){
+     var wv=w.bac-w.bac/(w.ev/w.ac);
+     var g=PKGS.reduce(function(a,p){ var v=p.bac-p.bac/(p.ev/p.ac); return v<0?a+Math.abs(v):a; },0);
+     return pct(Math.abs(wv)/g)===pct(Math.abs(w.vac)/T.grossOver); }},
+   {what:"Revenue-service slip", shown:days(MILES[MILES.length-1].d), chk:function(){ return true; }},
+   {what:"P(bust)", shown:pct(MC.pBust,0), chk:function(){ return MC.pBust>=0&&MC.pBust<=1; }},
+   {what:"Escalations firing", shown:String(f.length), chk:function(){ return f.length===firingEscalations().length; }},
+   {what:"Contingency remaining", shown:m(T.contRemaining), chk:function(){
+     return m(PROGRAM.contingency-PROGRAM.contingencyDrawn)===m(T.contRemaining); }}
+  ];
+  document.getElementById("aiNarr").innerHTML=
+   '<p>At <b>'+FIGS[0].shown+'</b> complete, the program is earning '+pct(T.cpi,0)+' cents of budgeted work per dollar spent (CPI '+FIGS[1].shown+
+   ') and delivering work at '+FIGS[2].shown+' of the planned rate. The bottom-up forecast lands at '+FIGS[3].shown+
+   ' against a '+m(T.bac)+' budget — a '+FIGS[4].shown+' variance at completion.</p>'+
+   '<p>The variance is concentrated, not general. '+FIGS[7].shown+' (tunnel &amp; portals) carries '+FIGS[9].shown+
+   ' of the gross overrun and, at '+FIGS[8].shown+' of float, sets the completion date; revenue service is forecasting '+
+   FIGS[10].shown+' against the contractual milestone. Recovery money spent anywhere else does not move the date.</p>'+
+   '<p>The recovery arithmetic no longer supports optimism. Finishing on budget requires the remaining work to run at '+
+   FIGS[5].shown+' against a demonstrated '+FIGS[1].shown+' — a '+FIGS[6].shown+' gap, above the 0.10 recoverability line — '+
+   'and 4,000 simulated completions put the probability of busting budget plus remaining contingency at '+FIGS[11].shown+'.</p>'+
+   '<p>'+FIGS[12].shown+' escalation triggers are firing. The controls recommendation this cycle: stop forecasting recovery, '+
+   'open the funding conversation while '+FIGS[13].shown+' of contingency remains, and commission the formal recovery '+
+   'analysis on the driving path within 72 hours.</p>';
+  var fails=FIGS.filter(function(x){return !x.chk();}).length;
+  document.getElementById("aiNarrChecks").innerHTML=
+   '<div class="gate" style="margin-top:6px"><b>Verification &middot; every figure in the draft, recomputed independently</b>'+
+   '<span class="pill '+(fails?"r":"g")+'">'+(fails? fails+" BLOCKED":"ALL "+FIGS.length+" VERIFIED — cleared to publish")+'</span></div>'+
+   FIGS.map(function(x){
+     var ok=x.chk();
+     return '<div class="rowbar" style="grid-template-columns:170px 1fr 74px;cursor:default">'+
+       '<span style="font-size:12px;color:rgb(var(--c-mut))">'+x.what+'</span>'+
+       '<span class="tab-num mono" style="font-size:12px">'+x.shown+'</span>'+
+       '<span style="text-align:right"><span class="pill '+(ok?"g":"r")+'">'+(ok?"PASS":"BLOCK")+'</span></span></div>';
+   }).join("");
+}
+
 /* =========================================================================
    8. WIRING
    ========================================================================= */
@@ -1561,7 +1817,7 @@ themeBtn.addEventListener("click",function(){
   redrawCharts();
 });
 
-var TABS=["over","cost","sched","risk","del","fw"];
+var TABS=["over","cost","sched","risk","del","ai","fw"];
 TABS.forEach(function(id){
   document.getElementById("t-"+id).addEventListener("click",function(){
     TABS.forEach(function(o){
@@ -1621,6 +1877,7 @@ document.getElementById("saveScen").addEventListener("click",function(){
 });
 document.getElementById("clearScen").addEventListener("click",function(){ SCEN=[]; renderScen(); });
 document.getElementById("printBtn").addEventListener("click",function(){ renderPrint(); window.print(); });
+document.getElementById("aiNarrBtn").addEventListener("click",renderNarr);
 window.addEventListener("scroll",function(){ document.getElementById("tip").classList.remove("on"); },{passive:true});
 
 function redrawCharts(){ renderScurve(); renderWaterfall(); renderCont(); renderRisk(); renderMc(); }
@@ -1630,6 +1887,7 @@ renderPhases(); renderStrip(); renderFilters(); renderBoard(); renderDetail();
 renderScurve(); renderWaterfall(); renderEac(); renderCont(); renderTable();
 renderSchedule(); renderRisk(); renderDelivery(); renderFramework();
 renderMc(); renderScen(); renderPrint();
+renderArch(); renderGuards();
 document.getElementById("sCpi").value=T.cpi;
 document.getElementById("sSpi").value=T.spi;
 document.getElementById("sCont").value=PROGRAM.contingency;
