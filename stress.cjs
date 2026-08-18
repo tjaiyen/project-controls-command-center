@@ -322,7 +322,7 @@ try {
 // integrity gate: every check passes, pill count matches
 const guardPasses = (G.aiGuards._html.match(/>PASS</g) || []).length;
 const guardFails = (G.aiGuards._html.match(/>FAIL</g) || []).length;
-ok(guardPasses === 23 && guardFails === 0, "integrity gate: 23 PASS, 0 FAIL",
+ok(guardPasses === 27 && guardFails === 0, "integrity gate: 27 PASS, 0 FAIL",
    guardPasses + " pass / " + guardFails + " fail");
 has("aiGuards", "GREEN", "gate shows GREEN");
 ok(G.arch._html.includes("fct_control_account") && G.arch._html.includes("integrity gate"),
@@ -434,6 +434,58 @@ has("glossList", "Buyout", "glossary covers buyout");
 // integrity gate grew to cover the new modules
 has("aiGuards", "Estimate-to-budget bridge", "gate covers the baseline bridge");
 has("aiGuards", "Delay register ties to package float", "gate covers delay/float consistency");
+
+/* =========================================================================
+   D5.3. FORECAST MODEL — EAC trend, forecast accuracy, monthly cash flow,
+   schedule drift. Four lenses on "is the forecast trustworthy", not just
+   what it currently says.
+   ========================================================================= */
+console.log("== D5.3. forecast model (actual vs plan) ==");
+["eacTrend", "fcastTable", "cashflow", "schedDriftCard"].forEach(id =>
+  ok(idsA.includes(id), "markup contains #" + id));
+
+// A. EAC trend — pre-registered: 5 hand-authored points + 1 live, all-positive deltas
+{
+  const s = P.eacTrendSeries();
+  ok(s.length === 6, "EAC trend has 6 periods (5 history + 1 live)", String(s.length));
+  ok(s[s.length - 1].eac === T.eac, "EAC trend's current point reads live off T.eac, not duplicated");
+  const deltas = [];
+  for (let i = 1; i < s.length; i++) deltas.push(s[i].eac - s[i - 1].eac);
+  ok(deltas.every(d => d > 0), "EAC has risen every single period — genuinely diverging, not oscillating",
+    deltas.map(d => d.toFixed(2)).join(","));
+  has("eacTrend", "diverging", "EAC trend prose calls out the divergence");
+}
+// B. Forecast accuracy — pre-registered: 3 small misses, 1 large miss in the most recent month
+{
+  const fa = P.forecastAccuracy();
+  ok(fa.length === 4, "4 scored forecast periods", String(fa.length));
+  ok(fa[fa.length - 1].actual === T.ac, "most recent scored actual reads live off T.ac, not duplicated");
+  ok(Math.abs(fa[0].errPct) < 0.01 && Math.abs(fa[1].errPct) < 0.01 && Math.abs(fa[2].errPct) < 0.01,
+    "first 3 forecast periods are small misses (<1%)", fa.slice(0, 3).map(r => (r.errPct * 100).toFixed(2)).join(","));
+  ok(fa[fa.length - 1].errPct > 0.04, "most recent period is a genuine, larger miss (>4%) — the method didn't see the tunnel acceleration coming",
+    (fa[fa.length - 1].errPct * 100).toFixed(2) + "%");
+  has("fcastTable", "Average absolute error", "forecast-accuracy table shows a summary error rate");
+}
+// C. Monthly cash flow — derived from the SAME pvA/acA arrays the S-curve already renders
+{
+  ok((G.cashflow._html.match(/<tr/g) || []).length === 7, "cash-flow table renders header + 6 months",
+    String((G.cashflow._html.match(/<tr/g) || []).length));
+  let actualSum = 0;
+  for (let j = 16; j < 22; j++) actualSum += P.acA[j] - (j > 0 ? P.acA[j - 1] : 0);
+  ok(Math.abs(actualSum - (P.acA[21] - P.acA[15])) < 1e-6, "6 monthly deltas sum back to the cumulative S-curve span");
+}
+has("aiGuards", "reads live off this program", "integrity gate covers at least one forecast-model tie-out");
+// D. Schedule forecast drift — pre-registered: 5 all-positive deltas, current tied to MILES[6].d
+{
+  const s = P.revSvcDriftSeries();
+  ok(s.length === 6, "schedule-drift series has 6 periods", String(s.length));
+  ok(s[s.length - 1].slip === P.milesLast.d, "schedule-drift current point reads live off the revenue-service milestone");
+  const deltas = [];
+  for (let i = 1; i < s.length; i++) deltas.push(s[i].slip - s[i - 1].slip);
+  ok(deltas.every(d => d > 0), "revenue-service slip has grown every single period", deltas.join(","));
+  has("schedDriftCard", "still finding its true finish", "schedule-drift prose calls out the ongoing slip");
+  has("schedDriftCard", "R-01, NCR-2026-014", "schedule-drift prose cross-references the same tunnel root cause");
+}
 
 /* =========================================================================
    D5.4. CREW COST-PER-HOUR — a fourth axis (weekly, crew-level burn rate)

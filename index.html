@@ -434,6 +434,30 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         </div>
       </div>
 
+      <div class="sec-h" style="margin-top:34px"><h2>Forecast reliability</h2><span class="tag">is the forecast trustworthy?</span></div>
+      <p class="lede">A single EAC answers &ldquo;what will this cost.&rdquo; It cannot answer the question
+        that actually matters to a program director: is this forecast getting more trustworthy over time, or
+        less &mdash; and how far off was last month's prediction from what actually happened? Both are
+        checkable, and neither shows up if you only ever look at today's number.</p>
+      <div class="grid g2">
+        <div class="card"><h3>EAC trend &mdash; last 6 reporting periods</h3>
+          <p class="lede" style="font-size:12.5px;margin-top:5px">A forecast that oscillates is noisy but
+            healthy. A forecast that moves the same direction every single period is not stabilizing &mdash;
+            it is <em>diverging</em>, and the trend line is the only way to see that before it is obvious.</p>
+          <div id="eacTrend"></div></div>
+        <div class="card"><h3>1-month-ahead forecast accuracy</h3>
+          <p class="lede" style="font-size:12.5px;margin-top:5px">Grades the forecasting method, not the
+            program: what a simple run-rate projection said last month's actual cost would be, versus what it
+            actually was. This is expected to be wrong sometimes &mdash; a scorecard that is never wrong is
+            not measuring anything.</p>
+          <div class="tw" style="min-width:0"><table style="min-width:520px" id="fcastTable"></table></div></div>
+      </div>
+      <div class="card" style="margin-top:15px"><h3>Monthly spend rate &mdash; planned vs. actual</h3>
+        <p class="lede" style="font-size:12.5px;margin-top:5px">Everything else on this tab is cumulative,
+          which smooths out exactly the acceleration or deceleration a program director needs to see. This is
+          the same S-curve data, one month at a time instead of running total.</p>
+        <div class="tw" style="min-width:0"><table style="min-width:480px" id="cashflow"></table></div></div>
+
       <div class="sec-h" style="margin-top:34px"><h2>What-if model</h2><span class="tag">forecasting</span></div>
       <p class="lede">Drag the performance indices and watch the forecast move. This is the conversation a
         controls manager has with a program director: not &ldquo;we are over&rdquo;, but &ldquo;here is what
@@ -503,6 +527,13 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
             on plan?). Three numbers, three different failure modes.</p>
           <div class="outbox" id="schedTriad"></div></div>
       </div>
+
+      <div class="sec-h" style="margin-top:34px"><h2>Revenue-service forecast drift</h2><span class="tag">trend, not a snapshot</span></div>
+      <p class="lede">The milestone table above shows today's variance against the contractual date. This
+        shows the same forecast&rsquo;s <em>trajectory</em> &mdash; whether the projected date has been
+        stabilizing or sliding further out each period, which is the difference between a schedule under
+        control and one still finding its true finish.</p>
+      <div class="card" style="margin-top:15px" id="schedDriftCard"></div>
 
       <div class="sec-h" style="margin-top:34px"><h2>Delay events &amp; time impact analysis</h2><span class="tag">claims posture</span></div>
       <p class="lede">When something slips, the question is never &ldquo;who is to blame&rdquo; first &mdash;
@@ -843,6 +874,34 @@ var MILES = [
  {n:"Pre-revenue testing start",     base:"01 Oct 2027", fc:"12 Nov 2027", d: 42},
  {n:"Revenue service",               base:"15 Mar 2028", fc:"24 Apr 2028", d: 40}
 ];
+
+/* Forecast reliability — is the forecast itself trustworthy, not just what it currently says.
+   Five raw monthly reporting snapshots per series; the sixth (current) point is read live off
+   this program's own totals below, never duplicated. */
+var EAC_HISTORY=[
+ {m:"Feb",eac:1266.0},{m:"Mar",eac:1274.0},{m:"Apr",eac:1281.0},{m:"May",eac:1288.0},{m:"Jun",eac:1296.0}
+];
+var AC_HISTORY=[
+ {m:"Feb",ac:610.0},{m:"Mar",ac:655.0},{m:"Apr",ac:698.0},{m:"May",ac:738.0},{m:"Jun",ac:776.0}
+];
+var REVSVC_HISTORY=[
+ {m:"Feb",slip:16},{m:"Mar",slip:21},{m:"Apr",slip:26},{m:"May",slip:31},{m:"Jun",slip:36}
+];
+function eacTrendSeries(){ return EAC_HISTORY.concat([{m:"Jul*",eac:T.eac}]); }
+function acHistorySeries(){ return AC_HISTORY.concat([{m:"Jul*",ac:T.ac}]); }
+function revSvcDriftSeries(){ return REVSVC_HISTORY.concat([{m:"Jul*",slip:MILES[MILES.length-1].d}]); }
+/* Naive run-rate forecast: next month = this month + this month's own delta from the one before.
+   Deliberately simple and transparent, so a miss is a genuine forecast-method finding, not a
+   tuned model quietly hiding its own errors. */
+function forecastAccuracy(){
+  var s=acHistorySeries(), out=[], i;
+  for(i=2;i<s.length;i++){
+    var prev1=s[i-1].ac, prev2=s[i-2].ac, actual=s[i].ac;
+    var forecast=prev1+(prev1-prev2);
+    out.push({m:s[i].m,forecast:forecast,actual:actual,err:actual-forecast,errPct:(actual-forecast)/actual});
+  }
+  return out;
+}
 
 var RISKS = [
  {id:"R-01",n:"Tunnel ground conditions worse than baseline",p:4,i:5,cost:18.5,own:"Tunnel CM",     mit:"Supplemental geotechnical program; staged contingency release tied to face mapping"},
@@ -1597,6 +1656,44 @@ function renderCont(){
     m(T.contRemaining)+' remains against '+m(T.overrun+T.riskExposure)+' of forecast overrun plus priced risk.</p>';
 }
 
+/* ---------- forecast reliability ---------- */
+function renderEacTrend(){
+  var s=eacTrendSeries(), deltas=[], i;
+  for(i=1;i<s.length;i++) deltas.push({m:s[i].m,delta:s[i].eac-s[i-1].eac});
+  var allUp=deltas.every(function(d){ return d.delta>0; });
+  bars("eacTrend",deltas.map(function(d){ return {id:d.m,v:d.delta,c:d.delta>0?"var(--c-pill-r)":"var(--c-pill-g)"}; }),sgn);
+  document.getElementById("eacTrend").insertAdjacentHTML("beforeend",
+    '<p style="margin:12px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">Each bar is the change in EAC '+
+    'from the prior period, not the EAC itself. '+(allUp?
+    'It has moved in the <b style="color:rgb(var(--c-ink))">same direction — up — every single one of the last '+
+    deltas.length+' periods</b>. That is not noise; a healthy forecast oscillates. This one is diverging.':
+    'It has moved in both directions, which is normal variation, not a systemic drift.')+
+    ' Net movement over '+deltas.length+' periods: '+sgn(s[s.length-1].eac-s[0].eac)+'.</p>');
+}
+function renderFcastTable(){
+  var rows2=forecastAccuracy();
+  document.getElementById("fcastTable").innerHTML=
+    '<thead><tr><th scope="col">Month</th><th scope="col">1-mo-ahead forecast</th>'+
+    '<th scope="col">Actual</th><th scope="col">Error</th></tr></thead><tbody>'+
+    rows2.map(function(r){ return '<tr style="cursor:default"><td>'+r.m+'</td>'+
+      '<td class="tab-num">'+m(r.forecast)+'</td><td class="tab-num">'+m(r.actual)+'</td>'+
+      '<td class="tab-num '+(Math.abs(r.errPct)>0.03?"ba":"ok")+'">'+sgn(r.err)+' ('+pct(Math.abs(r.errPct))+')</td></tr>'; }).join("")+
+    '</tbody><tfoot><tr style="cursor:default"><td>Average absolute error</td><td></td><td></td>'+
+    '<td class="tab-num">'+pct(rows2.reduce(function(s,r){return s+Math.abs(r.errPct);},0)/rows2.length)+'</td></tr></tfoot>';
+}
+function renderCashflow(){
+  var n=Math.min(6,ME), months=[], i;
+  for(i=ME-n;i<ME;i++){
+    months.push({idx:i, planned:pvA[i]-(i>0?pvA[i-1]:0), actual:acA[i]-(i>0?acA[i-1]:0)});
+  }
+  document.getElementById("cashflow").innerHTML=
+    '<thead><tr><th scope="col">Month</th><th scope="col">Planned spend</th>'+
+    '<th scope="col">Actual spend</th><th scope="col">Variance</th></tr></thead><tbody>'+
+    months.map(function(w){ var v=w.actual-w.planned; return '<tr style="cursor:default"><td class="mono" style="font-size:11.5px">M'+
+      (w.idx+1)+'</td><td class="tab-num">'+m(w.planned)+'</td><td class="tab-num">'+m(w.actual)+'</td>'+
+      '<td class="tab-num '+(v>0.5?"ba":v<-0.5?"ok":"")+'">'+sgn(v)+'</td></tr>'; }).join("")+'</tbody>';
+}
+
 /* ---------- what-if + scenarios ---------- */
 function computeWhatIf(cpi,spi,cont){
   var eac=T.bac/cpi, vac=T.bac-eac;
@@ -1858,6 +1955,26 @@ function renderSchedule(){
     'agree because they share one model: D-01 is the '+days(22)+' behind CP-601&rsquo;s negative float; '+
     'D-02 is the '+days(40)+' driving revenue service '+days(MILES[MILES.length-1].d)+
     ' late. An event with no fragnet is an opinion; an event with one is arithmetic.</p>';
+  renderSchedDrift();
+}
+function renderSchedDrift(){
+  var s=revSvcDriftSeries(), deltas=[], i;
+  for(i=1;i<s.length;i++) deltas.push({m:s[i].m,delta:s[i].slip-s[i-1].slip});
+  var allUp=deltas.every(function(d){ return d.delta>0; });
+  document.getElementById("schedDriftCard").innerHTML=
+   '<div style="display:flex;gap:22px;flex-wrap:wrap;margin-bottom:14px">'+
+   [["First measured slip",days(s[0].slip)],
+    ["Current forecast slip",days(s[s.length-1].slip)],
+    ["Net drift over "+deltas.length+" periods",days(s[s.length-1].slip-s[0].slip)]
+   ].map(function(r){ return '<div><div class="k" style="font:600 9.5px/1.3 ui-monospace,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgb(var(--c-mut))">'+
+     r[0]+'</div><div class="v" style="margin-top:5px;font:600 .98rem/1.2 inherit">'+r[1]+'</div></div>'; }).join("")+
+   '</div><div id="schedDriftBars"></div>'+
+   '<p style="margin:12px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">'+(allUp?
+     'The projected revenue-service date has slipped further out in <b style="color:rgb(var(--c-ink))">every one of the last '+
+     deltas.length+' reporting periods</b> — a schedule that is still finding its true finish, not one holding a recovered date.':
+     'The projected date has moved both directions across these periods, consistent with a schedule that has stabilized rather than one still sliding.')+
+   ' Driven by the same tunnel condition carried by R-01, NCR-2026-014 and the crew cost-per-hour spike on the Delivery tab &mdash; one root cause showing up in four different instruments.</p>';
+  bars("schedDriftBars",deltas.map(function(d){ return {id:d.m,v:d.delta,c:d.delta>0?"var(--c-pill-r)":"var(--c-pill-g)"}; }),days);
 }
 
 /* ---------- risk tab ---------- */
@@ -2497,7 +2614,21 @@ var GUARDS=[
      idle+=CPH_CELLS[0].weeks[i].idlePct*CPH_CELLS[0].hrsPerWeek*CPH_CELLS[0].baseline;
    }
    var ok=Math.abs(overrun-c.totalOverrun)<1e-6 && Math.abs(idle-c.totalIdle)<1e-6;
-   return [ok, usd(overrun)+" / "+usd(idle)];}}
+   return [ok, usd(overrun)+" / "+usd(idle)];}},
+ {n:"EAC trend's current-period point reads live off this program's own EAC, never duplicated", run:function(){
+   var s=eacTrendSeries();
+   return [s[s.length-1].eac===T.eac, m(s[s.length-1].eac)];}},
+ {n:"Forecast-accuracy series' current-period actual reads live off this program's own AC", run:function(){
+   var s=acHistorySeries();
+   return [s[s.length-1].ac===T.ac, m(s[s.length-1].ac)];}},
+ {n:"Schedule-drift series' current point reads live off the revenue-service milestone", run:function(){
+   var s=revSvcDriftSeries();
+   return [s[s.length-1].slip===MILES[MILES.length-1].d, days(s[s.length-1].slip)];}},
+ {n:"Monthly cash-flow deltas sum back to the cumulative S-curve span they were sliced from", run:function(){
+   var n=Math.min(6,ME), actualSum=0, i;
+   for(i=ME-n;i<ME;i++) actualSum+=acA[i]-(i>0?acA[i-1]:0);
+   var span=acA[ME-1]-(ME-n>0?acA[ME-n-1]:0);
+   return [Math.abs(actualSum-span)<1e-6, m(actualSum)+" = "+m(span)];}}
 ];
 function renderGuards(){
   var res=GUARDS.map(function(g){ var r=g.run(); return {n:g.n,pass:r[0],detail:r[1]}; });
@@ -2790,6 +2921,7 @@ function redrawCharts(){ renderScurve(); renderWaterfall(); renderCont(); render
 /* init */
 renderPhases(); renderStrip(); renderPortfolio(); renderFilters(); renderBoard(); renderDetail();
 renderScurve(); renderWaterfall(); renderBaseline(); renderEac(); renderCont(); renderTable();
+renderEacTrend(); renderFcastTable(); renderCashflow();
 renderSchedule(); renderRisk(); renderContracts(); renderDelivery(); renderFramework(); renderActions();
 renderMc(); renderScen(); renderPrint();
 renderArch(); renderGuards();
@@ -2805,7 +2937,9 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,program:PROGRAM,eacs:EACS,mc:MC,
   wbs:WBS,gates:GATES,gate5Checks:GATE5_CHECKS,
   contracts:CONTRACTS,deriveContract:deriveContract,
   portfolioRows:portfolioRows,
-  cphCells:CPH_CELLS,deriveCph:deriveCph};
+  cphCells:CPH_CELLS,deriveCph:deriveCph,
+  eacTrendSeries:eacTrendSeries,acHistorySeries:acHistorySeries,forecastAccuracy:forecastAccuracy,
+  revSvcDriftSeries:revSvcDriftSeries,pvA:pvA,acA:acA,milesLast:MILES[MILES.length-1]};
 })();
 </script>
 </body>
