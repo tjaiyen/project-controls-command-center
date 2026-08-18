@@ -192,6 +192,14 @@ h4{font-size:.86rem;margin:0 0 5px}
 .pill.a{background:rgb(var(--c-warn) / .16);color:var(--c-pill-a)}
 .pill.r{background:rgb(var(--c-bad) / .15);color:var(--c-pill-r)}
 .pill.i{background:rgb(var(--c-info) / .15);color:var(--c-pill-i)}
+.rcItem{display:block;width:100%;text-align:left;background:none;border:1px solid var(--c-line);
+  border-radius:8px;padding:8px 10px;margin-top:8px;cursor:pointer;font:inherit;color:inherit}
+.rcItem:hover,.rcItem:focus-visible{border-color:rgb(var(--c-accent) / .55);background:rgb(var(--c-accent) / .06)}
+.rcTitle{display:block;margin-top:5px;font-size:12.5px;font-weight:600;color:rgb(var(--c-ink))}
+.rcMeta{display:block;margin-top:2px;font:500 11px/1.4 ui-monospace,monospace;color:rgb(var(--c-mut))}
+.rcRoot{display:block;margin-top:4px;font-size:11.8px;color:rgb(var(--c-mut))}
+@keyframes jumpFlash{0%,100%{background:transparent}30%{background:rgb(var(--c-accent) / .18)}}
+.jump-flash{animation:jumpFlash 1.5s ease-out}
 .ok{color:var(--c-pill-g)} .wa{color:var(--c-pill-a)} .ba{color:var(--c-pill-r)} .inf{color:var(--c-pill-i)}
 
 /* tables */
@@ -750,6 +758,14 @@ join dim_control_account b using (package_id)</pre></div>
         and a clock.</p>
       <div class="tw"><table id="escTable" style="min-width:720px"></table></div>
 
+      <div class="sec-h" style="margin-top:34px"><h3>Working backward from Gate 5 &mdash; a worked example</h3></div>
+      <p class="lede">A short problem-solving method applied to this program's real numbers: define the end
+        state, find the condition that has to hold immediately before it, trace that back to the raw inputs,
+        then name today's actual bottleneck &mdash; an owner and a due date, not just a diagnosis. Every
+        number below is read live off the same Gate 5 card, escalation matrix and ledger already on this
+        tab &mdash; nothing here is a hypothetical.</p>
+      <div class="card" style="margin-top:12px" id="invCard"></div>
+
       <div class="sec-h" style="margin-top:34px"><h3>Reporting cadence</h3></div>
       <div class="grid g2" id="cadence"></div>
 
@@ -1078,14 +1094,14 @@ var GATES=[
    workflow if any check fails; this one can and does (contingency coverage), which is the point:
    a gate that always shows green isn't checking anything. */
 var GATE5_CHECKS=[
- {n:"100% of control accounts mapped to a WBS element and OBS owner", run:function(){
+ {key:"wbsMapped", n:"100% of control accounts mapped to a WBS element and OBS owner", run:function(){
    var mapped=PKGS.every(function(p){ return WBS.some(function(w){ return w.ca===p.id; }); });
    var n=WBS.filter(function(w){ return PKGS.some(function(p){ return p.id===w.ca; }); }).length;
    return [mapped, n+" of "+PKGS.length+" mapped"];}},
- {n:"CPM baseline locked (every control account carries a non-zero planned value)", run:function(){
+ {key:"baselineLocked", n:"CPM baseline locked (every control account carries a non-zero planned value)", run:function(){
    var ok=PKGS.every(function(p){ return p.pv>0; });
    return [ok, PKGS.length+" packages checked"];}},
- {n:"Risk-adjusted contingency reserve covers exposure (coverage &ge; 1.00)", run:function(){
+ {key:"contCoverage", n:"Risk-adjusted contingency reserve covers exposure (coverage &ge; 1.00)", run:function(){
    return [T.contCoverage>=1.0, idx(T.contCoverage)];}}
 ];
 
@@ -1498,11 +1514,55 @@ function renderDetail(){
       '<div class="dbox"><h4>Thresholds</h4><p>'+k.th+'</p></div>'+
       '<div class="dbox"><h4>System of record</h4><p>'+k.src+'</p></div>'+
     '</div>'+
+    renderRootCause(k,rag)+
     '<p style="margin:14px 0 0;font-size:12.3px;color:rgb(var(--c-mut))">'+
       '<b style="color:rgb(var(--c-ink))">Meaningful in:</b> '+phNames+
       (live?'':' <span class="pill a" style="margin-left:6px">not this phase</span>')+'</p>'+
     '<button class="btn" id="closeDetail" type="button" style="margin-top:14px">Close</button></div>';
   el.scrollIntoView({block:"nearest"});
+}
+
+/* The actual ask this section answers: not just "why is this number bad" (the dbox above already
+   says that in general terms) but "which real, currently-open item is tracking it, who owns that
+   item right now, and by when" — with a click-through straight to that item on the Actions tab.
+   Checked by actual open items FIRST, independent of rag: a KPI can still read green while items
+   feeding it are open but not yet breaching in aggregate (e.g. Risk Exposure is green even though
+   four individual risk-mitigation items under it are still open) — claiming "nothing tracked" in
+   that case would be false, not just unhelpful. */
+function renderRootCause(k,rag){
+  var items=actionsForKpi(k.id);
+  if(!items.length && rag==="g"){
+    return '<div class="dbox" style="border-left-color:rgb(var(--c-ok) / .55);margin-top:13px">'+
+      '<h4>Root cause &amp; ownership</h4>'+
+      '<p>Currently within threshold &mdash; no open item is tracking this metric right now.</p></div>';
+  }
+  if(items.length){
+    var heading = rag==="g" ? "Related open items (already being managed, before this metric breaches)"
+                             : "Root cause &amp; who owns it right now";
+    return '<div class="dbox" style="border-left-color:rgb(var(--c-'+(rag==="g"?"ok":"bad")+') / .55);margin-top:13px">'+
+      '<h4>'+heading+'</h4>'+
+      items.map(function(a){ var sm=STATUS_META[a.status];
+        return '<button type="button" class="rcItem" data-jump="'+a.id+'">'+
+          '<span class="pill '+sm.cls+'">'+sm.label+'</span>'+
+          '<span class="rcTitle">'+a.id+' &mdash; '+a.title+'</span>'+
+          '<span class="rcMeta">'+a.owner+' &middot; due '+a.due+'</span>'+
+          (a.root?'<span class="rcRoot">'+a.root+'</span>':'')+
+        '</button>'; }).join("")+
+      '<p style="margin:8px 0 0;font-size:11.3px;color:rgb(var(--c-mut))">Click an item to open it on the Actions tab.</p>'+
+      '</div>';
+  }
+  var esc=(KPI_ESCALATION[k.id]||[]).map(function(i){ return ESCALATION[i]; });
+  if(esc.length){
+    return '<div class="dbox" style="border-left-color:rgb(var(--c-warn) / .55);margin-top:13px">'+
+      '<h4>Root cause &amp; who owns it right now</h4>'+
+      '<p style="margin-bottom:8px"><b style="color:rgb(var(--c-ink))">No item has been opened for this yet</b> &mdash; '+
+      'here is the escalation rule that applies, so the gap is visible rather than silent:</p>'+
+      esc.map(function(e){ return '<p style="margin:4px 0 0;font-size:12.3px">'+
+        '<span class="mono" style="color:rgb(var(--c-code))">'+e[0]+'</span> &rarr; <b style="color:rgb(var(--c-ink))">'+e[1]+'</b>, '+
+        e[2]+' &mdash; <span class="mono">'+e[3]+'</span></p>'; }).join("")+
+      '</div>';
+  }
+  return "";
 }
 
 /* ---------- S-curve ---------- */
@@ -2254,6 +2314,10 @@ var ESCALATION=[
  ["RFI aged &gt; 30d on the critical path","Design manager","Daily escalation until closed","Daily"],
  ["TRIR above benchmark","Safety manager","Incident-pattern review; check clustering against negative-float packages","Same week"]
 ];
+/* KPI -> ESCALATION row index, for KPIs whose rule has no ACTIONS item logged yet (indices into
+   ESCALATION above). Used only as a fallback in the KPI drawer when actionsForKpi() finds nothing —
+   an honest "here is the rule, no item tracks it yet" rather than a silent gap. */
+var KPI_ESCALATION={tcpi:[2,3],vac:[5]};
 var CADENCE=[
  {t:"Daily",w:"Critical-path exceptions only. Aged RFIs on the driving path, safety incidents, any package that went negative float overnight.",a:"Package managers"},
  {t:"Weekly",w:"Recovery cadence on negative-float packages, change-order aging, three-week look-ahead against plan.",a:"Controls manager + package managers"},
@@ -2288,7 +2352,7 @@ function renderGates(){
         '<td>'+g.name+'</td><td style="white-space:normal;font-size:12px">'+g.board+'</td>'+
         '<td style="white-space:normal;font-size:12px">'+g.exit+'</td></tr>'; }).join("")+'</tbody>';
 
-  var res=GATE5_CHECKS.map(function(c){ var r=c.run(); return {n:c.n,pass:r[0],detail:r[1]}; });
+  var res=GATE5_CHECKS.map(function(c){ var r=c.run(); return {key:c.key,n:c.n,pass:r[0],detail:r[1]}; });
   var fails=res.filter(function(r){ return !r.pass; }).length;
   document.getElementById("gate5Card").innerHTML=
     '<div class="eyebrow">Gate 5 &middot; Baseline Establishment &middot; automated hard stop</div>'+
@@ -2299,10 +2363,48 @@ function renderGates(){
     res.map(function(r){ return '<div class="rowbar" style="grid-template-columns:1fr auto;align-items:center">'+
       '<span style="font-size:12.5px">'+r.n+'</span>'+
       '<span class="pill '+(r.pass?"g":"r")+'" style="margin-left:10px">'+(r.pass?"PASS":"FAIL")+' &middot; '+r.detail+'</span></div>'; }).join("");
+  return res;
+}
+
+/* Working backward, worked live: end state (Gate 5 clears) -> the condition that has to hold
+   immediately before it (contingency coverage >= 1.00) -> raw inputs (the same ledger every other
+   tab reads) -> today's actual bottleneck (a named owner and due date, or an honest gap). Every
+   value below is read off GATE5_CHECKS/ESCALATION/actionsForKpi — nothing is a separate claim.
+   Takes gate5Res (renderGates()'s own already-computed result) so the 3 checks aren't re-run, and
+   looks the coverage check up by its stable `key`, not by array position — GATE5_CHECKS is small
+   and only ever reordered by hand, but ESCALATION was reordered once already this build (the
+   escalation-index bug an earlier stress pass caught), so a position-only read here would be the
+   same fragility recurring rather than a one-off. */
+function renderInversion(gate5Res){
+  var cov=gate5Res.filter(function(r){ return r.key==="contCoverage"; })[0];
+  var covPass=gate5Res.filter(function(r){ return r.pass; }).length;
+  var esc=ESCALATION[4];
+  var lead=actionsForKpi("ccr").filter(function(a){ return a.owner===esc[1]; })[0];
+  var steps=[
+   ["1 &middot; Define the end state","Gate 5 clears &mdash; the Board can lock the lifetime baseline; "+
+     "all three checks must read PASS. Today: <b>"+covPass+" of 3</b>."],
+   ["2 &middot; The condition that has to hold immediately before it","Contingency coverage &ge; 1.00. "+
+     "It currently reads <b>"+idx(T.contCoverage)+"</b> &mdash; "+(cov.pass?"already true.":"still short.")+
+     " <span class=\"pill "+(cov.pass?"g":"r")+"\" style=\"margin-left:4px\">"+(cov.pass?"PASS":"FAIL")+"</span>"],
+   ["3 &middot; Trace back to the raw inputs","Contingency coverage = remaining contingency &divide; (forecast "+
+     "overrun + risk exposure). Remaining contingency is "+m(T.contRemaining)+" ("+m(PROGRAM.contingency)+
+     " authorized less "+m(PROGRAM.contingencyDrawn)+" drawn, contingency register). Demand is "+
+     m(T.overrun+T.riskExposure)+": "+m(T.overrun)+" forecast overrun from the same eleven-input ledger "+
+     "every other tab reads, plus "+m(T.riskExposure)+" risk exposure (probability band &times; cost, "+
+     "across the open risk register)."],
+   ["4 &middot; Name today's bottleneck","<span class=\"mono\" style=\"font-size:11.5px\">"+esc[0]+"</span> "+
+     "&rarr; owner <b>"+esc[1]+"</b>, "+esc[2]+", clock: <span class=\"mono\">"+esc[3]+"</span>. "+
+     (lead?"Tracked as <b>"+lead.id+"</b>, due "+lead.due+" &mdash; "+STATUS_META[lead.status].label.toLowerCase()+".":
+       "No item currently tracks this breach &mdash; the gap is visible, not silent.")]
+  ];
+  document.getElementById("invCard").innerHTML=
+    '<div class="eyebrow">Working backward &middot; inversion, not a hypothetical</div>'+
+    steps.map(function(s){ return '<div class="dbox" style="margin-top:12px"><h4>'+s[0]+'</h4><p>'+s[1]+'</p></div>'; }).join("")+
+    (lead?'<button type="button" class="btn" data-jump="'+lead.id+'" style="margin-top:12px">Open '+lead.id+' on the Actions tab &rarr;</button>':"");
 }
 
 function renderFramework(){
-  renderWbs(); renderGates();
+  renderWbs(); renderInversion(renderGates());
   document.getElementById("playbook").innerHTML=PHASES.map(function(p,i){
     var pb=PLAYBOOK.filter(function(x){return x.k===p.k;})[0];
     var live=KPIS.filter(function(k){return k.ph.indexOf(p.k)>=0;});
@@ -2344,72 +2446,72 @@ function actDays(iso){ return Math.round((ACT_ASOF - new Date(iso+"T00:00:00Z"))
 
 var ACTIONS=[
  {id:"A-01",type:"Issue",title:"CP-201 cost performance index below threshold",
-  src:"Escalation rule &middot; CPI &lt; 0.95",pkg:"CP-201",owner:"Control account manager",
+  src:"Escalation rule &middot; CPI &lt; 0.95",pkg:"CP-201",owner:"Control account manager",kpi:["cpi","cv"],
   opened:"2026-06-25",due:"2026-07-10",touch:"2026-07-30",
   desc:"CPI has run below 0.95 on the tunnel package for two consecutive periods &mdash; the escalation rule's own trigger for a root-cause review.",
   root:"Ground conditions worse than the geotechnical baseline are driving rework in the tunnel face, consuming hours the earned-value baseline did not plan for.",
   corrective:"Supplemental geotechnical program staged against face mapping (R-01's mitigation); crews resequenced around confirmed soft zones.",
   preventive:"Contingency release is now gated to face-mapping evidence rather than elapsed time, so a future ground-condition surprise draws reserve on confirmed need, not schedule pressure."},
  {id:"A-02",type:"Task",title:"CP-201 recovery cadence &mdash; negative float",
-  src:"Escalation rule &middot; any package at &le;0 float",pkg:"CP-201",owner:"Package manager",
+  src:"Escalation rule &middot; any package at &le;0 float",pkg:"CP-201",owner:"Package manager",kpi:["float"],
   opened:"2026-06-20",due:"2026-07-15",touch:"2026-07-29",
   desc:"CP-201 is carrying -40 days of total float. The escalation matrix calls for a weekly recovery cadence with a named owner once a package crosses zero float."},
  {id:"A-03",type:"Task",title:"CP-601 formal recovery analysis &mdash; driving-path CPLI",
-  src:"Escalation rule &middot; CPLI &lt; 0.95 on the driving path",pkg:"CP-601",owner:"Program scheduler",
+  src:"Escalation rule &middot; CPLI &lt; 0.95 on the driving path",pkg:"CP-601",owner:"Program scheduler",kpi:["cpli"],
   opened:"2026-07-01",due:"2026-07-18",touch:"2026-07-30",
   desc:"Critical Path Length Index on CP-601's driving path has fallen under 0.95 &mdash; the escalation matrix's 72-hour formal-recovery-analysis clock, still open well past that window."},
  {id:"A-04",type:"Issue",title:"R-01 tunnel ground conditions &mdash; mitigation execution",
-  src:"Risk register &middot; R-01",pkg:"CP-201",owner:"Tunnel CM",
+  src:"Risk register &middot; R-01",pkg:"CP-201",owner:"Tunnel CM",kpi:["expo","ccr","cpi","cv"],
   opened:"2026-06-10",due:"2026-07-20",touch:"2026-07-28",
   desc:"Top-ranked risk by exposure ($18.5M cost band). This item tracks whether the mitigation is actually running, not whether it is written down.",
   root:"Face conditions are varying faster than the original geotechnical program sampled for.",
   corrective:"Supplemental geotechnical program and staged contingency release tied to face mapping, per the register's own mitigation.",
   preventive:"Face-mapping cadence becomes a standing input to future tunnel-package baselines, not a one-time response."},
  {id:"A-05",type:"Task",title:"Critical-path RFI aging past 30 days",
-  src:"Escalation rule &middot; RFI aged &gt;30d on the critical path",owner:"Design manager",
+  src:"Escalation rule &middot; RFI aged &gt;30d on the critical path",owner:"Design manager",kpi:["rfi"],
   opened:"2026-06-15",due:"2026-07-08",touch:"2026-07-30",
   desc:"The escalation matrix calls for daily escalation on any critical-path RFI aged past 30 days &mdash; this is the specific aged RFI behind the delivery tab's average age figure."},
  {id:"A-06",type:"Task",title:"CP-601 recovery cadence &mdash; negative float",
-  src:"Escalation rule &middot; any package at &le;0 float",pkg:"CP-601",owner:"Package manager",
+  src:"Escalation rule &middot; any package at &le;0 float",pkg:"CP-601",owner:"Package manager",kpi:["float"],
   opened:"2026-07-18",due:"2026-07-28",touch:"2026-07-31",
   desc:"CP-601 crossed into negative float (-22 days) more recently than CP-201; the weekly recovery cadence is standing up now, one cycle behind the escalation clock."},
  {id:"A-07",type:"Task",title:"CP-101 root-cause review &mdash; CPI below threshold",
-  src:"Escalation rule &middot; CPI &lt; 0.95",pkg:"CP-101",owner:"Control account manager",
+  src:"Escalation rule &middot; CPI &lt; 0.95",pkg:"CP-101",owner:"Control account manager",kpi:["cpi","cv"],
   opened:"2026-07-22",due:"2026-08-01",touch:"2026-07-31",
   desc:"CP-101's CPI (0.935) crossed under 0.95 this reporting period. Scheduled for the next weekly per the escalation rule &mdash; early enough in its life to still be routine, not yet a pattern."},
  {id:"A-08",type:"Task",title:"CP-701 recovery cadence &mdash; zero float",
-  src:"Escalation rule &middot; any package at &le;0 float",pkg:"CP-701",owner:"Package manager",
+  src:"Escalation rule &middot; any package at &le;0 float",pkg:"CP-701",owner:"Package manager",kpi:["float"],
   opened:"2026-07-24",due:"2026-08-04",touch:"2026-07-30",
   desc:"CP-701 sits at exactly zero float. Not yet negative, but the rule treats &le;0 as the trigger &mdash; the cadence starts before the package actually slips."},
  {id:"A-09",type:"Decision",title:"Contingency coverage funding conversation",
-  src:"Escalation rule &middot; contingency coverage &lt; 1.00",owner:"Program director",
+  src:"Escalation rule &middot; contingency coverage &lt; 1.00",owner:"Program director",kpi:["ccr"],
   opened:"2026-07-14",due:"2026-08-06",touch:"2026-07-18",
   desc:"Contingency coverage is drifting toward the escalation threshold. The rule calls for an immediate sponsor funding conversation once coverage drops under 1.00 &mdash; this decision needs to land before that line is crossed, not after."},
  {id:"A-10",type:"Task",title:"R-02 utility approval cadence",
-  src:"Risk register &middot; R-02",owner:"Utilities Lead",
+  src:"Risk register &middot; R-02",owner:"Utilities Lead",kpi:["expo"],
   opened:"2026-07-05",due:"2026-08-15",touch:"2026-07-29",
   desc:"Weekly owner cadence with the two longest-lead utility crossings, per the register's mitigation. Cadence is running; this item tracks that it keeps running."},
  {id:"A-11",type:"Task",title:"R-03 systems integration test-window negotiation",
-  src:"Risk register &middot; R-03",owner:"Systems PM",
+  src:"Risk register &middot; R-03",owner:"Systems PM",kpi:["expo"],
   opened:"2026-07-01",due:"2026-08-20",touch:"2026-07-15",
   desc:"Negotiating extended night test windows and pre-staging commissioning off the critical path, per the register's mitigation. In progress, but hasn't been touched in the log in two weeks."},
  {id:"A-12",type:"Task",title:"Change-order aging backlog past 30 days",
-  src:"Escalation rule &middot; change order aging &gt;30d",owner:"Change board chair",
+  src:"Escalation rule &middot; change order aging &gt;30d",owner:"Change board chair",kpi:["pce"],
   opened:"2026-07-10",due:"2026-08-12",touch:"2026-07-29",
   desc:"Working the aged-change backlog to resolution-or-reject, per the weekly-review clock in the escalation matrix."},
  {id:"A-13",type:"Task",title:"TRIR incident-pattern periodic review",
-  src:"Escalation rule &middot; TRIR above benchmark (standing watch)",owner:"Safety manager",
+  src:"Escalation rule &middot; TRIR above benchmark (standing watch)",owner:"Safety manager",kpi:["trir"],
   opened:"2026-07-29",due:"2026-08-25",touch:"2026-07-31",
   desc:"TRIR is currently under benchmark, so this rule hasn't fired &mdash; this is the scheduled periodic check that keeps it that way. Opened this cycle, not yet started."},
  {id:"A-14",type:"Issue",title:"R-04 steel &amp; OCS commodity hedge &mdash; blocked on contract execution",
-  src:"Risk register &middot; R-04",owner:"Procurement",
+  src:"Risk register &middot; R-04",owner:"Procurement",kpi:["expo"],
   opened:"2026-06-20",due:"2026-08-10",touch:"2026-07-25",blocked:true,
   desc:"Early buy on hedgeable commodities per the register's mitigation is priced and ready but blocked pending legal sign-off on the escalation-clause language.",
   root:"Steel and OCS pricing is indexed to a published series currently running ahead of the escalation clause's own trigger.",
   corrective:"Early-buy contract drafted and priced; awaiting legal execution.",
   preventive:"Escalation-clause language gets a standing legal-review SLA so a future hedge window doesn't stall the same way."},
  {id:"A-15",type:"Issue",title:"Submittal turnaround spike &mdash; Q2 (resolved)",
-  src:"Delivery tab &middot; document control",owner:"Design manager",
+  src:"Delivery tab &middot; document control",owner:"Design manager",kpi:["rfi"],
   opened:"2026-06-01",due:"2026-07-10",touch:"2026-07-12",done:true,verified:true,
   verifiedBy:"Document Control Lead",verifiedDate:"2026-07-12",
   desc:"A Q2 submittal-turnaround spike pushed the rolling average briefly over target.",
@@ -2417,7 +2519,7 @@ var ACTIONS=[
   corrective:"Backup reviewer assigned from an adjacent discipline; queue cleared within the week.",
   preventive:"Reviewer-vacancy coverage is now a standing item on the weekly document-control check, so a gap gets a backup assigned the same week it opens, not after the average moves."},
  {id:"NCR-2026-014",type:"Issue",title:"CP-201 tunnel liner &mdash; concrete cylinder test failure",
-  src:"Quality NCR &middot; tied to R-01 ground-condition risk",pkg:"CP-201",owner:"Quality Manager",
+  src:"Quality NCR &middot; tied to R-01 ground-condition risk",pkg:"CP-201",owner:"Quality Manager",kpi:["cpi","cv"],
   opened:"2026-07-08",due:"2026-07-25",touch:"2026-07-29",
   desc:"A set of 28-day concrete cylinder breaks on a tunnel liner pour came in below the specified strength — the same segment where ground conditions have already been running worse than the geotechnical baseline (R-01, A-01, A-04).",
   root:"Mix-water variability during placement, compounded by the wetter-than-planned face conditions the tunnel package is already carrying as a cost issue.",
@@ -2442,6 +2544,26 @@ function actionStatus(a){
   return actDays(a.opened)<=3? "not-started":"in-progress";
 }
 function isStale(a){ return !a.done && actDays(a.touch)>=10; }
+
+/* Root-cause linkage for the Overview KPI drawer: which live Actions/NCR items track THIS metric's
+   breach, right now, with an owner and a due date — not just a generic "the play to run" sentence. */
+function actionsForKpi(kpiId){
+  return ACTIONS.filter(function(a){ return a.kpi && a.kpi.indexOf(kpiId)>=0; })
+    .map(function(a){ return Object.assign({},a,{status:actionStatus(a),stale:isStale(a)}); })
+    .sort(function(a,b){ return actDays(b.due)-actDays(a.due); });
+}
+function jumpToAction(id){
+  state.kpi=null; renderDetail();
+  activateTab("act");
+  state.actFilter="All"; state.act=id; renderActions();
+  setTimeout(function(){
+    var row=document.querySelector('[data-act="'+id+'"]');
+    if(!row) return;
+    row.scrollIntoView({block:"center",behavior:"smooth"});
+    row.classList.add("jump-flash");
+    setTimeout(function(){ row.classList.remove("jump-flash"); },1600);
+  },140);
+}
 
 var STATUS_META={
  "escalated":  {label:"Escalated",  cls:"r"},
@@ -3039,7 +3161,11 @@ document.getElementById("kboard").addEventListener("click",function(e){
   renderDetail();
 });
 document.getElementById("kdetail").addEventListener("click",function(e){
-  if(e.target.id==="closeDetail"){ state.kpi=null; renderDetail(); }
+  if(e.target.id==="closeDetail"){ state.kpi=null; renderDetail(); return; }
+  var b=e.target.closest("[data-jump]"); if(b) jumpToAction(b.dataset.jump);
+});
+document.getElementById("invCard").addEventListener("click",function(e){
+  var b=e.target.closest("[data-jump]"); if(b) jumpToAction(b.dataset.jump);
 });
 document.getElementById("actFilters").addEventListener("click",function(e){
   var b=e.target.closest("[data-actf]"); if(!b) return;
@@ -3105,6 +3231,7 @@ renderWhatIf();
 /* expose for verification */
 window.__PCC__={rows:rows,totals:T,kpis:KPIS,program:PROGRAM,eacs:EACS,mc:MC,
   actions:ACTIONS,actionStatus:actionStatus,isStale:isStale,
+  escalation:ESCALATION,kpiEscalation:KPI_ESCALATION,actionsForKpi:actionsForKpi,jumpToAction:jumpToAction,
   wbs:WBS,gates:GATES,gate5Checks:GATE5_CHECKS,
   contracts:CONTRACTS,deriveContract:deriveContract,
   portfolioRows:portfolioRows,

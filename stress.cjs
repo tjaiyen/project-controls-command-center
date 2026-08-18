@@ -582,6 +582,41 @@ has("gateTable", "Baseline Establishment", "gate table names the baseline-establ
 has("escTable", "TCPI(BAC)", "escalation matrix carries the explicit TCPI &gt; 1.10 rule");
 
 /* =========================================================================
+   D5.7. WORKING BACKWARD / INVERSION — Gate 5 -> CCR -> the ledger -> A-09
+   ========================================================================= */
+console.log("== D5.7. working-backward / inversion component ==");
+ok(idsA.includes("invCard"), "markup contains #invCard");
+{
+  // same pre-registered facts as D5.5's Gate 5 test, walked through the 4-step framework instead.
+  // Looked up by key, not position — renderInversion() itself does the same, on purpose (an earlier
+  // stress pass already caught one hardcoded-index bug on the sibling ESCALATION array).
+  const covCheck = P.gate5Checks.filter(c => c.key === "contCoverage")[0];
+  ok(!!covCheck, "GATE5_CHECKS carries a stable 'contCoverage' key, not just array position");
+  ok(covCheck.run()[0] === false, "pre-registered: contingency-coverage check still fails against this ledger",
+    JSON.stringify(covCheck.run()));
+  const esc = P.escalation[4];
+  ok(esc[0].includes("Contingency coverage") && esc[1] === "Program director",
+    "escalation row 4 is the contingency-coverage rule owned by Program director", JSON.stringify(esc));
+  const ccrActions = P.actionsForKpi("ccr");
+  ok(ccrActions.length === 2, "ccr has exactly 2 linked items (A-04 and A-09) before the owner filter",
+    ccrActions.map(a => a.id).join(","));
+  const lead = ccrActions.filter(a => a.owner === esc[1])[0];
+  ok(lead && lead.id === "A-09", "filtering by the escalation rule's own owner isolates A-09, not A-04",
+    lead && lead.id);
+  has("invCard", "0.588", "inversion card shows the live CCR value");
+  has("invCard", "A-09", "inversion card names the real linked action item");
+  has("invCard", "Program director", "inversion card names the escalation rule's real owner");
+  has("invCard", 'data-jump="A-09"', "inversion card's button jumps to the real action id");
+  has("invCard", "condition that has to hold immediately before it",
+    "inversion card avoids 'predecessor state' wording (collides with CPM predecessor/successor logic)");
+}
+try {
+  fire(G.invCard, "click", { target: { closest: (sel) => sel === "[data-jump]" ? { dataset: { jump: "A-09" } } : null } });
+  ok(G["p-act"].hidden === false && G["p-fw"].hidden === true, "inversion card's jump switches to the Actions tab");
+  has("actDrill", "A-09", "landing on the Actions tab from the inversion card opens A-09's own drill-down");
+} catch (e) { ok(false, "inversion card jump interaction", e.message); }
+
+/* =========================================================================
    D5.6. CONTRACT COMMERCIAL REGISTER — a third aggregation axis (Gap 2)
    ========================================================================= */
 console.log("== D5.6. contract commercial register ==");
@@ -731,6 +766,91 @@ try {
   fire(R.win, "keydown", { key: "N", target: { tagName: "BODY" } });
   ok(G.presentBar._html === beforeKey, "N key does nothing when not presenting");
 } catch (e) { ok(false, "presentation mode interaction", e.message); }
+
+/* =========================================================================
+   D8. KPI root-cause drill-down — Overview cards -> live open items -> Actions tab
+   ========================================================================= */
+console.log("== D8. KPI root-cause drill-down ==");
+{
+  // every ACTIONS/NCR `kpi` tag must reference a real KPIS id — a silent typo here would make a
+  // link vanish with no error, which is exactly the class of bug this suite exists to catch.
+  const kpiIds = new Set(P.kpis.map(k => k.id));
+  const badTags = P.actions.filter(a => a.kpi).flatMap(a => a.kpi.filter(id => !kpiIds.has(id)));
+  ok(badTags.length === 0, "every ACTIONS `kpi` tag matches a real KPI id", badTags.join(","));
+
+  const cpiActions = P.actionsForKpi("cpi").map(a => a.id).sort();
+  ok(JSON.stringify(cpiActions) === JSON.stringify(["A-01", "A-04", "A-07", "NCR-2026-014"].sort()),
+    "actionsForKpi('cpi') resolves to all 4 real linked items", cpiActions.join(","));
+  // A-04 (R-01 mitigation) deliberately carries the tunnel's full connective-tissue tag set
+  ok(P.actions.find(a => a.id === "A-04").kpi.length === 4 &&
+     ["expo", "ccr", "cpi", "cv"].every(k => P.actions.find(a => a.id === "A-04").kpi.includes(k)),
+    "A-04 (R-01) is tagged to all four KPIs the tunnel root cause actually drives");
+
+  const expoActions = P.actionsForKpi("expo").map(a => a.id).sort();
+  ok(JSON.stringify(expoActions) === JSON.stringify(["A-04", "A-10", "A-11", "A-14"].sort()),
+    "actionsForKpi('expo') finds all 4 risk-mitigation items", expoActions.join(","));
+}
+try {
+  // cpi is amber (0.956) and has real linked items — the primary path
+  fire(G.kboard, "click", { target: { closest: () => ({ dataset: { kpi: "cpi" } }) } });
+  has("kdetail", "Root cause &amp; who owns it right now", "breached KPI drawer shows the root-cause section");
+  has("kdetail", "A-01", "cpi drawer links A-01");
+  has("kdetail", "Control account manager", "cpi drawer shows the real assigned owner");
+  has("kdetail", "due 2026-07-10", "cpi drawer shows the real due date");
+  has("kdetail", "data-jump=\"A-01\"", "cpi drawer's A-01 row is clickable");
+  fire(G.kboard, "click", { target: { closest: () => ({ dataset: { kpi: "cpi" } }) } });
+} catch (e) { ok(false, "cpi root-cause section", e.message); }
+try {
+  // cdi is green with zero linked actions — must say so plainly, not render an empty section
+  fire(G.kboard, "click", { target: { closest: () => ({ dataset: { kpi: "cdi" } }) } });
+  has("kdetail", "Currently within threshold", "green KPI with no linked items says so plainly");
+  ok(!G.kdetail._html.includes("Related open items"), "cdi (truly nothing tracked) does not show the open-items heading");
+  fire(G.kboard, "click", { target: { closest: () => ({ dataset: { kpi: "cdi" } }) } });
+} catch (e) { ok(false, "cdi (green, no items) root-cause section", e.message); }
+try {
+  // expo is green but DOES have 4 open items feeding it — the false-negative this session's own
+  // review caught: claiming "nothing tracked" here would be wrong, not just unhelpful
+  fire(G.kboard, "click", { target: { closest: () => ({ dataset: { kpi: "expo" } }) } });
+  has("kdetail", "Related open items", "green-but-tracked KPI (expo) shows the open-items heading, not the empty-state one");
+  ok(!G.kdetail._html.includes("Currently within threshold &mdash; no open item"),
+    "expo does not falsely claim nothing is tracked");
+  has("kdetail", "A-10", "expo drawer includes the R-02 utility item");
+  fire(G.kboard, "click", { target: { closest: () => ({ dataset: { kpi: "expo" } }) } });
+} catch (e) { ok(false, "expo (green, tracked) root-cause section", e.message); }
+try {
+  // tcpi is red with no ACTIONS item yet — the escalation-rule fallback, an honest visible gap
+  fire(G.kboard, "click", { target: { closest: () => ({ dataset: { kpi: "tcpi" } }) } });
+  has("kdetail", "No item has been opened for this yet", "tcpi falls back to the escalation-rule gap message");
+  has("kdetail", "TCPI − CPI &gt; 0.10", "tcpi fallback shows the TCPI-CPI-gap rule");
+  has("kdetail", "TCPI(BAC) &gt; 1.10", "tcpi fallback shows the TCPI(BAC) rule");
+  fire(G.kboard, "click", { target: { closest: () => ({ dataset: { kpi: "tcpi" } }) } });
+} catch (e) { ok(false, "tcpi escalation-fallback section", e.message); }
+try {
+  // vac is red with no ACTIONS item yet either — KPI_ESCALATION's OTHER fallback entry ({vac:[5]}),
+  // previously untested (a stress-test-hunt finding: the tcpi branch was covered, this one wasn't).
+  fire(G.kboard, "click", { target: { closest: () => ({ dataset: { kpi: "vac" } }) } });
+  has("kdetail", "No item has been opened for this yet", "vac falls back to the escalation-rule gap message");
+  has("kdetail", "VAC exceeds remaining contingency", "vac fallback shows its own rule text, not a shifted neighbor's");
+  has("kdetail", "Program director + sponsor", "vac fallback shows the rule's real owner");
+  fire(G.kboard, "click", { target: { closest: () => ({ dataset: { kpi: "vac" } }) } });
+} catch (e) { ok(false, "vac escalation-fallback section", e.message); }
+try {
+  // spi is amber with neither a linked action nor an escalation rule — no section at all, not a
+  // broken/empty one, so it doesn't clutter a card the underlying data genuinely has nothing for
+  fire(G.kboard, "click", { target: { closest: () => ({ dataset: { kpi: "spi" } }) } });
+  ok(!G.kdetail._html.includes("Root cause &amp; who owns") && !G.kdetail._html.includes("Root cause &amp; ownership"),
+    "spi (no link, no rule) renders no root-cause section at all");
+  fire(G.kboard, "click", { target: { closest: () => ({ dataset: { kpi: "spi" } }) } });
+} catch (e) { ok(false, "spi (no section) case", e.message); }
+try {
+  // the actual jump: click A-01's row inside the cpi drawer and land on the Actions tab, on A-01
+  fire(G.kboard, "click", { target: { closest: () => ({ dataset: { kpi: "cpi" } }) } });
+  fire(G.kdetail, "click", { target: { closest: (sel) => sel === "[data-jump]" ? { dataset: { jump: "A-01" } } : null } });
+  ok(G["p-act"].hidden === false && G["p-over"].hidden === true, "jumping from a KPI drawer switches to the Actions tab");
+  ok(G.kdetail._html === "", "jumping from a KPI drawer closes it behind you");
+  has("actDrill", "A-01", "landing on the Actions tab opens A-01's own drill-down");
+  has("actDrill", "Control account manager", "A-01's drill-down shows its real owner");
+} catch (e) { ok(false, "jumpToAction interaction", e.message); }
 
 /* =========================================================================
    E. otak.html — runtime + internal consistency
