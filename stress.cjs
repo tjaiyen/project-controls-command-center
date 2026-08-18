@@ -118,13 +118,41 @@ P.kpis.forEach(k => {
 // playbook claim: "All twenty" live in construction
 ok(P.kpis.every(k => k.ph.includes("con")), "playbook claim: all 20 KPIs live in construction phase");
 
+const T = P.totals, rows = P.rows, G = R.registry;
+const has = (el, s, label) => ok(G[el]._html.includes(s), label, "missing '" + s + "'");
+
+/* =========================================================================
+   B2. PORTFOLIO TAB — agency rollup, one line read live, three summary-only (Gap 1)
+   ========================================================================= */
+console.log("== B2. portfolio tab ==");
+ok(idsA.includes("t-port") && idsA.includes("p-port"), "portfolio tab/panel wired");
+["portStrip", "portTable"].forEach(id => ok(idsA.includes(id), "markup contains #" + id));
+{
+  const lines = P.portfolioRows();
+  ok(lines.length === 4, "exactly 4 portfolio lines", String(lines.length));
+  ok(lines.filter(l => l.detail).length === 1 && lines[0].id === "link-lrt",
+    "exactly one line has full drill-down, and it's the flagship");
+  ok(lines[0].bac === T.bac && lines[0].ac === T.ac && lines[0].ev === T.ev,
+    "flagship line reads live from this program's own totals, not a duplicate literal");
+  const expectedStatus = { "link-lrt": "Within Managed Variance", sounder: "Favorable Variance",
+    stride: "Action Required / Alert", fleet: "On Baseline Target" };
+  lines.forEach(l => ok(l.statusLabel === expectedStatus[l.id],
+    "status for " + l.id + " = " + expectedStatus[l.id], l.statusLabel));
+  const bacSum = lines.reduce((s, l) => s + l.bac, 0);
+  const vacSum = lines.reduce((s, l) => s + l.vac, 0);
+  ok(Math.abs(bacSum - 2680.0) < 1e-6, "portfolio BAC totals $2,680.0M", bacSum.toFixed(1));
+  ok(vacSum < 0, "portfolio net variance is genuinely a gap (negative), not decorative", vacSum.toFixed(1));
+}
+has("portTable", "Cascade Transit Extension", "portfolio table names the flagship line");
+has("portTable", "full detail", "portfolio table marks the flagship line's drill-down");
+has("portTable", "summary only", "portfolio table marks the synthetic sibling lines");
+has("portStrip", "1 of 4", "strip states exactly 1 of 4 lines has full drill-down");
+has("aiGuards", "flagship line reads live from this program", "integrity gate covers the portfolio tie-out");
+
 /* =========================================================================
    C. NARRATIVE vs DATA — recompute everything the copy quotes
    ========================================================================= */
 console.log("== C. narrative vs data ==");
-const T = P.totals, rows = P.rows, G = R.registry;
-const has = (el, s, label) => ok(G[el]._html.includes(s), label, "missing '" + s + "'");
-
 // derived anchors
 const eacCP201 = 305 / (178.4 / 205.1);
 const vacCP201 = 305 - eacCP201;
@@ -294,7 +322,7 @@ try {
 // integrity gate: every check passes, pill count matches
 const guardPasses = (G.aiGuards._html.match(/>PASS</g) || []).length;
 const guardFails = (G.aiGuards._html.match(/>FAIL</g) || []).length;
-ok(guardPasses === 17 && guardFails === 0, "integrity gate: 17 PASS, 0 FAIL",
+ok(guardPasses === 22 && guardFails === 0, "integrity gate: 22 PASS, 0 FAIL",
    guardPasses + " pass / " + guardFails + " fail");
 has("aiGuards", "GREEN", "gate shows GREEN");
 ok(G.arch._html.includes("fct_control_account") && G.arch._html.includes("integrity gate"),
@@ -439,6 +467,34 @@ has("gateTable", "Baseline Establishment", "gate table names the baseline-establ
   has("gate5Card", "FAIL", "Gate 5 card shows the failing check");
 }
 has("escTable", "TCPI(BAC)", "escalation matrix carries the explicit TCPI &gt; 1.10 rule");
+
+/* =========================================================================
+   D5.6. CONTRACT COMMERCIAL REGISTER — a third aggregation axis (Gap 2)
+   ========================================================================= */
+console.log("== D5.6. contract commercial register ==");
+["contractTable", "contractFoot"].forEach(id => ok(idsA.includes(id), "markup contains #" + id));
+ok(P.contracts.length === 6, "exactly 6 contracts", String(P.contracts.length));
+{
+  const cs = P.contracts.map(P.deriveContract);
+  const counts = {};
+  P.contracts.forEach(c => c.pkgs.forEach(id => { counts[id] = (counts[id] || 0) + 1; }));
+  ok(P.rows.every(r => counts[r.id] === 1) && Object.keys(counts).length === P.rows.length,
+    "every control account covered by exactly one contract — no gaps, no overlaps");
+  const awardSum = cs.reduce((a, c) => a + c.award, 0);
+  ok(Math.abs(awardSum - T.bac) < 1e-6, "contract awards sum to the same BAC as every other tab", awardSum.toFixed(1));
+  const apSum = P.contracts.reduce((a, c) => a + c.approvedCO, 0);
+  const pdSum = P.contracts.reduce((a, c) => a + c.pendingTrends, 0);
+  ok(Math.abs(apSum - P.program.coApprovedValue) < 1e-9, "approved COs sum to the program total", apSum.toFixed(1));
+  ok(Math.abs(pdSum - P.program.coPendingValue) < 1e-9, "pending trends sum to the program total", pdSum.toFixed(1));
+  const allocSum = cs.reduce((a, c) => a + c.allocContingency, 0);
+  const reserveSum = cs.reduce((a, c) => a + c.uncommittedReserve, 0);
+  ok(Math.abs(allocSum - P.program.contingency) < 1e-6, "contingency allocation sums to the program total", allocSum.toFixed(1));
+  ok(Math.abs(reserveSum - T.contRemaining) < 1e-6, "uncommitted reserve sums to remaining contingency", reserveSum.toFixed(1));
+}
+has("contractTable", "CTE-BB-02", "contract table renders the tunnel bid-build contract");
+has("contractTable", "CP-101, CP-102", "guideway contract shows both mapped control accounts");
+has("contractFoot", "6 contracts, 8 control accounts, no gaps and no overlaps", "footer states full coverage");
+has("aiGuards", "Every control account is covered by exactly one contract", "integrity gate covers the contract register");
 
 /* =========================================================================
    D6. ACTIONS TAB — RAID/CAPA register on top of the escalation matrix

@@ -319,6 +319,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
 
   <div class="tabs" role="tablist" aria-label="Command center sections">
     <button role="tab" id="t-over"  aria-controls="p-over"  aria-selected="true">Overview<span class="cnt" id="cntOver">20</span></button>
+    <button role="tab" id="t-port"  aria-controls="p-port"  aria-selected="false">Portfolio</button>
     <button role="tab" id="t-cost"  aria-controls="p-cost"  aria-selected="false">Cost</button>
     <button role="tab" id="t-sched" aria-controls="p-sched" aria-selected="false">Schedule</button>
     <button role="tab" id="t-risk"  aria-controls="p-risk"  aria-selected="false">Risk &amp; Change</button>
@@ -366,6 +367,31 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
       <div class="kfilters" id="kfilters"></div>
       <div class="kboard" id="kboard"></div>
       <div id="kdetail" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <!-- ============================= PORTFOLIO ============================ -->
+  <section role="tabpanel" id="p-port" aria-labelledby="t-port" tabindex="0" hidden>
+    <div class="sec">
+      <div class="eyebrow">Board &amp; executive altitude &middot; agency portfolio</div>
+      <h2>One line of business is the ground truth; three are the rollup</h2>
+      <p class="lede">Every other tab in this tool is the full detail on <b>Link Light Rail Extensions
+        &mdash; Cascade Transit Extension</b>, read live from the same twelve-input ledger. The other
+        three lines below are portfolio-level summary only &mdash; no drill-down &mdash; illustrating how
+        a real Module 2&ndash;5 buildout for those lines would roll up at this, the executive tier.
+        Nothing here is a separate number: the flagship row is the same BAC/AC/EV every other tab reports.</p>
+
+      <div class="strip" id="portStrip"></div>
+
+      <div class="sec-h" style="margin-top:30px"><h3>Portfolio rollup</h3></div>
+      <div class="tw"><table id="portTable" style="min-width:760px"></table></div>
+
+      <div class="note"><b>Funding gap, illustrative.</b> The net variance at completion summed across
+        all four lines &mdash; the same VAC math every control account on this dashboard already uses,
+        just rolled to portfolio scale. This is a structural echo of the real, published affordability-
+        gap concept large transit agencies track (Sound Transit's own is a genuine, independently
+        verified $34.5B) &mdash; not an attempt to reproduce that number. Three of these four lines are
+        synthetic and carry no real-world figure at all.</div>
     </div>
   </section>
 
@@ -506,6 +532,14 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
           <div class="outbox" id="contCover" style="margin-top:14px"></div></div>
       </div>
       <div class="card" style="margin-top:15px"><h3>Register</h3><div id="risks"></div></div>
+
+      <div class="sec-h" style="margin-top:34px"><h2>Commercial &mdash; contract register</h2><span class="tag">a third axis</span></div>
+      <p class="lede">Control accounts measure performance; contracts carry commercial exposure &mdash;
+        and one does not map 1:1 onto the other. The guideway bid-build contract alone covers two control
+        accounts. Award value, contingency allocation and uncommitted reserve are all derived from the
+        same ledger every other tab reads; nothing here is entered twice.</p>
+      <div class="tw"><table id="contractTable" style="min-width:820px"></table></div>
+      <p class="lede" id="contractFoot" style="margin-top:9px;font-size:12.5px"></p>
 
       <div class="sec-h" style="margin-top:34px"><h2>Change &amp; claims</h2><span class="tag">commercial</span></div>
       <p class="lede">Change order rate against original contract value is the single best predictor of a
@@ -814,6 +848,45 @@ var RISKS = [
 /* Conventional qualitative probability bands. A naive p/5 would map P5 to 100% —
    i.e. certainty, which is an issue, not a risk. */
 var P_BAND = {1:0.10, 2:0.30, 3:0.50, 4:0.70, 5:0.90};
+
+/* Commercial contracts — a genuinely different aggregation axis from control accounts: one
+   contract can span several. Raw inputs are approvedCO/pendingTrends (like a package's own
+   ac/ev/pv); award, contingency allocation and uncommitted reserve are all derived below, never
+   hand-typed twice. */
+var CONTRACTS=[
+ {id:"CTE-BB-01",title:"Heavy Civil &amp; Guideway (Bid-Build)",  pkgs:["CP-101","CP-102"],approvedCO:12.5,pendingTrends:4.5},
+ {id:"CTE-BB-02",title:"Tunnel &amp; Portals (Bid-Build)",        pkgs:["CP-201"],         approvedCO:14.8,pendingTrends:7.2},
+ {id:"CTE-GC-03",title:"Station Facilities GC/CM",                pkgs:["CP-301"],         approvedCO: 4.1,pendingTrends:1.8},
+ {id:"CTE-SYS-04",title:"Systems &amp; Testing Contract",         pkgs:["CP-401","CP-701"],approvedCO: 3.2,pendingTrends:1.4},
+ {id:"CTE-GC-05",title:"Parking Structures GC/CM",                pkgs:["CP-501"],         approvedCO: 1.6,pendingTrends:0.9},
+ {id:"CTE-UT-06",title:"Third-Party Utility Relocation",          pkgs:["CP-601"],         approvedCO: 5.0,pendingTrends:2.8}
+];
+function deriveContract(c){
+  var award=c.pkgs.reduce(function(s,id){ var p=PKGS.filter(function(x){ return x.id===id; })[0];
+    return s+(p?p.bac:0); },0);
+  var allocContingency=award*PROGRAM.contingency/T.bac;
+  var uncommittedReserve=allocContingency*T.contRemaining/PROGRAM.contingency;
+  return Object.assign({},c,{award:award,allocContingency:allocContingency,uncommittedReserve:uncommittedReserve});
+}
+
+/* Agency portfolio — one flagship line read LIVE from this program's own totals (never a
+   duplicated literal), three summary-only synthetic siblings with no drill-down. Status labels
+   mirror standard project-controls language, not any specific agency's report. */
+function portfolioLine(id,name,detail,bac,ac,ev){
+  var cpi=ev/ac, eac=bac/cpi, vac=bac-eac;
+  var status = cpi>1.02?["Favorable Variance","g"]:cpi>=0.97?["On Baseline Target","g"]:
+    cpi>=0.90?["Within Managed Variance","a"]:["Action Required / Alert","r"];
+  return {id:id,name:name,detail:detail,bac:bac,ac:ac,ev:ev,cpi:cpi,eac:eac,vac:vac,
+    statusLabel:status[0],statusCls:status[1]};
+}
+function portfolioRows(){
+  return [
+   portfolioLine("link-lrt","Link Light Rail Extensions &mdash; Cascade Transit Extension",true,T.bac,T.ac,T.ev),
+   portfolioLine("sounder","Sounder Commuter Rail Upgrades",false,480.0,298.4,312.6),
+   portfolioLine("stride","Stride Bus Rapid Transit",false,620.0,138.5,121.9),
+   portfolioLine("fleet","Fleet &amp; Rolling Stock Procurement",false,340.0,214.0,213.5)
+  ];
+}
 
 /* How the baseline was built — the estimate-to-budget bridge. The deltas sum
    exactly to the sum of the eight control-account BACs; a baseline that cannot
@@ -1238,6 +1311,34 @@ function renderStrip(){
    ].map(function(r){ return '<div><div class="k">'+r[0]+'</div><div class="v">'+r[1]+'</div></div>'; }).join("");
   document.getElementById("ddBadge").textContent = "data date "+PROGRAM.dataDate;
   document.getElementById("brandSub").innerHTML = PROGRAM.name+" &middot; "+PROGRAM.corridor;
+}
+
+function renderPortfolio(){
+  var lines=portfolioRows();
+  var bacSum=lines.reduce(function(s,l){return s+l.bac;},0);
+  var acSum=lines.reduce(function(s,l){return s+l.ac;},0);
+  var evSum=lines.reduce(function(s,l){return s+l.ev;},0);
+  var vacSum=lines.reduce(function(s,l){return s+l.vac;},0);
+  document.getElementById("portStrip").innerHTML=
+   [["Portfolio BAC",m(bacSum)],
+    ["Portfolio AC",m(acSum)],
+    ["Portfolio EV",m(evSum)],
+    ["Portfolio CPI",idx(evSum/acSum)],
+    ["Net variance at completion",sgn(vacSum)],
+    ["Lines with full drill-down",lines.filter(function(l){return l.detail;}).length+" of "+lines.length]
+   ].map(function(r){ return '<div><div class="k">'+r[0]+'</div><div class="v">'+r[1]+'</div></div>'; }).join("");
+  document.getElementById("portTable").innerHTML=
+    '<thead><tr><th scope="col">Line of business</th><th scope="col">BAC</th><th scope="col">AC</th>'+
+    '<th scope="col">EV</th><th scope="col">CPI</th><th scope="col">P50 EAC</th><th scope="col">Status</th></tr></thead><tbody>'+
+    lines.map(function(l){ return '<tr style="cursor:default"><td>'+l.name+
+      (l.detail?' <span class="pill i" style="margin-left:5px">full detail &rarr; other tabs</span>':
+        ' <span class="mono" style="font-size:10.5px;color:rgb(var(--c-mut))">summary only</span>')+'</td>'+
+      '<td class="tab-num">'+m(l.bac)+'</td><td class="tab-num">'+m(l.ac)+'</td><td class="tab-num">'+m(l.ev)+'</td>'+
+      '<td class="tab-num">'+idx(l.cpi)+'</td><td class="tab-num">'+m(l.eac)+'</td>'+
+      '<td><span class="pill '+l.statusCls+'">'+l.statusLabel+'</span></td></tr>'; }).join("")+
+    '</tbody><tfoot><tr style="cursor:default;font-weight:600"><td>Total capital program</td>'+
+    '<td class="tab-num">'+m(bacSum)+'</td><td class="tab-num">'+m(acSum)+'</td><td class="tab-num">'+m(evSum)+'</td>'+
+    '<td class="tab-num">'+idx(evSum/acSum)+'</td><td class="tab-num">'+m(bacSum-vacSum)+'</td><td></td></tr></tfoot>';
 }
 
 function renderFilters(){
@@ -1719,6 +1820,30 @@ function renderSchedule(){
 }
 
 /* ---------- risk tab ---------- */
+function renderContracts(){
+  var cs=CONTRACTS.map(deriveContract);
+  document.getElementById("contractTable").innerHTML=
+    '<thead><tr><th scope="col">Contract</th><th scope="col">Control accounts</th><th scope="col">Award</th>'+
+    '<th scope="col">Approved COs</th><th scope="col">Pending trends</th><th scope="col">Alloc. contingency</th>'+
+    '<th scope="col">Uncommitted reserve</th></tr></thead><tbody>'+
+    cs.map(function(c){ return '<tr style="cursor:default"><td>'+c.title+
+      '<div class="mono" style="font-size:10.5px;color:rgb(var(--c-mut))">'+c.id+'</div></td>'+
+      '<td class="mono" style="font-size:11.5px">'+c.pkgs.join(", ")+'</td>'+
+      '<td class="tab-num">'+m(c.award)+'</td><td class="tab-num">'+m(c.approvedCO)+'</td>'+
+      '<td class="tab-num">'+m(c.pendingTrends)+'</td><td class="tab-num">'+m(c.allocContingency)+'</td>'+
+      '<td class="tab-num">'+m(c.uncommittedReserve)+'</td></tr>'; }).join("")+
+    '</tbody><tfoot><tr style="cursor:default;font-weight:600"><td>Total</td><td></td>'+
+    '<td class="tab-num">'+m(cs.reduce(function(s,c){return s+c.award;},0))+'</td>'+
+    '<td class="tab-num">'+m(cs.reduce(function(s,c){return s+c.approvedCO;},0))+'</td>'+
+    '<td class="tab-num">'+m(cs.reduce(function(s,c){return s+c.pendingTrends;},0))+'</td>'+
+    '<td class="tab-num">'+m(cs.reduce(function(s,c){return s+c.allocContingency;},0))+'</td>'+
+    '<td class="tab-num">'+m(cs.reduce(function(s,c){return s+c.uncommittedReserve;},0))+'</td></tr></tfoot>';
+  document.getElementById("contractFoot").innerHTML=
+    '<b style="color:rgb(var(--c-ink))">'+cs.length+' contracts, '+PKGS.length+' control accounts, no gaps and no overlaps</b> &mdash; '+
+    'awards sum to '+m(T.bac)+' (the same BAC every other tab reports); approved and pending change sum to '+
+    m(PROGRAM.coApprovedValue)+' and '+m(PROGRAM.coPendingValue)+' (the same change-pipeline totals below).';
+}
+
 function renderRisk(){
   var ranked=RISKS.map(function(k){ return Object.assign({},k,{exp:P_BAND[k.p]*k.cost}); })
                   .sort(function(a,b){ return b.exp-a.exp; });
@@ -2275,7 +2400,29 @@ var GUARDS=[
    return [Math.abs(p50-MC.p50)<1e-9, m(p50)];}},
  {n:"Milestone KPI equals the contractual revenue-service slip", run:function(){
    var k=KPIS.filter(function(x){return x.id==="msv";})[0];
-   return [k.raw()===MILES[MILES.length-1].d, days(k.raw())];}}
+   return [k.raw()===MILES[MILES.length-1].d, days(k.raw())];}},
+ {n:"Every control account is covered by exactly one contract — no gaps, no overlaps", run:function(){
+   var counts={}; CONTRACTS.forEach(function(c){ c.pkgs.forEach(function(id){ counts[id]=(counts[id]||0)+1; }); });
+   var ok=PKGS.every(function(p){ return counts[p.id]===1; }) && Object.keys(counts).length===PKGS.length;
+   return [ok, Object.keys(counts).length+" packages, "+CONTRACTS.length+" contracts"];}},
+ {n:"Contract awards sum to the same BAC every other tab reports", run:function(){
+   var s=CONTRACTS.map(deriveContract).reduce(function(a,c){return a+c.award;},0);
+   return [Math.abs(s-T.bac)<1e-6, m(s)];}},
+ {n:"Contract-level approved/pending change sums to the program change-pipeline totals", run:function(){
+   var ap=CONTRACTS.reduce(function(a,c){return a+c.approvedCO;},0);
+   var pd=CONTRACTS.reduce(function(a,c){return a+c.pendingTrends;},0);
+   var ok=Math.abs(ap-PROGRAM.coApprovedValue)<1e-9 && Math.abs(pd-PROGRAM.coPendingValue)<1e-9;
+   return [ok, m(ap)+" / "+m(pd)];}},
+ {n:"Contract-level contingency allocation and uncommitted reserve reconcile to the program totals", run:function(){
+   var cs=CONTRACTS.map(deriveContract);
+   var alloc=cs.reduce(function(a,c){return a+c.allocContingency;},0);
+   var reserve=cs.reduce(function(a,c){return a+c.uncommittedReserve;},0);
+   var ok=Math.abs(alloc-PROGRAM.contingency)<1e-6 && Math.abs(reserve-T.contRemaining)<1e-6;
+   return [ok, m(alloc)+" / "+m(reserve)];}},
+ {n:"Portfolio's flagship line reads live from this program's own totals, never duplicated", run:function(){
+   var l=portfolioRows()[0];
+   var ok=l.bac===T.bac && l.ac===T.ac && l.ev===T.ev;
+   return [ok, m(l.bac)+" / "+m(l.ac)+" / "+m(l.ev)];}}
 ];
 function renderGuards(){
   var res=GUARDS.map(function(g){ var r=g.run(); return {n:g.n,pass:r[0],detail:r[1]}; });
@@ -2475,7 +2622,7 @@ themeBtn.addEventListener("click",function(){
   redrawCharts();
 });
 
-var TABS=["over","cost","sched","risk","del","ai","fw","act","gloss"];
+var TABS=["over","port","cost","sched","risk","del","ai","fw","act","gloss"];
 function activateTab(id){
   TABS.forEach(function(o){
     document.getElementById("t-"+o).setAttribute("aria-selected",String(o===id));
@@ -2562,9 +2709,9 @@ window.addEventListener("scroll",function(){ document.getElementById("tip").clas
 function redrawCharts(){ renderScurve(); renderWaterfall(); renderCont(); renderRisk(); renderMc(); }
 
 /* init */
-renderPhases(); renderStrip(); renderFilters(); renderBoard(); renderDetail();
+renderPhases(); renderStrip(); renderPortfolio(); renderFilters(); renderBoard(); renderDetail();
 renderScurve(); renderWaterfall(); renderBaseline(); renderEac(); renderCont(); renderTable();
-renderSchedule(); renderRisk(); renderDelivery(); renderFramework(); renderActions();
+renderSchedule(); renderRisk(); renderContracts(); renderDelivery(); renderFramework(); renderActions();
 renderMc(); renderScen(); renderPrint();
 renderArch(); renderGuards();
 renderStory(0); renderGlossary("");
@@ -2576,7 +2723,9 @@ renderWhatIf();
 /* expose for verification */
 window.__PCC__={rows:rows,totals:T,kpis:KPIS,program:PROGRAM,eacs:EACS,mc:MC,
   actions:ACTIONS,actionStatus:actionStatus,isStale:isStale,
-  wbs:WBS,gates:GATES,gate5Checks:GATE5_CHECKS};
+  wbs:WBS,gates:GATES,gate5Checks:GATE5_CHECKS,
+  contracts:CONTRACTS,deriveContract:deriveContract,
+  portfolioRows:portfolioRows};
 })();
 </script>
 </body>
