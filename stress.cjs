@@ -48,7 +48,8 @@ function runPage(src) {
     querySelectorAll(){ return []; },
   };
   global.document = documentStub;
-  global.window = { matchMedia(){ return { matches: true }; }, addEventListener(){}, scrollTo(){}, innerWidth: 1400 };
+  global.window = { matchMedia(){ return { matches: true }; }, addEventListener(){}, scrollTo(){}, innerWidth: 1400,
+    print(){ this._printed = true; } };
   global.getComputedStyle = () => ({ getPropertyValue: () => "0 0 0" });
   const m = src.match(/<script>([\s\S]*)<\/script>/);
   let err = null;
@@ -226,6 +227,53 @@ try {
   fire(G.resetWhatIf, "click");
   has("whatIfOut", "$1,297.3M", "what-if reset returns to actuals ($1,297.3M)");
 } catch (e) { ok(false, "what-if model", e.message); }
+
+/* =========================================================================
+   D2. NEW SURFACES — monte carlo, scenarios, print brief
+   (must run BEFORE section E: runPage for otak.html reassigns the globals)
+   ========================================================================= */
+console.log("== D2. monte carlo / scenarios / print ==");
+// monte carlo: deterministic, ordered, sane
+const MC = P.mc;
+ok(!!MC && MC.n === 4000, "monte carlo exposed with 4,000 runs");
+ok(MC.p10 < MC.p50 && MC.p50 < MC.p80, "P10 < P50 < P80",
+   MC.p10.toFixed(1) + " / " + MC.p50.toFixed(1) + " / " + MC.p80.toFixed(1));
+ok(MC.p50 > 1270 && MC.p50 < 1330, "P50 plausible vs point forecast 1303.7", MC.p50.toFixed(1));
+ok(MC.pOver > 0.9, "P(overrun) high given CPI 0.956", MC.pOver.toFixed(3));
+ok(MC.pBust > 0 && MC.pBust <= 1, "P(bust) a probability", MC.pBust.toFixed(3));
+// reproducibility: the point forecast should sit inside the P10–P80 band
+ok(T.eac > MC.p10 && T.eac < MC.p80, "point EAC inside the P10–P80 band");
+has("mcStats", "P50 (median)", "MC stats render P50");
+has("mcRead", "funding", "MC narrative renders");
+// histogram renders 26 bins
+ok((G.mcChart._html.match(/<rect/g) || []).length === 26, "MC histogram renders 26 bins");
+
+// scenarios: save two, verify table, clear
+try {
+  G.sCpi.value = "1.10"; G.sSpi.value = "1.05"; G.sCont.value = "150";
+  fire(G.saveScen, "click");
+  G.sCpi.value = "0.92"; G.sSpi.value = "0.90"; G.sCont.value = "100";
+  fire(G.saveScen, "click");
+  ok(G.scenWrap.style.display !== "none", "scenario table visible after save");
+  ok((G.scenTable._html.match(/Scenario /g) || []).length === 2, "two scenarios saved");
+  ok(G.scenTable._html.includes("$1,127.3M"), "scenario 1 EAC correct ($1,240.0M / 1.10)");
+  fire(G.clearScen, "click");
+  ok(G.scenWrap.style.display === "none", "clear hides scenario table");
+} catch (e) { ok(false, "scenario save/clear", e.message); }
+
+// print brief: populated at init, escalation count derived independently
+has("printBrief", "Executive brief", "print brief populated at init");
+const expectedFiring =
+  (T.cpi < 0.95) + (T.cpli < 0.95) + (T.tcpi - T.cpi > 0.10) + (T.contCoverage < 1) +
+  (Math.abs(Math.min(0, T.vac)) > T.contRemaining) + (T.negFloat.length > 0) +
+  (P.program.coCycleDays > P.program.coCycleTarget) + (P.program.rfiOver30 > 0) +
+  (P.program.trir > P.program.trirBenchmark);
+has("printBrief", "Escalations firing (" + expectedFiring + ")", "print brief escalation count matches independent derivation");
+ok(!G.printBrief._html.includes("DBE"), "print brief carries no swept terms");
+try {
+  fire(G.printBtn, "click");
+  ok(R.win._printed === true, "print button invokes window.print");
+} catch (e) { ok(false, "print button", e.message); }
 
 /* =========================================================================
    E. otak.html — runtime + internal consistency

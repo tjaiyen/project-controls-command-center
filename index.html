@@ -249,6 +249,20 @@ dl.gl dd{margin:3px 0 0;font-size:12.5px;color:rgb(var(--c-mut))}
 .note{margin-top:14px;padding:13px 15px;border-left:3px solid rgb(var(--c-accent));
   background:rgb(var(--c-accent) / .07);border-radius:0 9px 9px 0;font-size:13px;color:rgb(var(--c-mut))}
 .note b{color:rgb(var(--c-ink))}
+/* print brief */
+#printBrief{display:none}
+@media print{
+  body{background:#fff;color:#111}
+  .bar,.tabs,[role="tabpanel"],footer,.tip{display:none !important}
+  #printBrief{display:block !important;font-size:12.5px;line-height:1.55}
+  #printBrief h1{font-size:20px;margin:0 0 4px}
+  #printBrief h2{font-size:12px;margin:16px 0 5px;text-transform:uppercase;letter-spacing:.09em;color:#444}
+  #printBrief table{width:100%;border-collapse:collapse;margin-top:4px}
+  #printBrief th,#printBrief td{border:1px solid #bbb;padding:5px 8px;text-align:left;
+    font-size:11.5px;white-space:normal;color:#111}
+  #printBrief th{background:#eee}
+  #printBrief .pbn{color:#555;font-size:10.5px;margin-top:14px}
+}
 footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-size:12.5px;color:rgb(var(--c-mut))}
 </style>
 </head>
@@ -261,6 +275,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
       <span>Project Controls Command Center<small id="brandSub">capital program operating framework</small></span></a>
     <div class="right">
       <span class="pill i" id="ddBadge">data date &mdash;</span>
+      <button class="btn" id="printBtn" type="button">Print brief</button>
       <button class="btn" id="themeBtn" type="button">Theme</button>
     </div>
   </div>
@@ -346,8 +361,25 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         <div class="slider"><label for="sCont">Contingency $M</label><input type="range" id="sCont" min="0" max="300" step="1"><span class="tab-num mono" id="vCont"></span></div>
         <div class="outbox" id="whatIfOut"></div>
         <p class="lede" id="whatIfRead" style="margin-top:12px;font-size:12.8px"></p>
-        <button class="btn" id="resetWhatIf" type="button" style="margin-top:12px">Reset to actuals</button>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+          <button class="btn" id="resetWhatIf" type="button">Reset to actuals</button>
+          <button class="btn" id="saveScen" type="button">Save scenario</button>
+          <button class="btn" id="clearScen" type="button">Clear scenarios</button>
+        </div>
+        <p class="lede" style="margin-top:10px;font-size:12.3px">Save up to four scenarios to compare the
+          conversations side by side &mdash; &ldquo;do nothing&rdquo; against &ldquo;recover the tunnel&rdquo;
+          against &ldquo;draw contingency now&rdquo;.</p>
+        <div class="tw" id="scenWrap" style="min-width:0;display:none"><table style="min-width:640px" id="scenTable"></table></div>
       </div>
+
+      <div class="sec-h" style="margin-top:34px"><h2>The forecast is a distribution, not a point</h2><span class="tag">monte carlo</span></div>
+      <p class="lede">A single EAC pretends to a certainty the data does not contain. This runs 4,000
+        simulated completions: each control account&rsquo;s remaining work is priced at a future efficiency
+        drawn around its observed CPI &mdash; downside wider than upside, because cost efficiency on capital
+        work recovers slowly and degrades fast. Fixed seed, so the distribution is reproducible and testable.</p>
+      <div class="card" style="margin-top:15px"><div class="chart" id="mcChart"></div>
+        <div class="outbox" id="mcStats"></div>
+        <p class="lede" id="mcRead" style="margin-top:12px;font-size:12.8px"></p></div>
 
       <div class="sec-h" style="margin-top:34px"><h2>Control account ledger</h2><span class="tag">drill-down</span></div>
       <p class="lede">A portfolio number is an average of things that are not average. Select any row.</p>
@@ -486,6 +518,8 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
       </div>
     </div>
   </section>
+
+  <div id="printBrief" aria-hidden="true"></div>
 
   <footer>
     <p><b>Synthetic illustrative data throughout.</b> Program, packages, milestones, risks and change log
@@ -1089,35 +1123,160 @@ function renderCont(){
     m(T.contRemaining)+' remains against '+m(T.overrun+T.riskExposure)+' of forecast overrun plus priced risk.</p>';
 }
 
-/* ---------- what-if ---------- */
+/* ---------- what-if + scenarios ---------- */
+function computeWhatIf(cpi,spi,cont){
+  var eac=T.bac/cpi, vac=T.bac-eac;
+  return {cpi:cpi, spi:spi, cont:cont, eac:eac, vac:vac,
+    eacBoth:T.ac+(T.bac-T.ev)/(cpi*spi),
+    tcpi:(T.bac-T.ev)/(T.bac-T.ac),
+    contRem:cont-PROGRAM.contingencyDrawn,
+    cover:(cont-PROGRAM.contingencyDrawn)/(Math.abs(Math.min(0,vac))+T.riskExposure),
+    slip:(1/spi-1)*(MT-ME)};
+}
 function renderWhatIf(){
   var cpi=+document.getElementById("sCpi").value, spi=+document.getElementById("sSpi").value,
       cont=+document.getElementById("sCont").value;
   document.getElementById("vCpi").textContent=idx(cpi);
   document.getElementById("vSpi").textContent=idx(spi);
   document.getElementById("vCont").textContent="$"+cont+"M";
-  var eac=T.bac/cpi, vac=T.bac-eac;
-  var eacBoth=T.ac+(T.bac-T.ev)/(cpi*spi);
-  var tcpi=(T.bac-T.ev)/(T.bac-T.ac);
-  var contRem=cont-PROGRAM.contingencyDrawn;
-  var cover=contRem/(Math.abs(Math.min(0,vac))+T.riskExposure);
-  var slipMonths=(1/spi-1)*(MT-ME);
+  var w=computeWhatIf(cpi,spi,cont);
   document.getElementById("whatIfOut").innerHTML=
-   [["EAC (BAC÷CPI)",m(eac),eac>T.bac?"ba":"ok"],
-    ["EAC (cost+schedule)",m(eacBoth),eacBoth>T.bac?"ba":"ok"],
-    ["VAC",sgn(vac),vac<0?"ba":"ok"],
-    ["Contingency cover",idx(cover),cover<1?"ba":cover<1.5?"wa":"ok"],
-    ["Forecast slip",(slipMonths>0?"+":"")+slipMonths.toFixed(1)+" mo",slipMonths>0?"ba":"ok"],
-    ["TCPI to BAC",idx(tcpi),tcpi-cpi>0.10?"ba":tcpi>cpi?"wa":"ok"]
+   [["EAC (BAC÷CPI)",m(w.eac),w.eac>T.bac?"ba":"ok"],
+    ["EAC (cost+schedule)",m(w.eacBoth),w.eacBoth>T.bac?"ba":"ok"],
+    ["VAC",sgn(w.vac),w.vac<0?"ba":"ok"],
+    ["Contingency cover",idx(w.cover),w.cover<1?"ba":w.cover<1.5?"wa":"ok"],
+    ["Forecast slip",(w.slip>0?"+":"")+w.slip.toFixed(1)+" mo",w.slip>0?"ba":"ok"],
+    ["TCPI to BAC",idx(w.tcpi),w.tcpi-cpi>0.10?"ba":w.tcpi>cpi?"wa":"ok"]
    ].map(function(r){ return '<div><div class="k">'+r[0]+'</div><div class="v '+r[2]+'">'+r[1]+'</div></div>'; }).join("");
-  var gap=tcpi-cpi;
+  var gap=w.tcpi-cpi;
   document.getElementById("whatIfRead").innerHTML =
     "At a cost index of <b style='color:rgb(var(--c-ink))'>"+idx(cpi)+"</b> the program lands at <b style='color:rgb(var(--c-ink))'>"+
-    m(eac)+"</b>. To finish at budget the remaining work would have to run at <b style='color:rgb(var(--c-ink))'>"+idx(tcpi)+
+    m(w.eac)+"</b>. To finish at budget the remaining work would have to run at <b style='color:rgb(var(--c-ink))'>"+idx(w.tcpi)+
     "</b> — a gap of "+idx(Math.abs(gap))+(gap>0.10?
       ". A gap above 0.10 is treated as unrecoverable in practice; this is the point where a controls manager stops promising recovery and starts the re-baseline conversation."
       : gap>0? ". That is recoverable, but only with a named change in how the work is executed — not with optimism."
       : ". The program can absorb the remaining work at current efficiency.");
+}
+var SCEN=[];
+function renderScen(){
+  var wrap=document.getElementById("scenWrap");
+  if(!SCEN.length){ wrap.style.display="none"; return; }
+  wrap.style.display="";
+  document.getElementById("scenTable").innerHTML=
+   '<thead><tr><th scope="col">Scenario</th><th scope="col">CPI</th><th scope="col">SPI</th>'+
+   '<th scope="col">Contingency</th><th scope="col">EAC</th><th scope="col">VAC</th>'+
+   '<th scope="col">Cover</th><th scope="col">Slip</th></tr></thead><tbody>'+
+   SCEN.map(function(w,i){
+     return '<tr style="cursor:default"><td>Scenario '+(i+1)+'</td>'+
+       '<td class="tab-num">'+idx(w.cpi)+'</td><td class="tab-num">'+idx(w.spi)+'</td>'+
+       '<td class="tab-num">$'+w.cont+'M</td>'+
+       '<td class="tab-num '+(w.eac>T.bac?"ba":"ok")+'">'+m(w.eac)+'</td>'+
+       '<td class="tab-num '+(w.vac<0?"ba":"ok")+'">'+sgn(w.vac)+'</td>'+
+       '<td class="tab-num '+(w.cover<1?"ba":w.cover<1.5?"wa":"ok")+'">'+idx(w.cover)+'</td>'+
+       '<td class="tab-num '+(w.slip>0?"ba":"ok")+'">'+(w.slip>0?"+":"")+w.slip.toFixed(1)+" mo"+'</td></tr>';
+   }).join("")+'</tbody>';
+}
+
+/* ---------- monte carlo ---------- */
+/* Fixed-seed LCG: the distribution must be reproducible — a forecast you cannot
+   reproduce is a forecast you cannot defend. */
+function lcg(seed){ var s=seed>>>0; return function(){ s=(Math.imul(s,1664525)+1013904223)>>>0; return s/4294967296; }; }
+function triang(u,a,b,c){ var fc=(c-a)/(b-a);
+  return u<fc? a+Math.sqrt(u*(b-a)*(c-a)) : b-Math.sqrt((1-u)*(b-a)*(b-c)); }
+var MC=(function(){
+  var rnd=lcg(20260731), N=4000, sims=[], i, j;
+  for(i=0;i<N;i++){
+    var e=0;
+    for(j=0;j<rows.length;j++){ var r=rows[j];
+      /* Future efficiency drawn around the package's OBSERVED CPI, asymmetric:
+         0.08 of downside vs 0.06 of upside — recovery is capped because cost
+         efficiency on capital work rarely improves far past its settled rate. */
+      var c=triang(rnd(), Math.max(0.78,r.cpi-0.08), r.cpi+0.06, r.cpi);
+      e+=r.ac+(r.bac-r.ev)/c;
+    }
+    sims.push(e);
+  }
+  sims.sort(function(a,b){return a-b;});
+  var q=function(p){ return sims[Math.floor(p*sims.length)]; };
+  return {n:N, sims:sims, p10:q(0.10), p50:q(0.50), p80:q(0.80),
+    pOver:sims.filter(function(v){return v>T.bac;}).length/N,
+    pBust:sims.filter(function(v){return v>T.bac+T.contRemaining;}).length/N};
+})();
+function renderMc(){
+  var W=980,H=260,PL=64,PR=18,PT=18,PB=40;
+  var lo=MC.sims[Math.floor(0.02*MC.sims.length)], hi=MC.sims[Math.floor(0.98*MC.sims.length)];
+  var bins=26, bw=(hi-lo)/bins, counts=[], i;
+  for(i=0;i<bins;i++) counts.push(0);
+  MC.sims.forEach(function(v){ if(v<lo||v>hi) return;
+    counts[Math.min(bins-1,Math.floor((v-lo)/bw))]++; });
+  var mx=Math.max.apply(null,counts);
+  var X=function(v){ return PL+((Math.min(hi,Math.max(lo,v))-lo)/(hi-lo))*(W-PL-PR); };
+  var body=counts.map(function(c,i){
+    var x=PL+(i/bins)*(W-PL-PR), w=(W-PL-PR)/bins-2, h=c/mx*(H-PT-PB);
+    return '<rect x="'+x.toFixed(1)+'" y="'+(H-PB-h).toFixed(1)+'" width="'+w.toFixed(1)+'" height="'+Math.max(1,h).toFixed(1)+
+      '" rx="1.5" fill="'+C("accent")+'" opacity=".72"><title>'+m(lo+i*bw)+' – '+m(lo+(i+1)*bw)+': '+c+' runs</title></rect>';
+  }).join("");
+  function marker(v,color,label){
+    return '<line x1="'+X(v)+'" x2="'+X(v)+'" y1="'+PT+'" y2="'+(H-PB)+'" stroke="'+color+'" stroke-width="1.8" stroke-dasharray="4 3"/>'+
+      '<text x="'+X(v)+'" y="'+(H-24)+'" text-anchor="middle" font-size="10" font-family="ui-monospace,monospace" fill="'+color+'">'+label+'</text>';
+  }
+  document.getElementById("mcChart").innerHTML=svg(W,H,body+
+    marker(T.bac,C("ok"),"BAC "+m(T.bac))+
+    marker(MC.p50,C("warn"),"P50 "+m(MC.p50))+
+    marker(T.bac+T.contRemaining,C("bad"),"BAC+cont "+m(T.bac+T.contRemaining)),
+    "Monte Carlo distribution of the forecast at completion across 4,000 simulated completions, marked with budget, median, and budget plus remaining contingency.");
+  document.getElementById("mcStats").innerHTML=
+   [["P10",m(MC.p10),""],["P50 (median)",m(MC.p50),MC.p50>T.bac?"ba":"ok"],
+    ["P80",m(MC.p80),"ba"],
+    ["P(overrun)",pct(MC.pOver,0),MC.pOver>0.5?"ba":"ok"],
+    ["P(bust: budget + contingency)",pct(MC.pBust,0),MC.pBust>0.5?"ba":"wa"]
+   ].map(function(r){ return '<div><div class="k">'+r[0]+'</div><div class="v '+r[2]+'">'+r[1]+'</div></div>'; }).join("");
+  document.getElementById("mcRead").innerHTML=
+    "The point forecast of <b style='color:rgb(var(--c-ink))'>"+m(T.eac)+"</b> sits inside the distribution — "+
+    "but <b style='color:rgb(var(--c-ink))'>"+pct(MC.pBust,0)+"</b> of simulated completions bust through budget "+
+    "<em>plus</em> the remaining "+m(T.contRemaining)+" of contingency. The honest sentence for the board is not "+
+    "&ldquo;we land at "+m(T.eac)+"&rdquo; but &ldquo;there is a "+pct(MC.pBust,0)+" chance the current funding "+
+    "line does not hold&rdquo; — and that sentence is what triggers the contingency conversation early rather than late.";
+}
+
+/* ---------- print brief ---------- */
+function firingEscalations(){
+  var f=[];
+  if(T.cpi<0.95) f.push(ESCALATION[0]);
+  if(T.cpli<0.95) f.push(ESCALATION[1]);
+  if(T.tcpi-T.cpi>0.10) f.push(ESCALATION[2]);
+  if(T.contCoverage<1) f.push(ESCALATION[3]);
+  if(Math.abs(Math.min(0,T.vac))>T.contRemaining) f.push(ESCALATION[4]);
+  if(T.negFloat.length) f.push(ESCALATION[5]);
+  if(PROGRAM.coCycleDays>PROGRAM.coCycleTarget) f.push(ESCALATION[6]);
+  if(PROGRAM.rfiOver30>0) f.push(ESCALATION[7]);
+  if(PROGRAM.trir>PROGRAM.trirBenchmark) f.push(ESCALATION[8]);
+  return f;
+}
+function renderPrint(){
+  var live=KPIS.filter(function(k){return k.ph.indexOf("con")>=0;});
+  var reds=live.filter(function(k){return k.rag()==="r";});
+  var f=firingEscalations();
+  var lateM=MILES.filter(function(k){return k.d>0;});
+  var topR=RISKS.map(function(k){return Object.assign({},k,{exp:P_BAND[k.p]*k.cost});})
+                .sort(function(a,b){return b.exp-a.exp;}).slice(0,3);
+  document.getElementById("printBrief").innerHTML=
+    '<h1>Executive brief &mdash; '+PROGRAM.name+'</h1>'+
+    '<div>Data date '+PROGRAM.dataDate+' &middot; '+pct(T.pct)+' complete &middot; '+PROGRAM.corridor.replace(/&[a-z]+;/g," ")+' &middot; synthetic illustrative data</div>'+
+    '<h2>Position</h2><table><tr><th>BAC</th><th>Forecast (EAC)</th><th>VAC</th><th>CPI</th><th>SPI</th>'+
+    '<th>TCPI</th><th>CPLI (driving)</th><th>Contingency left</th><th>Coverage</th></tr>'+
+    '<tr><td>'+m(T.bac)+'</td><td>'+m(T.eac)+'</td><td>'+sgn(T.vac)+'</td><td>'+idx(T.cpi)+'</td><td>'+idx(T.spi)+
+    '</td><td>'+idx(T.tcpi)+'</td><td>'+idx(T.cpli)+'</td><td>'+m(T.contRemaining)+'</td><td>'+idx(T.contCoverage)+'</td></tr></table>'+
+    '<h2>Board status</h2><p style="margin:0">'+reds.length+' of '+live.length+' construction-phase KPIs red: '+
+    reds.map(function(k){return k.abbr;}).join(", ")+'. '+
+    pct(MC.pBust,0)+' of simulated completions exceed budget plus remaining contingency (P50 '+m(MC.p50)+').</p>'+
+    '<h2>Escalations firing ('+f.length+')</h2><table><tr><th>Trigger</th><th>Owner</th><th>Action</th><th>Clock</th></tr>'+
+    f.map(function(r){return '<tr><td>'+r[0]+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td><td>'+r[3]+'</td></tr>';}).join("")+'</table>'+
+    '<h2>Top risks</h2><table><tr><th>ID</th><th>Risk</th><th>Exposure</th><th>Owner</th></tr>'+
+    topR.map(function(k){return '<tr><td>'+k.id+'</td><td>'+k.n+'</td><td>'+m(k.exp)+'</td><td>'+k.own+'</td></tr>';}).join("")+'</table>'+
+    '<h2>Milestones</h2><p style="margin:0">'+lateM.length+' of '+MILES.length+' late; revenue service '+
+    days(MILES[MILES.length-1].d)+' against the contractual date.</p>'+
+    '<p class="pbn">Computed from the control-account ledger — nothing on this page is typed. Synthetic illustrative data; no client, employer or agency information is represented.</p>';
 }
 
 /* ---------- ledger ---------- */
@@ -1453,21 +1612,31 @@ document.getElementById("resetWhatIf").addEventListener("click",function(){
   document.getElementById("sCont").value=PROGRAM.contingency;
   renderWhatIf();
 });
+document.getElementById("saveScen").addEventListener("click",function(){
+  SCEN.push(computeWhatIf(+document.getElementById("sCpi").value,
+                          +document.getElementById("sSpi").value,
+                          +document.getElementById("sCont").value));
+  if(SCEN.length>4) SCEN.shift();
+  renderScen();
+});
+document.getElementById("clearScen").addEventListener("click",function(){ SCEN=[]; renderScen(); });
+document.getElementById("printBtn").addEventListener("click",function(){ renderPrint(); window.print(); });
 window.addEventListener("scroll",function(){ document.getElementById("tip").classList.remove("on"); },{passive:true});
 
-function redrawCharts(){ renderScurve(); renderWaterfall(); renderCont(); renderRisk(); }
+function redrawCharts(){ renderScurve(); renderWaterfall(); renderCont(); renderRisk(); renderMc(); }
 
 /* init */
 renderPhases(); renderStrip(); renderFilters(); renderBoard(); renderDetail();
 renderScurve(); renderWaterfall(); renderEac(); renderCont(); renderTable();
 renderSchedule(); renderRisk(); renderDelivery(); renderFramework();
+renderMc(); renderScen(); renderPrint();
 document.getElementById("sCpi").value=T.cpi;
 document.getElementById("sSpi").value=T.spi;
 document.getElementById("sCont").value=PROGRAM.contingency;
 renderWhatIf();
 
 /* expose for verification */
-window.__PCC__={rows:rows,totals:T,kpis:KPIS,program:PROGRAM,eacs:EACS};
+window.__PCC__={rows:rows,totals:T,kpis:KPIS,program:PROGRAM,eacs:EACS,mc:MC};
 })();
 </script>
 </body>
