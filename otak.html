@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Fit Brief — Otak Project Controls Manager</title>
+<meta name="description" content="TJ Jaiyen — requirement-by-requirement coverage against Otak's Project Controls Manager posting, gaps included.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230A0F1D'/%3E%3Cpath d='M6 22 L12 15 L18 18 L26 8' stroke='%2306B6D4' stroke-width='2.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+:root{
+  --c-bg-primary:10 15 29; --c-bg-card:30 41 59; --c-accent:6 182 212;
+  --c-text-primary:241 245 249; --c-text-secondary:148 163 184; --c-text-code:34 211 238;
+  --c-success:16 185 129; --c-warning:245 158 11; --c-danger:239 68 68;
+  --c-line:rgb(6 182 212 / .20);
+}
+@media (prefers-color-scheme: light){
+  :root{
+    --c-bg-primary:248 250 252; --c-bg-card:255 255 255; --c-accent:14 116 144;
+    --c-text-primary:15 23 42; --c-text-secondary:71 85 105; --c-text-code:8 145 178;
+    --c-success:5 150 105; --c-warning:180 83 9; --c-danger:220 38 38;
+    --c-line:rgb(14 116 144 / .22);
+  }
+}
+:root[data-theme="dark"]{
+  --c-bg-primary:10 15 29; --c-bg-card:30 41 59; --c-accent:6 182 212;
+  --c-text-primary:241 245 249; --c-text-secondary:148 163 184; --c-text-code:34 211 238;
+  --c-success:16 185 129; --c-warning:245 158 11; --c-danger:239 68 68;
+  --c-line:rgb(6 182 212 / .20);
+}
+:root[data-theme="light"]{
+  --c-bg-primary:248 250 252; --c-bg-card:255 255 255; --c-accent:14 116 144;
+  --c-text-primary:15 23 42; --c-text-secondary:71 85 105; --c-text-code:8 145 178;
+  --c-success:5 150 105; --c-warning:180 83 9; --c-danger:220 38 38;
+  --c-line:rgb(14 116 144 / .22);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:rgb(var(--c-bg-primary));color:rgb(var(--c-text-primary));
+  font:14.5px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased}
+code,.mono,.tabular{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+.tabular{font-variant-numeric:tabular-nums}
+a{color:rgb(var(--c-accent))}
+:focus-visible{outline:2px solid rgb(var(--c-accent));outline-offset:2px;border-radius:4px}
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px 72px}
+.bar{position:sticky;top:0;z-index:40;background:rgb(var(--c-bg-primary) / .92);
+  backdrop-filter:blur(8px);border-bottom:1px solid var(--c-line)}
+.bar-in{max-width:1080px;margin:0 auto;padding:10px 20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.brand{display:flex;gap:9px;align-items:center;font-weight:600;text-decoration:none;color:inherit}
+.brand small{display:block;font:400 11px/1.3 ui-monospace,Menlo,monospace;color:rgb(var(--c-text-secondary))}
+.dot{width:9px;height:9px;border-radius:50%;background:rgb(var(--c-accent));flex:none}
+.bar .right{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.icobtn{display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:6px 11px;
+  border:1px solid var(--c-line);border-radius:7px;background:transparent;
+  color:rgb(var(--c-text-primary));font:500 12px/1 inherit;cursor:pointer;text-decoration:none}
+.icobtn:hover{background:rgb(var(--c-accent) / .10)}
+.icobtn[aria-pressed="true"]{background:rgb(var(--c-accent) / .16);border-color:rgb(var(--c-accent))}
+.eyebrow{font:600 10.5px/1 ui-monospace,Menlo,monospace;letter-spacing:.16em;text-transform:uppercase;
+  color:rgb(var(--c-text-code));margin:0 0 8px}
+h1{font-size:clamp(1.6rem,3.6vw,2.2rem);line-height:1.16;letter-spacing:-.022em;margin:0 0 12px}
+h2{font-size:clamp(1.15rem,2.2vw,1.38rem);letter-spacing:-.015em;margin:0 0 8px}
+h3{font-size:1rem;margin:0 0 6px}
+.lede{color:rgb(var(--c-text-secondary));max-width:74ch;margin:0}
+section{padding-top:46px}
+.chapter{display:flex;align-items:center;gap:10px;margin-bottom:14px;
+  font:600 11px/1 ui-monospace,Menlo,monospace;letter-spacing:.13em;text-transform:uppercase;
+  color:rgb(var(--c-text-secondary))}
+.chapter .num{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:6px;
+  background:rgb(var(--c-accent) / .13);color:rgb(var(--c-text-code));font-size:11px}
+.card{background:rgb(var(--c-bg-card));border:1px solid var(--c-line);border-radius:10px;padding:17px}
+.thesis{border-left:3px solid rgb(var(--c-accent));background:rgb(var(--c-accent) / .07);
+  border-radius:0 9px 9px 0;padding:15px 18px;margin-top:18px;font-size:15.5px}
+.thesis b{color:rgb(var(--c-text-primary))}
+
+.cov{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;
+  background:var(--c-line);border:1px solid var(--c-line);border-radius:10px;overflow:hidden;margin-top:18px}
+.covcell{background:rgb(var(--c-bg-card));padding:14px 16px}
+.covcell .v{font:600 1.5rem/1 ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums}
+.covcell .l{margin-top:7px;font:600 10px/1.3 ui-monospace,Menlo,monospace;letter-spacing:.1em;
+  text-transform:uppercase;color:rgb(var(--c-text-secondary))}
+.good{color:rgb(var(--c-success))} .warn{color:rgb(var(--c-warning))} .bad{color:rgb(var(--c-danger))}
+
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}
+.tblwrap{overflow-x:auto;margin-top:14px;border:1px solid var(--c-line);border-radius:10px}
+table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:680px}
+th,td{text-align:left;padding:11px 13px;border-bottom:1px solid var(--c-line);vertical-align:top}
+th{font:600 10px/1.3 ui-monospace,Menlo,monospace;letter-spacing:.09em;text-transform:uppercase;
+  color:rgb(var(--c-text-secondary));background:rgb(var(--c-bg-card))}
+tbody tr:last-child td{border-bottom:none}
+td.req{font-weight:500;width:29%}
+td.st{width:96px;white-space:nowrap}
+.pill{display:inline-block;padding:2px 9px;border-radius:999px;font:600 10.5px/1.6 ui-monospace,Menlo,monospace}
+.pill.met{background:rgb(var(--c-success) / .15);color:rgb(var(--c-success))}
+.pill.part{background:rgb(var(--c-warning) / .16);color:rgb(var(--c-warning))}
+.pill.gap{background:rgb(var(--c-danger) / .15);color:rgb(var(--c-danger))}
+tr.pref td.req::after{content:" · preferred";font:400 11px/1 ui-monospace,Menlo,monospace;
+  color:rgb(var(--c-text-secondary))}
+
+ul.tight{margin:10px 0 0;padding-left:19px} ul.tight li{margin:5px 0}
+.grid2{display:grid;grid-template-columns:1fr;gap:16px;margin-top:16px}
+@media(min-width:860px){.grid2{grid-template-columns:1fr 1fr}}
+.proj{display:flex;justify-content:space-between;gap:12px;padding:8px 0;
+  border-bottom:1px solid var(--c-line);font-size:13.5px}
+.proj:last-child{border-bottom:none}
+.proj span:last-child{color:rgb(var(--c-text-secondary));font-size:12.5px;text-align:right;white-space:nowrap}
+.phase{padding:13px 0;border-bottom:1px solid var(--c-line)}
+.phase:last-child{border-bottom:none}
+.phase .d{font:600 11px/1 ui-monospace,Menlo,monospace;letter-spacing:.1em;text-transform:uppercase;
+  color:rgb(var(--c-text-code));margin-bottom:5px}
+footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
+  font-size:12.5px;color:rgb(var(--c-text-secondary))}
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <div class="bar-in">
+    <a class="brand" href="index.html" title="Back to the command center">
+      <span class="dot"></span>
+      <span>Fit Brief &mdash; Project Controls Manager<small>TJ Jaiyen &middot; prepared for Otak</small></span>
+    </a>
+    <div class="right">
+      <button class="icobtn" id="themeBtn" type="button" aria-pressed="false">Theme</button>
+      <a class="icobtn" href="index.html">&larr; Live dashboard</a>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <section id="top" style="padding-top:36px">
+    <div class="eyebrow">Otak &middot; Redmond, WA &middot; Project Controls</div>
+    <h1>I built the dashboard before I wrote the cover letter</h1>
+    <p class="lede">
+      The posting asks for someone who can &ldquo;generate reports and dashboards to support leadership
+      decision&#8209;making&rdquo; and &ldquo;translate complex data into actionable reports.&rdquo; Rather than
+      assert that, I built one:
+      <a href="index.html">a working earned&#8209;value and schedule&#8209;health command center</a>
+      for a multi&#8209;package capital transit program. It runs on synthetic data, and every metric on it
+      is computed rather than typed.
+    </p>
+    <div class="thesis">
+      <b>The argument in one line:</b> I spent eight years pricing and controlling cost on capital
+      construction &mdash; NJDOT and municipal heavy&#8209;civil bids, then $50M+ curtain&#8209;wall
+      packages on Seattle high&#8209;rises &mdash; and then two years building the cost, variance and
+      reporting infrastructure that manufacturers run on. Otak's Project Controls practice sits exactly
+      on that seam. The degree requirement is the part most finance candidates miss and I don't:
+      <b>BS Civil/Environmental Engineering, Rutgers School of Engineering</b>, plus the EIT.
+    </div>
+  </section>
+
+  <section id="coverage">
+    <div class="chapter"><span class="num">1</span>Requirement coverage</div>
+    <h2>Every line of the posting, including the two I don't clear</h2>
+    <p class="lede">A coverage matrix is only worth reading if the gaps are in it. Two are, and they are
+      marked as plainly as the matches.</p>
+
+    <div class="cov" id="cov"></div>
+
+    <div class="filters" role="group" aria-label="Filter requirements by coverage">
+      <button class="icobtn" data-f="all"  aria-pressed="true">All 13</button>
+      <button class="icobtn" data-f="met"  aria-pressed="false">Met</button>
+      <button class="icobtn" data-f="part" aria-pressed="false">Partial</button>
+      <button class="icobtn" data-f="gap"  aria-pressed="false">Gap</button>
+    </div>
+
+    <div class="tblwrap">
+      <table>
+        <thead><tr>
+          <th scope="col">Posting requirement</th>
+          <th scope="col">Evidence</th>
+          <th scope="col">Coverage</th>
+        </tr></thead>
+        <tbody id="covBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="gaps">
+    <div class="chapter"><span class="num">2</span>The two gaps, stated once</div>
+    <h2>What I would be learning, not pretending</h2>
+    <div class="grid2">
+      <div class="card">
+        <h3><span class="pill gap">Gap</span> &nbsp;Owning the CPM schedule</h3>
+        <p style="margin:9px 0 0;color:rgb(var(--c-text-secondary))">
+          I have worked <em>against</em> construction schedules for a decade &mdash; bidding to them,
+          sequencing procurement around long&#8209;lead items, and tracking capital renovation schedules
+          at Rutgers Facilities &amp; Capital Planning. At B.E. Meyers I took on program coordination for
+          a new contract, identifying the actions that had to complete in sequence for the production
+          ramp to hold. What I have <b style="color:rgb(var(--c-text-primary))">not</b> done is own the
+          critical&#8209;path model itself in a scheduling tool on a major capital program. That is a real
+          gap and it is the first thing I would close.
+        </p>
+      </div>
+      <div class="card">
+        <h3><span class="pill gap">Gap</span> &nbsp;Leading a $500M+ program</h3>
+        <p style="margin:9px 0 0;color:rgb(var(--c-text-secondary))">
+          I have worked at that scale without having led at it. Cost intelligence I built at Collins
+          Aerospace informed pricing and sourcing across <b style="color:rgb(var(--c-text-primary))">$500M+</b>
+          of annual production; the standard&#8209;cost system I built at B.E. Meyers supported
+          <b style="color:rgb(var(--c-text-primary))">$100M+</b> in total contract value; the curtain&#8209;wall
+          packages I priced ran past <b style="color:rgb(var(--c-text-primary))">$50M</b> each. That is
+          exposure to the scale, not leadership of a $500M program &mdash; and the posting lists it as
+          preferred, not required.
+        </p>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h3><span class="pill part">Partial</span> &nbsp;Two more worth naming</h3>
+      <ul class="tight" style="color:rgb(var(--c-text-secondary))">
+        <li><b style="color:rgb(var(--c-text-primary))">Professional Engineer</b> &mdash; I hold the
+          Engineer in Training in Civil, not the full licence. Preferred, not required.</li>
+        <li><b style="color:rgb(var(--c-text-primary))">Direct reports</b> &mdash; the posting asks for
+          mentoring junior staff, which I've done; I have led through influence and process rather than
+          headcount, and have not formally managed a team.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="evidence">
+    <div class="chapter"><span class="num">3</span>Evidence</div>
+    <h2>Capital projects, in your geography</h2>
+    <p class="lede">Five years at Walters &amp; Wolf pricing high&#8209;rise curtain&#8209;wall packages
+      put me on the cost side of projects Otak's own teams work around.</p>
+    <div class="grid2">
+      <div class="card">
+        <h3>Priced and won &mdash; Puget Sound</h3>
+        <div style="margin-top:8px">
+          <div class="proj"><span>Washington 1000 &mdash; Seattle Convention Center addition</span><span>Seattle</span></div>
+          <div class="proj"><span>Microsoft Sammamish Campus</span><span>Redmond</span></div>
+          <div class="proj"><span>Bellevue 600</span><span>Bellevue</span></div>
+          <div class="proj"><span>Cloudvue Towers</span><span>Bellevue</span></div>
+          <div class="proj"><span>Bellevue Plaza</span><span>Bellevue</span></div>
+        </div>
+        <p style="margin:11px 0 0;font-size:12.5px;color:rgb(var(--c-text-secondary))">
+          Takeoffs and quantity development validated across 100+ projects; value engineering applied
+          across bid packages; subcontractor and vendor pricing negotiated directly on GC RFPs.</p>
+      </div>
+      <div class="card">
+        <h3>The controls and reporting half</h3>
+        <ul class="tight" style="color:rgb(var(--c-text-secondary))">
+          <li><b style="color:rgb(var(--c-text-primary))">Pillari Bros. Construction</b> &mdash;
+            heavy&#8209;civil estimating and project engineering on NJDOT and municipal
+            public&#8209;infrastructure bids: storm drainage, sanitary sewer, water distribution.</li>
+          <li><b style="color:rgb(var(--c-text-primary))">Collins Aerospace (RTX)</b> &mdash; cost and
+            reporting standardisation across four manufacturing sites; month&#8209;end close cut
+            <b style="color:rgb(var(--c-text-primary))">~40%</b> through automation.</li>
+          <li><b style="color:rgb(var(--c-text-primary))">B.E. Meyers &amp; Co.</b> &mdash; built the
+            entire cost&#8209;reporting and forecasting infrastructure from zero in ~4 months:
+            <b style="color:rgb(var(--c-text-primary))">60+</b> data pipelines,
+            <b style="color:rgb(var(--c-text-primary))">180+</b> measures across standard cost, WIP and
+            variance. Surfaced a <b style="color:rgb(var(--c-text-primary))">$208K</b> labour variance
+            that prior reporting could not see.</li>
+          <li><b style="color:rgb(var(--c-text-primary))">P&amp;A Construction</b> &mdash; job&#8209;cost
+            analysis and custom reporting tooling for project controls. The label has been on the work
+            since 2016.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="ninety">
+    <div class="chapter"><span class="num">4</span>First 90 days</div>
+    <h2>Where I'd start</h2>
+    <p class="lede">Written against what Otak's Project Controls practice actually does &mdash;
+      contract&#8209;package reporting across major capital transportation and infrastructure programs.</p>
+    <div class="card" style="margin-top:16px">
+      <div class="phase">
+        <div class="d">Days 1&ndash;30 &middot; Learn the schedule, not just the cost</div>
+        Sit with the schedulers first. My cost and reporting side transfers on day one; the CPM model is
+        the part I need to earn. Walk every contract package's control account structure, learn how
+        earned value is being claimed, and find where the reporting is manual today.
+      </div>
+      <div class="phase">
+        <div class="d">Days 31&ndash;60 &middot; Close the reporting gap</div>
+        Take the most manual recurring report and rebuild it as something that refreshes itself. This is
+        the work I've done from zero twice; it is usually where a controls practice is losing the most
+        analyst hours, and it is the fastest visible win that doesn't require me to be the expert on the
+        program yet.
+      </div>
+      <div class="phase">
+        <div class="d">Days 61&ndash;90 &middot; Make the variance legible upward</div>
+        Get to one view leadership actually opens &mdash; package&#8209;level cost and schedule
+        performance with the drill&#8209;down intact, so a portfolio average never hides a single package
+        the way it does in the demo. Then start mentoring on the reporting layer, which is the part I can
+        teach immediately.
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p><b>Prepared by TJ Jaiyen</b> &middot; Lake Stevens, WA &middot;
+      <a href="mailto:theerayut.jaiyen@gmail.com">theerayut.jaiyen@gmail.com</a> &middot;
+      <a href="https://linkedin.com/in/jaiyentheerayut" target="_blank" rel="noopener">LinkedIn</a> &middot;
+      <a href="https://tjaiyen.github.io/tj-finance-portfolio/" target="_blank" rel="noopener">Portfolio</a></p>
+    <p>The linked dashboard uses synthetic illustrative data only &mdash; no client, employer, or agency
+      information appears in it. Figures cited above are drawn from my own work history and are stated at
+      the level of detail I can defend in an interview.</p>
+  </footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var root = document.documentElement;
+  var themeBtn = document.getElementById("themeBtn");
+  var mq = window.matchMedia("(prefers-color-scheme: dark)");
+  function applyThemeLabel(){ themeBtn.setAttribute("aria-pressed", root.dataset.theme ? "true" : "false"); }
+  themeBtn.addEventListener("click", function(){
+    var current = root.dataset.theme || (mq.matches ? "dark" : "light");
+    root.dataset.theme = current === "dark" ? "light" : "dark";
+    applyThemeLabel();
+  });
+  applyThemeLabel();
+
+  /* Requirement rows. `s` ∈ met | part | gap ; `pref` marks a preferred (not required) line. */
+  var REQS = [
+    {r:"Bachelor's degree in Engineering, Construction Management or related field",
+     e:"BS Civil/Environmental Engineering — Rutgers University, School of Engineering (2016). Engineer in Training (EIT), Civil.", s:"met"},
+    {r:"8+ years delivering major capital transportation, heavy civil, manufacturing or infrastructure construction projects",
+     e:"Eight years construction estimating — NJDOT and municipal heavy-civil bids (Pillari Bros.), $50M+ high-rise curtain-wall packages (Walters &amp; Wolf), excavation and site work (J Lazewski, P&amp;A) — plus two years manufacturing cost and controls across four sites (Collins Aerospace) and a defence manufacturer (B.E. Meyers). Ten years total across the categories the posting names.", s:"met"},
+    {r:"Demonstrated experience with schedule development",
+     e:"Capital renovation schedules and financial tracking across 20+ facilities at Rutgers Facilities &amp; Capital Planning; critical-path sequencing for a production ramp at B.E. Meyers. I have not owned a CPM model in a scheduling tool on a major capital program — see the gap section.", s:"gap"},
+    {r:"Team coordination",
+     e:"Program coordination across engineering, production and procurement at B.E. Meyers; bid submissions finalised directly with the Senior Estimator, COO and Design Engineering at Walters &amp; Wolf; reporting standardised across four Collins sites. Led through influence rather than headcount.", s:"met"},
+    {r:"Risk evaluation",
+     e:"Bid and margin risk on $50M+ packages; three-point range validation (min/max/modal by volume) before a standard-cost roll; forensic root-cause work that surfaced a $208K labour variance invisible to prior reporting.", s:"met"},
+    {r:"Knowledge of contract, cost and schedule controls",
+     e:"Contract and cost controls are core: bid pricing through GC proposal, standard costing, WIP valuation, variance decomposition, supporting $100M+ in total contract value. Schedule controls are the partial half.", s:"part"},
+    {r:"Constructability",
+     e:"Project engineering at Pillari Bros. across public infrastructure and private commercial work; curtain-wall systems developed with Design Engineering; blueprint and specification review from the Rutgers capital planning role forward.", s:"met"},
+    {r:"Value engineering",
+     e:"Applied value engineering across bid packages to hold cost competitiveness without cutting scope, and negotiated subcontractor and vendor pricing directly to protect margin on GC RFPs.", s:"met"},
+    {r:"Strong communication and analytical abilities",
+     e:"Reporting built for and reviewed by CFO, COO and Director of Operations audiences; secured operations sign-off before rolling a new company-wide standard-cost process.", s:"met"},
+    {r:"Capacity to translate complex data into actionable reports",
+     e:"The strongest line on this list. Built a manufacturer's entire reporting and forecasting infrastructure from zero in ~4 months with no predecessor and no BI team: 60+ data pipelines, 180+ measures, an enterprise KPI command center and a CFO forecast tool. The linked dashboard is the same discipline applied to program controls.", s:"met"},
+    {r:"Leadership experience on projects exceeding $500 million",
+     e:"Exposure at that scale without leadership of it: cost intelligence informing $500M+ of annual production at Collins Aerospace, $100M+ total contract value at B.E. Meyers, $50M+ individual bid packages. Stated as exposure, not leadership.", s:"gap", pref:true},
+    {r:"Professional Engineer licence",
+     e:"Engineer in Training (EIT) in Civil Engineering. Not the full licence.", s:"part", pref:true},
+    {r:"Background with executive-level scheduling and data analytics",
+     e:"Split. Executive-level data analytics is a strength — SQL, Power BI/DAX, Python, dbt, and an AI-augmented reporting layer, with a public CI-green portfolio behind it. Executive-level scheduling is the gap named above.", s:"part", pref:true}
+  ];
+
+  var LABEL = {met:"Met", part:"Partial", gap:"Gap"};
+  var body = document.getElementById("covBody");
+
+  function draw(filter){
+    body.innerHTML = REQS.filter(function(q){ return filter === "all" || q.s === filter; })
+      .map(function(q){
+        return '<tr class="' + (q.pref ? "pref" : "") + '" data-s="' + q.s + '">' +
+          '<td class="req">' + q.r + '</td>' +
+          '<td style="color:rgb(var(--c-text-secondary))">' + q.e + '</td>' +
+          '<td class="st"><span class="pill ' + q.s + '">' + LABEL[q.s] + '</span></td></tr>';
+      }).join("") ||
+      '<tr><td colspan="3" style="color:rgb(var(--c-text-secondary))">No requirements in this band.</td></tr>';
+  }
+
+  var counts = REQS.reduce(function(a,q){ a[q.s] = (a[q.s]||0) + 1; return a; }, {});
+  document.getElementById("cov").innerHTML =
+    '<div class="covcell"><div class="v">' + REQS.length + '</div><div class="l">Requirements</div></div>' +
+    '<div class="covcell"><div class="v good">' + (counts.met||0) + '</div><div class="l">Met</div></div>' +
+    '<div class="covcell"><div class="v warn">' + (counts.part||0) + '</div><div class="l">Partial</div></div>' +
+    '<div class="covcell"><div class="v bad">' + (counts.gap||0) + '</div><div class="l">Gap &mdash; named</div></div>' +
+    '<div class="covcell"><div class="v">' +
+      Math.round(((counts.met||0) + (counts.part||0)*0.5) / REQS.length * 100) +
+      '%</div><div class="l">Weighted coverage</div></div>';
+
+  document.querySelector(".filters").addEventListener("click", function(e){
+    var b = e.target.closest("button[data-f]"); if (!b) return;
+    Array.prototype.forEach.call(this.querySelectorAll("button"), function(x){
+      x.setAttribute("aria-pressed", String(x === b));
+    });
+    draw(b.dataset.f);
+  });
+
+  draw("all");
+})();
+</script>
+</body>
+</html>

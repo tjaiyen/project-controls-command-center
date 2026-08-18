@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Project Controls Command Center</title>
+<meta name="description" content="An interactive earned-value and schedule-health command center for a multi-package capital transit program. Synthetic illustrative data. Built by TJ Jaiyen.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230A0F1D'/%3E%3Cpath d='M6 22 L12 15 L18 18 L26 8' stroke='%2306B6D4' stroke-width='2.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+/* ---------------------------------------------------------------------------
+   Palette — mirrors the token set in tj-finance-portfolio/site/src/css/styles.css
+   so this page reads as part of the same body of work. Three layers, in order:
+     1. :root                              → dark default (brand)
+     2. @media (prefers-color-scheme:light)→ OS-driven light
+     3. :root[data-theme=…]                → manual toggle, wins over the media query
+   Values are space-separated RGB triplets consumed via rgb(var(--x) / <alpha>).
+   Standalone pages get no Tailwind bundle, so the tokens are re-declared by hand.
+--------------------------------------------------------------------------- */
+:root{
+  --c-bg-primary:10 15 29; --c-bg-card:30 41 59; --c-accent:6 182 212;
+  --c-text-primary:241 245 249; --c-text-secondary:148 163 184; --c-text-code:34 211 238;
+  --c-success:16 185 129; --c-warning:245 158 11; --c-danger:239 68 68;
+  --c-line:rgb(6 182 212 / .20); --c-grid:rgb(148 163 184 / .16);
+}
+@media (prefers-color-scheme: light){
+  :root{
+    --c-bg-primary:248 250 252; --c-bg-card:255 255 255; --c-accent:14 116 144;
+    --c-text-primary:15 23 42; --c-text-secondary:71 85 105; --c-text-code:8 145 178;
+    --c-success:5 150 105; --c-warning:180 83 9; --c-danger:220 38 38;
+    --c-line:rgb(14 116 144 / .22); --c-grid:rgb(71 85 105 / .18);
+  }
+}
+:root[data-theme="dark"]{
+  --c-bg-primary:10 15 29; --c-bg-card:30 41 59; --c-accent:6 182 212;
+  --c-text-primary:241 245 249; --c-text-secondary:148 163 184; --c-text-code:34 211 238;
+  --c-success:16 185 129; --c-warning:245 158 11; --c-danger:239 68 68;
+  --c-line:rgb(6 182 212 / .20); --c-grid:rgb(148 163 184 / .16);
+}
+:root[data-theme="light"]{
+  --c-bg-primary:248 250 252; --c-bg-card:255 255 255; --c-accent:14 116 144;
+  --c-text-primary:15 23 42; --c-text-secondary:71 85 105; --c-text-code:8 145 178;
+  --c-success:5 150 105; --c-warning:180 83 9; --c-danger:220 38 38;
+  --c-line:rgb(14 116 144 / .22); --c-grid:rgb(71 85 105 / .18);
+}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:rgb(var(--c-bg-primary)); color:rgb(var(--c-text-primary));
+  font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+code,.mono,.tabular{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+.tabular{font-variant-numeric:tabular-nums}
+a{color:rgb(var(--c-accent))}
+:focus-visible{outline:2px solid rgb(var(--c-accent)); outline-offset:2px; border-radius:4px}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px 72px}
+
+/* sticky header */
+.bar{position:sticky;top:0;z-index:40;background:rgb(var(--c-bg-primary) / .92);
+  backdrop-filter:blur(8px);border-bottom:1px solid var(--c-line)}
+.bar-in{max-width:1180px;margin:0 auto;padding:10px 20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.brand{display:flex;gap:9px;align-items:center;font-weight:600;text-decoration:none;color:inherit}
+.brand small{display:block;font:400 11px/1.3 ui-monospace,Menlo,monospace;color:rgb(var(--c-text-secondary))}
+.dot{width:9px;height:9px;border-radius:50%;background:rgb(var(--c-accent));flex:none}
+.bar .right{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.icobtn{display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:6px 11px;
+  border:1px solid var(--c-line);border-radius:7px;background:transparent;
+  color:rgb(var(--c-text-primary));font:500 12px/1 inherit;cursor:pointer;text-decoration:none}
+.icobtn:hover{background:rgb(var(--c-accent) / .10)}
+
+/* typography */
+.eyebrow{font:600 10.5px/1 ui-monospace,Menlo,monospace;letter-spacing:.16em;text-transform:uppercase;
+  color:rgb(var(--c-text-code));margin:0 0 8px}
+h1{font-size:clamp(1.6rem,3.6vw,2.25rem);line-height:1.15;letter-spacing:-.022em;margin:0 0 10px}
+h2{font-size:clamp(1.15rem,2.2vw,1.4rem);letter-spacing:-.015em;margin:0 0 8px}
+h3{font-size:1rem;margin:0 0 6px}
+.lede{color:rgb(var(--c-text-secondary));max-width:74ch;margin:0}
+section{padding-top:44px}
+.chapter{display:flex;align-items:center;gap:10px;margin-bottom:14px;
+  font:600 11px/1 ui-monospace,Menlo,monospace;letter-spacing:.13em;text-transform:uppercase;
+  color:rgb(var(--c-text-secondary))}
+.chapter .num{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:6px;
+  background:rgb(var(--c-accent) / .13);color:rgb(var(--c-text-code));font-size:11px}
+
+/* banner */
+.banner{display:flex;gap:11px;align-items:flex-start;margin:18px 0 0;padding:12px 15px;
+  border:1px solid rgb(var(--c-warning) / .40);background:rgb(var(--c-warning) / .09);
+  border-radius:9px;color:rgb(var(--c-text-secondary));font-size:13px}
+.banner b{color:rgb(var(--c-text-primary))}
+
+.card{background:rgb(var(--c-bg-card));border:1px solid var(--c-line);border-radius:10px;padding:16px}
+
+/* KPI grid */
+/* 196px min → the 9-card portfolio strip wraps 5+4 at full width and the 5-card
+   drill-down sits on a single row, instead of leaving a ragged trailing gap. */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(196px,1fr));gap:1px;
+  background:var(--c-line);border:1px solid var(--c-line);border-radius:10px;overflow:hidden;margin-top:16px}
+.kpi{background:rgb(var(--c-bg-card));padding:14px 15px}
+.kpi .v{font:600 1.42rem/1.05 ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.kpi .l{display:flex;align-items:center;gap:5px;margin-top:7px;
+  font:600 10px/1.3 ui-monospace,Menlo,monospace;letter-spacing:.1em;text-transform:uppercase;
+  color:rgb(var(--c-text-secondary))}
+.kpi .s{margin-top:5px;font-size:11.5px;color:rgb(var(--c-text-secondary))}
+.good{color:rgb(var(--c-success))} .warn{color:rgb(var(--c-warning))} .bad{color:rgb(var(--c-danger))}
+
+/* info popover */
+.infobtn{width:15px;height:15px;flex:none;border-radius:50%;border:1px solid var(--c-line);
+  background:transparent;color:rgb(var(--c-text-secondary));font:600 9px/1 inherit;cursor:pointer;padding:0}
+.infobtn:hover{border-color:rgb(var(--c-accent));color:rgb(var(--c-text-code))}
+.infopop{position:fixed;z-index:60;max-width:290px;padding:10px 12px;border-radius:9px;
+  background:rgb(var(--c-bg-card));border:1px solid rgb(var(--c-accent) / .45);
+  box-shadow:0 10px 34px rgb(0 0 0 / .34);font-size:12.5px;line-height:1.5;
+  color:rgb(var(--c-text-secondary));display:none}
+.infopop.on{display:block}
+.infopop b{color:rgb(var(--c-text-primary));display:block;margin-bottom:3px}
+
+/* tables */
+.tblwrap{overflow-x:auto;margin-top:14px;border:1px solid var(--c-line);border-radius:10px}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:760px}
+th,td{text-align:right;padding:9px 11px;border-bottom:1px solid var(--c-line);font-variant-numeric:tabular-nums;white-space:nowrap}
+th{font:600 10px/1.3 ui-monospace,Menlo,monospace;letter-spacing:.09em;text-transform:uppercase;
+  color:rgb(var(--c-text-secondary));background:rgb(var(--c-bg-card));position:sticky;top:0}
+th:first-child,td:first-child{text-align:left;white-space:normal}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:rgb(var(--c-accent) / .07)}
+tbody tr.sel{background:rgb(var(--c-accent) / .13);box-shadow:inset 3px 0 0 rgb(var(--c-accent))}
+tbody tr:focus-visible{outline:2px solid rgb(var(--c-accent));outline-offset:-2px}
+tfoot td{font-weight:600;border-top:1px solid rgb(var(--c-accent) / .40);border-bottom:none;
+  background:rgb(var(--c-bg-card))}
+.pill{display:inline-block;padding:2px 8px;border-radius:999px;
+  font:600 10.5px/1.5 ui-monospace,Menlo,monospace}
+.pill.g{background:rgb(var(--c-success) / .15);color:rgb(var(--c-success))}
+.pill.a{background:rgb(var(--c-warning) / .16);color:rgb(var(--c-warning))}
+.pill.r{background:rgb(var(--c-danger) / .15);color:rgb(var(--c-danger))}
+
+.split{display:grid;grid-template-columns:1fr;gap:16px;margin-top:16px}
+@media(min-width:900px){.split{grid-template-columns:1.35fr 1fr}}
+
+/* float bars */
+.floatrow{display:grid;grid-template-columns:118px 1fr 62px;gap:10px;align-items:center;
+  padding:7px 0;border-bottom:1px solid var(--c-line);font-size:12.5px}
+.floatrow:last-child{border-bottom:none}
+.floatbar{position:relative;height:9px;border-radius:5px;background:rgb(var(--c-text-secondary) / .13)}
+.floatbar i{position:absolute;top:0;height:9px;border-radius:5px;display:block}
+.floatbar .zero{position:absolute;top:-3px;bottom:-3px;width:1px;background:rgb(var(--c-text-secondary) / .55)}
+
+/* risk heat map */
+.heat{display:grid;grid-template-columns:auto repeat(5,1fr);gap:3px;margin-top:12px;font-size:11px}
+.heat .hcell{aspect-ratio:1.9/1;border-radius:5px;display:grid;place-items:center;
+  font:600 12px/1 ui-monospace,Menlo,monospace;color:rgb(var(--c-text-primary))}
+.heat .axl{display:grid;place-items:center;color:rgb(var(--c-text-secondary));
+  font:600 10px/1 ui-monospace,Menlo,monospace}
+.risklist{margin-top:14px}
+.riskrow{padding:10px 0;border-bottom:1px solid var(--c-line)}
+.riskrow:last-child{border-bottom:none}
+.riskrow .top{display:flex;gap:9px;align-items:baseline;flex-wrap:wrap}
+.riskrow .id{font:600 11px/1 ui-monospace,Menlo,monospace;color:rgb(var(--c-text-code))}
+.riskrow .meta{margin-top:4px;font-size:11.5px;color:rgb(var(--c-text-secondary))}
+
+.note{margin-top:14px;padding:13px 15px;border-left:3px solid rgb(var(--c-accent));
+  background:rgb(var(--c-accent) / .07);border-radius:0 8px 8px 0;font-size:13px;
+  color:rgb(var(--c-text-secondary))}
+.note b{color:rgb(var(--c-text-primary))}
+dl.gloss{display:grid;grid-template-columns:1fr;gap:11px;margin:14px 0 0}
+@media(min-width:760px){dl.gloss{grid-template-columns:1fr 1fr;gap:11px 26px}}
+dl.gloss dt{font:600 12px/1.4 ui-monospace,Menlo,monospace;color:rgb(var(--c-text-code))}
+dl.gloss dd{margin:3px 0 0;font-size:12.5px;color:rgb(var(--c-text-secondary))}
+footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
+  font-size:12.5px;color:rgb(var(--c-text-secondary))}
+.skel{color:rgb(var(--c-text-secondary));font-size:13px;padding:14px 0}
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <div class="bar-in">
+    <a class="brand" href="./" title="Project Controls Command Center">
+      <span class="dot"></span>
+      <span>Project Controls Command Center<small>earned value · schedule health · risk</small></span>
+    </a>
+    <div class="right">
+      <button class="icobtn" id="themeBtn" type="button" aria-pressed="false">Theme</button>
+      <a class="icobtn" href="#glossary">Glossary &darr;</a>
+      <a class="icobtn" href="otak.html">Otak fit brief &rarr;</a>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <section id="intro" style="padding-top:34px">
+    <div class="eyebrow">Capital program controls &middot; EVM &middot; CPM schedule health</div>
+    <h1>What a program looks like when the numbers are honest</h1>
+    <p class="lede">
+      A working command center for a multi&#8209;package capital transit program &mdash; earned value,
+      schedule health, and risk exposure in one place, drilled from portfolio down to the individual
+      contract package. Every figure on this page is <em>computed</em> from the package ledger below,
+      not typed in: change a package and the portfolio rolls up with it.
+    </p>
+    <div class="banner">
+      <span aria-hidden="true">&#9888;</span>
+      <span><b>Synthetic illustrative data.</b> The program, packages, milestones and risks are
+      invented for demonstration. No client, employer, or agency data appears anywhere on this page.
+      The <em>methods</em> are the real content.</span>
+    </div>
+  </section>
+
+  <section id="portfolio">
+    <div class="chapter"><span class="num">1</span>Portfolio position</div>
+    <h2>Where the program stands at the data date</h2>
+    <p class="lede">Eight contract packages along an 18&#8209;mile alignment. Cost and schedule
+      performance are indexed against the performance measurement baseline.</p>
+    <div class="kpis" id="kpis"><div class="skel">calculating&hellip;</div></div>
+    <div class="note" id="verdict"></div>
+  </section>
+
+  <section id="scurve">
+    <div class="chapter"><span class="num">2</span>Earned value over time</div>
+    <h2>The three curves that tell you if you are in trouble</h2>
+    <p class="lede">Planned value is the baseline. Earned value is what the work is actually worth.
+      Actual cost is what was spent to get it. The gaps between them &mdash; not any single line &mdash;
+      are the story.</p>
+    <div class="card" style="margin-top:16px">
+      <div id="chart" class="skel">rendering&hellip;</div>
+    </div>
+  </section>
+
+  <section id="packages">
+    <div class="chapter"><span class="num">3</span>Contract packages</div>
+    <h2>Where the variance actually lives</h2>
+    <p class="lede">A portfolio number is an average of things that are not average. Select any row to
+      decompose it.</p>
+    <div class="tblwrap">
+      <table id="pkgTable">
+        <caption class="skel" style="caption-side:top;text-align:left;padding:0 11px 8px">
+          Contract package cost &amp; schedule performance
+        </caption>
+        <thead><tr>
+          <th scope="col">Package</th><th scope="col">BAC</th><th scope="col">PV</th>
+          <th scope="col">EV</th><th scope="col">AC</th><th scope="col">SPI</th>
+          <th scope="col">CPI</th><th scope="col">EAC</th><th scope="col">VAC</th>
+          <th scope="col">Float</th><th scope="col">Status</th>
+        </tr></thead>
+        <tbody id="pkgBody"></tbody>
+        <tfoot id="pkgFoot"></tfoot>
+      </table>
+    </div>
+    <div class="card" id="drill" style="margin-top:16px"></div>
+  </section>
+
+  <section id="schedule">
+    <div class="chapter"><span class="num">4</span>Schedule health</div>
+    <h2>Float is the early-warning system</h2>
+    <p class="lede">Cost variance tells you what already happened. Total float tells you what is about
+      to. Negative float means the package is driving the program completion date.</p>
+    <div class="split">
+      <div class="card">
+        <h3>Total float by package <span style="font-weight:400;color:rgb(var(--c-text-secondary))">(working days)</span></h3>
+        <div id="floats" class="skel">rendering&hellip;</div>
+      </div>
+      <div class="card">
+        <h3>Milestone variance</h3>
+        <div id="miles" class="skel">rendering&hellip;</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="risk">
+    <div class="chapter"><span class="num">5</span>Risk exposure</div>
+    <h2>Probability &times; impact, priced</h2>
+    <p class="lede">A risk register that is not priced is a list. Exposure is probability&#8209;weighted
+      cost, which is what makes it comparable to contingency.</p>
+    <div class="split">
+      <div class="card">
+        <h3>Heat map</h3>
+        <p style="margin:4px 0 0;font-size:12px;color:rgb(var(--c-text-secondary))">
+          Impact (1&ndash;5) across, probability (1&ndash;5) down. Cells show risk count.</p>
+        <div class="heat" id="heat"></div>
+      </div>
+      <div class="card">
+        <h3>Register &mdash; ranked by exposure</h3>
+        <div class="risklist" id="risks"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="method">
+    <div class="chapter"><span class="num">6</span>Method</div>
+    <h2>How every number here is derived</h2>
+    <div class="card" style="margin-top:16px">
+      <p style="margin:0 0 10px">
+        Nothing on this page is a hardcoded result. The package ledger holds four inputs per package
+        &mdash; BAC, PV, EV, AC &mdash; and everything else is computed:
+      </p>
+      <pre class="mono" style="overflow-x:auto;margin:0;padding:12px;border-radius:8px;
+        background:rgb(var(--c-bg-primary));border:1px solid var(--c-line);font-size:12.5px;line-height:1.7">
+SV  = EV &minus; PV                 schedule variance, in dollars
+CV  = EV &minus; AC                 cost variance, in dollars
+SPI = EV / PV                 &lt;1 behind schedule
+CPI = EV / AC                 &lt;1 over cost
+EAC = BAC / CPI               forecast at completion, at current efficiency
+VAC = BAC &minus; EAC               forecast over/(under) run</pre>
+      <p style="margin:12px 0 0">
+        Portfolio EAC is rolled up <b>bottom&#8209;up</b> as the sum of package EACs, because each package
+        is its own control account with its own cost efficiency. The independent check
+        &mdash; portfolio <span class="mono">BAC / CPI</span> &mdash; is shown alongside it. The two
+        legitimately differ: a single blended CPI hides the spread between packages, and that spread is
+        exactly what a program manager needs to see. Where they diverge sharply, the mix has shifted.
+      </p>
+    </div>
+  </section>
+
+  <section id="glossary">
+    <div class="chapter"><span class="num">7</span>Glossary</div>
+    <h2>Plain language</h2>
+    <dl class="gloss">
+      <dt>BAC &mdash; Budget at Completion</dt><dd>The approved total budget for the scope. The baseline you are measured against.</dd>
+      <dt>PV &mdash; Planned Value</dt><dd>What the baseline said you should have earned by now.</dd>
+      <dt>EV &mdash; Earned Value</dt><dd>The budgeted value of work actually completed. Physical progress, priced.</dd>
+      <dt>AC &mdash; Actual Cost</dt><dd>What was really spent to earn that value.</dd>
+      <dt>SPI &mdash; Schedule Performance Index</dt><dd>EV &divide; PV. Below 1.00 means work is arriving slower than planned.</dd>
+      <dt>CPI &mdash; Cost Performance Index</dt><dd>EV &divide; AC. Below 1.00 means each dollar is buying less than budgeted.</dd>
+      <dt>EAC &mdash; Estimate at Completion</dt><dd>Forecast final cost if current efficiency holds.</dd>
+      <dt>VAC &mdash; Variance at Completion</dt><dd>BAC &minus; EAC. Negative is a forecast overrun.</dd>
+      <dt>Total float</dt><dd>Days an activity can slip before it delays program completion. Negative float means it already does.</dd>
+      <dt>Exposure</dt><dd>Probability &times; cost impact. Makes unlike risks comparable, and comparable to contingency.</dd>
+    </dl>
+  </section>
+
+  <footer>
+    <p><b>Synthetic illustrative data throughout.</b> Program, packages, milestones and risks are
+    invented for demonstration; no client, employer, or agency information is represented. Figures are
+    computed deterministically in code &mdash; the page holds four inputs per package and derives the rest.</p>
+    <p>Built by TJ Jaiyen &middot;
+      <a href="otak.html">Otak Project Controls Manager &mdash; fit brief</a> &middot;
+      <a href="https://tjaiyen.github.io/tj-finance-portfolio/" target="_blank" rel="noopener">Finance &amp; data portfolio</a> &middot;
+      <a href="https://github.com/tjaiyen" target="_blank" rel="noopener">GitHub</a></p>
+  </footer>
+</div>
+
+<div class="infopop" id="infopop" role="tooltip"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- theme toggle (matches the portfolio's canonical implementation) ---------- */
+  var root = document.documentElement;
+  var themeBtn = document.getElementById("themeBtn");
+  var mq = window.matchMedia("(prefers-color-scheme: dark)");
+  function applyThemeLabel(){
+    themeBtn.setAttribute("aria-pressed", root.dataset.theme ? "true" : "false");
+  }
+  themeBtn.addEventListener("click", function(){
+    var current = root.dataset.theme || (mq.matches ? "dark" : "light");
+    root.dataset.theme = current === "dark" ? "light" : "dark";
+    applyThemeLabel();
+    render();               // re-draw the SVG so stroke colours follow the new tokens
+  });
+  applyThemeLabel();
+
+  /* ---------- the ledger: the ONLY hardcoded numbers on this page ---------- */
+  /* $M. Four inputs per package; every derived metric below is computed. */
+  var PKGS = [
+    {id:"CP-101", name:"Guideway &mdash; North alignment",   bac:248.0, pv:186.0, ev:179.4, ac:191.9, float: 22},
+    {id:"CP-102", name:"Guideway &mdash; South alignment",   bac:212.5, pv:159.4, ev:162.6, ac:158.2, float: 35},
+    {id:"CP-201", name:"Tunnel &amp; portals",               bac:305.0, pv:198.3, ev:178.4, ac:205.1, float:-18},
+    {id:"CP-301", name:"Stations (4) &mdash; shells &amp; finishes", bac:164.0, pv:114.8, ev:116.9, ac:113.4, float: 28},
+    {id:"CP-401", name:"Systems &amp; overhead catenary",    bac:132.0, pv: 66.0, ev: 63.4, ac: 65.7, float:  6},
+    {id:"CP-501", name:"Parking structures",                 bac: 78.5, pv: 62.8, ev: 64.1, ac: 61.5, float: 44},
+    {id:"CP-601", name:"Third-party utilities relocation",   bac: 54.0, pv: 45.9, ev: 41.8, ac: 48.3, float:-12},
+    {id:"CP-701", name:"Systems integration &amp; testing",  bac: 46.0, pv: 13.8, ev: 13.1, ac: 13.5, float:  0}
+  ];
+  var CONTINGENCY = 124.0, CONTINGENCY_DRAWN = 71.4;
+  var DATA_DATE = "31 Jul 2026", MONTHS_ELAPSED = 22, MONTHS_TOTAL = 36;
+
+  var MILESTONES = [
+    {n:"Utilities relocation complete", base:"31 Aug 2026", fc:"05 Oct 2026", d: 35},
+    {n:"Tunnel excavation complete",    base:"30 Sep 2026", fc:"18 Nov 2026", d: 49},
+    {n:"Guideway north substantial",    base:"15 Dec 2026", fc:"08 Dec 2026", d: -7},
+    {n:"Station shells complete (4)",   base:"31 Mar 2027", fc:"24 Mar 2027", d: -7},
+    {n:"Systems cutover ready",         base:"15 Aug 2027", fc:"26 Sep 2027", d: 42},
+    {n:"Pre-revenue testing start",     base:"01 Oct 2027", fc:"12 Nov 2027", d: 42},
+    {n:"Revenue service",               base:"15 Mar 2028", fc:"24 Apr 2028", d: 40}
+  ];
+
+  var RISKS = [
+    {id:"R-01", n:"Tunnel ground conditions worse than baseline", p:4, i:5, cost:18.5, own:"Tunnel CM",       mit:"Supplemental geotechnical program; staged contingency release tied to face mapping"},
+    {id:"R-03", n:"Systems integration test window compressed",   p:3, i:4, cost: 9.4, own:"Systems PM",      mit:"Negotiate extended night windows; pre-stage commissioning off critical path"},
+    {id:"R-02", n:"Third-party utility approval delays",          p:4, i:3, cost: 6.2, own:"Utilities Lead",  mit:"Weekly owner cadence; parallel permit tracks on the two longest-lead crossings"},
+    {id:"R-04", n:"Steel &amp; OCS escalation beyond index",      p:3, i:3, cost: 4.8, own:"Procurement",     mit:"Early buy on hedgeable commodities; EPA clause indexed to published series"},
+    {id:"R-05", n:"Station finishes labour availability",         p:2, i:3, cost: 2.9, own:"Stations CM",     mit:"Second-source subcontract package; sequence finishes by station"},
+    {id:"R-06", n:"Third-party rail coordination windows",        p:2, i:2, cost: 1.6, own:"Program Controls",mit:"Lock 12-month look-ahead with the operating railroad"}
+  ];
+
+  /* ---------- derivation ---------- */
+  function derive(p){
+    var sv = p.ev - p.pv, cv = p.ev - p.ac;
+    var spi = p.ev / p.pv, cpi = p.ev / p.ac;
+    var eac = p.bac / cpi, vac = p.bac - eac;
+    return {sv:sv, cv:cv, spi:spi, cpi:cpi, eac:eac, vac:vac, pct:p.ev / p.bac};
+  }
+  var rows = PKGS.map(function(p){ var d = derive(p); return Object.assign({}, p, d); });
+
+  var T = rows.reduce(function(a,r){
+    a.bac += r.bac; a.pv += r.pv; a.ev += r.ev; a.ac += r.ac; a.eac += r.eac; return a;
+  }, {bac:0, pv:0, ev:0, ac:0, eac:0});
+  T.sv = T.ev - T.pv;
+  T.cv = T.ev - T.ac;
+  T.spi = T.ev / T.pv;
+  T.cpi = T.ev / T.ac;
+  T.vac = T.bac - T.eac;              // bottom-up (sum of control-account EACs)
+  T.eacIndep = T.bac / T.cpi;         // independent check
+  T.pct = T.ev / T.bac;
+
+  /* ---------- formatting ---------- */
+  function m(v){
+    var s = v.toFixed(1).split(".");
+    return "$" + s[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",") + "." + s[1] + "M";
+  }
+  function sgn(v){ return (v >= 0 ? "+" : "−") + m(Math.abs(v)); }
+  function idx(v){ return v.toFixed(3); }
+  function pct(v){ return (v*100).toFixed(1) + "%"; }
+  function cls(v, warnAt, badAt){
+    if (v <= badAt) return "bad";
+    if (v <= warnAt) return "warn";
+    return "good";
+  }
+
+  /* ---------- KPI strip ---------- */
+  var KPI_INFO = {
+    "BAC":"Budget at Completion — the approved total budget for the whole program. Everything else is measured against it.",
+    "% COMPLETE":"Earned value divided by budget. The share of the program's budgeted work that is physically done — not the share of time elapsed, and not the share of money spent.",
+    "SPI":"Earned value ÷ planned value. Below 1.00 means the work is arriving more slowly than the baseline assumed.",
+    "CPI":"Earned value ÷ actual cost. Below 1.00 means each dollar spent is buying less work than budgeted.",
+    "SV":"Schedule variance in dollars: the budgeted value of work that should have been done by now but is not.",
+    "CV":"Cost variance in dollars: the gap between what completed work was worth and what it cost.",
+    "EAC":"Estimate at Completion, rolled up bottom-up from each package's own cost efficiency.",
+    "VAC":"Variance at Completion: budget minus forecast. Negative is a forecast overrun.",
+    "CONTINGENCY":"Share of the program contingency already drawn, against the share of budgeted work complete. Drawing contingency faster than you earn value is the leading indicator of a reset."
+  };
+
+  function kpiCard(label, value, klass, sub){
+    return '<div class="kpi">' +
+      '<div class="v ' + (klass||"") + '">' + value + '</div>' +
+      '<div class="l">' + label +
+        (KPI_INFO[label] ? ' <button class="infobtn" type="button" aria-label="What is ' +
+          label + '?" data-info="' + label + '">i</button>' : '') +
+      '</div>' +
+      (sub ? '<div class="s">' + sub + '</div>' : '') +
+    '</div>';
+  }
+
+  function renderKpis(){
+    var drawn = CONTINGENCY_DRAWN / CONTINGENCY;
+    var remaining = CONTINGENCY - CONTINGENCY_DRAWN;
+    var over = Math.abs(T.vac);
+    document.getElementById("kpis").innerHTML =
+      kpiCard("BAC", m(T.bac), "", MONTHS_ELAPSED + " of " + MONTHS_TOTAL + " months elapsed") +
+      kpiCard("% COMPLETE", pct(T.pct), "", "vs " + pct(MONTHS_ELAPSED/MONTHS_TOTAL) + " of schedule elapsed") +
+      kpiCard("SPI", idx(T.spi), cls(T.spi, 0.98, 0.95), "EV " + m(T.ev) + " / PV " + m(T.pv)) +
+      kpiCard("CPI", idx(T.cpi), cls(T.cpi, 0.98, 0.95), "EV " + m(T.ev) + " / AC " + m(T.ac)) +
+      kpiCard("SV", sgn(T.sv), T.sv < 0 ? "bad" : "good", "schedule variance") +
+      kpiCard("CV", sgn(T.cv), T.cv < 0 ? "bad" : "good", "cost variance") +
+      kpiCard("EAC", m(T.eac), T.eac > T.bac ? "bad" : "good", "independent check " + m(T.eacIndep)) +
+      kpiCard("VAC", sgn(T.vac), T.vac < 0 ? "bad" : "good", "forecast at completion") +
+      kpiCard("CONTINGENCY", pct(drawn), remaining < over ? "bad" : "good",
+              m(CONTINGENCY_DRAWN) + " of " + m(CONTINGENCY) + " drawn &middot; " +
+              m(remaining) + " left");
+
+    document.getElementById("verdict").innerHTML =
+      "<b>Read:</b> the program is " + pct(T.pct) + " complete against " +
+      pct(MONTHS_ELAPSED/MONTHS_TOTAL) + " of the schedule elapsed, and is both behind (SPI " +
+      idx(T.spi) + ") and over (CPI " + idx(T.cpi) + "). Contingency is only " + pct(drawn) +
+      " drawn at " + pct(T.pct) + " complete, so drawdown is <em>trailing</em> earned value — " +
+      "that part is healthy. The number to escalate is the other one: at current efficiency the " +
+      "forecast overrun is " + m(over) + " against " + m(remaining) +
+      " of contingency remaining — a <b>" + m(over - remaining) + " shortfall</b>. " +
+      "And it is not spread across the program: one package carries " +
+      pct(rows[2].vac / T.vac) + " of it. See the ledger below.";
+  }
+
+  /* ---------- S-curve ---------- */
+  /* Monthly weights build the shape; each series is then scaled so its cumulative
+     endpoint equals the ledger total exactly. The curves tie to the table by construction. */
+  function cum(weights, target){
+    var out = [], run = 0, i;
+    var total = weights.reduce(function(a,b){ return a+b; }, 0);
+    for (i = 0; i < weights.length; i++){ run += weights[i]; out.push(run / total * target); }
+    return out;
+  }
+  function bell(n, peak, spread){
+    var w = [], i;
+    for (i = 0; i < n; i++) w.push(Math.exp(-Math.pow((i - peak) / spread, 2)) + 0.06);
+    return w;
+  }
+  var wA = bell(MONTHS_ELAPSED, 17, 9);                       // months 1..22 (to data date)
+  var wB = bell(MONTHS_TOTAL - MONTHS_ELAPSED, 2, 7);         // months 23..36 (baseline tail)
+  var pvA = cum(wA, T.pv), evA = cum(wA.map(function(x,i){ return x * (1 - i*0.004); }), T.ev),
+      acA = cum(wA.map(function(x,i){ return x * (1 + i*0.005); }), T.ac);
+  var pvB = cum(wB, T.bac - T.pv).map(function(v){ return v + T.pv; });
+  var eacTail = cum(wB, T.eac - T.ev).map(function(v){ return v + T.ev; });
+
+  function renderChart(){
+    var W = 900, H = 340, PL = 62, PR = 16, PT = 16, PB = 34;
+    var maxY = Math.max(T.bac, T.eac) * 1.03;
+    var n = MONTHS_TOTAL;
+    var x = function(i){ return PL + (i / (n - 1)) * (W - PL - PR); };
+    var y = function(v){ return PT + (1 - v / maxY) * (H - PT - PB); };
+    function path(arr, offset){
+      return arr.map(function(v, i){
+        return (i ? "L" : "M") + x(i + (offset||0)).toFixed(1) + " " + y(v).toFixed(1);
+      }).join(" ");
+    }
+    var css = getComputedStyle(document.documentElement);
+    var cAcc  = "rgb(" + css.getPropertyValue("--c-accent").trim() + ")";
+    var cGood = "rgb(" + css.getPropertyValue("--c-success").trim() + ")";
+    var cBad  = "rgb(" + css.getPropertyValue("--c-danger").trim() + ")";
+    var cMut  = "rgb(" + css.getPropertyValue("--c-text-secondary").trim() + ")";
+
+    var grid = "", ticks = 5, k;
+    for (k = 0; k <= ticks; k++){
+      var gv = maxY * k / ticks, gy = y(gv);
+      grid += '<line x1="' + PL + '" x2="' + (W-PR) + '" y1="' + gy.toFixed(1) + '" y2="' + gy.toFixed(1) +
+              '" stroke="var(--c-grid)" stroke-width="1"/>' +
+              '<text x="' + (PL-8) + '" y="' + (gy+3.5).toFixed(1) + '" text-anchor="end" font-size="10" ' +
+              'font-family="ui-monospace,Menlo,monospace" fill="' + cMut + '">$' + Math.round(gv) + 'M</text>';
+    }
+    var dd = x(MONTHS_ELAPSED - 1);
+    var lbl = "", mth;
+    for (mth = 0; mth < n; mth += 6){
+      lbl += '<text x="' + x(mth).toFixed(1) + '" y="' + (H-12) + '" text-anchor="middle" font-size="10" ' +
+             'font-family="ui-monospace,Menlo,monospace" fill="' + cMut + '">M' + (mth+1) + '</text>';
+    }
+
+    document.getElementById("chart").className = "";
+    document.getElementById("chart").innerHTML =
+      '<div style="overflow-x:auto">' +
+      '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" style="min-width:660px;display:block" ' +
+        'role="img" aria-label="Earned value S-curve: planned value, earned value and actual cost over 36 months, ' +
+        'with the forecast at completion diverging above budget after the data date.">' +
+      grid + lbl +
+      '<line x1="' + dd.toFixed(1) + '" x2="' + dd.toFixed(1) + '" y1="' + PT + '" y2="' + (H-PB) +
+        '" stroke="' + cMut + '" stroke-width="1" stroke-dasharray="3 3"/>' +
+      '<text x="' + (dd+6).toFixed(1) + '" y="' + (PT+11) + '" font-size="10" ' +
+        'font-family="ui-monospace,Menlo,monospace" fill="' + cMut + '">data date</text>' +
+      '<path d="' + path(pvA) + " " + path(pvB, MONTHS_ELAPSED).replace("M","L") +
+        '" fill="none" stroke="' + cMut + '" stroke-width="2"/>' +
+      '<path d="' + path(eacTail, MONTHS_ELAPSED - 1) + '" fill="none" stroke="' + cBad +
+        '" stroke-width="2" stroke-dasharray="5 4"/>' +
+      '<path d="' + path(evA) + '" fill="none" stroke="' + cGood + '" stroke-width="2.4"/>' +
+      '<path d="' + path(acA) + '" fill="none" stroke="' + cAcc + '" stroke-width="2.4"/>' +
+      '</svg></div>' +
+      '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;font-size:12px;' +
+        'color:rgb(var(--c-text-secondary))">' +
+        lg(cMut,  "Planned value (baseline)") + lg(cGood, "Earned value") +
+        lg(cAcc,  "Actual cost") + lg(cBad,  "Forecast to complete (EAC)") +
+      '</div>' +
+      '<p style="margin:10px 0 0;font-size:12.5px;color:rgb(var(--c-text-secondary))">' +
+      'Actual cost sits above earned value and the gap is widening — that is the cost problem. ' +
+      'Earned value sits below planned value — that is the schedule problem. The dashed tail projects ' +
+      m(T.eac) + ' at completion against a ' + m(T.bac) + ' budget.</p>';
+
+    function lg(c, t){
+      return '<span style="display:inline-flex;align-items:center;gap:6px">' +
+        '<span style="width:15px;height:3px;border-radius:2px;background:' + c + '"></span>' + t + '</span>';
+    }
+  }
+
+  /* ---------- package table ---------- */
+  function statusOf(r){
+    if (r.spi < 0.95 || r.cpi < 0.95 || r.float < 0) return ['r','At risk'];
+    if (r.spi < 0.99 || r.cpi < 0.99 || r.float < 10) return ['a','Watch'];
+    return ['g','On track'];
+  }
+  function renderTable(){
+    document.querySelector("#pkgTable caption").className = "";
+    document.getElementById("pkgBody").innerHTML = rows.map(function(r, i){
+      var st = statusOf(r);
+      return '<tr tabindex="0" data-i="' + i + '" aria-label="' + r.id + '">' +
+        '<td class="name"><span class="mono" style="color:rgb(var(--c-text-code))">' + r.id +
+          '</span> &nbsp;' + r.name + '</td>' +
+        '<td class="tabular">' + m(r.bac) + '</td>' +
+        '<td class="tabular">' + m(r.pv) + '</td>' +
+        '<td class="tabular">' + m(r.ev) + '</td>' +
+        '<td class="tabular">' + m(r.ac) + '</td>' +
+        '<td class="tabular ' + cls(r.spi,0.99,0.95) + '">' + idx(r.spi) + '</td>' +
+        '<td class="tabular ' + cls(r.cpi,0.99,0.95) + '">' + idx(r.cpi) + '</td>' +
+        '<td class="tabular">' + m(r.eac) + '</td>' +
+        '<td class="tabular ' + (r.vac < 0 ? "bad" : "good") + '">' + sgn(r.vac) + '</td>' +
+        '<td class="tabular ' + (r.float < 0 ? "bad" : r.float < 10 ? "warn" : "") + '">' +
+          (r.float > 0 ? "+" : "") + r.float + 'd</td>' +
+        '<td><span class="pill ' + st[0] + '">' + st[1] + '</span></td></tr>';
+    }).join("");
+
+    document.getElementById("pkgFoot").innerHTML =
+      '<tr><td>Program total &mdash; 8 packages</td>' +
+      '<td class="tabular">' + m(T.bac) + '</td><td class="tabular">' + m(T.pv) + '</td>' +
+      '<td class="tabular">' + m(T.ev)  + '</td><td class="tabular">' + m(T.ac) + '</td>' +
+      '<td class="tabular ' + cls(T.spi,0.99,0.95) + '">' + idx(T.spi) + '</td>' +
+      '<td class="tabular ' + cls(T.cpi,0.99,0.95) + '">' + idx(T.cpi) + '</td>' +
+      '<td class="tabular">' + m(T.eac) + '</td>' +
+      '<td class="tabular ' + (T.vac < 0 ? "bad" : "good") + '">' + sgn(T.vac) + '</td>' +
+      '<td colspan="2"></td></tr>';
+
+    var body = document.getElementById("pkgBody");
+    body.addEventListener("click", function(e){
+      var tr = e.target.closest("tr"); if (tr) select(+tr.dataset.i);
+    });
+    body.addEventListener("keydown", function(e){
+      if (e.key !== "Enter" && e.key !== " ") return;
+      var tr = e.target.closest("tr"); if (!tr) return;
+      e.preventDefault(); select(+tr.dataset.i);
+    });
+    select(2);   // open on the tunnel package — the one carrying the program
+  }
+
+  function select(i){
+    var r = rows[i];
+    Array.prototype.forEach.call(document.querySelectorAll("#pkgBody tr"), function(tr, j){
+      tr.classList.toggle("sel", j === i);
+    });
+    var st = statusOf(r);
+    var shareOfVac = T.vac !== 0 ? (r.vac / T.vac) : 0;
+    document.getElementById("drill").innerHTML =
+      '<div class="eyebrow">Drill-down &mdash; ' + r.id + '</div>' +
+      '<h3 style="margin-bottom:10px">' + r.name + ' <span class="pill ' + st[0] + '">' + st[1] + '</span></h3>' +
+      '<div class="kpis" style="margin-top:6px">' +
+        kpiCard("Complete", pct(r.pct), "", m(r.ev) + " of " + m(r.bac)) +
+        kpiCard("SPI", idx(r.spi), cls(r.spi,0.99,0.95), sgn(r.sv) + " schedule variance") +
+        kpiCard("CPI", idx(r.cpi), cls(r.cpi,0.99,0.95), sgn(r.cv) + " cost variance") +
+        kpiCard("EAC", m(r.eac), r.eac > r.bac ? "bad" : "good", sgn(r.vac) + " at completion") +
+        kpiCard("Total float", (r.float > 0 ? "+" : "") + r.float + "d",
+                r.float < 0 ? "bad" : r.float < 10 ? "warn" : "good",
+                r.float < 0 ? "driving program completion" : r.float === 0 ? "on the critical path" : "days before it bites") +
+      '</div>' +
+      '<p style="margin:12px 0 0;font-size:13px;color:rgb(var(--c-text-secondary))">' +
+        (r.vac < 0
+          ? 'This package accounts for <b style="color:rgb(var(--c-text-primary))">' +
+            pct(shareOfVac) + '</b> of the program\'s forecast overrun. '
+          : 'This package is forecasting <b style="color:rgb(var(--c-text-primary))">' + sgn(r.vac) +
+            '</b> against budget, offsetting overruns elsewhere. ') +
+        (r.float < 0
+          ? 'With <b style="color:rgb(var(--c-text-primary))">' + r.float +
+            ' days</b> of float it is already driving the completion date — recovery here moves the program, ' +
+            'recovery anywhere else does not.'
+          : r.float === 0
+            ? 'It sits on the critical path with zero float: any slip becomes program slip immediately.'
+            : 'It carries ' + r.float + ' days of float, so it is not currently driving the completion date.') +
+      '</p>';
+  }
+
+  /* ---------- schedule health ---------- */
+  function renderFloats(){
+    var maxAbs = Math.max.apply(null, rows.map(function(r){ return Math.abs(r.float); }));
+    var el = document.getElementById("floats");
+    el.className = "";
+    el.innerHTML = rows.map(function(r){
+      var w = Math.abs(r.float) / maxAbs * 50;      // half-width percentage
+      var neg = r.float < 0;
+      var colour = neg ? "rgb(var(--c-danger))" : r.float < 10 ? "rgb(var(--c-warning))" : "rgb(var(--c-success))";
+      return '<div class="floatrow">' +
+        '<span class="mono" style="font-size:11.5px;color:rgb(var(--c-text-code))">' + r.id + '</span>' +
+        '<span class="floatbar"><span class="zero" style="left:50%"></span>' +
+          '<i style="' + (neg ? "right:50%" : "left:50%") + ';width:' + w.toFixed(1) +
+          '%;background:' + colour + '"></i></span>' +
+        '<span class="tabular" style="text-align:right;color:' + colour + '">' +
+          (r.float > 0 ? "+" : "") + r.float + 'd</span></div>';
+    }).join("") +
+    '<p style="margin:12px 0 0;font-size:12.5px;color:rgb(var(--c-text-secondary))">' +
+    'Two packages sit at or below zero float. They, and only they, set the program completion date.</p>';
+  }
+
+  function renderMilestones(){
+    var el = document.getElementById("miles");
+    el.className = "";
+    el.innerHTML = '<div style="display:grid;gap:2px">' + MILESTONES.map(function(k){
+      var late = k.d > 0;
+      var colour = late ? (k.d > 30 ? "rgb(var(--c-danger))" : "rgb(var(--c-warning))") : "rgb(var(--c-success))";
+      return '<div style="padding:7px 0;border-bottom:1px solid var(--c-line)">' +
+        '<div style="display:flex;gap:8px;justify-content:space-between;align-items:baseline">' +
+          '<span style="font-size:12.5px">' + k.n + '</span>' +
+          '<span class="tabular mono" style="font-size:12px;color:' + colour + ';white-space:nowrap">' +
+            (late ? "+" : "−") + Math.abs(k.d) + 'd</span></div>' +
+        '<div class="mono" style="font-size:11px;color:rgb(var(--c-text-secondary));margin-top:2px">' +
+          k.base + ' &rarr; ' + k.fc + '</div></div>';
+    }).join("") + '</div>' +
+    '<p style="margin:11px 0 0;font-size:12.5px;color:rgb(var(--c-text-secondary))">' +
+    'Revenue service forecasts <b style="color:rgb(var(--c-text-primary))">+40 days</b> late. ' +
+    'The two station and guideway milestones are early — which is exactly why a portfolio ' +
+    'average would have hidden the tunnel.</p>';
+  }
+
+  /* ---------- risk ---------- */
+  function renderRisk(){
+    var grid = {}, r;
+    RISKS.forEach(function(k){ grid[k.p + "-" + k.i] = (grid[k.p + "-" + k.i] || 0) + 1; });
+    var html = '<div class="axl"></div>';
+    for (var i = 1; i <= 5; i++) html += '<div class="axl">I' + i + '</div>';
+    for (var p = 5; p >= 1; p--){
+      html += '<div class="axl">P' + p + '</div>';
+      for (var im = 1; im <= 5; im++){
+        var score = p * im, n = grid[p + "-" + im] || 0;
+        var bg = score >= 15 ? "rgb(var(--c-danger) / .70)"
+               : score >= 8  ? "rgb(var(--c-warning) / .62)"
+               : "rgb(var(--c-success) / .42)";
+        html += '<div class="hcell" style="background:' + bg + ';opacity:' + (n ? 1 : .30) + '" ' +
+                'title="Probability ' + p + ', impact ' + im + ': ' + n + ' risk(s)">' + (n || "") + '</div>';
+      }
+    }
+    document.getElementById("heat").innerHTML = html;
+
+    var ranked = RISKS.map(function(k){
+      return Object.assign({}, k, {exp: (k.p / 5) * k.cost});
+    }).sort(function(a,b){ return b.exp - a.exp; });
+    var totalExp = ranked.reduce(function(a,k){ return a + k.exp; }, 0);
+
+    document.getElementById("risks").innerHTML = ranked.map(function(k){
+      return '<div class="riskrow"><div class="top">' +
+        '<span class="id">' + k.id + '</span>' +
+        '<span style="flex:1;min-width:180px">' + k.n + '</span>' +
+        '<span class="tabular mono" style="font-size:12.5px;color:rgb(var(--c-text-primary))">' +
+          m(k.exp) + '</span></div>' +
+        '<div class="meta">P' + k.p + ' × I' + k.i + ' &middot; impact ' + m(k.cost) +
+          ' &middot; owner: ' + k.own + '</div>' +
+        '<div class="meta" style="margin-top:3px">&rarr; ' + k.mit + '</div></div>';
+    }).join("") +
+    '<p style="margin:13px 0 0;font-size:12.5px;color:rgb(var(--c-text-secondary))">' +
+    'Total probability-weighted exposure <b style="color:rgb(var(--c-text-primary))">' + m(totalExp) +
+    '</b> against <b style="color:rgb(var(--c-text-primary))">' + m(CONTINGENCY - CONTINGENCY_DRAWN) +
+    '</b> of remaining contingency. The single tunnel risk is ' + pct(ranked[0].exp / totalExp) +
+    ' of it — concentration, not spread, is the exposure.</p>';
+  }
+
+  /* ---------- info popovers ---------- */
+  var pop = document.getElementById("infopop");
+  document.addEventListener("click", function(e){
+    var b = e.target.closest(".infobtn");
+    if (!b){ pop.classList.remove("on"); return; }
+    e.stopPropagation();
+    var key = b.dataset.info;
+    pop.innerHTML = "<b>" + key + "</b>" + (KPI_INFO[key] || "");
+    pop.classList.add("on");
+    var r = b.getBoundingClientRect();
+    var top = r.bottom + 8, left = Math.min(r.left, window.innerWidth - 302);
+    if (top + pop.offsetHeight > window.innerHeight) top = r.top - pop.offsetHeight - 8;
+    pop.style.top = Math.max(8, top) + "px";
+    pop.style.left = Math.max(8, left) + "px";
+  });
+  document.addEventListener("keydown", function(e){
+    if (e.key === "Escape") pop.classList.remove("on");
+  });
+
+  /* ---------- go ---------- */
+  function render(){
+    renderKpis(); renderChart(); renderTable();
+    renderFloats(); renderMilestones(); renderRisk();
+  }
+  render();
+
+  /* Expose the derived totals so the tie-out can be checked from the console. */
+  window.__PCC__ = {rows: rows, totals: T};
+})();
+</script>
+</body>
+</html>
