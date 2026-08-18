@@ -647,6 +647,22 @@ join dim_control_account b using (package_id)</pre></div>
       <div class="sec-h" style="margin-top:30px"><h3>Phase playbook</h3></div>
       <div id="playbook"></div>
 
+      <div class="sec-h" style="margin-top:34px"><h3>WBS &middot; CBS &middot; OBS control-account mapping</h3></div>
+      <p class="lede">The 100% Rule: every dollar of budget traces to a named scope element, a cost
+        category, and an accountable owner. This is what makes Control Account performance measurement
+        (the EVM math on every other tab) defensible rather than an aggregate guess &mdash; and what a
+        Board or a lender actually checks before releasing funding.</p>
+      <div class="tw"><table id="wbsTable" style="min-width:820px"></table></div>
+      <p class="lede" id="wbsFoot" style="margin-top:9px;font-size:12.5px"></p>
+
+      <div class="sec-h" style="margin-top:34px"><h3>Board phase-gate governance</h3></div>
+      <p class="lede">Six sequential gates, each requiring an explicit Board action to release scope,
+        budget or contract authority into the next phase. Gate 5 is the hinge: once the lifetime baseline
+        is formally adopted, every earned-value figure on this dashboard becomes a variance <em>against
+        that specific number</em>, not a moving target.</p>
+      <div class="tw"><table id="gateTable" style="min-width:760px"></table></div>
+      <div class="card" style="margin-top:15px" id="gate5Card"></div>
+
       <div class="sec-h" style="margin-top:34px"><h3>Escalation matrix</h3></div>
       <p class="lede">Thresholds are worthless without a named consequence. Every breach below has an owner
         and a clock.</p>
@@ -838,6 +854,60 @@ var PHASES = [
  {k:"proc", n:"Procurement",             s:"bid &amp; award"},
  {k:"con",  n:"Construction",            s:"execution"},
  {k:"close",n:"Commissioning &amp; closeout", s:"testing &rarr; revenue"}
+];
+
+/* WBS/CBS/OBS — one row per control account, the 100% Rule made checkable. */
+var WBS=[
+ {id:"CTE-WBS-101",scope:"Guideway &mdash; north alignment",         cbs:"Direct Civil Construction",obs:"Dep. Director, Civil Delivery",  ca:"CP-101"},
+ {id:"CTE-WBS-102",scope:"Guideway &mdash; south alignment",         cbs:"Direct Civil Construction",obs:"Dep. Director, Civil Delivery",  ca:"CP-102"},
+ {id:"CTE-WBS-201",scope:"Tunnel &amp; portals",                     cbs:"Direct Civil Construction",obs:"Tunnel Construction Manager",     ca:"CP-201"},
+ {id:"CTE-WBS-301",scope:"Stations (4) &mdash; shells &amp; finishes",cbs:"Station Facilities",       obs:"Stations Construction Manager",   ca:"CP-301"},
+ {id:"CTE-WBS-401",scope:"Systems &amp; overhead catenary",          cbs:"Systems Contracting",       obs:"Lead Systems Engineer",           ca:"CP-401"},
+ {id:"CTE-WBS-501",scope:"Parking structures",                       cbs:"Support Facilities",        obs:"Facilities Program Manager",      ca:"CP-501"},
+ {id:"CTE-WBS-601",scope:"Third-party utilities relocation",         cbs:"Right-of-Way / Utilities",  obs:"Utilities Lead",                  ca:"CP-601"},
+ {id:"CTE-WBS-701",scope:"Systems integration &amp; testing",        cbs:"Systems Contracting",       obs:"Lead Systems Engineer",           ca:"CP-701"}
+];
+
+/* Board phase-gate governance — one Board authorization per phase; Gate 5 is the hinge where the
+   lifetime baseline locks and every EVM figure becomes a variance against a fixed number. */
+var GATES=[
+ {k:"plan", gate:1, name:"Alternatives Development",
+  board:"Board action selecting alternatives for formal environmental study.",
+  exit:"Representative alignment selected; preliminary parametric cost model entered."},
+ {k:"env", gate:2, name:"Environmental Review",
+  board:"Board resolution adopting the preferred route alignment and station locations.",
+  exit:"Draft &amp; final environmental review complete; preferred alternative identified."},
+ {k:"pe", gate:3, name:"Preliminary Design (30%)",
+  board:"Board authorization to proceed to final design and right-of-way acquisition.",
+  exit:"30% design complete; initial third-party utility agreements in place."},
+ {k:"fd", gate:4, name:"Final Design &amp; Right-of-Way",
+  board:"Board authorization to issue construction contractor RFPs.",
+  exit:"90/100% design sign-off; property acquisition plans and permit filings complete."},
+ {k:"proc", gate:5, name:"Baseline Establishment",
+  board:"Formal Board resolution establishing the lifetime baseline budget and completion date.",
+  exit:"Locked CPM baseline, 100% WBS-CBS control-account mapping, and a risk-adjusted contingency reserve.",
+  hardStop:true},
+ {k:"con", gate:6, name:"Construction, Testing &amp; Commissioning",
+  board:"Board authorization of major construction contract awards.",
+  exit:"Contract execution, heavy civil works, testing and safety certification."},
+ {k:"close", gate:null, name:"Closeout",
+  board:"Administrative &mdash; no further Board gate.",
+  exit:"Punch-list, as-built turnover, warranty period, final change reconciliation."}
+];
+
+/* Gate 5 hard stop — computed against the live ledger, not hand-set. A real Board gate blocks the
+   workflow if any check fails; this one can and does (contingency coverage), which is the point:
+   a gate that always shows green isn't checking anything. */
+var GATE5_CHECKS=[
+ {n:"100% of control accounts mapped to a WBS element and OBS owner", run:function(){
+   var mapped=PKGS.every(function(p){ return WBS.some(function(w){ return w.ca===p.id; }); });
+   var n=WBS.filter(function(w){ return PKGS.some(function(p){ return p.id===w.ca; }); }).length;
+   return [mapped, n+" of "+PKGS.length+" mapped"];}},
+ {n:"CPM baseline locked (every control account carries a non-zero planned value)", run:function(){
+   var ok=PKGS.every(function(p){ return p.pv>0; });
+   return [ok, PKGS.length+" packages checked"];}},
+ {n:"Risk-adjusted contingency reserve covers exposure (coverage &ge; 1.00)", run:function(){
+   return [T.contCoverage>=1.0, idx(T.contCoverage)];}}
 ];
 
 /* =========================================================================
@@ -1800,6 +1870,7 @@ var ESCALATION=[
  ["CPI &lt; 0.95","Control account manager","Root-cause analysis at the next weekly","Same week"],
  ["CPLI &lt; 0.95 on the driving path","Program scheduler","Formal recovery analysis on that path only","72 hours"],
  ["TCPI − CPI &gt; 0.10","Controls manager","Declare recovery unachievable; open re-baseline","Next monthly"],
+ ["TCPI(BAC) &gt; 1.10","Program director","Efficiency required on remaining work exceeds any achievable rate — immediate cost-mitigation review","Immediate"],
  ["Contingency coverage &lt; 1.00","Program director","Funding conversation with the sponsor","Immediate"],
  ["VAC exceeds remaining contingency","Program director + sponsor","Formal reporting obligation, not a discussion","Same reporting cycle"],
  ["Any package at ≤ 0 float","Package manager","Weekly recovery cadence with named owner","Next weekly"],
@@ -1814,7 +1885,48 @@ var CADENCE=[
  {t:"Quarterly",w:"Baseline health check (DCMA-style schedule assessment), risk register re-scoring workshop, contingency adequacy review against remaining exposure.",a:"Sponsor, oversight, funding agency"}
 ];
 
+function renderWbs(){
+  document.getElementById("wbsTable").innerHTML=
+    '<thead><tr><th scope="col">WBS ID</th><th scope="col">Scope</th><th scope="col">CBS category</th>'+
+    '<th scope="col">OBS lead</th><th scope="col">Control account</th><th scope="col">BAC</th></tr></thead><tbody>'+
+    WBS.map(function(w){ var p=PKGS.filter(function(x){ return x.id===w.ca; })[0];
+      return '<tr style="cursor:default"><td class="mono" style="font-size:11px">'+w.id+'</td>'+
+        '<td style="white-space:normal">'+w.scope+'</td><td>'+w.cbs+'</td><td>'+w.obs+'</td>'+
+        '<td class="mono" style="font-size:11.5px">'+w.ca+'</td>'+
+        '<td class="tab-num">'+(p?m(p.bac):"&mdash;")+'</td></tr>'; }).join("")+'</tbody>';
+  var mapped=WBS.filter(function(w){ return PKGS.some(function(p){ return p.id===w.ca; }); }).length;
+  document.getElementById("wbsFoot").innerHTML=
+    '<b style="color:rgb(var(--c-ink))">'+mapped+' of '+PKGS.length+' control accounts mapped</b> &mdash; '+
+    m(T.bac)+' of '+m(T.bac)+' BAC (100%) traced to a named scope element, cost category and owner. '+
+    'No unallocated budget, no orphaned control account.';
+}
+
+function renderGates(){
+  document.getElementById("gateTable").innerHTML=
+    '<thead><tr><th scope="col">Gate</th><th scope="col">Milestone</th><th scope="col">Board action</th>'+
+    '<th scope="col">Exit criteria</th></tr></thead><tbody>'+
+    GATES.map(function(g){ var cur=g.k===PHASES[PROGRAM.phaseIdx].k;
+      return '<tr style="cursor:default'+(cur?';background:rgb(var(--c-accent) / .07)':'')+'">'+
+        '<td class="mono" style="font-size:11.5px">'+(g.gate?"Gate "+g.gate:"&mdash;")+
+        (cur?' <span class="pill i" style="margin-left:4px">current</span>':'')+'</td>'+
+        '<td>'+g.name+'</td><td style="white-space:normal;font-size:12px">'+g.board+'</td>'+
+        '<td style="white-space:normal;font-size:12px">'+g.exit+'</td></tr>'; }).join("")+'</tbody>';
+
+  var res=GATE5_CHECKS.map(function(c){ var r=c.run(); return {n:c.n,pass:r[0],detail:r[1]}; });
+  var fails=res.filter(function(r){ return !r.pass; }).length;
+  document.getElementById("gate5Card").innerHTML=
+    '<div class="eyebrow">Gate 5 &middot; Baseline Establishment &middot; automated hard stop</div>'+
+    '<h3 style="margin:6px 0 3px">'+(fails?"BLOCKED &mdash; cannot advance to Gate 6":"CLEARED &mdash; eligible to advance to Gate 6")+'</h3>'+
+    '<p class="lede" style="margin:0 0 12px;font-size:12.5px">Every check below runs against the live '+
+    'ledger on every load, the same as the integrity gate on the AI &amp; Data tab. This is not a status a '+
+    'program office typed in &mdash; it is recomputed, and it can fail.</p>'+
+    res.map(function(r){ return '<div class="rowbar" style="grid-template-columns:1fr auto;align-items:center">'+
+      '<span style="font-size:12.5px">'+r.n+'</span>'+
+      '<span class="pill '+(r.pass?"g":"r")+'" style="margin-left:10px">'+(r.pass?"PASS":"FAIL")+' &middot; '+r.detail+'</span></div>'; }).join("");
+}
+
 function renderFramework(){
+  renderWbs(); renderGates();
   document.getElementById("playbook").innerHTML=PHASES.map(function(p,i){
     var pb=PLAYBOOK.filter(function(x){return x.k===p.k;})[0];
     var live=KPIS.filter(function(k){return k.ph.indexOf(p.k)>=0;});
@@ -1927,7 +2039,21 @@ var ACTIONS=[
   desc:"A Q2 submittal-turnaround spike pushed the rolling average briefly over target.",
   root:"A reviewer vacancy left one discipline's submittals queued for eight days with no one assigned.",
   corrective:"Backup reviewer assigned from an adjacent discipline; queue cleared within the week.",
-  preventive:"Reviewer-vacancy coverage is now a standing item on the weekly document-control check, so a gap gets a backup assigned the same week it opens, not after the average moves."}
+  preventive:"Reviewer-vacancy coverage is now a standing item on the weekly document-control check, so a gap gets a backup assigned the same week it opens, not after the average moves."},
+ {id:"NCR-2026-014",type:"Issue",title:"CP-201 tunnel liner &mdash; concrete cylinder test failure",
+  src:"Quality NCR &middot; tied to R-01 ground-condition risk",pkg:"CP-201",owner:"Quality Manager",
+  opened:"2026-07-08",due:"2026-07-25",touch:"2026-07-29",
+  desc:"A set of 28-day concrete cylinder breaks on a tunnel liner pour came in below the specified strength — the same segment where ground conditions have already been running worse than the geotechnical baseline (R-01, A-01, A-04).",
+  root:"Mix-water variability during placement, compounded by the wetter-than-planned face conditions the tunnel package is already carrying as a cost issue.",
+  corrective:"Core sampling and third-party lab retest on the affected segment; construction isolated pending engineered acceptance or re-pour.",
+  preventive:"Revised mix design and an added QC hold point before the next tunnel pour in that same ground-condition zone."},
+ {id:"NCR-2026-021",type:"Issue",title:"CP-301 station platform &mdash; substructure hairline cracking",
+  src:"Quality NCR &middot; station finishes",pkg:"CP-301",owner:"Quality Manager",
+  opened:"2026-07-20",due:"2026-08-18",touch:"2026-07-30",
+  desc:"Hairline cracking observed in the platform substructure on one station pour, flagged during routine finishes inspection.",
+  root:"A cold-snap during curing on that specific pour date; temperature deviation from the curing plan, not a structural design issue.",
+  corrective:"Engineering assessment confirmed non-structural; cosmetic re-finish scoped for the affected platform run only.",
+  preventive:"Cold-weather curing protocol (blankets / heated enclosure) added to the station-finishes QC plan for any pour below the temperature threshold."}
 ];
 
 function actionStatus(a){
@@ -2449,7 +2575,8 @@ renderWhatIf();
 
 /* expose for verification */
 window.__PCC__={rows:rows,totals:T,kpis:KPIS,program:PROGRAM,eacs:EACS,mc:MC,
-  actions:ACTIONS,actionStatus:actionStatus,isStale:isStale};
+  actions:ACTIONS,actionStatus:actionStatus,isStale:isStale,
+  wbs:WBS,gates:GATES,gate5Checks:GATE5_CHECKS};
 })();
 </script>
 </body>

@@ -408,38 +408,74 @@ has("aiGuards", "Estimate-to-budget bridge", "gate covers the baseline bridge");
 has("aiGuards", "Delay register ties to package float", "gate covers delay/float consistency");
 
 /* =========================================================================
+   D5.5. WBS/CBS/OBS MAPPING + BOARD PHASE-GATE GOVERNANCE
+   ========================================================================= */
+console.log("== D5.5. wbs/cbs/obs + phase-gate governance ==");
+["wbsTable", "wbsFoot", "gateTable", "gate5Card"].forEach(id => ok(idsA.includes(id), "markup contains #" + id));
+ok(P.wbs.length === 8, "exactly 8 WBS rows, one per control account", String(P.wbs.length));
+{
+  const pkgIds = P.rows.map(r => r.id);
+  const caSet = P.wbs.map(w => w.ca);
+  ok(pkgIds.every(id => caSet.includes(id)) && caSet.every(id => pkgIds.includes(id)),
+    "WBS control accounts are exactly the 8 PKGS ids, no orphans, no gaps", caSet.join(","));
+  ok(new Set(caSet).size === 8, "no WBS row maps to the same control account twice");
+}
+has("wbsTable", "CTE-WBS-101", "WBS table renders row CTE-WBS-101");
+has("wbsFoot", "8 of 8 control accounts mapped", "WBS footer states full 100% Rule coverage");
+ok(P.gates.length === 7, "7 gate rows, one per phase", String(P.gates.length));
+ok(P.gates.filter(g => g.hardStop).length === 1 && P.gates.filter(g => g.hardStop)[0].k === "proc",
+  "exactly one hard-stop gate, at Gate 5 (Baseline Establishment)");
+has("gateTable", "Gate 5", "gate table renders Gate 5");
+has("gateTable", "Baseline Establishment", "gate table names the baseline-establishment milestone");
+{
+  // pre-registered: contingency coverage is 0.588 (< 1.00) against this ledger, so Gate 5 must show
+  // BLOCKED with exactly 2 of 3 checks passing — a gate that always shows CLEARED isn't checking anything.
+  const res = P.gate5Checks.map(c => c.run());
+  const passes = res.filter(r => r[0]).length;
+  ok(passes === 2, "exactly 2 of 3 Gate 5 checks pass (contingency coverage fails as predicted)",
+    JSON.stringify(res));
+  ok(T.contCoverage < 1.0, "contingency coverage is genuinely under 1.00 in this ledger", T.contCoverage.toFixed(3));
+  has("gate5Card", "BLOCKED", "Gate 5 card renders BLOCKED verdict");
+  has("gate5Card", "FAIL", "Gate 5 card shows the failing check");
+}
+has("escTable", "TCPI(BAC)", "escalation matrix carries the explicit TCPI &gt; 1.10 rule");
+
+/* =========================================================================
    D6. ACTIONS TAB — RAID/CAPA register on top of the escalation matrix
    ========================================================================= */
 console.log("== D6. actions tab ==");
 ok(idsA.includes("p-act") && idsA.includes("t-act"), "actions tab/panel wired");
 ["actStrip", "ownerTable", "actFilters", "actTable", "actDrill"].forEach(id =>
   ok(idsA.includes(id), "markup contains #" + id));
-ok(P.actions.length === 15, "exactly 15 action items", String(P.actions.length));
+ok(P.actions.length === 17, "exactly 17 action items", String(P.actions.length));
 {
   const rows = P.actions.map(a => Object.assign({}, a, { status: P.actionStatus(a), stale: P.isStale(a) }));
   const counts = {};
   rows.forEach(r => { counts[r.status] = (counts[r.status] || 0) + 1; });
-  const expected = { escalated: 5, overdue: 1, "due-soon": 3, "in-progress": 3, "not-started": 1, blocked: 1, verified: 1 };
+  const expected = { escalated: 6, overdue: 1, "due-soon": 3, "in-progress": 4, "not-started": 1, blocked: 1, verified: 1 };
   Object.keys(expected).forEach(k =>
     ok(counts[k] === expected[k], "status count " + k + " = " + expected[k], String(counts[k])));
-  ok(rows.filter(r => r.status !== "verified" && r.status !== "closed").length === 14, "14 of 15 open");
+  ok(rows.filter(r => r.status !== "verified" && r.status !== "closed").length === 16, "16 of 17 open");
   const stale = rows.filter(r => r.stale);
   ok(stale.length === 2, "exactly 2 stale flags", String(stale.length));
   ok(stale.map(r => r.id).sort().join(",") === "A-09,A-11", "stale flags land on A-09 and A-11",
     stale.map(r => r.id).join(","));
+  const ncr = rows.filter(r => r.id.startsWith("NCR"));
+  ok(ncr.length === 2 && ncr.every(r => r.type === "Issue" && r.owner === "Quality Manager"),
+    "both NCR items are Quality Manager Issues", JSON.stringify(ncr.map(r => [r.id, r.status])));
 }
-// register table renders 15 rows by default (filter = All) and the KPI strip / owner rollup are non-empty
+// register table renders 17 rows by default (filter = All) and the KPI strip / owner rollup are non-empty
 has("actTable", 'data-act="A-01"', "register table renders item A-01");
-ok((G.actTable._html.match(/data-act=/g) || []).length === 15, "register table shows all 15 rows unfiltered");
-has("actStrip", "14 of 15", "KPI strip shows 14 of 15 open");
-ok(String(G.cntAct.textContent) === "14", "tab badge shows 14 open", String(G.cntAct.textContent));
-ok((G.ownerTable._html.match(/<tr/g) || []).length >= 8, "owner accountability table has header + 7+ owner rows");
-// filter interaction: Escalated shows exactly the 5 escalated rows
+ok((G.actTable._html.match(/data-act=/g) || []).length === 17, "register table shows all 17 rows unfiltered");
+has("actStrip", "16 of 17", "KPI strip shows 16 of 17 open");
+ok(String(G.cntAct.textContent) === "16", "tab badge shows 16 open", String(G.cntAct.textContent));
+ok((G.ownerTable._html.match(/<tr/g) || []).length >= 9, "owner accountability table has header + 8+ owner rows");
+// filter interaction: Escalated shows exactly the 6 escalated rows
 try {
   fire(G.actFilters, "click", { target: { closest: () => ({ dataset: { actf: "Escalated" } }) } });
-  ok((G.actTable._html.match(/data-act=/g) || []).length === 5, "Escalated filter shows exactly 5 rows");
+  ok((G.actTable._html.match(/data-act=/g) || []).length === 6, "Escalated filter shows exactly 6 rows");
   fire(G.actFilters, "click", { target: { closest: () => ({ dataset: { actf: "All" } }) } });
-  ok((G.actTable._html.match(/data-act=/g) || []).length === 15, "filter reset to All shows 15");
+  ok((G.actTable._html.match(/data-act=/g) || []).length === 17, "filter reset to All shows 17");
 } catch (e) { ok(false, "actions filter interaction", e.message); }
 // row drill-down: opens the CAPA detail for an Issue, closes on second click
 try {
