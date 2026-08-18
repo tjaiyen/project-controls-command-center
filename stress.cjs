@@ -87,6 +87,14 @@ ok(indexSrc.includes('aria-controls="p-over"'), "tab aria-controls present");
   ok(open === close, "tag balance <" + tag + ">", open + " open vs " + close + " close");
 });
 
+// mobile: the CSS grid blowout guard must stay in place. Every table on the page carries
+// min-width:800px (index) / 680px (otak); a grid item without min-width:0 refuses to shrink
+// below that, forcing the whole page to scroll horizontally on a phone. A jsdom-less stub
+// can't run real layout to catch this directly (browser-verified 2026-08-18, 320-390px, both
+// files, 0 overflow) — this is the static tripwire so the fix can't silently regress.
+ok(/\.grid>\*\{min-width:0\}/.test(indexSrc), "index.html: grid items have min-width:0 (mobile overflow guard)");
+ok(/\.grid2>\*\{min-width:0\}/.test(otakSrc), "otak.html: grid items have min-width:0 (mobile overflow guard)");
+
 /* =========================================================================
    B. RUNTIME — index.html
    ========================================================================= */
