@@ -259,6 +259,29 @@ pre.code b{color:rgb(var(--c-code));font-weight:600}
 .narr p{margin:0 0 11px;font-size:13.2px;line-height:1.7}
 .narr p:last-child{margin-bottom:0}
 
+/* ---------- motion & story ---------- */
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes drawin{to{stroke-dashoffset:0}}
+@keyframes growup{from{transform:scaleY(0)}}
+.kpi{animation:rise .45s ease-out backwards}
+#scurve path.draw{stroke-dasharray:2400;stroke-dashoffset:2400;animation:drawin 1.1s ease-out forwards}
+#mcChart rect{transform-box:fill-box;transform-origin:bottom;animation:growup .6s ease-out backwards}
+.story-dots i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;
+  background:rgb(var(--c-mut) / .35);transition:background .2s}
+.story-dots i.on{background:rgb(var(--c-accent))}
+#storyText{transition:opacity .18s}
+/* ---------- glossary ---------- */
+.gcard{background:rgb(var(--c-card));border:1px solid var(--c-line);border-radius:11px;padding:15px 16px;
+  animation:rise .4s ease-out backwards}
+.gcard h3{margin:0 0 5px}
+.gcard .gp{margin:0;font-size:12.8px;color:rgb(var(--c-mut))}
+.gcard .gex{margin-top:9px;padding:9px 11px;border-radius:8px;background:rgb(var(--c-bg));
+  border:1px solid var(--c-line);font-size:12.3px;color:rgb(var(--c-mut))}
+.gcard .gex b{color:rgb(var(--c-code));font-weight:600}
+.gsearch{width:100%;max-width:430px;padding:9px 13px;border-radius:8px;border:1px solid var(--c-line);
+  background:rgb(var(--c-card));color:rgb(var(--c-ink));font:inherit;font-size:13px;margin-top:16px}
+.gsearch:focus{outline:2px solid rgb(var(--c-accent));outline-offset:1px}
+
 /* print brief */
 #printBrief{display:none}
 @media print{
@@ -301,6 +324,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
     <button role="tab" id="t-del"   aria-controls="p-del"   aria-selected="false">Delivery</button>
     <button role="tab" id="t-ai"    aria-controls="p-ai"    aria-selected="false">AI &amp; Data</button>
     <button role="tab" id="t-fw"    aria-controls="p-fw"    aria-selected="false">Operating Framework</button>
+    <button role="tab" id="t-gloss" aria-controls="p-gloss" aria-selected="false">Glossary</button>
   </div>
 
   <!-- ============================ OVERVIEW ============================ -->
@@ -317,6 +341,19 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         <span><b>Synthetic illustrative data.</b> The program, packages, risks and change log are invented
         to exercise the framework. No client, employer or agency data appears anywhere. The
         <em>method</em> is the content.</span></div>
+
+      <div class="card" style="margin-top:16px" id="storyCard">
+        <div class="eyebrow">Start here &middot; the story</div>
+        <h3 id="storyTitle" style="margin:0 0 7px"></h3>
+        <p id="storyText" style="margin:0;font-size:13.6px;line-height:1.7;color:rgb(var(--c-mut));max-width:74ch"></p>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:14px;flex-wrap:wrap">
+          <button class="btn" id="storyPrev" type="button">&larr; Back</button>
+          <span class="story-dots" id="storyDots" aria-hidden="true"></span>
+          <span class="mono" id="storyPos" style="font-size:11px;color:rgb(var(--c-mut))"></span>
+          <button class="btn" id="storyNext" type="button">Next &rarr;</button>
+          <button class="btn on" id="storyGo" type="button">See the evidence &rarr;</button>
+        </div>
+      </div>
 
       <div class="phases" id="phases" role="group" aria-label="Program phase"></div>
       <div class="strip" id="strip"></div>
@@ -608,6 +645,23 @@ join dim_control_account b using (package_id)</pre></div>
         the indices, the forecast and the escalations all move with it, which is the property that makes a
         controls system trustworthy rather than decorative.</p>
       </div>
+    </div>
+  </section>
+
+  <!-- =========================== GLOSSARY ============================ -->
+  <section role="tabpanel" id="p-gloss" aria-labelledby="t-gloss" tabindex="0" hidden>
+    <div class="sec">
+      <div class="eyebrow">Plain language &middot; no jargon &middot; worked examples</div>
+      <h2>The glossary &mdash; every term on this dashboard, explained simply</h2>
+      <p class="lede">Project controls has its own vocabulary, and it puts people off for no good reason.
+        Every term below is explained in plain words first, then worked through with this program&rsquo;s
+        actual numbers so you can check the math yourself. Everything here is computed live from the
+        same ledger as the rest of the dashboard.</p>
+      <input class="gsearch" id="glossQ" type="search" autocomplete="off"
+        placeholder="Filter terms&hellip; try &ldquo;float&rdquo; or &ldquo;contingency&rdquo;"
+        aria-label="Filter glossary terms">
+      <div class="grid g2" id="glossList"></div>
+      <p class="lede" id="glossCount" style="margin-top:13px;font-size:12.3px"></p>
     </div>
   </section>
 
@@ -1031,9 +1085,9 @@ function renderFilters(){
 
 function renderBoard(){
   var list = KPIS.filter(function(k){ return state.fam==="All"||k.fam===state.fam; });
-  document.getElementById("kboard").innerHTML = list.map(function(k){
+  document.getElementById("kboard").innerHTML = list.map(function(k,i){
     var rag=k.rag(), live=k.ph.indexOf(state.phase)>=0;
-    return '<button class="kpi'+(live?"":" dim")+'" data-kpi="'+k.id+'" style="--rag:'+RAG[rag]+'" '+
+    return '<button class="kpi'+(live?"":" dim")+'" data-kpi="'+k.id+'" style="--rag:'+RAG[rag]+';animation-delay:'+(i*35)+'ms" '+
       'aria-label="'+k.name+', '+k.val().replace(/<[^>]*>/g,"")+'">'+
       '<div class="top"><span class="abbr">'+k.abbr+'</span><span class="fam">'+k.fam+'</span></div>'+
       '<div class="val">'+k.val()+'</div>'+
@@ -1116,10 +1170,10 @@ function renderScurve(){
     g+lb+cvArea+
     '<line x1="'+dd.toFixed(1)+'" x2="'+dd.toFixed(1)+'" y1="'+PT+'" y2="'+(H-PB)+'" stroke="'+C("mut")+'" stroke-dasharray="3 3"/>'+
     '<text x="'+(dd+7).toFixed(1)+'" y="'+(PT+12)+'" font-size="10.5" font-family="ui-monospace,monospace" fill="'+C("mut")+'">data date &#183; '+PROGRAM.dataDate+'</text>'+
-    '<path d="'+path(pvA)+" "+path(pvB,ME).replace("M","L")+'" fill="none" stroke="'+C("mut")+'" stroke-width="2"/>'+
+    '<path class="draw" d="'+path(pvA)+" "+path(pvB,ME).replace("M","L")+'" fill="none" stroke="'+C("mut")+'" stroke-width="2"/>'+
     '<path d="'+path(eacTail,ME-1)+'" fill="none" stroke="'+C("bad")+'" stroke-width="2" stroke-dasharray="5 4"/>'+
-    '<path d="'+path(evA)+'" fill="none" stroke="'+C("ok")+'" stroke-width="2.6"/>'+
-    '<path d="'+path(acA)+'" fill="none" stroke="'+C("accent")+'" stroke-width="2.6"/>'+hot,
+    '<path class="draw" style="animation-delay:.2s" d="'+path(evA)+'" fill="none" stroke="'+C("ok")+'" stroke-width="2.6"/>'+
+    '<path class="draw" style="animation-delay:.4s" d="'+path(acA)+'" fill="none" stroke="'+C("accent")+'" stroke-width="2.6"/>'+hot,
     "Earned value S-curve: planned value, earned value and actual cost over "+MT+" months, with the forecast diverging above budget after the data date.");
   document.getElementById("scurveLegend").innerHTML =
     [[C("mut"),"Planned value (baseline)"],[C("ok"),"Earned value"],[C("accent"),"Actual cost"],
@@ -1806,6 +1860,108 @@ function renderNarr(){
 }
 
 /* =========================================================================
+   7.5 STORY + GLOSSARY — guided narrative and plain-language reference.
+   Every figure inside the text below is computed from the ledger at render
+   time, exactly like the charts — the words are templated, the numbers are not.
+   ========================================================================= */
+var STORY=[
+ {t:"A billion-dollar promise", tab:"over",
+  x:function(){ return "The "+PROGRAM.name+" is a "+m(T.bac)+" capital program — "+PROGRAM.corridor.replace(/&[a-z]+;/g," ")+
+    ", delivered as "+PROGRAM.delivery.replace(/&[a-z]+;/g," ")+". Right now "+pct(T.pct)+" of the value is earned with "+
+    PROGRAM.monthsElapsed+" of "+PROGRAM.monthsTotal+" months gone. Every number you are about to see is derived from twelve "+
+    "inputs per control account — budget, planned value, earned value, actual cost, float, hours — and nothing is typed by hand."; }},
+ {t:"The money starts leaking", tab:"cost",
+  x:function(){ return "Work worth "+m(T.ev)+" has been delivered, but it cost "+m(T.ac)+" to deliver it. That "+m(Math.abs(T.cv))+
+    " gap is the cost variance, and it puts the cost index at "+idx(T.cpi)+" — every dollar spent is buying about "+
+    (T.cpi*100).toFixed(1)+" cents of value. Run that efficiency forward and the program finishes at "+m(T.eac)+", which is "+
+    m(Math.abs(T.vac))+" over the "+m(T.bac)+" budget."; }},
+ {t:"The tunnel owns the calendar", tab:"sched",
+  x:function(){ var tun=rows.filter(function(r){return r.id==="CP-201";})[0];
+    return "Float is how many days a package can slip before it moves the finish date. The tunnel package ("+tun.id+") is at "+days(tun.float)+
+    " — negative float means it is not following the schedule, it IS the schedule. It also carries "+
+    pct(Math.abs(tun.vac)/T.grossOver,1)+" of the gross cost overrun. Recovering time anywhere else does not move revenue service, "+
+    "currently forecast "+days(MILES[MILES.length-1].d)+" late."; }},
+ {t:"The honesty test", tab:"cost",
+  x:function(){ return "To land exactly on budget from here, every remaining dollar must perform at "+idx(T.tcpi)+
+    " — the to-complete index. The program has actually been running at "+idx(T.cpi)+". When the required efficiency sits above the "+
+    "demonstrated one, the budget is not a plan, it is a hope. The simulation says the same thing in another language: "+
+    pct(MC.pBust,0)+" of 4,000 simulated completions bust through budget plus the remaining "+m(T.contRemaining)+" of contingency."; }},
+ {t:"Monday morning", tab:"fw",
+  x:function(){ return "A dashboard nobody acts on is a screensaver, so every threshold here has a named owner and a clock. Right now "+
+    firingEscalations().length+" escalation rules are firing — from a cost index under 0.95 to change orders running "+
+    (PROGRAM.coCycleDays-PROGRAM.coCycleTarget)+" days past their cycle target. The framework tab is the operating playbook: what gets "+
+    "set up in each phase, who receives which report on which day, and exactly what happens when a line turns red."; }}
+];
+var storyIdx=0;
+function renderStory(i){
+  storyIdx=Math.max(0,Math.min(STORY.length-1,i));
+  document.getElementById("storyTitle").innerHTML=STORY[storyIdx].t;
+  document.getElementById("storyText").innerHTML=STORY[storyIdx].x();
+  document.getElementById("storyPos").textContent=(storyIdx+1)+" of "+STORY.length;
+  document.getElementById("storyDots").innerHTML=STORY.map(function(_,j){
+    return '<i class="'+(j===storyIdx?"on":"")+'"></i>'; }).join("");
+}
+
+var G_TUN=rows.filter(function(r){return r.id==="CP-201";})[0];
+var G_UT=rows.filter(function(r){return r.id==="CP-601";})[0];
+var GLOSS=[
+ {t:"Control account", p:"A slice of the project with its own budget and its own scoreboard. Instead of tracking one giant number, the program is broken into pieces small enough that one person can be accountable for each.",
+  e:function(){ return "This program has "+rows.length+" control accounts. The tunnel ("+G_TUN.id+") is one: its own budget of "+m(G_TUN.bac)+", its own progress, its own forecast. When it drifts, you can see it without the other seven hiding it."; }},
+ {t:"BAC — Budget at Completion", p:"The total approved budget for the work — the number everyone promised at the start. It only changes when a formal change order changes it.",
+  e:function(){ return m(T.bac)+" across all "+rows.length+" control accounts. The biggest single slice is the tunnel at "+m(G_TUN.bac)+"."; }},
+ {t:"PV — Planned Value", p:"What the schedule said should be finished by today, expressed in dollars. It is the yardstick, not an achievement.",
+  e:function(){ return "By the data date the plan called for "+m(T.pv)+" of work to be complete. Everything on this dashboard is measured against that yardstick."; }},
+ {t:"EV — Earned Value", p:"What the work that is actually finished is worth, priced at budget rates. If a task budgeted at $10M is half done, it has earned $5M — no matter what it cost.",
+  e:function(){ return m(T.ev)+" earned against "+m(T.pv)+" planned. The program has produced "+pct(T.ev/T.pv)+" of the value it planned to have by now."; }},
+ {t:"AC — Actual Cost", p:"What the finished work really cost — every invoice, timesheet and commitment that has landed.",
+  e:function(){ return m(T.ac)+" spent to earn "+m(T.ev)+" of value. Spending more than you earned is the definition of an overrun, and the gap here is "+m(Math.abs(T.cv))+"."; }},
+ {t:"CPI — Cost Performance Index", p:"Value earned per dollar spent. 1.00 means on budget; below 1.00 means every dollar buys less than a dollar of work. Earned value divided by actual cost.",
+  e:function(){ return idx(T.cpi)+" — each dollar spent has bought about "+(T.cpi*100).toFixed(1)+" cents of value. Small-looking, but on a "+m(T.bac)+" program that shortfall compounds into a "+m(Math.abs(T.vac))+" forecast overrun."; }},
+ {t:"SPI — Schedule Performance Index", p:"Earned value divided by planned value — a pace reading measured in dollars, not days. Useful, but it drifts back toward 1.00 as a program finishes even when it finishes late, which is why it is never read alone.",
+  e:function(){ return idx(T.spi)+" today. Read it together with float and BEI below — those two measure time directly, which SPI cannot do."; }},
+ {t:"EAC — Estimate at Completion", p:"The honest forecast of the final bill: what we have spent plus what the rest will really cost at current efficiency.",
+  e:function(){ return "The bottom-up forecast is "+m(T.eac)+" (each package projected at its own efficiency). The quick portfolio version — budget divided by CPI — says "+m(T.eacIndep)+". A controls manager shows the spread, not one number."; }},
+ {t:"VAC — Variance at Completion", p:"Budget minus forecast. Negative means the program expects to finish over budget.",
+  e:function(){ return sgn(T.vac)+". That is the number the board conversation is actually about."; }},
+ {t:"TCPI — To-Complete Performance Index", p:"The cost efficiency the remaining work must hit to land exactly on a target — usually the original budget. It is the honesty test: compare it to the CPI actually being achieved.",
+  e:function(){ return "Required: "+idx(T.tcpi)+". Demonstrated so far: "+idx(T.cpi)+". The remaining work would have to outperform everything done to date — that gap is why this program escalates rather than hopes."; }},
+ {t:"Contingency", p:"Money set aside up front for the risks you can name. It is not profit and it is not slack — it is insurance with a drawdown rate you should watch like a fuel gauge.",
+  e:function(){ return m(PROGRAM.contingency)+" set aside, "+m(PROGRAM.contingencyDrawn)+" spent ("+pct(T.contDrawn,0)+"), "+m(T.contRemaining)+" left — while the program is "+pct(T.pct,0)+" complete. Here the reserve is being consumed slower than value is earned, which is the healthy direction; the forecast overrun of "+m(Math.abs(T.vac))+" against "+m(T.contRemaining)+" left is not."; }},
+ {t:"Total float", p:"How many days a piece of work can slip before it starts moving the final completion date. Positive float is breathing room. Zero means you are on the edge. Negative means the plan no longer fits in the time left.",
+  e:function(){ return "The tunnel sits at "+days(G_TUN.float)+", utilities at "+days(G_UT.float)+". Those two packages are not just late — they are now setting the completion date themselves."; }},
+ {t:"Critical path & CPLI", p:"The critical path is the chain of work that sets the finish date — delay any link and the whole program moves. CPLI (Critical Path Length Index) asks whether the remaining plan on that chain still fits: (days left + float) divided by days left. Under 1.00, the plan is arithmetically impossible without recovery.",
+  e:function(){ return "The driving path runs through "+G_UT.id+": "+G_UT.cpRem+" days of critical work remain with "+days(G_UT.float)+" of float — CPLI "+idx(G_UT.cpli)+", meaning the plan must run faster than scheduled from tomorrow onward."; }},
+ {t:"BEI — Baseline Execution Index", p:"A simple honesty counter: of the activities the plan said would be finished by now, how many actually are? Counts, not dollars — so big expensive tasks cannot hide small missed ones.",
+  e:function(){ return T.actsD.toLocaleString("en-US")+" of "+T.actsP.toLocaleString("en-US")+" planned activities are complete — BEI "+idx(T.bei)+". Below 0.95 the misses start piling up faster than they can be worked off."; }},
+ {t:"Change order", p:"A formal amendment to the contract — scope, price or time — signed by both sides. The rate of change against the original contract value is one of the best predictors of a troubled program; the cycle time to process each one is the part you can actually control.",
+  e:function(){ return PROGRAM.coApprovedCount+" approved changes worth "+m(PROGRAM.coApprovedValue)+" — "+pct(T.coRate,2)+" of the original "+m(PROGRAM.origContract)+" contract — with "+PROGRAM.coPendingCount+" more pending. Processing is running "+(PROGRAM.coCycleDays-PROGRAM.coCycleTarget)+" days past the "+PROGRAM.coCycleTarget+"-day target."; }},
+ {t:"RFI — Request for Information", p:"A formal question to the designer when the drawings do not answer something. Work stops or guesses until it is answered — so aging RFIs are tomorrow's claims.",
+  e:function(){ return PROGRAM.rfiOpen+" open, "+PROGRAM.rfiOver30+" older than 30 days, averaging "+PROGRAM.rfiAvgAge+" days against a "+PROGRAM.rfiTarget+"-day target. The oldest ones are where the next change orders are born."; }},
+ {t:"Submittal", p:"A document the contractor must send for approval before work — shop drawings, materials, mix designs. Slow submittal turnaround quietly delays procurement months before it shows up in the schedule.",
+  e:function(){ return PROGRAM.subOpen+" in the queue, turning around in "+PROGRAM.subTurnaround+" days against a "+PROGRAM.subTarget+"-day target."; }},
+ {t:"Risk exposure", p:"The risk register priced: each risk's cost multiplied by its probability, added up. It turns a list of worries into a dollar figure you can compare directly against contingency.",
+  e:function(){ return m(T.riskExposure)+" across "+RISKS.length+" risks, and "+pct(0.7*18.5/T.riskExposure,0)+" of it is one risk — tunnel ground conditions ("+m(0.7*18.5)+"). Concentration, not count, is what leadership needs to see."; }},
+ {t:"Monte Carlo simulation", p:"Instead of one forecast, run the finish thousands of times, each time letting each package's remaining efficiency vary around what it has actually achieved. The result is a distribution: not \"the answer\" but the honest odds.",
+  e:function(){ return "4,000 runs here, fixed seed so it is reproducible. Median finish "+m(MC.p50)+"; "+pct(MC.pOver,0)+" of runs finish over budget; "+pct(MC.pBust,0)+" bust through budget plus all remaining contingency."; }},
+ {t:"TRIR — Total Recordable Incident Rate", p:"The standard safety yardstick: recordable injuries per 200,000 hours worked — roughly 100 people working full time for a year. The one metric that can stop a job regardless of cost or schedule.",
+  e:function(){ return PROGRAM.recordables+" recordable incidents across "+PROGRAM.hoursWorked.toLocaleString("en-US")+" work hours: "+(PROGRAM.recordables*200000/PROGRAM.hoursWorked).toFixed(2)+" versus an industry benchmark of "+PROGRAM.trirBenchmark.toFixed(2)+" — about "+pct(1-PROGRAM.trir/PROGRAM.trirBenchmark,0)+" better."; }},
+ {t:"Productivity factor", p:"Earned hours divided by actual hours. Below 1.00 the crews are burning more hours than the estimate carried — and because hours are booked weekly, this moves weeks before the same problem reaches the cost index.",
+  e:function(){ return idx(T.pf)+" program-wide — crews are running about "+((1/T.pf-1)*100).toFixed(1)+"% over the estimated hours. The tunnel is the drag at "+idx(G_TUN.pf)+"."; }}
+];
+function renderGlossary(q){
+  q=(q||"").toLowerCase();
+  var list=GLOSS.filter(function(g){
+    return !q || (g.t+" "+g.p+" "+g.e()).toLowerCase().indexOf(q)>=0; });
+  document.getElementById("glossList").innerHTML=list.map(function(g){
+    return '<div class="gcard"><h3>'+g.t+'</h3><p class="gp">'+g.p+'</p>'+
+      '<div class="gex"><b>Example from this program:</b> '+g.e()+'</div></div>';
+  }).join("");
+  document.getElementById("glossCount").textContent =
+    list.length===GLOSS.length ? GLOSS.length+" terms — every figure above is computed live from the ledger."
+                               : list.length+" of "+GLOSS.length+" terms match";
+}
+
+/* =========================================================================
    8. WIRING
    ========================================================================= */
 var root=document.documentElement, themeBtn=document.getElementById("themeBtn");
@@ -1817,16 +1973,17 @@ themeBtn.addEventListener("click",function(){
   redrawCharts();
 });
 
-var TABS=["over","cost","sched","risk","del","ai","fw"];
-TABS.forEach(function(id){
-  document.getElementById("t-"+id).addEventListener("click",function(){
-    TABS.forEach(function(o){
-      document.getElementById("t-"+o).setAttribute("aria-selected",String(o===id));
-      document.getElementById("p-"+o).hidden = (o!==id);
-    });
-    window.scrollTo({top:0,behavior:"smooth"});
-    redrawCharts();
+var TABS=["over","cost","sched","risk","del","ai","fw","gloss"];
+function activateTab(id){
+  TABS.forEach(function(o){
+    document.getElementById("t-"+o).setAttribute("aria-selected",String(o===id));
+    document.getElementById("p-"+o).hidden = (o!==id);
   });
+  window.scrollTo({top:0,behavior:"smooth"});
+  redrawCharts();
+}
+TABS.forEach(function(id){
+  document.getElementById("t-"+id).addEventListener("click",function(){ activateTab(id); });
 });
 document.querySelector(".tabs").addEventListener("keydown",function(e){
   if(e.key!=="ArrowRight"&&e.key!=="ArrowLeft") return;
@@ -1878,6 +2035,10 @@ document.getElementById("saveScen").addEventListener("click",function(){
 document.getElementById("clearScen").addEventListener("click",function(){ SCEN=[]; renderScen(); });
 document.getElementById("printBtn").addEventListener("click",function(){ renderPrint(); window.print(); });
 document.getElementById("aiNarrBtn").addEventListener("click",renderNarr);
+document.getElementById("storyPrev").addEventListener("click",function(){ renderStory(storyIdx-1); });
+document.getElementById("storyNext").addEventListener("click",function(){ renderStory(storyIdx+1); });
+document.getElementById("storyGo").addEventListener("click",function(){ activateTab(STORY[storyIdx].tab); });
+document.getElementById("glossQ").addEventListener("input",function(){ renderGlossary(this.value); });
 window.addEventListener("scroll",function(){ document.getElementById("tip").classList.remove("on"); },{passive:true});
 
 function redrawCharts(){ renderScurve(); renderWaterfall(); renderCont(); renderRisk(); renderMc(); }
@@ -1888,6 +2049,7 @@ renderScurve(); renderWaterfall(); renderEac(); renderCont(); renderTable();
 renderSchedule(); renderRisk(); renderDelivery(); renderFramework();
 renderMc(); renderScen(); renderPrint();
 renderArch(); renderGuards();
+renderStory(0); renderGlossary("");
 document.getElementById("sCpi").value=T.cpi;
 document.getElementById("sSpi").value=T.spi;
 document.getElementById("sCont").value=PROGRAM.contingency;

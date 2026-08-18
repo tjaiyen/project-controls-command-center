@@ -311,6 +311,63 @@ ok(fs.existsSync(DIR + "pipeline/run_pipeline.py") && fs.existsSync(DIR + "pipel
    && fs.existsSync(DIR + "pipeline/models/schema.yml"), "pipeline/ files present");
 
 /* =========================================================================
+   D4. STORY + GLOSSARY + MOTION
+   (before section E: runPage for otak.html reassigns the globals)
+   ========================================================================= */
+console.log("== D4. story / glossary / motion ==");
+ok(idsA.includes("t-gloss") && idsA.includes("p-gloss"), "glossary tab/panel pair exists");
+// story: chapter 1 renders with live figures, navigation works, clamps at ends
+has("storyTitle", "A billion-dollar promise", "story opens on chapter 1");
+has("storyText", "$1,240.0M", "story chapter 1 quotes derived BAC");
+ok(G.storyPos.textContent === "1 of 5", "story position indicator renders", G.storyPos.textContent);
+ok((G.storyDots._html.match(/<i /g) || []).length === 5, "story renders 5 progress dots");
+try {
+  fire(G.storyNext, "click");
+  has("storyTitle", "The money starts leaking", "next advances to chapter 2");
+  has("storyText", "$37.9M", "chapter 2 quotes derived CV $37.9M");
+  has("storyText", "0.956", "chapter 2 quotes derived CPI 0.956");
+  fire(G.storyNext, "click");
+  has("storyText", "CP-201", "chapter 3 names the tunnel");
+  fire(G.storyGo, "click");
+  ok(G["p-sched"].hidden === false && G["p-over"].hidden === true,
+    "story 'see the evidence' switches to the schedule tab");
+  fire(G["t-over"], "click");
+  fire(G.storyNext, "click");
+  has("storyText", "1.099", "chapter 4 quotes derived TCPI 1.099");
+  fire(G.storyNext, "click");
+  ok(G.storyPos.textContent === "5 of 5", "story reaches final chapter", G.storyPos.textContent);
+  fire(G.storyNext, "click");
+  ok(G.storyPos.textContent === "5 of 5", "story clamps at the last chapter", G.storyPos.textContent);
+  fire(G.storyPrev, "click");
+  ok(G.storyPos.textContent === "4 of 5", "story steps back", G.storyPos.textContent);
+} catch (e) { ok(false, "story navigation", e.message); }
+// glossary: full render, live figures in examples, filter narrows and restores
+const glossAll = (G.glossList._html.match(/class="gcard"/g) || []).length;
+ok(glossAll >= 18, "glossary renders at least 18 terms", String(glossAll));
+const exCount = (G.glossList._html.match(/Example from this program/g) || []).length;
+ok(exCount === glossAll, "every glossary term carries a worked example");
+has("glossList", "1,160", "BEI example uses live activity count 1,160");
+has("glossList", "$52.6M", "contingency example uses live remaining balance");
+has("glossList", "1.42", "TRIR example recomputes to 1.42");
+try {
+  G.glossQ.value = "contingency";
+  fire(G.glossQ, "input");
+  const n = (G.glossList._html.match(/class="gcard"/g) || []).length;
+  ok(n >= 1 && n <= 3, "glossary filter narrows to matching terms", String(n));
+  has("glossList", "Contingency", "filter keeps the contingency term");
+  G.glossQ.value = "";
+  fire(G.glossQ, "input");
+  ok((G.glossList._html.match(/class="gcard"/g) || []).length === glossAll,
+    "clearing the filter restores all terms");
+} catch (e) { ok(false, "glossary filter", e.message); }
+// motion hooks
+ok(G.scurve._html.includes('class="draw"'), "S-curve paths carry draw-in animation");
+ok((G.kboard._html.match(/animation-delay:/g) || []).length === 20,
+  "all 20 KPI cards carry staggered entrance delays");
+ok(indexSrc.includes("@keyframes drawin") && indexSrc.includes("prefers-reduced-motion"),
+  "motion CSS present with reduced-motion guard");
+
+/* =========================================================================
    E. otak.html — runtime + internal consistency
    ========================================================================= */
 console.log("== E. otak.html ==");
