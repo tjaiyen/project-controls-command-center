@@ -324,6 +324,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
     <button role="tab" id="t-del"   aria-controls="p-del"   aria-selected="false">Delivery</button>
     <button role="tab" id="t-ai"    aria-controls="p-ai"    aria-selected="false">AI &amp; Data</button>
     <button role="tab" id="t-fw"    aria-controls="p-fw"    aria-selected="false">Operating Framework</button>
+    <button role="tab" id="t-act"   aria-controls="p-act"   aria-selected="false">Actions<span class="cnt" id="cntAct"></span></button>
     <button role="tab" id="t-gloss" aria-controls="p-gloss" aria-selected="false">Glossary</button>
   </div>
 
@@ -670,6 +671,42 @@ join dim_control_account b using (package_id)</pre></div>
         and earned versus actual hours. Nothing is a stored result. Change one package and the portfolio,
         the indices, the forecast and the escalations all move with it, which is the property that makes a
         controls system trustworthy rather than decorative.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ ACTIONS ============================= -->
+  <section role="tabpanel" id="p-act" aria-labelledby="t-act" tabindex="0" hidden>
+    <div class="sec">
+      <div class="eyebrow">Where the framework actually runs &middot; RAID + CAPA discipline</div>
+      <h2>The escalation matrix, operationalized</h2>
+      <p class="lede">The Operating Framework tab <em>describes</em> what triggers an escalation. This is
+        where that becomes a running register instead of a policy statement &mdash; every open item below
+        traces to either a named escalation rule firing against today's ledger, a risk register mitigation,
+        or a program-management action, and every item is followed through to closure with a named
+        verifier, not just marked done. Synthetic data, same program.</p>
+
+      <div class="strip" id="actStrip"></div>
+
+      <div class="sec-h" style="margin-top:30px"><h3>Accountability &mdash; by owner</h3></div>
+      <p class="lede">Not enforcement, visibility. This is the table that makes it obvious who is carrying
+        what, and who has gone quiet on something that's still open &mdash; before it becomes a surprise.</p>
+      <div class="tw"><table id="ownerTable"></table></div>
+
+      <div class="sec-h" style="margin-top:30px"><h3>Register</h3></div>
+      <p class="lede">Task, Issue or Decision &mdash; the RAID distinction matters, because a Decision
+        pending a follow-up action fails silently in a way a missed Task doesn't. Filter by status, click a
+        row for the full trail.</p>
+      <div class="kfilters" id="actFilters"></div>
+      <div class="tw"><table id="actTable"></table></div>
+      <div id="actDrill" aria-live="polite"></div>
+
+      <div class="note"><b>How status is derived.</b> Nothing below is hand-set. Each item carries an
+        opened date, a due date and a last-touched date; status is computed against the program's data
+        date the same way every other figure on this dashboard is computed &mdash; move the data date and
+        every status recalculates. <b>Escalated</b> = overdue by 5+ days. <b>At risk</b> is an independent
+        flag, not a status: no update in 10+ days, checked even when an item isn't due yet &mdash; the
+        proactive signal that catches drift before the due date does. An item can be both.</p>
       </div>
     </div>
   </section>
@@ -1103,7 +1140,7 @@ function sparkline(series, ragColor){
 /* =========================================================================
    7. RENDERERS
    ========================================================================= */
-var state = {phase:"con", fam:"All", kpi:null, pkg:2};
+var state = {phase:"con", fam:"All", kpi:null, pkg:2, actFilter:"All", act:null};
 
 function renderPhases(){
   document.getElementById("phases").innerHTML = PHASES.map(function(p,i){
@@ -1810,6 +1847,208 @@ function renderFramework(){
     }).join("")+'</tbody>';
 }
 
+/* ---------- actions tab (RAID + CAPA on top of the Framework's escalation matrix) ---------- */
+/* As-of date mirrors PROGRAM.dataDate ("31 Jul 2026") — every status below is computed against the
+   same as-of date the rest of the dashboard uses. Nothing here is hand-set. */
+var ACT_ASOF = new Date(Date.UTC(2026,6,31));
+function actDays(iso){ return Math.round((ACT_ASOF - new Date(iso+"T00:00:00Z"))/86400000); }
+
+var ACTIONS=[
+ {id:"A-01",type:"Issue",title:"CP-201 cost performance index below threshold",
+  src:"Escalation rule &middot; CPI &lt; 0.95",pkg:"CP-201",owner:"Control account manager",
+  opened:"2026-06-25",due:"2026-07-10",touch:"2026-07-30",
+  desc:"CPI has run below 0.95 on the tunnel package for two consecutive periods &mdash; the escalation rule's own trigger for a root-cause review.",
+  root:"Ground conditions worse than the geotechnical baseline are driving rework in the tunnel face, consuming hours the earned-value baseline did not plan for.",
+  corrective:"Supplemental geotechnical program staged against face mapping (R-01's mitigation); crews resequenced around confirmed soft zones.",
+  preventive:"Contingency release is now gated to face-mapping evidence rather than elapsed time, so a future ground-condition surprise draws reserve on confirmed need, not schedule pressure."},
+ {id:"A-02",type:"Task",title:"CP-201 recovery cadence &mdash; negative float",
+  src:"Escalation rule &middot; any package at &le;0 float",pkg:"CP-201",owner:"Package manager",
+  opened:"2026-06-20",due:"2026-07-15",touch:"2026-07-29",
+  desc:"CP-201 is carrying -40 days of total float. The escalation matrix calls for a weekly recovery cadence with a named owner once a package crosses zero float."},
+ {id:"A-03",type:"Task",title:"CP-601 formal recovery analysis &mdash; driving-path CPLI",
+  src:"Escalation rule &middot; CPLI &lt; 0.95 on the driving path",pkg:"CP-601",owner:"Program scheduler",
+  opened:"2026-07-01",due:"2026-07-18",touch:"2026-07-30",
+  desc:"Critical Path Length Index on CP-601's driving path has fallen under 0.95 &mdash; the escalation matrix's 72-hour formal-recovery-analysis clock, still open well past that window."},
+ {id:"A-04",type:"Issue",title:"R-01 tunnel ground conditions &mdash; mitigation execution",
+  src:"Risk register &middot; R-01",pkg:"CP-201",owner:"Tunnel CM",
+  opened:"2026-06-10",due:"2026-07-20",touch:"2026-07-28",
+  desc:"Top-ranked risk by exposure ($18.5M cost band). This item tracks whether the mitigation is actually running, not whether it is written down.",
+  root:"Face conditions are varying faster than the original geotechnical program sampled for.",
+  corrective:"Supplemental geotechnical program and staged contingency release tied to face mapping, per the register's own mitigation.",
+  preventive:"Face-mapping cadence becomes a standing input to future tunnel-package baselines, not a one-time response."},
+ {id:"A-05",type:"Task",title:"Critical-path RFI aging past 30 days",
+  src:"Escalation rule &middot; RFI aged &gt;30d on the critical path",owner:"Design manager",
+  opened:"2026-06-15",due:"2026-07-08",touch:"2026-07-30",
+  desc:"The escalation matrix calls for daily escalation on any critical-path RFI aged past 30 days &mdash; this is the specific aged RFI behind the delivery tab's average age figure."},
+ {id:"A-06",type:"Task",title:"CP-601 recovery cadence &mdash; negative float",
+  src:"Escalation rule &middot; any package at &le;0 float",pkg:"CP-601",owner:"Package manager",
+  opened:"2026-07-18",due:"2026-07-28",touch:"2026-07-31",
+  desc:"CP-601 crossed into negative float (-22 days) more recently than CP-201; the weekly recovery cadence is standing up now, one cycle behind the escalation clock."},
+ {id:"A-07",type:"Task",title:"CP-101 root-cause review &mdash; CPI below threshold",
+  src:"Escalation rule &middot; CPI &lt; 0.95",pkg:"CP-101",owner:"Control account manager",
+  opened:"2026-07-22",due:"2026-08-01",touch:"2026-07-31",
+  desc:"CP-101's CPI (0.935) crossed under 0.95 this reporting period. Scheduled for the next weekly per the escalation rule &mdash; early enough in its life to still be routine, not yet a pattern."},
+ {id:"A-08",type:"Task",title:"CP-701 recovery cadence &mdash; zero float",
+  src:"Escalation rule &middot; any package at &le;0 float",pkg:"CP-701",owner:"Package manager",
+  opened:"2026-07-24",due:"2026-08-04",touch:"2026-07-30",
+  desc:"CP-701 sits at exactly zero float. Not yet negative, but the rule treats &le;0 as the trigger &mdash; the cadence starts before the package actually slips."},
+ {id:"A-09",type:"Decision",title:"Contingency coverage funding conversation",
+  src:"Escalation rule &middot; contingency coverage &lt; 1.00",owner:"Program director",
+  opened:"2026-07-14",due:"2026-08-06",touch:"2026-07-18",
+  desc:"Contingency coverage is drifting toward the escalation threshold. The rule calls for an immediate sponsor funding conversation once coverage drops under 1.00 &mdash; this decision needs to land before that line is crossed, not after."},
+ {id:"A-10",type:"Task",title:"R-02 utility approval cadence",
+  src:"Risk register &middot; R-02",owner:"Utilities Lead",
+  opened:"2026-07-05",due:"2026-08-15",touch:"2026-07-29",
+  desc:"Weekly owner cadence with the two longest-lead utility crossings, per the register's mitigation. Cadence is running; this item tracks that it keeps running."},
+ {id:"A-11",type:"Task",title:"R-03 systems integration test-window negotiation",
+  src:"Risk register &middot; R-03",owner:"Systems PM",
+  opened:"2026-07-01",due:"2026-08-20",touch:"2026-07-15",
+  desc:"Negotiating extended night test windows and pre-staging commissioning off the critical path, per the register's mitigation. In progress, but hasn't been touched in the log in two weeks."},
+ {id:"A-12",type:"Task",title:"Change-order aging backlog past 30 days",
+  src:"Escalation rule &middot; change order aging &gt;30d",owner:"Change board chair",
+  opened:"2026-07-10",due:"2026-08-12",touch:"2026-07-29",
+  desc:"Working the aged-change backlog to resolution-or-reject, per the weekly-review clock in the escalation matrix."},
+ {id:"A-13",type:"Task",title:"TRIR incident-pattern periodic review",
+  src:"Escalation rule &middot; TRIR above benchmark (standing watch)",owner:"Safety manager",
+  opened:"2026-07-29",due:"2026-08-25",touch:"2026-07-31",
+  desc:"TRIR is currently under benchmark, so this rule hasn't fired &mdash; this is the scheduled periodic check that keeps it that way. Opened this cycle, not yet started."},
+ {id:"A-14",type:"Issue",title:"R-04 steel &amp; OCS commodity hedge &mdash; blocked on contract execution",
+  src:"Risk register &middot; R-04",owner:"Procurement",
+  opened:"2026-06-20",due:"2026-08-10",touch:"2026-07-25",blocked:true,
+  desc:"Early buy on hedgeable commodities per the register's mitigation is priced and ready but blocked pending legal sign-off on the escalation-clause language.",
+  root:"Steel and OCS pricing is indexed to a published series currently running ahead of the escalation clause's own trigger.",
+  corrective:"Early-buy contract drafted and priced; awaiting legal execution.",
+  preventive:"Escalation-clause language gets a standing legal-review SLA so a future hedge window doesn't stall the same way."},
+ {id:"A-15",type:"Issue",title:"Submittal turnaround spike &mdash; Q2 (resolved)",
+  src:"Delivery tab &middot; document control",owner:"Design manager",
+  opened:"2026-06-01",due:"2026-07-10",touch:"2026-07-12",done:true,verified:true,
+  verifiedBy:"Document Control Lead",verifiedDate:"2026-07-12",
+  desc:"A Q2 submittal-turnaround spike pushed the rolling average briefly over target.",
+  root:"A reviewer vacancy left one discipline's submittals queued for eight days with no one assigned.",
+  corrective:"Backup reviewer assigned from an adjacent discipline; queue cleared within the week.",
+  preventive:"Reviewer-vacancy coverage is now a standing item on the weekly document-control check, so a gap gets a backup assigned the same week it opens, not after the average moves."}
+];
+
+function actionStatus(a){
+  if(a.done) return a.verified? "verified":"closed";
+  if(a.blocked) return "blocked";
+  var d=actDays(a.due);
+  if(d>=5) return "escalated";
+  if(d>0) return "overdue";
+  if(d>=-7) return "due-soon";
+  return actDays(a.opened)<=3? "not-started":"in-progress";
+}
+function isStale(a){ return !a.done && actDays(a.touch)>=10; }
+
+var STATUS_META={
+ "escalated":  {label:"Escalated",  cls:"r"},
+ "overdue":    {label:"Overdue",    cls:"r"},
+ "blocked":    {label:"Blocked",    cls:"r"},
+ "due-soon":   {label:"Due soon",   cls:"a"},
+ "in-progress":{label:"In progress",cls:"i"},
+ "not-started":{label:"Not started",cls:"i"},
+ "verified":   {label:"Verified",   cls:"g"},
+ "closed":     {label:"Closed",     cls:"g"}
+};
+
+function renderActions(){
+  var rows=ACTIONS.map(function(a){ return Object.assign({},a,{status:actionStatus(a),stale:isStale(a)}); });
+  var open=rows.filter(function(r){return r.status!=="verified"&&r.status!=="closed";});
+  var esc=rows.filter(function(r){return r.status==="escalated";});
+  var overdueOrEsc=rows.filter(function(r){return r.status==="escalated"||r.status==="overdue";});
+  var dueSoon=rows.filter(function(r){return r.status==="due-soon";});
+  var stale=rows.filter(function(r){return r.stale;});
+  var closed=rows.filter(function(r){return r.status==="verified"||r.status==="closed";});
+
+  document.getElementById("actStrip").innerHTML=
+   [["Open items",open.length+" of "+rows.length,""],
+    ["Escalated",esc.length,esc.length?"ba":"ok"],
+    ["Overdue or escalated",overdueOrEsc.length,overdueOrEsc.length?"ba":"ok"],
+    ["Due within 7 days",dueSoon.length,"wa"],
+    ["Flagged before due date",stale.length+" stale",stale.length?"wa":"ok"],
+    ["Closed &amp; verified",closed.length+" of "+rows.length,"ok"]
+   ].map(function(r){ return '<div><div class="k">'+r[0]+'</div><div class="v '+r[2]+'">'+r[1]+'</div></div>'; }).join("");
+  document.getElementById("cntAct").textContent=open.length;
+
+  var byOwner={};
+  rows.forEach(function(r){
+    if(!byOwner[r.owner]) byOwner[r.owner]={owner:r.owner,open:0,escalated:0,stale:0,nextDue:null};
+    if(r.status==="verified"||r.status==="closed") return;
+    var o=byOwner[r.owner]; o.open++;
+    if(r.status==="escalated") o.escalated++;
+    if(r.stale) o.stale++;
+    if(!o.nextDue||r.due<o.nextDue) o.nextDue=r.due;
+  });
+  var ownerRows=Object.keys(byOwner).map(function(k){return byOwner[k];})
+    .filter(function(o){return o.open>0;})
+    .sort(function(a,b){return b.escalated-a.escalated||b.stale-a.stale||b.open-a.open;});
+  document.getElementById("ownerTable").innerHTML=
+   '<thead><tr><th scope="col">Owner</th><th scope="col">Open</th><th scope="col">Escalated</th>'+
+   '<th scope="col">Flagged stale</th><th scope="col">Next due</th></tr></thead><tbody>'+
+   ownerRows.map(function(o){ return '<tr style="cursor:default"><td>'+o.owner+'</td>'+
+     '<td class="tab-num">'+o.open+'</td>'+
+     '<td class="tab-num'+(o.escalated?' ba':'')+'">'+o.escalated+'</td>'+
+     '<td class="tab-num'+(o.stale?' wa':'')+'">'+o.stale+'</td>'+
+     '<td class="mono" style="font-size:11.5px">'+o.nextDue+'</td></tr>'; }).join("")+'</tbody>';
+
+  var FILTERS=["All","Escalated","Overdue","Due soon","In progress","Blocked","Verified","Stale"];
+  document.getElementById("actFilters").innerHTML=FILTERS.map(function(f){
+    var n = f==="All"? rows.length
+          : f==="Stale"? stale.length
+          : rows.filter(function(r){return STATUS_META[r.status]&&STATUS_META[r.status].label===f;}).length;
+    return '<button class="btn'+(state.actFilter===f?" on":"")+'" data-actf="'+f+'" aria-pressed="'+(state.actFilter===f)+'">'+
+      f+' <span class="mono" style="opacity:.6">'+n+'</span></button>';
+  }).join("");
+
+  var list = rows.filter(function(r){
+    if(state.actFilter==="All") return true;
+    if(state.actFilter==="Stale") return r.stale;
+    return STATUS_META[r.status] && STATUS_META[r.status].label===state.actFilter;
+  }).sort(function(a,b){ return actDays(b.due)-actDays(a.due); });
+
+  document.getElementById("actTable").innerHTML=
+   '<thead><tr><th scope="col">ID</th><th scope="col">Type</th><th scope="col">Item</th>'+
+   '<th scope="col">Owner</th><th scope="col">Due</th><th scope="col">Status</th></tr></thead><tbody>'+
+   list.map(function(r){ var sm=STATUS_META[r.status];
+     return '<tr data-act="'+r.id+'" tabindex="0" style="cursor:pointer'+(state.act===r.id?';background:rgb(var(--c-accent) / .08)':'')+'">'+
+     '<td class="mono" style="font-size:11.5px">'+r.id+'</td>'+
+     '<td style="font-size:11.5px">'+r.type+'</td>'+
+     '<td style="white-space:normal">'+r.title+(r.stale?' <span class="pill a" style="margin-left:5px">stale</span>':'')+'</td>'+
+     '<td style="font-size:12px">'+r.owner+'</td>'+
+     '<td class="mono" style="font-size:11.5px">'+r.due+'</td>'+
+     '<td><span class="pill '+sm.cls+'">'+sm.label+'</span></td></tr>'; }).join("")+'</tbody>';
+
+  renderActDrill(rows);
+}
+
+function renderActDrill(rows){
+  var el=document.getElementById("actDrill");
+  if(!state.act){ el.innerHTML=""; return; }
+  var a=(rows||ACTIONS.map(function(x){return Object.assign({},x,{status:actionStatus(x),stale:isStale(x)});}))
+    .filter(function(x){return x.id===state.act;})[0];
+  if(!a){ el.innerHTML=""; return; }
+  var sm=STATUS_META[a.status];
+  var body='<p style="margin:0 0 10px;font-size:13px;color:rgb(var(--c-mut))">'+a.desc+'</p>';
+  if(a.root) body+=
+   '<div class="grid g2" style="margin-top:4px">'+
+   '<div><div class="eyebrow" style="font-size:10px">Root cause</div><p style="margin:4px 0 0;font-size:12.5px">'+a.root+'</p></div>'+
+   '<div><div class="eyebrow" style="font-size:10px">Corrective action</div><p style="margin:4px 0 0;font-size:12.5px">'+a.corrective+'</p></div>'+
+   '<div style="grid-column:1/-1"><div class="eyebrow" style="font-size:10px">Preventive action</div><p style="margin:4px 0 0;font-size:12.5px">'+a.preventive+'</p></div>'+
+   '</div>';
+  if(a.verified) body+='<p style="margin:12px 0 0;font-size:12px;color:rgb(var(--c-mut))">Closed '+a.due+
+    ' &middot; verified by <b style="color:rgb(var(--c-ink))">'+a.verifiedBy+'</b> on '+a.verifiedDate+
+    ' &mdash; a status someone other than the owner confirmed, not a self-report.</p>';
+  el.innerHTML='<div class="drawer"><div class="dh"><div>'+
+    '<div class="eyebrow">'+a.type+' &middot; '+a.src+'</div>'+
+    '<h3 style="margin:0">'+a.id+' &mdash; '+a.title+'</h3></div>'+
+    '<button class="btn" id="closeAct" type="button">Close &times;</button></div>'+
+    '<div style="margin-top:10px"><span class="pill '+sm.cls+'">'+sm.label+'</span> '+
+    '<span class="mono" style="font-size:11px;color:rgb(var(--c-mut));margin-left:8px">owner: '+a.owner+
+    ' &middot; opened '+a.opened+' &middot; due '+a.due+
+    (a.pkg?' &middot; package '+a.pkg:'')+'</span></div>'+
+    '<div style="margin-top:12px">'+body+'</div></div>';
+}
+
 /* ---------- AI & data tab ---------- */
 function renderArch(){
   var W=980,H=250;
@@ -2109,7 +2348,7 @@ themeBtn.addEventListener("click",function(){
   redrawCharts();
 });
 
-var TABS=["over","cost","sched","risk","del","ai","fw","gloss"];
+var TABS=["over","cost","sched","risk","del","ai","fw","act","gloss"];
 function activateTab(id){
   TABS.forEach(function(o){
     document.getElementById("t-"+o).setAttribute("aria-selected",String(o===id));
@@ -2147,6 +2386,22 @@ document.getElementById("kboard").addEventListener("click",function(e){
 document.getElementById("kdetail").addEventListener("click",function(e){
   if(e.target.id==="closeDetail"){ state.kpi=null; renderDetail(); }
 });
+document.getElementById("actFilters").addEventListener("click",function(e){
+  var b=e.target.closest("[data-actf]"); if(!b) return;
+  state.actFilter=b.dataset.actf; renderActions();
+});
+document.getElementById("actTable").addEventListener("click",function(e){
+  var tr=e.target.closest("[data-act]"); if(!tr) return;
+  state.act = state.act===tr.dataset.act? null : tr.dataset.act; renderActions();
+});
+document.getElementById("actTable").addEventListener("keydown",function(e){
+  if(e.key!=="Enter"&&e.key!==" ") return;
+  var tr=e.target.closest("[data-act]"); if(!tr) return; e.preventDefault();
+  state.act = state.act===tr.dataset.act? null : tr.dataset.act; renderActions();
+});
+document.getElementById("actDrill").addEventListener("click",function(e){
+  if(e.target.id==="closeAct"){ state.act=null; renderActions(); }
+});
 var body=document.getElementById("pkgBody");
 body.addEventListener("click",function(e){ var tr=e.target.closest("tr"); if(tr) select(+tr.dataset.i); });
 body.addEventListener("keydown",function(e){
@@ -2182,7 +2437,7 @@ function redrawCharts(){ renderScurve(); renderWaterfall(); renderCont(); render
 /* init */
 renderPhases(); renderStrip(); renderFilters(); renderBoard(); renderDetail();
 renderScurve(); renderWaterfall(); renderBaseline(); renderEac(); renderCont(); renderTable();
-renderSchedule(); renderRisk(); renderDelivery(); renderFramework();
+renderSchedule(); renderRisk(); renderDelivery(); renderFramework(); renderActions();
 renderMc(); renderScen(); renderPrint();
 renderArch(); renderGuards();
 renderStory(0); renderGlossary("");
@@ -2192,7 +2447,8 @@ document.getElementById("sCont").value=PROGRAM.contingency;
 renderWhatIf();
 
 /* expose for verification */
-window.__PCC__={rows:rows,totals:T,kpis:KPIS,program:PROGRAM,eacs:EACS,mc:MC};
+window.__PCC__={rows:rows,totals:T,kpis:KPIS,program:PROGRAM,eacs:EACS,mc:MC,
+  actions:ACTIONS,actionStatus:actionStatus,isStale:isStale};
 })();
 </script>
 </body>

@@ -75,7 +75,7 @@ const missing = jsIds.filter(id => !idsA.includes(id) && id !== "dimNote");
 ok(missing.length === 0, "JS-referenced ids exist in markup", missing.join(","));
 
 // tab -> panel wiring
-["over", "cost", "sched", "risk", "del", "fw"].forEach(t => {
+["over", "cost", "sched", "risk", "del", "fw", "act"].forEach(t => {
   ok(idsA.includes("t-" + t) && idsA.includes("p-" + t), "tab/panel pair " + t);
 });
 ok(indexSrc.includes('aria-controls="p-over"'), "tab aria-controls present");
@@ -398,6 +398,57 @@ has("glossList", "Buyout", "glossary covers buyout");
 // integrity gate grew to cover the new modules
 has("aiGuards", "Estimate-to-budget bridge", "gate covers the baseline bridge");
 has("aiGuards", "Delay register ties to package float", "gate covers delay/float consistency");
+
+/* =========================================================================
+   D6. ACTIONS TAB — RAID/CAPA register on top of the escalation matrix
+   ========================================================================= */
+console.log("== D6. actions tab ==");
+ok(idsA.includes("p-act") && idsA.includes("t-act"), "actions tab/panel wired");
+["actStrip", "ownerTable", "actFilters", "actTable", "actDrill"].forEach(id =>
+  ok(idsA.includes(id), "markup contains #" + id));
+ok(P.actions.length === 15, "exactly 15 action items", String(P.actions.length));
+{
+  const rows = P.actions.map(a => Object.assign({}, a, { status: P.actionStatus(a), stale: P.isStale(a) }));
+  const counts = {};
+  rows.forEach(r => { counts[r.status] = (counts[r.status] || 0) + 1; });
+  const expected = { escalated: 5, overdue: 1, "due-soon": 3, "in-progress": 3, "not-started": 1, blocked: 1, verified: 1 };
+  Object.keys(expected).forEach(k =>
+    ok(counts[k] === expected[k], "status count " + k + " = " + expected[k], String(counts[k])));
+  ok(rows.filter(r => r.status !== "verified" && r.status !== "closed").length === 14, "14 of 15 open");
+  const stale = rows.filter(r => r.stale);
+  ok(stale.length === 2, "exactly 2 stale flags", String(stale.length));
+  ok(stale.map(r => r.id).sort().join(",") === "A-09,A-11", "stale flags land on A-09 and A-11",
+    stale.map(r => r.id).join(","));
+}
+// register table renders 15 rows by default (filter = All) and the KPI strip / owner rollup are non-empty
+has("actTable", 'data-act="A-01"', "register table renders item A-01");
+ok((G.actTable._html.match(/data-act=/g) || []).length === 15, "register table shows all 15 rows unfiltered");
+has("actStrip", "14 of 15", "KPI strip shows 14 of 15 open");
+ok(String(G.cntAct.textContent) === "14", "tab badge shows 14 open", String(G.cntAct.textContent));
+ok((G.ownerTable._html.match(/<tr/g) || []).length >= 8, "owner accountability table has header + 7+ owner rows");
+// filter interaction: Escalated shows exactly the 5 escalated rows
+try {
+  fire(G.actFilters, "click", { target: { closest: () => ({ dataset: { actf: "Escalated" } }) } });
+  ok((G.actTable._html.match(/data-act=/g) || []).length === 5, "Escalated filter shows exactly 5 rows");
+  fire(G.actFilters, "click", { target: { closest: () => ({ dataset: { actf: "All" } }) } });
+  ok((G.actTable._html.match(/data-act=/g) || []).length === 15, "filter reset to All shows 15");
+} catch (e) { ok(false, "actions filter interaction", e.message); }
+// row drill-down: opens the CAPA detail for an Issue, closes on second click
+try {
+  fire(G.actTable, "click", { target: { closest: () => ({ dataset: { act: "A-01" } }) } });
+  has("actDrill", "A-01", "drill-down opens A-01");
+  has("actDrill", "Root cause", "drill-down shows root cause for an Issue-type item");
+  has("actDrill", "Preventive action", "drill-down shows preventive action");
+  fire(G.actTable, "click", { target: { closest: () => ({ dataset: { act: "A-01" } }) } });
+  ok(G.actDrill._html === "", "drill-down closes on second click of same row");
+} catch (e) { ok(false, "actions drill-down", e.message); }
+// verified item shows an independent verifier, not a self-report
+try {
+  fire(G.actTable, "click", { target: { closest: () => ({ dataset: { act: "A-15" } }) } });
+  has("actDrill", "Document Control Lead", "verified item names an independent verifier");
+  fire(G.actDrill, "click", { target: { id: "closeAct" } });
+  ok(G.actDrill._html === "", "close button clears the drill-down");
+} catch (e) { ok(false, "verified item drill-down", e.message); }
 
 /* =========================================================================
    E. otak.html — runtime + internal consistency
