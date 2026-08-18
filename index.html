@@ -376,7 +376,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
       <div class="eyebrow">Board &amp; executive altitude &middot; agency portfolio</div>
       <h2>One line of business is the ground truth; three are the rollup</h2>
       <p class="lede">Every other tab in this tool is the full detail on <b>Link Light Rail Extensions
-        &mdash; Cascade Transit Extension</b>, read live from the same twelve-input ledger. The other
+        &mdash; Cascade Transit Extension</b>, read live from the same eleven-input ledger. The other
         three lines below are portfolio-level summary only &mdash; no drill-down &mdash; illustrating how
         a real Module 2&ndash;5 buildout for those lines would roll up at this, the executive tier.
         Nothing here is a separate number: the flagship row is the same BAC/AC/EV every other tab reports.</p>
@@ -642,7 +642,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
           The same model runs in this repository: <code>pipeline/run_pipeline.py</code> synthesizes the raw
           monthly claims deterministically, builds the ledger through <code>fct_control_account.sql</code>
           in DuckDB, and proves the result identical to what this page computes in JavaScript &mdash;
-          55 checks, two independent stacks, one set of numbers. That equality is the integrity argument.</p></div>
+          54 checks, two independent stacks, one set of numbers. That equality is the integrity argument.</p></div>
 
       <div class="grid g2">
         <div class="card"><h3>The model &mdash; <span class="mono" style="font-size:.85em">fct_control_account.sql</span></h3>
@@ -756,7 +756,7 @@ join dim_control_account b using (package_id)</pre></div>
       <div class="tw"><table id="libTable" style="min-width:900px"></table></div>
 
       <div class="note"><b>On the numbers.</b> Every figure in this tool is computed from a
-        ledger of twelve inputs per control account &mdash; budget, planned value, earned value, actual
+        ledger of eleven inputs per control account &mdash; budget, planned value, earned value, actual
         cost, commitments, float, remaining critical-path duration, baseline and completed activity counts,
         and earned versus actual hours. Nothing is a stored result. Change one package and the portfolio,
         the indices, the forecast and the escalations all move with it, which is the property that makes a
@@ -837,7 +837,7 @@ join dim_control_account b using (package_id)</pre></div>
 
 /* =========================================================================
    1. THE LEDGER — the only hardcoded numbers in this file.
-   Twelve inputs per control account; every metric below is derived.
+   Eleven inputs per control account; every metric below is derived.
    ========================================================================= */
 var PROGRAM = {
   name:"Cascade Transit Extension", client:"Regional transit authority (illustrative)",
@@ -1816,12 +1816,13 @@ function firingEscalations(){
   if(T.cpi<0.95) f.push(ESCALATION[0]);
   if(T.cpli<0.95) f.push(ESCALATION[1]);
   if(T.tcpi-T.cpi>0.10) f.push(ESCALATION[2]);
-  if(T.contCoverage<1) f.push(ESCALATION[3]);
-  if(Math.abs(Math.min(0,T.vac))>T.contRemaining) f.push(ESCALATION[4]);
-  if(T.negFloat.length) f.push(ESCALATION[5]);
-  if(PROGRAM.coCycleDays>PROGRAM.coCycleTarget) f.push(ESCALATION[6]);
-  if(PROGRAM.rfiOver30>0) f.push(ESCALATION[7]);
-  if(PROGRAM.trir>PROGRAM.trirBenchmark) f.push(ESCALATION[8]);
+  if(T.tcpi>1.10) f.push(ESCALATION[3]);
+  if(T.contCoverage<1) f.push(ESCALATION[4]);
+  if(Math.abs(Math.min(0,T.vac))>T.contRemaining) f.push(ESCALATION[5]);
+  if(T.negFloat.length) f.push(ESCALATION[6]);
+  if(PROGRAM.coCycleDays>PROGRAM.coCycleTarget) f.push(ESCALATION[7]);
+  if(PROGRAM.rfiOver30>0) f.push(ESCALATION[8]);
+  if(PROGRAM.trir>PROGRAM.trirBenchmark) f.push(ESCALATION[9]);
   return f;
 }
 function renderPrint(){
@@ -2445,7 +2446,7 @@ function renderActions(){
    '<thead><tr><th scope="col">ID</th><th scope="col">Type</th><th scope="col">Item</th>'+
    '<th scope="col">Owner</th><th scope="col">Due</th><th scope="col">Status</th></tr></thead><tbody>'+
    list.map(function(r){ var sm=STATUS_META[r.status];
-     return '<tr data-act="'+r.id+'" tabindex="0" style="cursor:pointer'+(state.act===r.id?';background:rgb(var(--c-accent) / .08)':'')+'">'+
+     return '<tr data-act="'+r.id+'" tabindex="0" role="button" aria-controls="actDrill" aria-pressed="'+(state.act===r.id)+'" style="cursor:pointer'+(state.act===r.id?';background:rgb(var(--c-accent) / .08)':'')+'">'+
      '<td class="mono" style="font-size:11.5px">'+r.id+'</td>'+
      '<td style="font-size:11.5px">'+r.type+'</td>'+
      '<td style="white-space:normal">'+r.title+(r.stale?' <span class="pill a" style="margin-left:5px">stale</span>':'')+'</td>'+
@@ -2504,7 +2505,7 @@ function renderArch(){
   for(i=0;i<6;i++) a+=arrow(160,29+i*38,222,120);
   s+=box(222,90,140,60,"dbt staging","stg_progress_claims",false);
   s+=box(402,90,168,60,"marts","fct_control_account",false);
-  s+=box(610,90,150,60,"integrity gate","dbt tests · 55 checks",true);
+  s+=box(610,90,150,60,"integrity gate","dbt tests · 54 checks",true);
   s+=box(800,30,172,52,"This dashboard","browser derivation",false);
   s+=box(800,100,172,52,"Executive brief","print one-pager",false);
   s+=box(800,170,172,52,"AI narrative draft","prose only · verified",false);
@@ -2571,7 +2572,7 @@ var GUARDS=[
      .map(function(p){return p.join("");});
    var rx=new RegExp(T2.join("|"),"i");
    var t=(document.body&&document.body.textContent)||"";
-   return [!rx.test(t), "live text scanned"];}},,
+   return [!rx.test(t), "live text scanned"];}},
  {n:"Monte Carlo reproducible: fresh run with the fixed seed lands on the same P50", run:function(){
    var rnd=lcg(20260731), sims=[],i,j;
    for(i=0;i<4000;i++){ var e=0;
@@ -2717,7 +2718,7 @@ var STORY=[
  {t:"A billion-dollar promise", tab:"over",
   x:function(){ return "The "+PROGRAM.name+" is a "+m(T.bac)+" capital program — "+PROGRAM.corridor.replace(/&[a-z]+;/g," ")+
     ", delivered as "+PROGRAM.delivery.replace(/&[a-z]+;/g," ")+". Right now "+pct(T.pct)+" of the value is earned with "+
-    PROGRAM.monthsElapsed+" of "+PROGRAM.monthsTotal+" months gone. Every number you are about to see is derived from twelve "+
+    PROGRAM.monthsElapsed+" of "+PROGRAM.monthsTotal+" months gone. Every number you are about to see is derived from eleven "+
     "inputs per control account — budget, planned value, earned value, actual cost, float, hours — and nothing is typed by hand."; }},
  {t:"The money starts leaking", tab:"cost",
   x:function(){ return "Work worth "+m(T.ev)+" has been delivered, but it cost "+m(T.ac)+" to deliver it. That "+m(Math.abs(T.cv))+

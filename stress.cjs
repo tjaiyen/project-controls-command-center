@@ -300,12 +300,21 @@ try {
 // print brief: populated at init, escalation count derived independently
 has("printBrief", "Executive brief", "print brief populated at init");
 const expectedFiring =
-  (T.cpi < 0.95) + (T.cpli < 0.95) + (T.tcpi - T.cpi > 0.10) + (T.contCoverage < 1) +
+  (T.cpi < 0.95) + (T.cpli < 0.95) + (T.tcpi - T.cpi > 0.10) + (T.tcpi > 1.10) + (T.contCoverage < 1) +
   (Math.abs(Math.min(0, T.vac)) > T.contRemaining) + (T.negFloat.length > 0) +
   (P.program.coCycleDays > P.program.coCycleTarget) + (P.program.rfiOver30 > 0) +
   (P.program.trir > P.program.trirBenchmark);
 has("printBrief", "Escalations firing (" + expectedFiring + ")", "print brief escalation count matches independent derivation");
 ok(!G.printBrief._html.includes("DBE"), "print brief carries no swept terms");
+// content correctness, not just count: a firing trigger must attach the RIGHT rule text, not a
+// neighbor's — a hardcoded ESCALATION[n] index silently pointed at the wrong row here before
+// (found by this stress pass: inserting a new row mid-array shifted every index after it).
+if (T.contCoverage < 1) {
+  has("printBrief", "Contingency coverage", "contingency-coverage trigger shows its own rule text, not a shifted neighbor's");
+}
+if (T.tcpi - T.cpi > 0.10) {
+  has("printBrief", "TCPI − CPI", "TCPI-CPI-gap trigger shows its own rule text, not a shifted neighbor's");
+}
 try {
   fire(G.printBtn, "click");
   ok(R.win._printed === true, "print button invokes window.print");
@@ -325,6 +334,16 @@ const guardFails = (G.aiGuards._html.match(/>FAIL</g) || []).length;
 ok(guardPasses === 27 && guardFails === 0, "integrity gate: 27 PASS, 0 FAIL",
    guardPasses + " pass / " + guardFails + " fail");
 has("aiGuards", "GREEN", "gate shows GREEN");
+// the header's own stated count must equal what actually rendered — a stray trailing comma in
+// the GUARDS array literal previously created a silent array hole (GUARDS.length said 28, only
+// 27 checks actually ran/rendered) that no prior assertion caught since it only checked the pill
+// count, never the header text against that same count.
+{
+  const headerCount = G.aiGuards._html.match(/Integrity gate &middot; (\d+) checks/);
+  ok(!!headerCount && Number(headerCount[1]) === guardPasses + guardFails,
+    "integrity gate header count matches actual rendered checks (no array hole)",
+    headerCount ? headerCount[1] : "no match");
+}
 ok(G.arch._html.includes("fct_control_account") && G.arch._html.includes("integrity gate"),
    "architecture diagram renders pipeline stages");
 // narrative: generate, verify every figure, check the contract panel
@@ -604,6 +623,12 @@ ok(P.actions.length === 17, "exactly 17 action items", String(P.actions.length))
 // register table renders 17 rows by default (filter = All) and the KPI strip / owner rollup are non-empty
 has("actTable", 'data-act="A-01"', "register table renders item A-01");
 ok((G.actTable._html.match(/data-act=/g) || []).length === 17, "register table shows all 17 rows unfiltered");
+// found by the independent review: actTable rows lacked the accessibility attributes the
+// established pattern (pkgBody, Cost tab) already carries for the identical click-to-open-drawer
+// interaction — a real regression, not a stylistic nit.
+has("actTable", 'role="button"', "register table rows carry role=\"button\" (matches pkgBody's pattern)");
+has("actTable", 'aria-controls="actDrill"', "register table rows announce what they control");
+has("actTable", "aria-pressed=", "register table rows announce their pressed state");
 has("actStrip", "16 of 17", "KPI strip shows 16 of 17 open");
 ok(String(G.cntAct.textContent) === "16", "tab badge shows 16 open", String(G.cntAct.textContent));
 ok((G.ownerTable._html.match(/<tr/g) || []).length >= 9, "owner accountability table has header + 8+ owner rows");
@@ -665,6 +690,20 @@ const SAN = /mawl|dagir|izlid|kiji|minirva|glare|milr/i;
 });
 ok(!/https?:\/\/(?!tjaiyen\.github\.io|github\.com\/tjaiyen|linkedin\.com|www\.w3\.org)/.test(indexSrc.replace(/mailto:[^"']*/g, "")),
   "no unexpected external assets in index.html");
+
+// found by the 2026-08-18 stress pass: prose drifted from the actual data twice (a "12 inputs"
+// claim against an 11-field ledger record, and a "55 checks" claim against a 54-check pipeline
+// run) — neither was ever independently checked. Static tripwires here + a computed field count.
+ok(!/twelve[\s-]?input/i.test(indexSrc) && !/twelve[\s-]?input/i.test(fs.readFileSync(DIR + "README.md", "utf8")),
+  "no stale 'twelve input(s)' claim anywhere");
+{
+  const pkgKeys = Object.keys(P.rows[0]).filter(k => !["id", "n", "spi", "cpi", "eac", "vac", "sv", "cv",
+    "pct", "cpli", "bei", "pf", "commitRatio"].includes(k));
+  ok(pkgKeys.length === 11, "control-account ledger record genuinely carries 11 raw inputs",
+    pkgKeys.join(","));
+}
+ok(!/55 checks/.test(indexSrc), "no stale '55 checks' pipeline claim in index.html");
+ok((indexSrc.match(/54 checks/g) || []).length >= 2, "'54 checks' (the verified pipeline count) appears in index.html");
 
 console.log("\n" + pass + " passed, " + fail + " failed");
 process.exit(fail ? 1 : 0);
