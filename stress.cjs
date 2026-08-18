@@ -865,8 +865,16 @@ function TABS_CHECK() {
 ok(P.guardrails.length === 4, "4 guardrail types defined", String(P.guardrails.length));
 ok(P.discrepancySteps.length === 5, "5-step discrepancy-resolution flow defined", String(P.discrepancySteps.length));
 ok(P.rollout.length === 3, "3-phase rollout defined", String(P.rollout.length));
-has("guardrailTable", "Schema check", "guardrail table renders schema check");
+has("guardrailTable", "Entity / schema check", "guardrail table renders the entity/schema check");
 has("guardrailTable", "Cross-system reconciliation", "guardrail table renders cross-system reconciliation check");
+has("guardrailTable", "IDS", "guardrail table ties checks back to the real IDS standard");
+// these three are static HTML baked into the page, never JS-rendered into #p-data's innerHTML —
+// check the raw source directly (same pattern as the other static-content checks in this file),
+// not has(), which only sees content actually assigned via .innerHTML at runtime.
+ok(indexSrc.includes("Common Data Environment"), "Data Strategy tab names the real ISO 19650 CDE standard");
+ok(indexSrc.includes("6.80/hr"), "Data Strategy tab shows the verified Sound Transit reimbursement rate");
+ok(indexSrc.includes("Structure (WBS)") && indexSrc.includes("(ABS)"),
+  "Data Strategy tab names the real WBS/ABS mismatch");
 has("discrepancyFlow", "Classify severity first", "discrepancy flow renders step 1");
 has("discrepancyFlow", "Log every override", "discrepancy flow renders the final promote-to-rule step");
 has("rolloutCards", "Phase 1", "rollout renders Phase 1");

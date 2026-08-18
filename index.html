@@ -853,37 +853,56 @@ join dim_control_account b using (package_id)</pre></div>
       <p class="lede">Everything else on this dashboard runs against one clean, synthetic ledger.
         A real capital program doesn't have that luxury &mdash; its data lives across six-plus
         systems that were never designed to agree with each other. This tab is the plan for that
-        actual problem: how to stage it, guard it, resolve disagreement between systems, and
-        recover from errors proactively instead of just flagging them.</p>
+        actual problem, grounded in the real AEC industry standard (ISO 19650 Common Data
+        Environments, buildingSMART's IDS), not generic tech-industry terms: how to stage it,
+        guard it, resolve disagreement between systems, and recover from errors proactively
+        instead of just flagging them.</p>
 
       <div class="sec-h" style="margin-top:30px"><h3>The problem, stated plainly</h3></div>
-      <p class="lede">The failure mode is rarely one dramatic error. It's the slow accumulation of
-        small disagreements between systems that nobody resolved, until a report reaches a Board
-        built on numbers that quietly stopped meaning the same thing across systems. The goal
+      <p class="lede">There's a specific, well-documented version of this: the Work Breakdown
+        Structure (WBS) contractors use for project controls, and the Asset Breakdown Structure
+        (ABS) transit agencies use for operations and maintenance, are organized around
+        fundamentally different logic &mdash; work packages and spatial boundaries versus
+        functional system topology. That mismatch is a documented, recurring cause of data loss at
+        handover, not a one-off integration bug. The failure mode is rarely one dramatic error.
+        It's the slow accumulation of small disagreements nobody resolved, until a report reaches a
+        Board built on numbers that quietly stopped meaning the same thing across systems. The goal
         isn't &ldquo;connect the systems&rdquo; &mdash; it's making disagreement between systems
         something the process catches and resolves, not something a report silently averages over.</p>
 
-      <div class="sec-h" style="margin-top:30px"><h3>Architecture &mdash; staging before trust</h3></div>
-      <p class="lede">A layered pipeline, not a direct feed: every source lands raw, gets validated
-        and standardized, then gets conformed into one shared model. The rule that matters most
-        isn't the three layers &mdash; it's that nothing downstream ever reads a raw source
-        directly.</p>
+      <div class="sec-h" style="margin-top:30px"><h3>Architecture &mdash; a governed staging pipeline, not a direct feed</h3></div>
+      <p class="lede">The AEC industry's own real, named version of "stage before trust" is the
+        <b>Common Data Environment (CDE)</b> under <b>ISO 19650</b> &mdash; four defined states,
+        each requiring a specific approval gate before information can advance. The rule that
+        matters most isn't the four states themselves &mdash; it's that nothing downstream ever
+        reads a raw source directly, and nothing advances without its gate.</p>
       <div class="dgrid">
-        <div class="dbox"><h4>Raw landing</h4><p>Every source lands exactly as it arrived &mdash;
-          no transformation. Always replayable if something downstream breaks.</p></div>
-        <div class="dbox"><h4>Validated</h4><p>Schema-checked, deduplicated, standardized to
-          consistent types and units &mdash; before it can distort a number three layers down.</p></div>
-        <div class="dbox"><h4>Conformed</h4><p>The shared model every KPI and gate reads from &mdash;
-          this dashboard's own eleven-input ledger, scaled to real multi-system inputs.</p></div>
-        <div class="dbox"><h4>The hard part &mdash; canonical mapping</h4><p>The same control
-          account has a different ID in the ERP, a different code in the schedule tool. A
-          maintained, tested crosswalk, owned by a named person &mdash; not built once and
-          forgotten.</p></div>
+        <div class="dbox"><h4>Work in Progress</h4><p>Individual discipline teams develop models
+          and documents. Unverified, visible only to the originating team.</p></div>
+        <div class="dbox"><h4>Shared</h4><p>Validated information exchanged across disciplines for
+          coordination and clash detection &mdash; gated by technical verification.</p></div>
+        <div class="dbox"><h4>Published</h4><p>Fully authorized deliverables &mdash; the
+          contractual baseline for procurement and construction &mdash; gated by client/agency
+          formal authorization.</p></div>
+        <div class="dbox"><h4>Archived</h4><p>Immutable long-term record: as-built models,
+          transaction history, audit trail &mdash; gated by final handover verification.</p></div>
+      </div>
+      <div class="dbox" style="margin-top:14px;border-left-color:rgb(var(--c-ok) / .55)">
+        <h4>A real, verified detail &mdash; not a hypothetical</h4>
+        <p>Sound Transit's own 2023 Standard Division 01 Specifications (Section 01 20 00.10,
+          Appendix B, cost-reimbursable contracts) ties digital-tooling compliance directly to
+          contractor pay: <b>BIM/CAD software at $6.80/hr, non-CAD software at $0.86/hr, computer
+          equipment at $0.60/hr</b> &mdash; verified directly against the primary document, not
+          cited secondhand. This kind of data governance already has a real dollar figure attached
+          to it on a real transit agency's own contracts.</p>
       </div>
 
-      <div class="sec-h" style="margin-top:30px"><h3>Automated guardrails</h3></div>
-      <p class="lede">A real version of what this dashboard's own 27-check integrity gate already
-        does &mdash; enforcing a promise about the data before anything downstream can consume it.</p>
+      <div class="sec-h" style="margin-top:30px"><h3>Automated guardrails &mdash; machine-readable, not just described</h3></div>
+      <p class="lede">A real, small-scale version of buildingSMART's <b>Information Delivery
+        Specification (IDS)</b> &mdash; an XML standard pairing <i>applicability</i> (which
+        records a rule governs) with <i>requirements</i> (what those records must have) so a
+        submittal that fails gets rejected with a specific, itemized reason. This dashboard's own
+        27-check integrity gate is a working small-scale version of the same pattern.</p>
       <div class="tw"><table id="guardrailTable" style="min-width:760px"></table></div>
 
       <div class="sec-h" style="margin-top:30px"><h3>When systems disagree</h3></div>
@@ -3077,8 +3096,8 @@ var GLOSS=[
    reference content by design (same convention as this tab's CADENCE/stakeholder-map neighbors) —
    there is no live "real ERP feed" for this synthetic build to compute a guardrail count from. */
 var GUARDRAILS=[
- {t:"Schema check",c:"Does this record have the fields and types it's supposed to have?",e:"Reject or quarantine anything that doesn't — never coerce and hope."},
- {t:"Range / anomaly check",c:"Is this value plausible against recent history?",e:"A productivity factor that jumps 300% in a week gets flagged, not trusted and plotted."},
+ {t:"Entity / schema check",c:"Does this record have the fields and type it's supposed to have? (IDS: an applicability filter)",e:"Reject or quarantine anything that doesn't — never coerce and hope."},
+ {t:"Range / restriction check",c:"Is this value within a plausible, defined bound? (IDS: a requirement facet)",e:"A productivity factor that jumps 300% in a week gets flagged, not trusted and plotted."},
  {t:"Cross-system reconciliation",c:"Do two systems' numbers for the same thing actually agree?",e:"Does earned progress in the schedule tool roughly track earned value in the cost system?"},
  {t:"Freshness check",c:"Is this data as current as its expected cadence?",e:"Data older than expected is flagged stale and excluded from live figures — the same idea as this dashboard's own Actions-tab stale flag."}
 ];
