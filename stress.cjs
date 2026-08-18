@@ -322,7 +322,7 @@ try {
 // integrity gate: every check passes, pill count matches
 const guardPasses = (G.aiGuards._html.match(/>PASS</g) || []).length;
 const guardFails = (G.aiGuards._html.match(/>FAIL</g) || []).length;
-ok(guardPasses === 22 && guardFails === 0, "integrity gate: 22 PASS, 0 FAIL",
+ok(guardPasses === 23 && guardFails === 0, "integrity gate: 23 PASS, 0 FAIL",
    guardPasses + " pass / " + guardFails + " fail");
 has("aiGuards", "GREEN", "gate shows GREEN");
 ok(G.arch._html.includes("fct_control_account") && G.arch._html.includes("integrity gate"),
@@ -434,6 +434,35 @@ has("glossList", "Buyout", "glossary covers buyout");
 // integrity gate grew to cover the new modules
 has("aiGuards", "Estimate-to-budget bridge", "gate covers the baseline bridge");
 has("aiGuards", "Delay register ties to package float", "gate covers delay/float consistency");
+
+/* =========================================================================
+   D5.4. CREW COST-PER-HOUR — a fourth axis (weekly, crew-level burn rate)
+   ========================================================================= */
+console.log("== D5.4. crew cost-per-hour ==");
+ok(idsA.includes("cphCard"), "markup contains #cphCard");
+ok(P.cphCells.length === 1, "exactly 1 CPH cell in this pass", String(P.cphCells.length));
+{
+  const c = P.cphCells.map(P.deriveCph)[0];
+  ok(c.weeks.length === 6, "6 weeks of CPH history", String(c.weeks.length));
+  // pre-registered by hand, then independently re-derived here from the raw weekly inputs —
+  // two separate computations landing on the same number is the actual check.
+  let overrun = 0, idle = 0;
+  P.cphCells[0].weeks.forEach(w => {
+    overrun += (w.actual - P.cphCells[0].baseline) * P.cphCells[0].hrsPerWeek;
+    idle += w.idlePct * P.cphCells[0].hrsPerWeek * P.cphCells[0].baseline;
+  });
+  ok(Math.abs(overrun - 145880) < 1e-6, "six-week overrun is $145,880", overrun.toFixed(0));
+  ok(Math.abs(idle - 100156) < 1e-6, "idle-attributable leakage is $100,156", idle.toFixed(0));
+  ok(Math.abs(c.totalOverrun - overrun) < 1e-6 && Math.abs(c.totalIdle - idle) < 1e-6,
+    "deriveCph's totals match the independent re-derivation");
+  ok(idle / overrun > 0.68 && idle / overrun < 0.69, "idle time is ~68.7% of the total overrun",
+    (idle / overrun * 100).toFixed(1) + "%");
+}
+has("cphCard", "Tunnel liner", "CPH card names the tunnel crew");
+has("cphCard", "R-01", "CPH prose cross-references the tunnel ground-condition risk");
+has("cphCard", "NCR-2026-014", "CPH prose cross-references the tunnel quality NCR");
+ok(!/Sky\s*Rail/i.test(indexSrc), "no fabricated 'Sky Rail' project name anywhere in the page");
+has("glossList", "CPH", "glossary defines CPH");
 
 /* =========================================================================
    D5.5. WBS/CBS/OBS MAPPING + BOARD PHASE-GATE GOVERNANCE

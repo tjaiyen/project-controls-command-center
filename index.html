@@ -584,6 +584,14 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
             Spending ahead of drawdown is a cash-flow exposure; drawing ahead of spend is a compliance one.</p>
           <div id="funding"></div></div>
       </div>
+
+      <div class="sec-h" style="margin-top:34px"><h2>Crew cost-per-hour</h2><span class="tag">weekly &middot; leading indicator</span></div>
+      <p class="lede">Cost per hour translates a crew's labor, equipment and overhead into a burn rate and
+        checks it weekly against a standard &mdash; the same discipline behind CPH reporting on a
+        manufacturing shop floor, applied to a field crew. It surfaces a problem days before it shows up in
+        the control account's own CPI, and because it is tracked weekly rather than monthly, it can isolate
+        <em>why</em> the burn rate moved, not just that it did.</p>
+      <div class="card" style="margin-top:15px" id="cphCard"></div>
     </div>
   </section>
 
@@ -845,6 +853,36 @@ var RISKS = [
  {id:"R-06",n:"Third-party rail coordination windows",       p:2,i:2,cost: 1.6,own:"Program Controls",mit:"Lock a 12-month look-ahead with the operating railroad"}
 ];
 
+/* Crew cost-per-hour — a fourth axis again: not the control account's monthly EVM, a specific
+   crew's weekly burn rate against a standard. Raw inputs per week are actual $/hr and idle share;
+   everything else (variance, weekly overrun, idle-attributable dollars) is derived. Tied to the
+   same tunnel package and the same ground-condition root cause already carried by R-01 and
+   NCR-2026-014 — one underlying problem, three different instruments looking at it. */
+var CPH_CELLS=[
+ {id:"cph-201",name:"Tunnel liner &amp; excavation crew",pkg:"CP-201",crewSize:14,hrsPerWeek:56,baseline:2450,
+  weeks:[
+   {w:"W-6",actual:2495,idlePct:0.03,cause:null},
+   {w:"W-5",actual:2560,idlePct:0.05,cause:null},
+   {w:"W-4",actual:2710,idlePct:0.10,cause:"Segment material staging delay at the tunnel access shaft"},
+   {w:"W-3",actual:3020,idlePct:0.16,cause:"Segment material staging delay at the tunnel access shaft"},
+   {w:"W-2",actual:3340,idlePct:0.21,cause:"Staging delay compounding with ground-condition rework (R-01)"},
+   {w:"W-1",actual:3180,idlePct:0.18,cause:"Staging delay compounding with ground-condition rework (R-01); trucking schedule adjustment in progress"}
+  ]}
+];
+function deriveCph(cell){
+  var weeks=cell.weeks.map(function(w){
+    var varPerHr=w.actual-cell.baseline;
+    return Object.assign({},w,{
+      varPerHr:varPerHr,
+      weeklyOverrun:varPerHr*cell.hrsPerWeek,
+      idleLeakage:w.idlePct*cell.hrsPerWeek*cell.baseline
+    });
+  });
+  var totalOverrun=weeks.reduce(function(s,w){return s+w.weeklyOverrun;},0);
+  var totalIdle=weeks.reduce(function(s,w){return s+w.idleLeakage;},0);
+  return Object.assign({},cell,{weeks:weeks,totalOverrun:totalOverrun,totalIdle:totalIdle});
+}
+
 /* Conventional qualitative probability bands. A naive p/5 would map P5 to 100% —
    i.e. certainty, which is an issue, not a risk. */
 var P_BAND = {1:0.10, 2:0.30, 3:0.50, 4:0.70, 5:0.90};
@@ -1033,7 +1071,10 @@ var EACS = [
    ========================================================================= */
 function m(v){ var s=(Math.abs(v)).toFixed(1).split(".");
   return (v<0?"−":"")+"$"+s[0].replace(/\B(?=(\d{3})+(?!\d))/g,",")+"."+s[1]+"M"; }
+/* Raw dollars (not millions) — for figures like crew $/hr where an "M" suffix would misread. */
+function usd(v){ return (v<0?"−":"")+"$"+Math.round(Math.abs(v)).toLocaleString("en-US"); }
 function sgn(v){ return (v>=0?"+":"−")+m(Math.abs(v)).replace("−",""); }
+function sgnUsd(v){ return (v>=0?"+":"−")+usd(Math.abs(v)); }
 function idx(v){ return v.toFixed(3); }
 function pct(v,d){ return (v*100).toFixed(d===undefined?1:d)+"%"; }
 function days(v){ return (v>0?"+":"")+v+"d"; }
@@ -1965,6 +2006,31 @@ function renderDelivery(){
     idx(T.fundIdx)+'</b> — the program has spent '+pct(sp)+' of budget but drawn only '+pct(fd)+
     ' of authorized funding. Actual cost to date exceeds grant drawdowns by '+m(T.ac-PROGRAM.fundDrawn)+
     ' — cash the program is fronting. That is a finance conversation, and it is invisible on every other panel in this tool.</p>';
+  renderCph();
+}
+
+function renderCph(){
+  var cells=CPH_CELLS.map(deriveCph);
+  var c=cells[0], last=c.weeks[c.weeks.length-1], prev=c.weeks[c.weeks.length-2];
+  document.getElementById("cphCard").innerHTML=
+    '<div class="eyebrow">'+c.name+' &middot; '+c.pkg+' &middot; '+c.crewSize+' crew &middot; '+c.hrsPerWeek+' hrs/week</div>'+
+    '<div style="display:flex;gap:22px;flex-wrap:wrap;margin:8px 0 14px">'+
+    ['<div><div class="k" style="font:600 9.5px/1.3 ui-monospace,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgb(var(--c-mut))">Standard CPH</div><div class="v" style="margin-top:5px;font:600 .98rem/1.2 inherit">'+usd(c.baseline)+'/hr</div></div>',
+     '<div><div class="k" style="font:600 9.5px/1.3 ui-monospace,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgb(var(--c-mut))">'+last.w+' actual</div><div class="v ba" style="margin-top:5px;font:600 .98rem/1.2 inherit">'+usd(last.actual)+'/hr</div></div>',
+     '<div><div class="k" style="font:600 9.5px/1.3 ui-monospace,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgb(var(--c-mut))">6-week overrun</div><div class="v ba" style="margin-top:5px;font:600 .98rem/1.2 inherit">'+usd(c.totalOverrun)+'</div></div>',
+     '<div><div class="k" style="font:600 9.5px/1.3 ui-monospace,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgb(var(--c-mut))">Idle-attributable</div><div class="v wa" style="margin-top:5px;font:600 .98rem/1.2 inherit">'+usd(c.totalIdle)+'</div></div>'
+    ].join("")+'</div>'+
+    '<div id="cphBars"></div>'+
+    '<p style="margin:12px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">Standard is '+usd(c.baseline)+
+    '/hr. '+last.w+' ran '+sgnUsd(last.varPerHr)+'/hr over standard, with '+pct(last.idlePct)+
+    ' of crew time idle. Root cause: '+(last.cause||"none logged")+'. Of the '+usd(c.totalOverrun)+
+    ' six-week overrun, '+usd(c.totalIdle)+' &mdash; '+pct(c.totalIdle/c.totalOverrun)+
+    ' of it &mdash; is idle time specifically, the part a logistics fix actually recovers rather than '+
+    'an engineering one. Same underlying condition as R-01 and NCR-2026-014; this is the crew-level '+
+    'view of the same problem, a week before it would otherwise show up in CP-201&rsquo;s own CPI.</p>';
+  bars("cphBars",c.weeks.map(function(w){
+    return {id:w.w,v:w.varPerHr,c:w.varPerHr>350?"var(--c-pill-r)":w.varPerHr>150?"var(--c-pill-a)":"var(--c-pill-g)"}; }),
+    function(v){return sgnUsd(v)+"/hr";});
 }
 
 /* ---------- framework tab ---------- */
@@ -2422,7 +2488,16 @@ var GUARDS=[
  {n:"Portfolio's flagship line reads live from this program's own totals, never duplicated", run:function(){
    var l=portfolioRows()[0];
    var ok=l.bac===T.bac && l.ac===T.ac && l.ev===T.ev;
-   return [ok, m(l.bac)+" / "+m(l.ac)+" / "+m(l.ev)];}}
+   return [ok, m(l.bac)+" / "+m(l.ac)+" / "+m(l.ev)];}},
+ {n:"Crew CPH totals recompute independently to the same six-week overrun and idle leakage", run:function(){
+   var c=CPH_CELLS.map(deriveCph)[0];
+   var overrun=0,idle=0,i;
+   for(i=0;i<c.weeks.length;i++){
+     overrun+=(CPH_CELLS[0].weeks[i].actual-CPH_CELLS[0].baseline)*CPH_CELLS[0].hrsPerWeek;
+     idle+=CPH_CELLS[0].weeks[i].idlePct*CPH_CELLS[0].hrsPerWeek*CPH_CELLS[0].baseline;
+   }
+   var ok=Math.abs(overrun-c.totalOverrun)<1e-6 && Math.abs(idle-c.totalIdle)<1e-6;
+   return [ok, usd(overrun)+" / "+usd(idle)];}}
 ];
 function renderGuards(){
   var res=GUARDS.map(function(g){ var r=g.run(); return {n:g.n,pass:r[0],detail:r[1]}; });
@@ -2590,6 +2665,10 @@ var GLOSS=[
   e:function(){ return PROGRAM.recordables+" recordable incidents across "+PROGRAM.hoursWorked.toLocaleString("en-US")+" work hours: "+(PROGRAM.recordables*200000/PROGRAM.hoursWorked).toFixed(2)+" versus an industry benchmark of "+PROGRAM.trirBenchmark.toFixed(2)+" — about "+pct(1-PROGRAM.trir/PROGRAM.trirBenchmark,0)+" better."; }},
  {t:"Productivity factor", p:"Earned hours divided by actual hours. Below 1.00 the crews are burning more hours than the estimate carried — and because hours are booked weekly, this moves weeks before the same problem reaches the cost index.",
   e:function(){ return idx(T.pf)+" program-wide — crews are running about "+((1/T.pf-1)*100).toFixed(1)+"% over the estimated hours. The tunnel is the drag at "+idx(G_TUN.pf)+"."; }},
+ {t:"CPH — Cost Per Hour", p:"Labor, equipment and overhead for one crew or cell, translated into a burn rate and checked weekly against a standard. It is a manufacturing-floor discipline applied to a field crew — the same idea as productivity factor, but it prices the hours in dollars and runs weekly instead of monthly, so it isolates why the rate moved, not just that it did.",
+  e:function(){ var c=CPH_CELLS.map(deriveCph)[0], last=c.weeks[c.weeks.length-1];
+    return "The tunnel liner crew's standard is "+usd(c.baseline)+"/hr; "+last.w+" ran "+usd(last.actual)+
+    "/hr. Of the "+usd(c.totalOverrun)+" six-week overrun, "+usd(c.totalIdle)+" is idle time specifically — the part a staging fix recovers, not an engineering one."; }},
  {t:"Value engineering (VE)", p:"A structured review that asks one question: can the same function be delivered for less money? Done before award it shapes the baseline; done during construction it becomes a shared-savings change.",
   e:function(){ return "This program's baseline carries "+m(Math.abs(BASELINE[1].v))+" of accepted VE — part of how the engineer's estimate of "+m(BASELINE[0].v)+" came down to a "+m(T.bac)+" baseline before construction started."; }},
  {t:"Buyout", p:"Letting the subcontracts and major purchases after the contract is won. When the market prices below the estimate, the difference is buyout savings — margin captured at the source, before any risk can touch it.",
@@ -2725,7 +2804,8 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,program:PROGRAM,eacs:EACS,mc:MC,
   actions:ACTIONS,actionStatus:actionStatus,isStale:isStale,
   wbs:WBS,gates:GATES,gate5Checks:GATE5_CHECKS,
   contracts:CONTRACTS,deriveContract:deriveContract,
-  portfolioRows:portfolioRows};
+  portfolioRows:portfolioRows,
+  cphCells:CPH_CELLS,deriveCph:deriveCph};
 })();
 </script>
 </body>
