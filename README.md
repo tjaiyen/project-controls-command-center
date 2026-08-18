@@ -1,14 +1,17 @@
 # Project Controls Command Center
 
-An interactive earned-value and schedule-health dashboard for a multi-package capital transit program,
-plus a requirement-coverage fit brief.
+A phase-gated operating framework for capital program controls — 20 derived KPIs across cost,
+schedule, risk, change, delivery and compliance, each carrying its formula, threshold bands, the
+phases it is meaningful in, and the play to run when it breaches. Built around a synthetic
+multi-package capital transit program, plus a requirement-coverage fit brief.
 
 **Live:** https://tjaiyen.github.io/project-controls-command-center/
 
 | Page | What it is |
 |---|---|
-| [`index.html`](index.html) | The command center — EVM portfolio position, S-curve, contract-package ledger with drill-down, schedule float, milestone variance, priced risk register |
+| [`index.html`](index.html) | The command center — KPI board with drill-down detail, EVM S-curve and variance bridge, four-method EAC, what-if forecast model, DCMA-style schedule health (CPLI / BEI / float erosion), priced risk register, change pipeline, delivery leading indicators, and the operating framework (phase playbook, escalation matrix, reporting cadence, KPI reference library) |
 | [`otak.html`](otak.html) | Fit brief: requirement-by-requirement coverage against a Project Controls Manager posting, gaps included |
+| [`verify.cjs`](verify.cjs) | Headless verification harness — stubs the DOM, executes the dashboard's script, and independently re-derives every portfolio total (`node verify.cjs`) |
 
 ## Synthetic data
 
@@ -17,16 +20,21 @@ appears anywhere in this repository. The methods are the content.
 
 ## How the numbers work
 
-The ledger holds exactly four inputs per contract package — BAC, PV, EV, AC. Everything else is
-derived in the browser:
+The ledger holds twelve inputs per control account — BAC, PV, EV, AC, commitments, total float,
+remaining critical-path duration, baseline and completed activity counts, and earned versus actual
+hours. Everything else is derived in the browser; nothing is a stored result:
 
 ```
-SV  = EV − PV        schedule variance ($)
-CV  = EV − AC        cost variance ($)
-SPI = EV / PV        <1 behind schedule
-CPI = EV / AC        <1 over cost
-EAC = BAC / CPI      forecast at completion at current efficiency
-VAC = BAC − EAC      forecast over/(under) run
+SV  = EV − PV            schedule variance ($)
+CV  = EV − AC            cost variance ($)
+SPI = EV / PV            <1 behind schedule (in dollars, not days)
+CPI = EV / AC            <1 over cost
+EAC = BAC / CPI          forecast at completion at current efficiency (one of four methods shown)
+VAC = BAC − EAC          forecast over/(under) run
+TCPI = (BAC−EV)/(BAC−AC) efficiency the remaining work must hit to land on budget
+CPLI = (cpRemaining + totalFloat) / cpRemaining   DCMA: <0.95 flagged
+BEI  = activitiesDone / activitiesPlanned          DCMA: <0.95 flagged
+PF   = earnedHours / actualHours                   leading indicator; moves before CPI
 ```
 
 Portfolio EAC is rolled up **bottom-up** as the sum of package EACs, because each package is its own
@@ -34,7 +42,7 @@ control account with its own cost efficiency. The independent check — portfoli
 displayed alongside it. The two legitimately differ; a single blended CPI hides the spread between
 packages, and that spread is what a program manager needs to see.
 
-Current tie-out (verifiable in the browser console via `__PCC__.totals`):
+Current tie-out (verifiable in the browser console via `__PCC__.totals`, or with `node verify.cjs`):
 
 | | |
 |---|---|
@@ -44,6 +52,7 @@ Current tie-out (verifiable in the browser console via `__PCC__.totals`):
 | EAC (bottom-up) | $1,303.7M |
 | EAC (independent, BAC/CPI) | $1,297.3M |
 | VAC | −$63.7M |
+| TCPI (to BAC) | 1.099 |
 | Complete | 66.1% |
 
 ## Stack
