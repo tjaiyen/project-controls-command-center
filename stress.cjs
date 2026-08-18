@@ -88,7 +88,7 @@ const missing = jsIds.filter(id => !idsA.includes(id) && id !== "dimNote");
 ok(missing.length === 0, "JS-referenced ids exist in markup", missing.join(","));
 
 // tab -> panel wiring
-["over", "cost", "sched", "risk", "del", "fw", "act"].forEach(t => {
+["over", "cost", "sched", "risk", "del", "fw", "act", "data"].forEach(t => {
   ok(idsA.includes("t-" + t) && idsA.includes("p-" + t), "tab/panel pair " + t);
 });
 ok(indexSrc.includes('aria-controls="p-over"'), "tab aria-controls present");
@@ -851,6 +851,32 @@ try {
   has("actDrill", "A-01", "landing on the Actions tab opens A-01's own drill-down");
   has("actDrill", "Control account manager", "A-01's drill-down shows its real owner");
 } catch (e) { ok(false, "jumpToAction interaction", e.message); }
+
+/* =========================================================================
+   D9. DATA STRATEGY TAB — real-world multi-system data problem, static reference
+   ========================================================================= */
+console.log("== D9. data strategy tab ==");
+ok(P.kpis && TABS_CHECK(), "TABS array carries 11 ids, ending in gloss then data");
+function TABS_CHECK() {
+  const m = indexSrc.match(/var TABS=\[([^\]]+)\]/);
+  const arr = m ? m[1].split(",").map(s => s.replace(/["']/g, "")) : [];
+  return arr.length === 11 && arr[9] === "gloss" && arr[10] === "data";
+}
+ok(P.guardrails.length === 4, "4 guardrail types defined", String(P.guardrails.length));
+ok(P.discrepancySteps.length === 5, "5-step discrepancy-resolution flow defined", String(P.discrepancySteps.length));
+ok(P.rollout.length === 3, "3-phase rollout defined", String(P.rollout.length));
+has("guardrailTable", "Schema check", "guardrail table renders schema check");
+has("guardrailTable", "Cross-system reconciliation", "guardrail table renders cross-system reconciliation check");
+has("discrepancyFlow", "Classify severity first", "discrepancy flow renders step 1");
+has("discrepancyFlow", "Log every override", "discrepancy flow renders the final promote-to-rule step");
+has("rolloutCards", "Phase 1", "rollout renders Phase 1");
+has("rolloutCards", "Phase 3", "rollout renders Phase 3");
+ok((G.rolloutCards._html.match(/class="pcard"/g) || []).length === 3, "rollout renders exactly 3 phase cards");
+try {
+  fire(G["t-data"], "click");
+  ok(G["p-data"].hidden === false, "clicking the Data Strategy tab shows its panel");
+  ok(G["p-over"].hidden === true, "clicking the Data Strategy tab hides Overview");
+} catch (e) { ok(false, "data strategy tab activation", e.message); }
 
 /* =========================================================================
    E. otak.html — runtime + internal consistency

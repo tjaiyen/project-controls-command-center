@@ -324,6 +324,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
       <span>Project Controls Command Center<small id="brandSub">capital program operating framework</small></span></a>
     <div class="right">
       <span class="pill i" id="ddBadge">data date &mdash;</span>
+      <a class="btn" href="architecture.html" style="text-decoration:none;display:inline-flex;align-items:center">Architecture map</a>
       <button class="btn" id="printBtn" type="button">Print brief</button>
       <button class="btn" id="presentBtn" type="button" aria-pressed="false">Present</button>
       <button class="btn" id="themeBtn" type="button">Theme</button>
@@ -345,6 +346,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
     <button role="tab" id="t-fw"    aria-controls="p-fw"    aria-selected="false">Operating Framework</button>
     <button role="tab" id="t-act"   aria-controls="p-act"   aria-selected="false">Actions<span class="cnt" id="cntAct"></span></button>
     <button role="tab" id="t-gloss" aria-controls="p-gloss" aria-selected="false">Glossary</button>
+    <button role="tab" id="t-data"  aria-controls="p-data"  aria-selected="false">Data Strategy</button>
   </div>
 
   <!-- ============================ OVERVIEW ============================ -->
@@ -840,6 +842,79 @@ join dim_control_account b using (package_id)</pre></div>
         aria-label="Filter glossary terms">
       <div class="grid g2" id="glossList"></div>
       <p class="lede" id="glossCount" style="margin-top:13px;font-size:12.3px"></p>
+    </div>
+  </section>
+
+  <!-- ========================= DATA STRATEGY =========================== -->
+  <section role="tabpanel" id="p-data" aria-labelledby="t-data" tabindex="0" hidden>
+    <div class="sec">
+      <div class="eyebrow">Beyond this program &middot; the real problem, not the synthetic one</div>
+      <h2>Connecting scattered, unclean, real-world data</h2>
+      <p class="lede">Everything else on this dashboard runs against one clean, synthetic ledger.
+        A real capital program doesn't have that luxury &mdash; its data lives across six-plus
+        systems that were never designed to agree with each other. This tab is the plan for that
+        actual problem: how to stage it, guard it, resolve disagreement between systems, and
+        recover from errors proactively instead of just flagging them.</p>
+
+      <div class="sec-h" style="margin-top:30px"><h3>The problem, stated plainly</h3></div>
+      <p class="lede">The failure mode is rarely one dramatic error. It's the slow accumulation of
+        small disagreements between systems that nobody resolved, until a report reaches a Board
+        built on numbers that quietly stopped meaning the same thing across systems. The goal
+        isn't &ldquo;connect the systems&rdquo; &mdash; it's making disagreement between systems
+        something the process catches and resolves, not something a report silently averages over.</p>
+
+      <div class="sec-h" style="margin-top:30px"><h3>Architecture &mdash; staging before trust</h3></div>
+      <p class="lede">A layered pipeline, not a direct feed: every source lands raw, gets validated
+        and standardized, then gets conformed into one shared model. The rule that matters most
+        isn't the three layers &mdash; it's that nothing downstream ever reads a raw source
+        directly.</p>
+      <div class="dgrid">
+        <div class="dbox"><h4>Raw landing</h4><p>Every source lands exactly as it arrived &mdash;
+          no transformation. Always replayable if something downstream breaks.</p></div>
+        <div class="dbox"><h4>Validated</h4><p>Schema-checked, deduplicated, standardized to
+          consistent types and units &mdash; before it can distort a number three layers down.</p></div>
+        <div class="dbox"><h4>Conformed</h4><p>The shared model every KPI and gate reads from &mdash;
+          this dashboard's own eleven-input ledger, scaled to real multi-system inputs.</p></div>
+        <div class="dbox"><h4>The hard part &mdash; canonical mapping</h4><p>The same control
+          account has a different ID in the ERP, a different code in the schedule tool. A
+          maintained, tested crosswalk, owned by a named person &mdash; not built once and
+          forgotten.</p></div>
+      </div>
+
+      <div class="sec-h" style="margin-top:30px"><h3>Automated guardrails</h3></div>
+      <p class="lede">A real version of what this dashboard's own 27-check integrity gate already
+        does &mdash; enforcing a promise about the data before anything downstream can consume it.</p>
+      <div class="tw"><table id="guardrailTable" style="min-width:760px"></table></div>
+
+      <div class="sec-h" style="margin-top:30px"><h3>When systems disagree</h3></div>
+      <p class="lede">Most reporting tools skip this entirely. The actual process, step by step
+        &mdash; and the loop back at the end is the part that matters most: every novel
+        discrepancy a person resolves should make the next occurrence of the same problem
+        automatic.</p>
+      <div id="discrepancyFlow"></div>
+
+      <div class="sec-h" style="margin-top:30px"><h3>Proactive error recovery</h3></div>
+      <p class="lede">Detecting a problem and recovering from one are different capabilities.
+        Most tools only do the first.</p>
+      <div class="dgrid">
+        <div class="dbox"><h4>Circuit breakers</h4><p>If a source feed starts failing validation
+          repeatedly, stop trusting it automatically &mdash; fall back to last known-good with a
+          visible staleness flag, rather than letting bad data keep propagating. The same instinct
+          as this dashboard's own Gate 5 hard stop, applied to ingestion instead of governance.</p></div>
+        <div class="dbox"><h4>Quarantine, not silent drop or pass</h4><p>A record that fails
+          validation doesn't disappear or pass through anyway &mdash; it goes to a visible
+          quarantine lane with the specific reason it failed.</p></div>
+        <div class="dbox"><h4>Self-healing for known patterns</h4><p>Some errors have one obvious
+          fix &mdash; a known unit-of-measure mismatch, a predictable timing offset. Auto-correct
+          those narrowly and log that it happened.</p></div>
+        <div class="dbox"><h4>Already proven at small scale, here</h4><p>The integrity gate, the
+          escalation matrix, the Actions register's stale-flag, and Gate 5 are all working
+          instances of this same philosophy &mdash; on one synthetic ledger. This plan is the same
+          architecture, at the scale a real program needs.</p></div>
+      </div>
+
+      <div class="sec-h" style="margin-top:30px"><h3>A phased path, not a big-bang rebuild</h3></div>
+      <div id="rolloutCards"></div>
     </div>
   </section>
 
@@ -2997,6 +3072,46 @@ var GLOSS=[
  {t:"Time Impact Analysis (TIA)", p:"The disciplined way to answer \"how many days did that event cost?\": insert the delay into the schedule model as a small sub-network (a fragnet), re-run the dates, and read the difference. It turns an argument into arithmetic — and sets whether the event buys time, money, both, or neither.",
   e:function(){ return "D-02's fragnet measures "+days(40)+" of impact on the tunnel — exactly the "+(-G_TUN.float)+" days of negative float CP-201 carries, and the driver of revenue service landing "+days(MILES[MILES.length-1].d)+"."; }}
 ];
+/* Data Strategy tab — not about this program's data, about the real problem a synthetic single-
+   ledger dashboard can't demonstrate: connecting scattered, unclean, multi-system data. Static
+   reference content by design (same convention as this tab's CADENCE/stakeholder-map neighbors) —
+   there is no live "real ERP feed" for this synthetic build to compute a guardrail count from. */
+var GUARDRAILS=[
+ {t:"Schema check",c:"Does this record have the fields and types it's supposed to have?",e:"Reject or quarantine anything that doesn't — never coerce and hope."},
+ {t:"Range / anomaly check",c:"Is this value plausible against recent history?",e:"A productivity factor that jumps 300% in a week gets flagged, not trusted and plotted."},
+ {t:"Cross-system reconciliation",c:"Do two systems' numbers for the same thing actually agree?",e:"Does earned progress in the schedule tool roughly track earned value in the cost system?"},
+ {t:"Freshness check",c:"Is this data as current as its expected cadence?",e:"Data older than expected is flagged stale and excluded from live figures — the same idea as this dashboard's own Actions-tab stale flag."}
+];
+var DISCREPANCY_STEPS=[
+ {n:"1 &middot; Classify severity first",w:"A rounding difference and a material variance aren&rsquo;t the same problem. Set the materiality threshold before the argument happens, not during it."},
+ {n:"2 &middot; Auto-resolve known patterns",w:"Most discrepancies aren&rsquo;t novel &mdash; the same three or four root causes recur. Encode the known ones as deterministic rules so they resolve themselves."},
+ {n:"3 &middot; Escalate the rest, with context, to a named owner",w:"Anything that doesn&rsquo;t match a known pattern goes to a real person, with both values, both sources, and the history &mdash; same discipline as this dashboard&rsquo;s own escalation matrix."},
+ {n:"4 &middot; Decide source-of-truth per domain, in advance",w:"When cost and schedule genuinely conflict, which wins, and why? Decided before the disagreement happens, not improvised live."},
+ {n:"5 &middot; Log every override, and promote recurring fixes",w:"An override with no audit trail is indistinguishable from an unexplained edit later. A discrepancy that recurs gets promoted into a new auto-resolve rule &mdash; the loop that actually reduces escalation volume over time."}
+];
+var ROLLOUT=[
+ {ph:"Phase 1",n:"Assess",w:"Inventory the real source systems, owners, and cadences. Build the canonical crosswalk for the two or three highest-value, highest-risk data domains first — not all of them at once."},
+ {ph:"Phase 2",n:"Guard the highest-risk domains",w:"Stand up staging, validation, and all four guardrail types for those domains specifically. Run the discrepancy-resolution process on real disagreements — even manually at first, to learn the actual recurring patterns before automating them."},
+ {ph:"Phase 3",n:"Scale and automate recovery",w:"Expand to the remaining domains; add circuit breakers and self-healing for the patterns Phase 2 proved out. The auto-resolve rule set starts reducing escalation volume instead of just routing it faster."}
+];
+function renderDataStrategy(){
+  document.getElementById("guardrailTable").innerHTML=
+    '<thead><tr><th scope="col">Check type</th><th scope="col">What it catches</th><th scope="col">Example</th></tr></thead><tbody>'+
+    GUARDRAILS.map(function(g){ return '<tr style="cursor:default"><td style="white-space:normal;font-weight:600">'+g.t+
+      '</td><td style="white-space:normal;font-size:12.5px">'+g.c+'</td>'+
+      '<td style="white-space:normal;font-size:12px;color:rgb(var(--c-mut))">'+g.e+'</td></tr>'; }).join("")+
+    '</tbody>';
+  document.getElementById("discrepancyFlow").innerHTML=
+    '<div class="grid g2">'+DISCREPANCY_STEPS.map(function(s){
+      return '<div class="card"><div class="eyebrow">'+s.n+'</div>'+
+        '<p style="margin:9px 0 0;font-size:13px;color:rgb(var(--c-mut))">'+s.w+'</p></div>';
+    }).join("")+'</div>';
+  document.getElementById("rolloutCards").innerHTML=ROLLOUT.map(function(r){
+    return '<div class="pcard"><div class="ph-n">'+r.ph+'</div><h3>'+r.n+'</h3>'+
+      '<p style="margin:0;font-size:13px;color:rgb(var(--c-mut))">'+r.w+'</p></div>';
+  }).join("");
+}
+
 function renderGlossary(q){
   q=(q||"").toLowerCase();
   var list=GLOSS.filter(function(g){
@@ -3125,7 +3240,7 @@ window.addEventListener("keydown",function(e){
   else if(e.key==="Escape") exitPresent();
 });
 
-var TABS=["over","port","cost","sched","risk","del","ai","fw","act","gloss"];
+var TABS=["over","port","cost","sched","risk","del","ai","fw","act","gloss","data"];
 function activateTab(id){
   TABS.forEach(function(o){
     document.getElementById("t-"+o).setAttribute("aria-selected",String(o===id));
@@ -3220,6 +3335,7 @@ renderPhases(); renderStrip(); renderPortfolio(); renderFilters(); renderBoard()
 renderScurve(); renderWaterfall(); renderBaseline(); renderEac(); renderCont(); renderTable();
 renderEacTrend(); renderFcastTable(); renderCashflow();
 renderSchedule(); renderRisk(); renderContracts(); renderDelivery(); renderFramework(); renderActions();
+renderDataStrategy();
 renderMc(); renderScen(); renderPrint();
 renderArch(); renderGuards();
 renderStory(0); renderGlossary("");
@@ -3238,7 +3354,8 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,program:PROGRAM,eacs:EACS,mc:MC,
   cphCells:CPH_CELLS,deriveCph:deriveCph,
   eacTrendSeries:eacTrendSeries,acHistorySeries:acHistorySeries,forecastAccuracy:forecastAccuracy,
   revSvcDriftSeries:revSvcDriftSeries,pvA:pvA,acA:acA,milesLast:MILES[MILES.length-1],
-  presentBeatsFull:PRESENT_BEATS_FULL,presentBeatsQuick:PRESENT_BEATS_QUICK};
+  presentBeatsFull:PRESENT_BEATS_FULL,presentBeatsQuick:PRESENT_BEATS_QUICK,
+  guardrails:GUARDRAILS,discrepancySteps:DISCREPANCY_STEPS,rollout:ROLLOUT};
 })();
 </script>
 </body>

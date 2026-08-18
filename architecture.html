@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Architecture Map — Project Controls Command Center</title>
+<meta name="description" content="How the Project Controls Command Center actually moves data — six upstream source systems, one live ledger, and three published outputs. Every count read from the live build.">
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230A0F1D'/%3E%3Cpath d='M6 22 L12 15 L18 18 L26 8' stroke='%2306B6D4' stroke-width='2.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+:root{
+  --c-bg:10 15 29; --c-card:30 41 59; --c-accent:6 182 212;
+  --c-ink:241 245 249; --c-mut:148 163 184; --c-code:34 211 238;
+  --c-ok:16 185 129; --c-warn:245 158 11; --c-bad:239 68 68; --c-info:96 165 250;
+  --c-line:rgb(6 182 212 / .20); --c-grid:rgb(148 163 184 / .16);
+}
+@media (prefers-color-scheme: light){
+  :root{
+    --c-bg:248 250 252; --c-card:255 255 255; --c-accent:14 116 144;
+    --c-ink:15 23 42; --c-mut:71 85 105; --c-code:14 116 144;
+    --c-ok:5 150 105; --c-warn:180 83 9; --c-bad:220 38 38; --c-info:29 78 216;
+    --c-line:rgb(14 116 144 / .22); --c-grid:rgb(71 85 105 / .18);
+  }
+}
+:root[data-theme="dark"]{
+  --c-bg:10 15 29; --c-card:30 41 59; --c-accent:6 182 212;
+  --c-ink:241 245 249; --c-mut:148 163 184; --c-code:34 211 238;
+  --c-ok:16 185 129; --c-warn:245 158 11; --c-bad:239 68 68; --c-info:96 165 250;
+  --c-line:rgb(6 182 212 / .20); --c-grid:rgb(148 163 184 / .16);
+}
+:root[data-theme="light"]{
+  --c-bg:248 250 252; --c-card:255 255 255; --c-accent:14 116 144;
+  --c-ink:15 23 42; --c-mut:71 85 105; --c-code:14 116 144;
+  --c-ok:5 150 105; --c-warn:180 83 9; --c-bad:220 38 38; --c-info:29 78 216;
+  --c-line:rgb(14 116 144 / .22); --c-grid:rgb(71 85 105 / .18);
+}
+*{box-sizing:border-box}
+html{color-scheme:light dark}
+body{
+  margin:0; background:rgb(var(--c-bg)); color:rgb(var(--c-ink));
+  font:15.5px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+.mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px 70px}
+a{color:rgb(var(--c-accent))}
+.bar{border-bottom:1px solid var(--c-line);position:sticky;top:0;background:rgb(var(--c-bg) / .92);backdrop-filter:blur(10px);z-index:5}
+.bar-in{max-width:1180px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:9px;text-decoration:none;color:rgb(var(--c-ink));font-weight:700}
+.brand .dot{width:9px;height:9px;border-radius:50%;background:rgb(var(--c-accent));box-shadow:0 0 0 3px rgb(var(--c-accent) / .18)}
+.brand small{display:block;font-weight:500;color:rgb(var(--c-mut));font-size:11.5px}
+.icobtn{color:rgb(var(--c-mut));text-decoration:none;font-size:13.5px;font-weight:600;padding:7px 12px;border:1px solid var(--c-line);border-radius:7px}
+.icobtn:hover{color:rgb(var(--c-ink));border-color:rgb(var(--c-accent) / .5)}
+
+.eyebrow{font:600 11px/1.4 ui-monospace,monospace;letter-spacing:.14em;text-transform:uppercase;color:rgb(var(--c-code))}
+h1{font-size:clamp(26px,4vw,38px);font-weight:800;letter-spacing:-.01em;margin:10px 0 10px;text-wrap:balance}
+.lede{color:rgb(var(--c-mut));max-width:74ch;margin:0 0 8px;font-size:15.5px}
+h2{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgb(var(--c-mut));margin:48px 0 6px;padding-bottom:8px;border-bottom:1px solid var(--c-line)}
+.section-lede{color:rgb(var(--c-mut));max-width:76ch;margin:0 0 20px;font-size:14.5px}
+
+.diagram-scroll{overflow-x:auto;border:1px solid var(--c-line);border-radius:12px;background:rgb(var(--c-card))}
+.diagram-scroll svg{display:block;width:1520px;height:auto}
+figure{margin:0}
+figcaption{margin-top:12px;font-size:13.5px;color:rgb(var(--c-mut));max-width:80ch}
+
+.box-fill{fill:rgb(var(--c-card))}
+.box-stroke{stroke:rgb(var(--c-line-strong,148 163 184) / .5);fill:none}
+.box-label{font-family:ui-monospace,monospace;fill:rgb(var(--c-ink))}
+.box-sub{fill:rgb(var(--c-mut))}
+.arrow-line{stroke:rgb(var(--c-mut));fill:none;stroke-width:1.4}
+.arrow-line-dash{stroke:rgb(var(--c-code));fill:none;stroke-width:1.3;stroke-dasharray:4 3}
+.arrow-text{font-family:ui-monospace,monospace;font-size:10.5px;fill:rgb(var(--c-mut))}
+.arrow-text-dash{font-family:ui-monospace,monospace;font-size:10.5px;fill:rgb(var(--c-code))}
+.col-tag{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.12em;fill:rgb(var(--c-mut))}
+
+.tw{overflow-x:auto;border:1px solid var(--c-line);border-radius:12px}
+table{border-collapse:collapse;width:100%;min-width:900px;background:rgb(var(--c-card))}
+thead th{text-align:left;font:600 10.5px/1.3 ui-monospace,monospace;letter-spacing:.08em;text-transform:uppercase;color:rgb(var(--c-mut));padding:10px 14px;border-bottom:1px solid var(--c-line);white-space:nowrap}
+tbody td{padding:11px 14px;border-bottom:1px solid var(--c-line);font-size:13.5px;vertical-align:top}
+tbody tr:last-child td{border-bottom:none}
+td.tag{font-family:ui-monospace,monospace;font-size:12px;color:rgb(var(--c-code));font-weight:700;white-space:nowrap}
+td.name{font-weight:700;white-space:nowrap}
+td.flow{font-family:ui-monospace,monospace;font-size:11.5px;color:rgb(var(--c-mut))}
+.grp-row td{background:rgb(var(--c-accent) / .07);font:600 10.5px/1.3 ui-monospace,monospace;letter-spacing:.1em;text-transform:uppercase;color:rgb(var(--c-mut))}
+.pill{display:inline-block;padding:2px 8px;border-radius:999px;font:600 10.5px/1.5 ui-monospace,monospace}
+.pill.a{background:rgb(var(--c-warn) / .16);color:rgb(var(--c-warn))}
+.pill.g{background:rgb(var(--c-ok) / .15);color:rgb(var(--c-ok))}
+
+.banner{display:flex;gap:10px;align-items:flex-start;background:rgb(var(--c-warn) / .1);border:1px solid rgb(var(--c-warn) / .3);border-radius:10px;padding:14px 16px;margin:26px 0;font-size:13.5px;color:rgb(var(--c-mut))}
+.banner b{color:rgb(var(--c-ink))}
+
+footer{margin-top:60px;padding-top:18px;border-top:1px solid var(--c-line);font-size:12.5px;color:rgb(var(--c-mut));display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <div class="bar-in">
+    <a class="brand" href="index.html" title="Back to the command center">
+      <span class="dot"></span>
+      <span>Project Controls Command Center<small>architecture map</small></span>
+    </a>
+    <a class="icobtn" href="index.html">&larr; Live dashboard</a>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <p class="eyebrow" style="margin-top:28px">Reference &middot; upstream to downstream</p>
+  <h1>How the data actually moves</h1>
+  <p class="lede">Six source systems in, one live-computed ledger, three published outputs. Every
+    count on this page is read from the live build — if it ever disagrees with what
+    <a href="index.html">the dashboard</a> shows, the dashboard is right, not this page.</p>
+
+  <div class="banner">
+    <span>&#9432;</span>
+    <div><b>Snapshot, not a live render.</b> Unlike the dashboard itself, this page's numbers are
+      a point-in-time reference, verified against <code class="mono">index.html</code> on
+      2026&#8209;08&#8209;18. Re-check before quoting a number from here in a room.</div>
+  </div>
+
+  <h2>Data flow</h2>
+  <p class="section-lede">Solid arrows are data moving forward — ingest, compute, publish. Dashed
+    arrows are the dashboard checking its own work, not new data arriving.</p>
+
+  <figure>
+    <div class="diagram-scroll">
+<svg viewBox="0 0 1520 800" role="img" aria-label="Data flow diagram: six upstream source systems feed a single eleven-input ledger across eight control accounts; the ledger computes a twenty-metric KPI board; the KPI board drives phase gates, an escalation matrix, and an actions register, all displayed on the live dashboard; a parallel twenty-seven plus fifty-four check integrity gate independently re-derives and cross-checks the ledger and KPI board before anything is allowed to publish to the executive brief or the AI narrative draft.">
+  <defs>
+    <marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+
+  <text x="20" y="14" class="col-tag">UPSTREAM &mdash; SOURCE SYSTEMS</text>
+  <text x="1240" y="14" class="col-tag">DOWNSTREAM &mdash; PUBLISHED</text>
+
+  <g class="box-stroke" stroke="rgb(148 163 184 / .35)">
+    <rect x="20" y="20" width="200" height="70" rx="8" class="box-fill"/>
+    <rect x="20" y="130" width="200" height="70" rx="8" class="box-fill"/>
+    <rect x="20" y="240" width="200" height="70" rx="8" class="box-fill"/>
+    <rect x="20" y="350" width="200" height="70" rx="8" class="box-fill"/>
+    <rect x="20" y="460" width="200" height="70" rx="8" class="box-fill"/>
+    <rect x="20" y="570" width="200" height="70" rx="8" class="box-fill"/>
+  </g>
+  <text x="34" y="48" class="box-label" font-size="13" font-weight="700">Cost ledger</text>
+  <text x="34" y="66" class="box-sub" font-size="11">ERP &middot; committed &amp; actual cost</text>
+  <text x="34" y="158" class="box-label" font-size="13" font-weight="700">CPM schedule export</text>
+  <text x="34" y="176" class="box-sub" font-size="11">float, activity dates, progress</text>
+  <text x="34" y="268" class="box-label" font-size="13" font-weight="700">Timesheets</text>
+  <text x="34" y="286" class="box-sub" font-size="11">earned &amp; actual labor hours</text>
+  <text x="34" y="378" class="box-label" font-size="13" font-weight="700">Document control</text>
+  <text x="34" y="396" class="box-sub" font-size="11">RFI &amp; submittal turnaround</text>
+  <text x="34" y="488" class="box-label" font-size="13" font-weight="700">Change log</text>
+  <text x="34" y="506" class="box-sub" font-size="11">approved, pending, rejected COs</text>
+  <text x="34" y="598" class="box-label" font-size="13" font-weight="700">Risk register</text>
+  <text x="34" y="616" class="box-sub" font-size="11">probability, impact, mitigation</text>
+
+  <rect x="360" y="280" width="200" height="150" rx="10" fill="rgb(6 182 212 / .08)" stroke="rgb(var(--c-accent))" stroke-width="1.6"/>
+  <text x="460" y="330" text-anchor="middle" class="box-label" font-size="14" font-weight="700">THE LEDGER</text>
+  <text x="460" y="354" text-anchor="middle" class="box-sub" font-size="12">8 control accounts</text>
+  <text x="460" y="372" text-anchor="middle" class="box-sub" font-size="12">&times; 11 raw inputs each</text>
+  <text x="460" y="398" text-anchor="middle" class="box-sub" font-size="10.5" font-style="italic">nothing else on this sheet is typed</text>
+
+  <g class="arrow-line" marker-end="url(#ah2)">
+    <path d="M220,55 L360,300"/>
+    <path d="M220,165 L360,330"/>
+    <path d="M220,275 L360,360"/>
+    <path d="M220,385 L360,375"/>
+    <path d="M220,495 L360,390"/>
+    <path d="M220,605 L360,415"/>
+  </g>
+  <text x="248" y="352" class="arrow-text">ingest &amp; reconcile</text>
+
+  <rect x="660" y="140" width="200" height="100" rx="8" class="box-fill box-stroke"/>
+  <text x="674" y="170" class="box-label" font-size="13" font-weight="700">KPI board</text>
+  <text x="674" y="188" class="box-sub" font-size="11">20 metrics, 6 families</text>
+  <text x="674" y="204" class="box-sub" font-size="11">cost &middot; schedule &middot; risk &middot; change</text>
+  <text x="674" y="220" class="box-sub" font-size="11">delivery &middot; compliance</text>
+
+  <rect x="660" y="430" width="200" height="140" rx="8" fill="rgb(6 182 212 / .06)" stroke="rgb(var(--c-code))" stroke-width="1.4"/>
+  <text x="674" y="460" class="box-label" font-size="13" font-weight="700">Integrity gate</text>
+  <text x="674" y="480" class="box-sub" font-size="11">27 live checks (browser)</text>
+  <text x="674" y="498" class="box-sub" font-size="11">+ 54-check SQL pipeline</text>
+  <text x="674" y="516" class="box-sub" font-size="11">independent re-derivation,</text>
+  <text x="674" y="534" class="box-sub" font-size="11">not a display of the same math</text>
+
+  <path d="M560,355 L660,190" class="arrow-line" marker-end="url(#ah2)"/>
+  <text x="576" y="270" class="arrow-text">computes live</text>
+  <path d="M560,395 L660,500" class="arrow-line-dash" marker-end="url(#ah2)"/>
+  <text x="574" y="460" class="arrow-text-dash">re-derives</text>
+  <path d="M760,240 L760,430" class="arrow-line-dash" marker-end="url(#ah2)"/>
+  <text x="766" y="340" class="arrow-text-dash">cross-checks</text>
+
+  <rect x="960" y="20" width="200" height="100" rx="8" class="box-fill box-stroke"/>
+  <text x="974" y="50" class="box-label" font-size="13" font-weight="700">Phase gates</text>
+  <text x="974" y="68" class="box-sub" font-size="11">7 gates, Board-authorized</text>
+  <text x="974" y="84" class="box-sub" font-size="11">Gate 5: automated hard stop</text>
+  <text x="974" y="100" class="box-sub" font-size="11">2 of 3 checks pass, today</text>
+
+  <rect x="960" y="220" width="200" height="100" rx="8" class="box-fill box-stroke"/>
+  <text x="974" y="250" class="box-label" font-size="13" font-weight="700">Escalation matrix</text>
+  <text x="974" y="268" class="box-sub" font-size="11">10 threshold rules</text>
+  <text x="974" y="284" class="box-sub" font-size="11">owner + clock, every rule</text>
+  <text x="974" y="300" class="box-sub" font-size="11">no un-owned breach</text>
+
+  <rect x="960" y="420" width="200" height="100" rx="8" class="box-fill box-stroke"/>
+  <text x="974" y="450" class="box-label" font-size="13" font-weight="700">Actions / RAID</text>
+  <text x="974" y="468" class="box-sub" font-size="11">17 tracked items</text>
+  <text x="974" y="484" class="box-sub" font-size="11">root cause, corrective action,</text>
+  <text x="974" y="500" class="box-sub" font-size="11">owner + due date</text>
+
+  <path d="M860,180 L960,80" class="arrow-line" marker-end="url(#ah2)"/>
+  <text x="878" y="120" class="arrow-text">reads thresholds</text>
+  <path d="M860,200 L960,270" class="arrow-line" marker-end="url(#ah2)"/>
+  <text x="874" y="240" class="arrow-text">checks every rule</text>
+  <path d="M1060,320 L1060,420" class="arrow-line" marker-end="url(#ah2)"/>
+  <text x="1070" y="375" class="arrow-text">opens, owner + clock</text>
+  <path d="M860,220 L960,460" class="arrow-line-dash" marker-end="url(#ah2)"/>
+  <path d="M960,462 L860,222" class="arrow-line-dash" marker-end="url(#ah2)"/>
+  <text x="882" y="345" class="arrow-text-dash">root-cause drill-down</text>
+  <text x="882" y="359" class="arrow-text-dash">owner + due date, one click</text>
+
+  <rect x="1280" y="60" width="200" height="100" rx="10" fill="rgb(6 182 212 / .08)" stroke="rgb(var(--c-accent))" stroke-width="1.6"/>
+  <text x="1294" y="90" class="box-label" font-size="13" font-weight="700">Live dashboard</text>
+  <text x="1294" y="108" class="box-sub" font-size="11">11 tabs, phase-gated</text>
+  <text x="1294" y="124" class="box-sub" font-size="11">everything on this sheet,</text>
+  <text x="1294" y="140" class="box-sub" font-size="11">recomputed on every load</text>
+
+  <rect x="1280" y="260" width="200" height="90" rx="8" class="box-fill box-stroke"/>
+  <text x="1294" y="290" class="box-label" font-size="13" font-weight="700">Executive brief</text>
+  <text x="1294" y="308" class="box-sub" font-size="11">print snapshot of the ledger</text>
+  <text x="1294" y="324" class="box-sub" font-size="11">+ escalation count</text>
+
+  <rect x="1280" y="450" width="200" height="100" rx="8" class="box-fill box-stroke"/>
+  <text x="1294" y="480" class="box-label" font-size="13" font-weight="700">AI narrative draft</text>
+  <text x="1294" y="498" class="box-sub" font-size="11">AI writes the sentence,</text>
+  <text x="1294" y="514" class="box-sub" font-size="11">code supplies every number</text>
+  <text x="1294" y="530" class="box-sub" font-size="11">unverifiable figure blocks it</text>
+
+  <path d="M1160,80 L1280,105" class="arrow-line" marker-end="url(#ah2)"/>
+  <path d="M860,190 L1280,120" class="arrow-line" marker-end="url(#ah2)"/>
+  <path d="M1160,460 L1280,145" class="arrow-line" marker-end="url(#ah2)"/>
+  <text x="1180" y="200" class="arrow-text">live display</text>
+  <path d="M560,410 L1280,300" class="arrow-line" marker-end="url(#ah2)"/>
+  <text x="900" y="410" class="arrow-text">snapshot, printed</text>
+  <path d="M860,500 L1280,500" class="arrow-line-dash" marker-end="url(#ah2)"/>
+  <text x="1000" y="490" class="arrow-text-dash">gates the publish</text>
+
+</svg>
+    </div>
+    <figcaption>Six real source systems converge on one eleven-input ledger per control account;
+      every KPI, gate, escalation, and action downstream is a live formula against that ledger,
+      never a second copy of the number.</figcaption>
+  </figure>
+
+  <h2>Component schedule</h2>
+  <p class="section-lede">Every box above, in the same order &mdash; what it is, why it's there,
+    and what it takes in versus what it hands off. The eleventh tab, Data Strategy, isn't on this
+    flow diagram &mdash; it's the plan for connecting real, messier upstream systems than this
+    synthetic one; see it live on the dashboard.</p>
+
+  <div class="tw">
+  <table>
+    <thead>
+      <tr><th>Item</th><th>What it is</th><th>Why it's there</th><th>Upstream</th><th>Downstream</th></tr>
+    </thead>
+    <tbody>
+      <tr class="grp-row"><td colspan="5">Upstream &mdash; six source systems (synthetic here, real at Otak)</td></tr>
+      <tr><td class="tag">SRC&#8209;1</td><td class="name">Cost ledger</td><td>Committed and actual cost per control account &mdash; the ERP's own numbers.</td><td class="flow">&mdash; (origin)</td><td class="flow">&rarr; the ledger</td></tr>
+      <tr><td class="tag">SRC&#8209;2</td><td class="name">CPM schedule export</td><td>Float, activity dates, percent complete &mdash; what schedule health is measured against.</td><td class="flow">&mdash; (origin)</td><td class="flow">&rarr; the ledger</td></tr>
+      <tr><td class="tag">SRC&#8209;3</td><td class="name">Timesheets</td><td>Earned vs. actual labor hours &mdash; the input productivity factor and CPH are built on.</td><td class="flow">&mdash; (origin)</td><td class="flow">&rarr; the ledger</td></tr>
+      <tr><td class="tag">SRC&#8209;4</td><td class="name">Document control</td><td>RFI and submittal turnaround &mdash; the earliest leading indicator of a claims problem.</td><td class="flow">&mdash; (origin)</td><td class="flow">&rarr; the ledger</td></tr>
+      <tr><td class="tag">SRC&#8209;5</td><td class="name">Change log</td><td>Approved, pending, and rejected change orders against original contract value.</td><td class="flow">&mdash; (origin)</td><td class="flow">&rarr; the ledger</td></tr>
+      <tr><td class="tag">SRC&#8209;6</td><td class="name">Risk register</td><td>Probability &times; impact per risk, with a named owner and mitigation.</td><td class="flow">&mdash; (origin)</td><td class="flow">&rarr; the ledger</td></tr>
+
+      <tr class="grp-row"><td colspan="5">Ingestion &mdash; the single source of truth</td></tr>
+      <tr><td class="tag">LDG</td><td class="name">The ledger</td><td>Eleven raw inputs &times; eight control accounts. The one place any of the six sources are actually recorded &mdash; everything past this point is a formula.</td><td class="flow">6 sources</td><td class="flow">&rarr; KPI board, integrity gate, brief</td></tr>
+
+      <tr class="grp-row"><td colspan="5">Derivation &amp; verification</td></tr>
+      <tr><td class="tag">DRV</td><td class="name">KPI board</td><td>20 metrics across cost, schedule, risk, change, delivery, and compliance.</td><td class="flow">the ledger</td><td class="flow">&rarr; gates, escalation, actions, dashboard</td></tr>
+      <tr><td class="tag">VFY</td><td class="name">Integrity gate</td><td>27 browser checks plus a separate 54-check SQL pipeline, independently re-deriving headline numbers to prove the two stacks agree.</td><td class="flow">the ledger, the KPI board</td><td class="flow">&rarr; gates the AI narrative</td></tr>
+
+      <tr class="grp-row"><td colspan="5">Governance &amp; ownership</td></tr>
+      <tr><td class="tag">GOV&#8209;1</td><td class="name">Phase gates</td><td>7 Board-authorized gates. Gate 5 carries a live hard stop &mdash; <span class="pill a">2 of 3 pass, today</span>.</td><td class="flow">the KPI board</td><td class="flow">&rarr; the dashboard</td></tr>
+      <tr><td class="tag">GOV&#8209;2</td><td class="name">Escalation matrix</td><td>10 threshold rules; every one carries a named owner and a clock.</td><td class="flow">the KPI board</td><td class="flow">&rarr; actions / RAID</td></tr>
+      <tr><td class="tag">ACT</td><td class="name">Actions / RAID</td><td>17 tracked items. Every breached KPI resolves to one of these, or an honest "no item opened yet."</td><td class="flow">escalation matrix, KPI drill-down</td><td class="flow">&rarr; the dashboard</td></tr>
+
+      <tr class="grp-row"><td colspan="5">Downstream &mdash; published</td></tr>
+      <tr><td class="tag">OUT&#8209;1</td><td class="name">Live dashboard</td><td>11 tabs, phase-gated. Every figure recomputed on load.</td><td class="flow">everything above</td><td class="flow">&mdash; (terminal)</td></tr>
+      <tr><td class="tag">OUT&#8209;2</td><td class="name">Executive brief</td><td>A printable snapshot of the ledger and escalation count.</td><td class="flow">the ledger</td><td class="flow">&mdash; (terminal)</td></tr>
+      <tr><td class="tag">OUT&#8209;3</td><td class="name">AI narrative draft</td><td>AI writes only the sentence; code supplies every number first &mdash; <span class="pill g">verification contract</span>.</td><td class="flow">integrity gate</td><td class="flow">&mdash; (terminal)</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <footer>
+    <span>Synthetic illustrative data throughout &mdash; not a client, employer, or agency deliverable.</span>
+    <a href="index.html">a working project&#8209;controls command center</a>
+  </footer>
+
+</div>
+</body>
+</html>
