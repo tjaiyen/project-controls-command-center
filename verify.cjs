@@ -82,7 +82,7 @@ for (const [k, g] of checks) {
 // KPI inventory
 console.log("\nKPI count:", P.kpis.length, P.kpis.length === 20 ? "(ok)" : "(EXPECTED 20)");
 if (P.kpis.length !== 20) failed = true;
-const sparkIds = ["cpi","cv","eac","vac","tcpi","cdi","fund","spi","sv","cpli","bei","float","msv","expo","ccr","cor","pce","pf","rfi","dbe"];
+const sparkIds = ["cpi","cv","eac","vac","tcpi","cdi","fund","spi","sv","cpli","bei","float","msv","expo","ccr","cor","pce","pf","rfi","trir"];
 for (const k of P.kpis) {
   const v = k.val(), rag = k.rag();
   if (!sparkIds.includes(k.id)) { failed = true; console.error("no sparkline series for", k.id); }

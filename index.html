@@ -67,12 +67,12 @@ a{color:rgb(var(--c-accent))}
 .skip{position:absolute;left:-9999px}
 .skip:focus{left:8px;top:8px;z-index:99;padding:8px 12px;background:rgb(var(--c-card));
   border:1px solid rgb(var(--c-accent));border-radius:7px}
-.wrap{max-width:1240px;margin:0 auto;padding:0 20px 80px}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px 80px}
 
 /* ---------- chrome ---------- */
 .bar{position:sticky;top:0;z-index:50;background:rgb(var(--c-bg) / .94);
   backdrop-filter:blur(10px);border-bottom:1px solid var(--c-line)}
-.bar-in{max-width:1240px;margin:0 auto;padding:9px 20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.bar-in{max-width:1180px;margin:0 auto;padding:9px 20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
 .brand{display:flex;gap:9px;align-items:center;font-weight:600;text-decoration:none;color:inherit}
 .brand small{display:block;font:400 11px/1.3 ui-monospace,Menlo,monospace;color:rgb(var(--c-mut))}
 .dot{width:9px;height:9px;border-radius:50%;background:rgb(var(--c-accent));flex:none;
@@ -439,9 +439,9 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
           <div id="docctl"></div></div>
       </div>
       <div class="grid g2">
-        <div class="card"><h3>Public-agency commitments</h3>
-          <p class="lede" style="font-size:12.5px;margin-top:5px">On a federally-assisted program these are
-            reported alongside cost and schedule, and a shortfall carries its own consequences.</p>
+        <div class="card"><h3>Safety &amp; compliance</h3>
+          <p class="lede" style="font-size:12.5px;margin-top:5px">The one metric that can stop the job
+            independent of cost or schedule &mdash; and its trend moves with acceleration pressure.</p>
           <div id="compliance"></div></div>
         <div class="card"><h3>Funding vs. spend</h3>
           <p class="lede" style="font-size:12.5px;margin-top:5px">Grant drawdown should track expenditure.
@@ -508,11 +508,10 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
    ========================================================================= */
 var PROGRAM = {
   name:"Cascade Transit Extension", client:"Regional transit authority (illustrative)",
-  delivery:"Design-build + CM/GC packages", corridor:"18 miles &middot; 12 stations",
+  delivery:"CM/GC + bid-build packages", corridor:"18 miles &middot; 12 stations",
   origContract:1180.0, contingency:124.0, contingencyDrawn:71.4,
   dataDate:"31 Jul 2026", monthsElapsed:22, monthsTotal:42, phaseIdx:4,
   fundAuthorized:1364.0, fundDrawn:812.0,
-  dbeGoal:0.140, dbeActual:0.121, dbeCommitted:0.133,
   trir:1.42, trirBenchmark:2.20, recordables:9, hoursWorked:1268000,
   rfiOpen:68, rfiOver30:14, rfiAvgAge:19, rfiTarget:14,
   subOpen:96, subTurnaround:21, subTarget:14,
@@ -597,7 +596,6 @@ T.coRate = PROGRAM.coApprovedValue/PROGRAM.origContract;
 T.coExposure = (PROGRAM.coApprovedValue+PROGRAM.coPendingValue)/PROGRAM.origContract;
 T.negFloat = rows.filter(function(r){return r.float<=0;});
 T.fundIdx = (PROGRAM.fundDrawn/PROGRAM.fundAuthorized)/(T.ac/T.bac);
-T.dbeIdx = PROGRAM.dbeActual/PROGRAM.dbeGoal;
 
 /* Four standard EAC formulas. Which one you quote is a judgement about the remaining work. */
 var EACS = [
@@ -809,14 +807,14 @@ var KPIS = [
  act:"Aged RFIs on the critical path get escalated daily, not weekly. An RFI open past 30 days on the driving path is already a schedule impact whether or not anyone has written it down."},
 
 /* ---- COMPLIANCE ---- */
-{id:"dbe",fam:"Compliance",abbr:"DBE",name:"DBE Participation",
- val:function(){return pct(PROGRAM.dbeActual);}, raw:function(){return T.dbeIdx;},
- rag:function(){return T.dbeIdx>=1?"g":T.dbeIdx>=0.9?"a":"r";},
- sub:function(){return "goal "+pct(PROGRAM.dbeGoal)+" · committed "+pct(PROGRAM.dbeCommitted);},
- f:"Attained DBE participation ÷ contract goal", th:"≥goal green · ≥90% of goal amber · below red",
- ph:["proc","con","close"], src:"Contract compliance / civil rights office",
- why:"On a federally-assisted program this is reported beside cost and schedule, and a shortfall carries consequences the schedule does not.",
- act:"Track committed separately from attained — committed is a forecast and attained is the number of record. Good-faith-effort documentation must be contemporaneous to be worth anything."}
+{id:"trir",fam:"Compliance",abbr:"TRIR",name:"Total Recordable Incident Rate",
+ val:function(){return PROGRAM.trir.toFixed(2);}, raw:function(){return PROGRAM.trir;},
+ rag:function(){return band(PROGRAM.trir,PROGRAM.trirBenchmark,PROGRAM.trirBenchmark*1.5,true);},
+ sub:function(){return PROGRAM.recordables+" recordables · "+num(PROGRAM.hoursWorked)+" hrs · bench "+PROGRAM.trirBenchmark.toFixed(2);},
+ f:"TRIR = recordable incidents × 200,000 ÷ hours worked", th:"≤ benchmark green · ≤1.5× benchmark amber · above red",
+ ph:["con","close"], src:"Safety log (OSHA 300 equivalent)",
+ why:"The one metric that can stop the job independent of cost or schedule. At "+PROGRAM.trir.toFixed(2)+" against a "+PROGRAM.trirBenchmark.toFixed(2)+" benchmark the rate is healthy — what a controls manager watches is the trend and where incidents cluster.",
+ act:"Above benchmark is not a reporting problem, it is an exposure problem: incident-pattern review by package, and check whether the pattern sits where float is negative. Acceleration pressure and incident rate travel together."}
 ];
 
 /* =========================================================================
@@ -841,7 +839,7 @@ var SPARK = {
   expo:history(T.riskExposure,11.2,12), ccr:history(T.contCoverage,3.4,12),
   cor:history(T.coRate,0.004,12), pce:history(PROGRAM.coPendingValue,2.1,12),
   pf:history(T.pf,1.004,12), rfi:history(PROGRAM.rfiAvgAge,9,12),
-  dbe:history(T.dbeIdx,1.02,12), fund:history(T.fundIdx,1.0,12)
+  trir:history(PROGRAM.trir,2.05,12), fund:history(T.fundIdx,1.0,12)
 };
 
 /* =========================================================================
@@ -1296,18 +1294,18 @@ function renderDelivery(){
      '</span><span class="tab-num '+r[2]+'" style="text-align:right">'+r[1]+'</span></div>'; }).join("")+
    '<p style="margin:12px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">RFIs are running at '+
    (PROGRAM.rfiAvgAge/PROGRAM.rfiTarget).toFixed(1)+'× target and submittals at '+
-   (PROGRAM.subTurnaround/PROGRAM.subTarget).toFixed(1)+'×. On a design-build package that is not an '+
+   (PROGRAM.subTurnaround/PROGRAM.subTarget).toFixed(1)+'×. Where design and construction run concurrently that is not an '+
    'administrative nuisance — it is the documented root cause most delay claims are built on.</p>';
   document.getElementById("compliance").innerHTML=
-   [["DBE attained",pct(PROGRAM.dbeActual),T.dbeIdx<0.9?"ba":T.dbeIdx<1?"wa":"ok"],
-    ["DBE committed",pct(PROGRAM.dbeCommitted),"wa"],["DBE goal",pct(PROGRAM.dbeGoal),""],
-    ["TRIR",PROGRAM.trir.toFixed(2)+" (bench "+PROGRAM.trirBenchmark.toFixed(2)+")","ok"],
+   [["TRIR",PROGRAM.trir.toFixed(2)+" (bench "+PROGRAM.trirBenchmark.toFixed(2)+")",PROGRAM.trir<=PROGRAM.trirBenchmark?"ok":"ba"],
     ["Recordables",PROGRAM.recordables+" / "+num(PROGRAM.hoursWorked)+" hrs","ok"]
    ].map(function(r){ return '<div class="rowbar" style="grid-template-columns:150px 1fr"><span style="font-size:12.5px">'+r[0]+
      '</span><span class="tab-num '+r[2]+'" style="text-align:right">'+r[1]+'</span></div>'; }).join("")+
-   '<p style="margin:12px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">Attained DBE is '+
-   pct(1-T.dbeIdx)+' below goal while committed is '+pct(PROGRAM.dbeCommitted)+
-   '. Committed is a forecast; attained is the number of record. Reporting the first as though it were the second is a common and expensive error.</p>';
+   '<p style="margin:12px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">The rate is '+
+   pct(1-PROGRAM.trir/PROGRAM.trirBenchmark)+
+   ' under benchmark — healthy. What a controls manager watches is not the level but the location: '+
+   'incident rate and acceleration pressure travel together, and the two packages burning hours fastest '+
+   '(CP-201, CP-601) are the two already carrying negative float.</p>';
   var fd=PROGRAM.fundDrawn/PROGRAM.fundAuthorized, sp=T.ac/T.bac;
   document.getElementById("funding").innerHTML=
     '<div class="rowbar" style="grid-template-columns:130px 1fr 62px"><span style="font-size:12.5px">Grant drawn</span>'+
@@ -1336,14 +1334,14 @@ var PLAYBOOK=[
  {k:"fd",set:"Performance measurement baseline, earned-value methods per control account, document-control cadence.",
   watch:"BEI, RFI aging, submittal turnaround, design change rate. EVM cost indices are still noise at this stage.",
   dec:"Is the design releasable? Releasing early is the single most common cause of a high change-order rate later."},
- {k:"proc",set:"Bid packaging strategy, engineer's estimate, DBE goals, long-lead procurement plan.",
+ {k:"proc",set:"Bid packaging strategy, engineer's estimate, compliance goals, long-lead procurement plan.",
   watch:"Award vs. estimate spread, bidder count, long-lead item status.",
   dec:"Award, re-scope, or re-bid — and reset the baseline to the awarded value rather than the estimate."},
  {k:"con",set:"Full EVM reporting, monthly forecast cycle, change-control board, claims-avoidance documentation.",
   watch:"All twenty. This is the phase the board is built for.",
   dec:"Recover, re-baseline, or draw contingency — and say which one, explicitly, every month."},
  {k:"close",set:"Punch-list tracking, as-built and warranty turnover, final change reconciliation, lessons-learned capture.",
-  watch:"Milestone slip to revenue service, retention release, open claims, final DBE attainment.",
+  watch:"Milestone slip to revenue service, retention release, open claims, final safety closeout.",
   dec:"Substantial completion, and what the next program inherits from this one."}
 ];
 var ESCALATION=[
@@ -1355,7 +1353,7 @@ var ESCALATION=[
  ["Any package at ≤ 0 float","Package manager","Weekly recovery cadence with named owner","Next weekly"],
  ["Change order aging &gt; 30d","Change board chair","Escalate to resolution or reject with reasons","Weekly review"],
  ["RFI aged &gt; 30d on the critical path","Design manager","Daily escalation until closed","Daily"],
- ["DBE attainment &lt; 90% of goal","Compliance officer","Good-faith-effort documentation refresh","Monthly"]
+ ["TRIR above benchmark","Safety manager","Incident-pattern review; check clustering against negative-float packages","Same week"]
 ];
 var CADENCE=[
  {t:"Daily",w:"Critical-path exceptions only. Aged RFIs on the driving path, safety incidents, any package that went negative float overnight.",a:"Package managers"},
