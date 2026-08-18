@@ -73,6 +73,13 @@ a{color:rgb(var(--c-accent))}
 .bar{position:sticky;top:0;z-index:50;background:rgb(var(--c-bg) / .94);
   backdrop-filter:blur(10px);border-bottom:1px solid var(--c-line)}
 .bar-in{max-width:1180px;margin:0 auto;padding:9px 20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+#presentBtn[aria-pressed="true"]{background:rgb(var(--c-accent) / .18);border-color:rgb(var(--c-accent))}
+.present-bar{background:rgb(var(--c-accent) / .10);border-top:1px solid rgb(var(--c-accent) / .3)}
+.present-bar-in{max-width:1180px;margin:0 auto;padding:8px 20px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12.5px}
+.present-bar .pnum{font:600 10.5px/1 ui-monospace,monospace;color:rgb(var(--c-code));flex:none}
+.present-bar .plabel{font-weight:600;flex:1 1 auto;min-width:120px}
+.present-bar .pset{display:flex;gap:4px}
+.present-bar .pset button{font-size:11px;padding:4px 9px;min-height:0}
 .brand{display:flex;gap:9px;align-items:center;font-weight:600;text-decoration:none;color:inherit}
 .brand small{display:block;font:400 11px/1.3 ui-monospace,Menlo,monospace;color:rgb(var(--c-mut))}
 .dot{width:9px;height:9px;border-radius:50%;background:rgb(var(--c-accent));flex:none;
@@ -310,9 +317,11 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
     <div class="right">
       <span class="pill i" id="ddBadge">data date &mdash;</span>
       <button class="btn" id="printBtn" type="button">Print brief</button>
+      <button class="btn" id="presentBtn" type="button" aria-pressed="false">Present</button>
       <button class="btn" id="themeBtn" type="button">Theme</button>
     </div>
   </div>
+  <div id="presentBar" class="present-bar" hidden></div>
 </div>
 
 <div class="wrap" id="main">
@@ -1384,7 +1393,8 @@ function sparkline(series, ragColor){
 /* =========================================================================
    7. RENDERERS
    ========================================================================= */
-var state = {phase:"con", fam:"All", kpi:null, pkg:2, actFilter:"All", act:null};
+var state = {phase:"con", fam:"All", kpi:null, pkg:2, actFilter:"All", act:null,
+  presenting:false, presentSet:"full", beatIdx:0};
 
 function renderPhases(){
   document.getElementById("phases").innerHTML = PHASES.map(function(p,i){
@@ -2152,6 +2162,63 @@ function renderCph(){
 }
 
 /* ---------- framework tab ---------- */
+/* Presentation mode — quick-jump navigation for live screen-share delivery. Two beat sets: a short
+   one for a 1:1 walkthrough, a fuller one for a team session. Notes are condensed talking points
+   for the presenter's own popup window, not shown on the shared screen itself. */
+var PRESENT_BEATS_QUICK=[
+ {label:"Portfolio",tab:"port",notes:[
+   "One line is the full ground-truth build, three are summary-only — same idea as a Board rollup.",
+   "Do NOT cite the real $34.5B figure — this tab's own footnote says it isn't trying to reproduce that number.",
+   "If it comes up: “this computes its own portfolio funding gap, same variance math, different number, same idea.”"]},
+ {label:"Cost — EAC + Monte Carlo",tab:"cost",notes:[
+   "Four real methods: current-efficiency-continues, remaining-work-at-budgeted-rate, cost-and-schedule-pressure-both, bottom-up.",
+   "Monte Carlo: 4,000 simulated completions, P10 / P50 / P80.",
+   "Honest sentence: not “we land at $X” but “there's an N% chance the funding line doesn't hold.”"]},
+ {label:"Schedule",tab:"sched",notes:[
+   "SPI alone misleads near completion — it drifts to 1.00 regardless of delay.",
+   "Paired with CPLI (driving-path float) and BEI (activities actually done, not dollars)."]},
+ {label:"Risk & Change — commercial",tab:"risk",notes:[
+   "Contract register is a separate axis from control accounts — one contract can span several.",
+   "Pending change is priced at an independent estimate, not the contractor's ask.",
+   "If contingency-vs-risk comes up: it is CURRENTLY failing — that's the point, not a rule being upheld."]}
+];
+var PRESENT_BEATS_FULL=[
+ {label:"Open — their problem",tab:"over",notes:[
+   "Lead with Dave's own words (paraphrase, not verbatim): “amazing variety of data, levels within levels.”",
+   "Frame it as universal, not Otak-specific.",
+   "One sentence on what this is — a synthetic capital-transit program, built the way I'd actually run one."]},
+ {label:"Architecture & phase selector",tab:"over",notes:[
+   "Eleven raw inputs per control account drive twenty derived KPIs — nothing else is typed.",
+   "Open one KPI card live: formula, threshold, source, the play to run when it breaches.",
+   "Click through phases live — watch cards dim. EVM means little before construction."]},
+ {label:"Portfolio rollup",tab:"port",notes:[
+   "One line is the full ground-truth build, three are summary-only, clearly labeled.",
+   "This program's own numbers roll up into the portfolio view live — not a hand-typed slide.",
+   "Signals Manager-level thinking, not analyst-level."]},
+ {label:"The tunnel story (Cost)",tab:"cost",notes:[
+   "Follow CP-201 all the way through: ground conditions worse than baseline, CPI breach, negative float.",
+   "Forecast reliability: EAC has risen every single one of the last five periods — diverging, not noise."]},
+ {label:"Schedule health",tab:"sched",notes:[
+   "Why SPI alone misleads near completion.",
+   "CPLI = is the driving path still achievable; BEI = are activities actually finishing on plan."]},
+ {label:"Gate 5 — the climax",tab:"fw",anchor:"gate5Card",notes:[
+   "Show it live, don't describe it: three automated checks, two pass, one fails — contingency coverage.",
+   "“A dashboard that always says green isn't checking anything. This one just failed, live.”",
+   "Let the moment land. Don't rush to the next tab."]},
+ {label:"Connective tissue",tab:"act",notes:[
+   "One root cause — CP-201 tunnel ground conditions — shows up in four instruments.",
+   "Risk register (R-01) + quality NCR (NCR-2026-014) + crew cost-per-hour + schedule forecast drift.",
+   "Not five reports that disagree — one story told four ways."]},
+ {label:"Own the gap",tab:"fw",notes:[
+   "Say it before they ask: no live CPM schedule ownership during execution.",
+   "Schedule experience is upstream — bid-stage duration modeling, not years running P6.",
+   "Said once, plainly, then move on. Over-explaining makes it bigger than it is."]},
+ {label:"Close — ask them something back",tab:"over",notes:[
+   "“I didn't tell you I could do this. I built the instrument.”",
+   "End with a real question for them, not just “any questions for me” — e.g. how are you currently",
+   "handling change pricing and schedule integration across your active programs?"]}
+];
+
 var PLAYBOOK=[
  {k:"plan",set:"Work breakdown structure, control-account plan, and the estimate basis. Nothing else can be measured until the WBS exists.",
   watch:"Estimate class and contingency basis. A Class 5 estimate carrying a 10% contingency is a red flag on its own.",
@@ -2821,6 +2888,86 @@ function renderGlossary(q){
                                : list.length+" of "+GLOSS.length+" terms match";
 }
 
+/* ---------- presentation mode ---------- */
+var presentPopup=null;
+function currentBeats(){ return state.presentSet==="quick"?PRESENT_BEATS_QUICK:PRESENT_BEATS_FULL; }
+function renderPresentBar(){
+  var beats=currentBeats(), b=beats[state.beatIdx];
+  document.getElementById("presentBar").innerHTML=
+    '<div class="present-bar-in">'+
+    '<span class="pnum">'+(state.beatIdx+1)+' / '+beats.length+'</span>'+
+    '<span class="plabel">'+b.label+'</span>'+
+    '<div class="pset">'+
+      '<button class="btn" data-pset="quick" aria-pressed="'+(state.presentSet==="quick")+'" type="button">Quick chat</button>'+
+      '<button class="btn" data-pset="full" aria-pressed="'+(state.presentSet==="full")+'" type="button">Team session</button>'+
+    '</div>'+
+    '<button class="btn" data-p="prev" type="button">&larr; Prev <span class="mono" style="opacity:.6">(P)</span></button>'+
+    '<button class="btn" data-p="next" type="button">Next &rarr; <span class="mono" style="opacity:.6">(N)</span></button>'+
+    '<button class="btn" data-p="notes" type="button">Notes</button>'+
+    '<button class="btn" data-p="exit" type="button">Exit <span class="mono" style="opacity:.6">(Esc)</span></button>'+
+    '<span class="wa" id="presentNotesWarn" style="font-size:11.5px"></span>'+
+    '</div>';
+}
+function goToBeat(i){
+  var beats=currentBeats();
+  if(i<0) i=0; if(i>beats.length-1) i=beats.length-1;
+  state.beatIdx=i;
+  var b=beats[i];
+  activateTab(b.tab);
+  renderPresentBar();
+  updatePresentNotes();
+  if(b.anchor){
+    setTimeout(function(){ var el=document.getElementById(b.anchor);
+      if(el) el.scrollIntoView({block:"center",behavior:"smooth"}); },260);
+  }
+}
+function switchPresentSet(set){ state.presentSet=set; goToBeat(0); }
+function enterPresent(){
+  state.presenting=true; state.beatIdx=0;
+  document.getElementById("presentBtn").setAttribute("aria-pressed","true");
+  document.getElementById("presentBar").hidden=false;
+  goToBeat(0);
+}
+function exitPresent(){
+  state.presenting=false;
+  document.getElementById("presentBtn").setAttribute("aria-pressed","false");
+  document.getElementById("presentBar").hidden=true;
+  if(presentPopup && !presentPopup.closed) presentPopup.close();
+  presentPopup=null;
+}
+function openPresentNotes(){
+  if(!presentPopup || presentPopup.closed){
+    presentPopup=window.open("","presenterNotes","width=380,height=560,left=40,top=40");
+    if(!presentPopup){
+      /* Popup blocked — this must not fail silently mid-presentation. Show it in the bar itself,
+         since that's the one thing guaranteed visible right now. */
+      var warn=document.getElementById("presentNotesWarn");
+      if(warn){ warn.textContent="Popup blocked — allow popups for this page, then click Notes again.";
+        setTimeout(function(){ if(warn) warn.textContent=""; },6000); }
+      return;
+    }
+    presentPopup.document.write('<!doctype html><html><head><title>Presenter notes</title>'+
+      '<style>body{font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;'+
+      'background:#0A0F1D;color:#F1F5F9;margin:0;padding:18px}'+
+      'h2{font-size:15px;margin:0 0 12px;color:#22D3EE}'+
+      'ul{padding-left:18px;margin:0}li{margin-bottom:10px;font-size:13.5px}'+
+      '.pos{font:600 11px/1 ui-monospace,monospace;color:#94A3B8;margin-bottom:6px}</style>'+
+      '</head><body><div id="root">Notes will appear here.</div></body></html>');
+    presentPopup.document.close();
+  }
+  presentPopup.focus();
+  updatePresentNotes();
+}
+function updatePresentNotes(){
+  if(!presentPopup || presentPopup.closed) return;
+  var beats=currentBeats(), b=beats[state.beatIdx];
+  var root2=presentPopup.document.getElementById("root");
+  if(!root2) return;
+  root2.innerHTML='<div class="pos">'+(state.beatIdx+1)+' of '+beats.length+' &middot; '+
+    (state.presentSet==="quick"?"Quick chat":"Team session")+'</div>'+
+    '<h2>'+b.label+'</h2><ul>'+b.notes.map(function(n){ return '<li>'+n+'</li>'; }).join("")+'</ul>';
+}
+
 /* =========================================================================
    8. WIRING
    ========================================================================= */
@@ -2831,6 +2978,29 @@ themeBtn.addEventListener("click",function(){
   root.dataset.theme=cur==="dark"?"light":"dark";
   themeBtn.setAttribute("aria-pressed",String(root.dataset.theme==="dark"));
   redrawCharts();
+});
+document.getElementById("presentBtn").addEventListener("click",function(){
+  if(state.presenting) exitPresent(); else enterPresent();
+});
+document.getElementById("presentBar").addEventListener("click",function(e){
+  var p=e.target.closest("[data-p]");
+  if(p){
+    if(p.dataset.p==="prev") goToBeat(state.beatIdx-1);
+    else if(p.dataset.p==="next") goToBeat(state.beatIdx+1);
+    else if(p.dataset.p==="notes") openPresentNotes();
+    else if(p.dataset.p==="exit") exitPresent();
+    return;
+  }
+  var s=e.target.closest("[data-pset]");
+  if(s) switchPresentSet(s.dataset.pset);
+});
+window.addEventListener("keydown",function(e){
+  if(!state.presenting) return;
+  var tag=(e.target&&e.target.tagName||"").toLowerCase();
+  if(tag==="input"||tag==="textarea") return;
+  if(e.key==="n"||e.key==="N") goToBeat(state.beatIdx+1);
+  else if(e.key==="p"||e.key==="P") goToBeat(state.beatIdx-1);
+  else if(e.key==="Escape") exitPresent();
 });
 
 var TABS=["over","port","cost","sched","risk","del","ai","fw","act","gloss"];
@@ -2940,7 +3110,8 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,program:PROGRAM,eacs:EACS,mc:MC,
   portfolioRows:portfolioRows,
   cphCells:CPH_CELLS,deriveCph:deriveCph,
   eacTrendSeries:eacTrendSeries,acHistorySeries:acHistorySeries,forecastAccuracy:forecastAccuracy,
-  revSvcDriftSeries:revSvcDriftSeries,pvA:pvA,acA:acA,milesLast:MILES[MILES.length-1]};
+  revSvcDriftSeries:revSvcDriftSeries,pvA:pvA,acA:acA,milesLast:MILES[MILES.length-1],
+  presentBeatsFull:PRESENT_BEATS_FULL,presentBeatsQuick:PRESENT_BEATS_QUICK};
 })();
 </script>
 </body>

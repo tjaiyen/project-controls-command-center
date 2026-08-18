@@ -21,11 +21,11 @@ function ok(cond, label, extra) {
 function makeEl(id) {
   const el = {
     id: id || "", _html: "", textContent: "", value: "0", hidden: false,
-    style: {}, dataset: {}, _listeners: {},
+    style: {}, dataset: {}, _listeners: {}, _attrs: {},
     classList: { add(){}, remove(){}, toggle(){}, contains(){ return false; } },
     addEventListener(t, fn){ (this._listeners[t] = this._listeners[t] || []).push(fn); },
     removeEventListener(){},
-    setAttribute(){}, getAttribute(){ return null; },
+    setAttribute(n, v){ this._attrs[n] = String(v); }, getAttribute(n){ return n in this._attrs ? this._attrs[n] : null; },
     insertAdjacentHTML(_pos, h){ this._html += h; }, scrollIntoView(){}, click(){}, focus(){},
     closest(){ return null; },
     querySelector(){ return makeEl(); }, querySelectorAll(){ return []; },
@@ -48,8 +48,21 @@ function runPage(src) {
     querySelectorAll(){ return []; },
   };
   global.document = documentStub;
-  global.window = { matchMedia(){ return { matches: true }; }, addEventListener(){}, scrollTo(){}, innerWidth: 1400,
-    print(){ this._printed = true; } };
+  global.window = { matchMedia(){ return { matches: true }; }, scrollTo(){}, innerWidth: 1400,
+    _listeners: {},
+    addEventListener(t, fn){ (this._listeners[t] = this._listeners[t] || []).push(fn); },
+    print(){ this._printed = true; },
+    open(){
+      const popupRegistry = {};
+      const popupDoc = {
+        write(html){ this._written = (this._written || "") + html; },
+        close(){},
+        getElementById(id){ return popupRegistry[id] || (popupRegistry[id] = makeEl(id)); },
+      };
+      const popup = { closed: false, focus(){}, close(){ this.closed = true; }, document: popupDoc };
+      this._lastPopup = popup; // so tests can inspect what got opened, without needing the page's own reference
+      return popup;
+    } };
   global.getComputedStyle = () => ({ getPropertyValue: () => "0 0 0" });
   const m = src.match(/<script>([\s\S]*)<\/script>/);
   let err = null;
@@ -657,6 +670,69 @@ try {
 } catch (e) { ok(false, "verified item drill-down", e.message); }
 
 /* =========================================================================
+   D7. PRESENTATION MODE — quick-jump navigation for live screen-share delivery
+   ========================================================================= */
+console.log("== D7. presentation mode ==");
+ok(idsA.includes("presentBtn") && idsA.includes("presentBar"), "presentation-mode markup wired");
+{
+  const validTabs = ["over", "port", "cost", "sched", "risk", "del", "ai", "fw", "act", "gloss"];
+  [["full", P.presentBeatsFull, 9], ["quick", P.presentBeatsQuick, 4]].forEach(([name, beats, n]) => {
+    ok(beats.length === n, name + " beat set has " + n + " beats", String(beats.length));
+    ok(beats.every(b => validTabs.includes(b.tab)), name + " beats all reference a real tab id");
+    ok(beats.every(b => b.notes && b.notes.length >= 2), name + " every beat carries at least 2 notes");
+  });
+  const gate5Beat = P.presentBeatsFull.filter(b => b.anchor)[0];
+  ok(!!gate5Beat && idsA.includes(gate5Beat.anchor), "the anchor beat points at a real element id",
+    gate5Beat && gate5Beat.anchor);
+}
+try {
+  // presentBar's initial hidden state comes from the raw `hidden` HTML attribute (correct in a
+  // real browser); the stub doesn't parse markup into initial DOM state, only JS-driven changes,
+  // so the meaningful thing to verify is the actual transition once the button is clicked.
+  fire(G.presentBtn, "click");
+  ok(G.presentBar.hidden === false, "entering present mode shows the bar");
+  ok(G.presentBtn.getAttribute("aria-pressed") === "true", "presentBtn reports pressed once active");
+  has("presentBar", "1 / 9", "starts on beat 1 of 9 (full/team set by default)");
+  has("presentBar", "Open", "shows the first beat's label");
+
+  fire(G.presentBar, "click", { target: { closest: (sel) => sel === "[data-p]" ? { dataset: { p: "next" } } : null } });
+  has("presentBar", "2 / 9", "Next advances to beat 2");
+  ok(G["p-over"].hidden === false, "beat 2 (architecture) stays on the Overview tab");
+
+  fire(G.presentBar, "click", { target: { closest: (sel) => sel === "[data-p]" ? { dataset: { p: "next" } } : null } });
+  ok(G["p-port"].hidden === false && G["p-over"].hidden === true, "beat 3 (portfolio rollup) switches to the Portfolio tab");
+
+  fire(G.presentBar, "click", { target: { closest: (sel) => sel === "[data-pset]" ? { dataset: { pset: "quick" } } : null } });
+  has("presentBar", "1 / 4", "switching to the quick-chat set resets to its own beat 1");
+  has("presentBar", "Portfolio", "quick set's first beat is the Portfolio stop");
+
+  fire(G.presentBar, "click", { target: { closest: (sel) => sel === "[data-p]" ? { dataset: { p: "notes" } } : null } });
+  const popupHtml = R.win._lastPopup.document.getElementById("root").innerHTML;
+  ok(popupHtml.includes("Portfolio") && popupHtml.includes("34.5B"),
+    "presenter-notes popup shows the current beat's real talking points", popupHtml.slice(0, 80));
+
+  // keyboard shortcuts, only while presenting
+  fire(R.win, "keydown", { key: "N", target: { tagName: "BODY" } });
+  has("presentBar", "2 / 4", "N key advances to the next beat while presenting");
+  fire(R.win, "keydown", { key: "P", target: { tagName: "BODY" } });
+  has("presentBar", "1 / 4", "P key goes back a beat while presenting");
+
+  fire(G.presentBar, "click", { target: { closest: (sel) => sel === "[data-p]" ? { dataset: { p: "exit" } } : null } });
+  ok(G.presentBar.hidden === true, "exit hides the presenter bar");
+  ok(G.presentBtn.getAttribute("aria-pressed") === "false", "exit un-presses the Present button");
+  ok(R.win._lastPopup.closed === true, "exit closes the presenter-notes popup");
+
+  // re-enter, then confirm Escape also exits, and keys are inert when NOT presenting
+  fire(G.presentBtn, "click");
+  ok(G.presentBar.hidden === false, "re-entering present mode works a second time");
+  fire(R.win, "keydown", { key: "Escape", target: { tagName: "BODY" } });
+  ok(G.presentBar.hidden === true, "Escape exits present mode");
+  const beforeKey = G.presentBar._html;
+  fire(R.win, "keydown", { key: "N", target: { tagName: "BODY" } });
+  ok(G.presentBar._html === beforeKey, "N key does nothing when not presenting");
+} catch (e) { ok(false, "presentation mode interaction", e.message); }
+
+/* =========================================================================
    E. otak.html — runtime + internal consistency
    ========================================================================= */
 console.log("== E. otak.html ==");
@@ -684,8 +760,13 @@ ok(otakSrc.includes("noindex,nofollow"), "otak.html stays noindex");
 console.log("== F. sweeps ==");
 const FAB = /P6|Primavera|MS Project|HeavyBid|AGTEK|Bluebeam|92%|Design-Build|DBE|PE licen/i;
 const SAN = /mawl|dagir|izlid|kiji|minirva|glare|milr/i;
+// The presenter-notes "own the gap" beat honestly DISCLAIMS P6 experience — the one approved
+// exception, stripped before the sweep so any OTHER appearance of P6 still gets caught. Same
+// reasoning already applied to the vault prep docs: the sweep exists to catch false CLAIMS, not
+// to ban the word outright.
+const FAB_APPROVED = "not years running P6";
 [indexSrc, otakSrc, fs.readFileSync(DIR + "README.md", "utf8")].forEach((s, i) => {
-  ok(!FAB.test(s), "fabrication sweep file " + i);
+  ok(!FAB.test(s.split(FAB_APPROVED).join("")), "fabrication sweep file " + i);
   ok(!SAN.test(s), "sanitization sweep file " + i);
 });
 ok(!/https?:\/\/(?!tjaiyen\.github\.io|github\.com\/tjaiyen|linkedin\.com|www\.w3\.org)/.test(indexSrc.replace(/mailto:[^"']*/g, "")),
