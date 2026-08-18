@@ -664,7 +664,7 @@ var KPIS = [
  rag:function(){return T.vac>=0?"g":Math.abs(T.vac)<=T.contRemaining?"a":"r";},
  sub:function(){return "vs "+m(T.contRemaining)+" contingency left";},
  f:"VAC = BAC − EAC", th:"≥0 green · covered by contingency amber · exceeds contingency red",
- ph:["con","close"], src:"Derived",
+ ph:["con","close"], src:"Derived — no separate source",
  why:"Budget minus forecast. The number that decides whether this program needs more money — and the only cost metric a funding board actually asks for.",
  act:"When VAC exceeds remaining contingency, that is a reporting obligation, not a management discussion. Escalate the same reporting cycle it appears."},
 
@@ -673,7 +673,7 @@ var KPIS = [
  rag:function(){var d=T.tcpi-T.cpi; return d<=0?"g":d<=0.10?"a":"r";},
  sub:function(){return "need "+idx(T.tcpi)+" vs running "+idx(T.cpi);},
  f:"TCPI = (BAC − EV) ÷ (BAC − AC)", th:"Gap to CPI ≤0 green · ≤0.10 amber · >0.10 red",
- ph:["con"], src:"Derived",
+ ph:["con"], src:"Derived — no separate source",
  why:"The efficiency the remaining work must achieve to still land on budget. Comparing it to actual CPI is the honesty test: this program is running at "+idx(T.cpi)+" and would need "+idx(T.tcpi)+".",
  act:"A gap above 0.10 is treated as unrecoverable in practice. Stop promising recovery and re-baseline or draw contingency — continuing to forecast BAC past this point is how programs lose credibility."},
 

@@ -11,7 +11,8 @@ multi-package capital transit program, plus a requirement-coverage fit brief.
 |---|---|
 | [`index.html`](index.html) | The command center — KPI board with drill-down detail, EVM S-curve and variance bridge, four-method EAC, what-if forecast model, DCMA-style schedule health (CPLI / BEI / float erosion), priced risk register, change pipeline, delivery leading indicators, and the operating framework (phase playbook, escalation matrix, reporting cadence, KPI reference library) |
 | [`otak.html`](otak.html) | Fit brief: requirement-by-requirement coverage against a Project Controls Manager posting, gaps included |
-| [`verify.cjs`](verify.cjs) | Headless verification harness — stubs the DOM, executes the dashboard's script, and independently re-derives every portfolio total (`node verify.cjs`) |
+| [`verify.cjs`](verify.cjs) | Tie-out harness — stubs the DOM, executes the dashboard's script, and independently re-derives every portfolio total (`node verify.cjs`) |
+| [`stress.cjs`](stress.cjs) | Adversarial stress harness — 243 assertions across structure, runtime, simulated interactions (tabs, phases, filters, drawer, drill-down, what-if), narrative-vs-data consistency, and the fabrication/sanitization sweeps (`node stress.cjs`) |
 
 ## Synthetic data
 
