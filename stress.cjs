@@ -286,7 +286,7 @@ try {
 // integrity gate: every check passes, pill count matches
 const guardPasses = (G.aiGuards._html.match(/>PASS</g) || []).length;
 const guardFails = (G.aiGuards._html.match(/>FAIL</g) || []).length;
-ok(guardPasses === 14 && guardFails === 0, "integrity gate: 14 PASS, 0 FAIL",
+ok(guardPasses === 17 && guardFails === 0, "integrity gate: 17 PASS, 0 FAIL",
    guardPasses + " pass / " + guardFails + " fail");
 has("aiGuards", "GREEN", "gate shows GREEN");
 ok(G.arch._html.includes("fct_control_account") && G.arch._html.includes("integrity gate"),
@@ -366,6 +366,38 @@ ok((G.kboard._html.match(/animation-delay:/g) || []).length === 20,
   "all 20 KPI cards carry staggered entrance delays");
 ok(indexSrc.includes("@keyframes drawin") && indexSrc.includes("prefers-reduced-motion"),
   "motion CSS present with reduced-motion guard");
+
+/* =========================================================================
+   D5. RESUME-INSIGHT MODULES — baseline bridge, change pricing, TIA, stakeholders
+   ========================================================================= */
+console.log("== D5. baseline / change pricing / TIA / stakeholders ==");
+["baseBridge", "coDefense", "tiaReg", "stakeMap"].forEach(id =>
+  ok(idsA.includes(id), "markup contains #" + id));
+// bridge reconciles to the ledger
+has("baseBridge", "$1,318.0M", "bridge starts at the engineer's estimate");
+has("baseBridge", "$1,240.0M", "bridge lands on the derived BAC");
+ok(Math.abs((1318.0 - 46.0 - 18.0 - 14.0) - T.bac) < 1e-9,
+  "bridge arithmetic reconciles to the control-account total");
+// change pricing defense reconciles to the program totals
+has("coDefense", "$48.9M", "approved changes proposed at $48.9M");
+has("coDefense", "$41.2M", "approved changes settled at $41.2M (matches coApprovedValue)");
+has("coDefense", "15.7%", "negotiated savings 15.7% below ask");
+has("coDefense", "$18.6M", "pending carried at independent estimate $18.6M");
+// TIA register ties to float and milestones
+has("tiaReg", "D-02", "delay register lists the tunnel event");
+has("tiaReg", "+40d", "tunnel delay day-count matches CP-201 negative float");
+has("tiaReg", "+22d", "utility delay day-count matches CP-601 negative float");
+// stakeholder map complete
+ok((G.stakeMap._html.match(/<tr/g) || []).length === 8,
+  "stakeholder map renders header + 7 interfaces");
+has("stakeMap", "Operating railroad", "stakeholder map names the railroad interface");
+// glossary absorbed the new concepts
+has("glossList", "Time Impact Analysis", "glossary covers TIA");
+has("glossList", "Value engineering", "glossary covers VE");
+has("glossList", "Buyout", "glossary covers buyout");
+// integrity gate grew to cover the new modules
+has("aiGuards", "Estimate-to-budget bridge", "gate covers the baseline bridge");
+has("aiGuards", "Delay register ties to package float", "gate covers delay/float consistency");
 
 /* =========================================================================
    E. otak.html — runtime + internal consistency

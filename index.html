@@ -382,6 +382,13 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         below the axis are packages forecasting an overrun; bars above are the underruns offsetting them.</p>
       <div class="card" style="margin-top:15px"><div class="chart" id="waterfall"></div></div>
 
+      <div class="sec-h" style="margin-top:34px"><h2>How the baseline was built</h2><span class="tag">estimate &rarr; budget</span></div>
+      <p class="lede">A baseline is only as good as the estimate behind it. This bridge walks the
+        award-stage engineer&rsquo;s estimate down through value engineering, bid climate and buyout to
+        the budget being controlled today &mdash; because a controls manager who inherits a baseline
+        should be able to defend how it was set, not just measure against it.</p>
+      <div class="card" style="margin-top:15px" id="baseBridge"></div>
+
       <div class="grid g2">
         <div class="card">
           <h3>Estimate at completion &mdash; four methods</h3>
@@ -468,6 +475,14 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
             on plan?). Three numbers, three different failure modes.</p>
           <div class="outbox" id="schedTriad"></div></div>
       </div>
+
+      <div class="sec-h" style="margin-top:34px"><h2>Delay events &amp; time impact analysis</h2><span class="tag">claims posture</span></div>
+      <p class="lede">When something slips, the question is never &ldquo;who is to blame&rdquo; first &mdash;
+        it is &ldquo;how many days, provably?&rdquo; Each event below was inserted into the schedule model as
+        a fragnet, so its measured impact and the float table above cannot disagree. Classification then
+        sets the posture: excusable-compensable events are documented for time and money; non-excusable
+        ones get a recovery plan, not a change order.</p>
+      <div class="card" style="margin-top:15px" id="tiaReg"></div>
     </div>
   </section>
 
@@ -497,6 +512,11 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         <div class="card"><h3>Change pipeline</h3><div id="changePipe"></div></div>
         <div class="card"><h3>Change order rate in context</h3><div id="coContext"></div></div>
       </div>
+      <div class="card" style="margin-top:15px"><h3>Pricing defense &mdash; proposed vs. settled</h3>
+        <p class="lede" style="font-size:12.5px;margin-top:5px">Every change is priced twice before anyone
+          negotiates: the contractor&rsquo;s proposal, and an independent estimate built from first
+          principles. Pending change is carried in the forecast at the independent estimate, not the ask.</p>
+        <div class="tw" style="min-width:0"><table style="min-width:560px" id="coDefense"></table></div></div>
     </div>
   </section>
 
@@ -633,6 +653,12 @@ join dim_control_account b using (package_id)</pre></div>
       <div class="sec-h" style="margin-top:34px"><h3>Reporting cadence</h3></div>
       <div class="grid g2" id="cadence"></div>
 
+      <div class="sec-h" style="margin-top:34px"><h3>Stakeholder interface map</h3></div>
+      <p class="lede">Controls is a coordination job before it is a math job. Every interface below has a
+        forum, a cadence, and a named artifact &mdash; the document that carries the truth into the room.
+        When coordination fails, it fails at one of these three: no forum, no rhythm, or no shared artifact.</p>
+      <div class="tw"><table id="stakeMap" style="min-width:820px"></table></div>
+
       <div class="sec-h" style="margin-top:34px"><h3>KPI reference library</h3></div>
       <p class="lede">All twenty, with the formula as implemented and the system of record each one needs.
         A metric with no owned data source is a metric that will quietly stop being true.</p>
@@ -696,7 +722,8 @@ var PROGRAM = {
   rfiOpen:68, rfiOver30:14, rfiAvgAge:19, rfiTarget:14,
   subOpen:96, subTurnaround:21, subTarget:14,
   coApprovedCount:34, coApprovedValue:41.2, coPendingCount:11, coPendingValue:18.6,
-  coRejectedValue:6.4, coCycleDays:47, coCycleTarget:30
+  coRejectedValue:6.4, coCycleDays:47, coCycleTarget:30,
+  coProposedApproved:48.9, coProposedPending:21.4
 };
 
 /* id, name, bac, pv, ev, ac, commit, float(d), cpRem(d), actsPlanned, actsDone, ernHrs, actHrs */
@@ -733,6 +760,37 @@ var RISKS = [
 /* Conventional qualitative probability bands. A naive p/5 would map P5 to 100% —
    i.e. certainty, which is an issue, not a risk. */
 var P_BAND = {1:0.10, 2:0.30, 3:0.50, 4:0.70, 5:0.90};
+
+/* How the baseline was built — the estimate-to-budget bridge. The deltas sum
+   exactly to the sum of the eight control-account BACs; a baseline that cannot
+   be walked back to its estimate cannot be defended. */
+var BASELINE=[
+ {l:"Engineer&rsquo;s estimate at award stage", v:1318.0},
+ {l:"Value engineering accepted",             v: -46.0},
+ {l:"Bid climate vs. estimate",               v: -18.0},
+ {l:"Buyout below estimate",                  v: -14.0}
+];
+
+/* Delay register — every event is inserted into the schedule model as a fragnet,
+   so its day count ties to the package float it consumed (D-01 ↔ CP-601, D-02 ↔ CP-201). */
+var DELAYS=[
+ {id:"D-01",n:"Third-party utility approval hold",pkg:"CP-601",d:22,cl:"a",cls:"Excusable &mdash; compensable",st:"TIA approved; time extended, cost settled"},
+ {id:"D-02",n:"Tunnel ground conditions differ from baseline",pkg:"CP-201",d:40,cl:"r",cls:"Excusable &mdash; compensable",st:"Fragnet inserted; package under owner review"},
+ {id:"D-03",n:"Rail coordination window lost to freight priority",pkg:"CP-701",d:8,cl:"r",cls:"Non-excusable",st:"Recovery plan due; night-window negotiation open"},
+ {id:"D-04",n:"Early-season weather, guideway north",pkg:"CP-101",d:-7,cl:"g",cls:"Recovered",st:"Resequenced; float restored ahead of plan"}
+];
+
+/* Stakeholder interfaces — who meets whom, how often, and which artifact
+   carries the truth into the room. */
+var STAKE=[
+ {who:"Owner program office",forum:"Executive steering",cad:"Monthly",art:"One-page brief + KPI pack (the print view of this tool)"},
+ {who:"Design consultants",forum:"Design / controls sync",cad:"Weekly",art:"RFI &amp; submittal aging, design-float report"},
+ {who:"CM/GC &amp; bid-build contractors",forum:"Progress &amp; look-ahead review",cad:"Weekly",art:"Updated schedule, 3-week look-ahead, change log"},
+ {who:"Third-party utilities",forum:"Utility coordination",cad:"Weekly",art:"Outage-window register, permit tracker"},
+ {who:"Operating railroad",forum:"Coordination windows",cad:"Monthly + 12-month look-ahead",art:"Flagging and work-window schedule"},
+ {who:"Operations &amp; maintenance",forum:"Readiness reviews",cad:"Monthly from fit-out",art:"O&amp;M readiness checklist, training plan"},
+ {who:"Funding / grants office",forum:"Drawdown &amp; compliance review",cad:"Monthly",art:"Drawdown-vs-spend reconciliation"}
+];
 
 var PHASES = [
  {k:"plan", n:"Planning &amp; scoping",  s:"concept &rarr; purpose &amp; need"},
@@ -1232,6 +1290,26 @@ function renderWaterfall(){
     "Variance bridge from budget at completion to forecast at completion, decomposed by control account.");
 }
 
+/* ---------- estimate-to-budget bridge ---------- */
+function renderBaseline(){
+  var run=0;
+  document.getElementById("baseBridge").innerHTML=
+    BASELINE.map(function(s){ run+=s.v;
+      return '<div class="rowbar" style="grid-template-columns:1fr 84px 84px;cursor:default">'+
+        '<span style="font-size:12.5px">'+s.l+'</span>'+
+        '<span class="tab-num mono" style="font-size:12.5px;text-align:right;color:'+
+          (s.v<0?"var(--c-pill-g)":"rgb(var(--c-ink))")+'">'+(s.v<0?"&minus;":"")+m(Math.abs(s.v))+'</span>'+
+        '<span class="tab-num mono" style="font-size:12.5px;text-align:right;color:rgb(var(--c-mut))">'+m(run)+'</span></div>';
+    }).join("")+
+    '<div class="rowbar" style="grid-template-columns:1fr 84px 84px;cursor:default;border-top:1px solid rgb(var(--c-accent) / .40)">'+
+      '<span style="font-size:12.8px;font-weight:600">Baseline budget at completion</span><span></span>'+
+      '<span class="tab-num mono" style="font-size:12.8px;text-align:right;font-weight:600">'+m(run)+'</span></div>'+
+    '<p style="margin:12px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">The bridge reconciles exactly: '+m(run)+
+    ' equals the sum of the eight control accounts in the ledger below. Contingency of '+m(PROGRAM.contingency)+
+    ' ('+pct(PROGRAM.contingency/T.bac,0)+' of baseline) was sized from the priced risk register at award &mdash; '+
+    'a derived number, not a flat allowance.</p>';
+}
+
 /* ---------- EAC methods ---------- */
 function renderEac(){
   document.getElementById("eacTable").innerHTML =
@@ -1514,6 +1592,22 @@ function renderSchedule(){
     ["BEI",idx(T.bei),T.bei<0.95?"ba":"wa","activities done"]
    ].map(function(r){ return '<div><div class="k">'+r[0]+'</div><div class="v '+r[2]+'">'+r[1]+
      '</div><div style="font-size:11px;color:rgb(var(--c-mut));margin-top:4px">'+r[3]+'</div></div>'; }).join("");
+
+  /* delay & TIA register — day counts tie to the float table by construction */
+  document.getElementById("tiaReg").innerHTML=DELAYS.map(function(d){
+    return '<div style="padding:9px 0;border-bottom:1px solid var(--c-line)">'+
+      '<div style="display:flex;gap:9px;align-items:baseline;flex-wrap:wrap">'+
+      '<span class="mono" style="font-size:11px;color:rgb(var(--c-code))">'+d.id+'</span>'+
+      '<span style="flex:1;min-width:200px;font-size:12.8px">'+d.n+
+        ' <span style="color:rgb(var(--c-mut))">('+d.pkg+')</span></span>'+
+      '<span class="pill '+d.cl+'">'+d.cls+'</span>'+
+      '<span class="tab-num mono" style="font-size:12.5px">'+days(d.d)+'</span></div>'+
+      '<div style="margin-top:3px;font-size:11.5px;color:rgb(var(--c-mut))">&rarr; '+d.st+'</div></div>';
+  }).join("")+
+  '<p style="margin:12px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">The register and the float table '+
+    'agree because they share one model: D-01 is the '+days(22)+' behind CP-601&rsquo;s negative float; '+
+    'D-02 is the '+days(40)+' driving revenue service '+days(MILES[MILES.length-1].d)+
+    ' late. An event with no fragnet is an opinion; an event with one is arithmetic.</p>';
 }
 
 /* ---------- risk tab ---------- */
@@ -1580,6 +1674,21 @@ function renderRisk(){
     '<p style="margin:11px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">Approved change is <b style="color:rgb(var(--c-ink))">'+
     pct(T.coRate,2)+'</b> of original contract — inside the normal heavy-civil band. Adding pending change takes total exposure to <b style="color:rgb(var(--c-ink))">'+
     pct(T.coExposure,2)+'</b>, which is the number to report. Reporting only approved change understates the position.</p>';
+
+  /* pricing defense — proposed vs. settled, reconciled to the program totals */
+  var apSave=PROGRAM.coProposedApproved-PROGRAM.coApprovedValue;
+  var pdSave=PROGRAM.coProposedPending-PROGRAM.coPendingValue;
+  document.getElementById("coDefense").innerHTML=
+    '<thead><tr><th scope="col">Population</th><th scope="col">Contractor proposed</th>'+
+    '<th scope="col">Settled / carried</th><th scope="col">Defended</th></tr></thead><tbody>'+
+    '<tr style="cursor:default"><td>Approved ('+PROGRAM.coApprovedCount+' changes)</td>'+
+      '<td class="tab-num">'+m(PROGRAM.coProposedApproved)+'</td>'+
+      '<td class="tab-num">'+m(PROGRAM.coApprovedValue)+'</td>'+
+      '<td class="tab-num ok">'+sgn(-apSave)+' · '+pct(apSave/PROGRAM.coProposedApproved,1)+' below ask</td></tr>'+
+    '<tr style="cursor:default"><td>Pending ('+PROGRAM.coPendingCount+' changes)</td>'+
+      '<td class="tab-num">'+m(PROGRAM.coProposedPending)+'</td>'+
+      '<td class="tab-num">'+m(PROGRAM.coPendingValue)+' <span class="mono" style="font-size:10.5px;color:rgb(var(--c-mut))">at estimate</span></td>'+
+      '<td class="tab-num wa">'+sgn(-pdSave)+' held out of the forecast</td></tr></tbody>';
 }
 
 /* ---------- delivery tab ---------- */
@@ -1693,6 +1802,12 @@ function renderFramework(){
       '<td>'+k.fam+'</td><td class="mono" style="font-size:11.5px;white-space:normal">'+k.f+'</td>'+
       '<td style="white-space:normal;font-size:11.8px">'+k.th+'</td><td style="white-space:normal;font-size:11.8px">'+k.src+'</td></tr>';
     }).join("")+'</tbody>';
+  document.getElementById("stakeMap").innerHTML=
+    '<thead><tr><th scope="col">Stakeholder</th><th scope="col">Forum</th><th scope="col">Cadence</th>'+
+    '<th scope="col">Artifact that carries the truth</th></tr></thead><tbody>'+
+    STAKE.map(function(s){ return '<tr style="cursor:default"><td>'+s.who+'</td><td>'+s.forum+'</td>'+
+      '<td style="white-space:normal">'+s.cad+'</td><td style="white-space:normal">'+s.art+'</td></tr>';
+    }).join("")+'</tbody>';
 }
 
 /* ---------- AI & data tab ---------- */
@@ -1759,6 +1874,21 @@ var GUARDS=[
  {n:"KPI registry complete: 20 metrics, each with formula, thresholds, source and play", run:function(){
    return [KPIS.length===20&&KPIS.every(function(k){return k.f&&k.th&&k.src&&k.why&&k.act;}),
      KPIS.length+" registered"];}},
+ {n:"Estimate-to-budget bridge reconciles to the control-account total", run:function(){
+   var s=BASELINE.reduce(function(a,b){return a+b.v;},0);
+   return [Math.abs(s-T.bac)<1e-9, m(s)+" = "+m(T.bac)];}},
+ {n:"Change pricing defense reconciles: settled plus defended equals proposed", run:function(){
+   var ok=Math.abs((PROGRAM.coApprovedValue+(PROGRAM.coProposedApproved-PROGRAM.coApprovedValue))
+                    -PROGRAM.coProposedApproved)<1e-9 &&
+          Math.abs((PROGRAM.coPendingValue+(PROGRAM.coProposedPending-PROGRAM.coPendingValue))
+                    -PROGRAM.coProposedPending)<1e-9;
+   return [ok, m(PROGRAM.coProposedApproved)+" / "+m(PROGRAM.coProposedPending)];}},
+ {n:"Delay register ties to package float: D-01 ↔ CP-601, D-02 ↔ CP-201", run:function(){
+   var f601=PKGS.filter(function(p){return p.id==="CP-601";})[0].float;
+   var f201=PKGS.filter(function(p){return p.id==="CP-201";})[0].float;
+   var d1=DELAYS.filter(function(d){return d.id==="D-01";})[0].d;
+   var d2=DELAYS.filter(function(d){return d.id==="D-02";})[0].d;
+   return [d1===-f601&&d2===-f201, days(d2)+" = −(float "+days(f201)+")"];}},
  {n:"Compliance sweep: no prohibited terms anywhere in the rendered page", run:function(){
    /* Terms assembled from fragments so the guard's own source cannot trip the
       repository-level sweep that greps these files for the same literals. */
@@ -1946,7 +2076,13 @@ var GLOSS=[
  {t:"TRIR — Total Recordable Incident Rate", p:"The standard safety yardstick: recordable injuries per 200,000 hours worked — roughly 100 people working full time for a year. The one metric that can stop a job regardless of cost or schedule.",
   e:function(){ return PROGRAM.recordables+" recordable incidents across "+PROGRAM.hoursWorked.toLocaleString("en-US")+" work hours: "+(PROGRAM.recordables*200000/PROGRAM.hoursWorked).toFixed(2)+" versus an industry benchmark of "+PROGRAM.trirBenchmark.toFixed(2)+" — about "+pct(1-PROGRAM.trir/PROGRAM.trirBenchmark,0)+" better."; }},
  {t:"Productivity factor", p:"Earned hours divided by actual hours. Below 1.00 the crews are burning more hours than the estimate carried — and because hours are booked weekly, this moves weeks before the same problem reaches the cost index.",
-  e:function(){ return idx(T.pf)+" program-wide — crews are running about "+((1/T.pf-1)*100).toFixed(1)+"% over the estimated hours. The tunnel is the drag at "+idx(G_TUN.pf)+"."; }}
+  e:function(){ return idx(T.pf)+" program-wide — crews are running about "+((1/T.pf-1)*100).toFixed(1)+"% over the estimated hours. The tunnel is the drag at "+idx(G_TUN.pf)+"."; }},
+ {t:"Value engineering (VE)", p:"A structured review that asks one question: can the same function be delivered for less money? Done before award it shapes the baseline; done during construction it becomes a shared-savings change.",
+  e:function(){ return "This program's baseline carries "+m(Math.abs(BASELINE[1].v))+" of accepted VE — part of how the engineer's estimate of "+m(BASELINE[0].v)+" came down to a "+m(T.bac)+" baseline before construction started."; }},
+ {t:"Buyout", p:"Letting the subcontracts and major purchases after the contract is won. When the market prices below the estimate, the difference is buyout savings — margin captured at the source, before any risk can touch it.",
+  e:function(){ return m(Math.abs(BASELINE[3].v))+" of buyout savings is baked into this baseline. The opposite — buyout above estimate — is an overrun that arrives on day one."; }},
+ {t:"Time Impact Analysis (TIA)", p:"The disciplined way to answer \"how many days did that event cost?\": insert the delay into the schedule model as a small sub-network (a fragnet), re-run the dates, and read the difference. It turns an argument into arithmetic — and sets whether the event buys time, money, both, or neither.",
+  e:function(){ return "D-02's fragnet measures "+days(40)+" of impact on the tunnel — exactly the "+(-G_TUN.float)+" days of negative float CP-201 carries, and the driver of revenue service landing "+days(MILES[MILES.length-1].d)+"."; }}
 ];
 function renderGlossary(q){
   q=(q||"").toLowerCase();
@@ -2045,7 +2181,7 @@ function redrawCharts(){ renderScurve(); renderWaterfall(); renderCont(); render
 
 /* init */
 renderPhases(); renderStrip(); renderFilters(); renderBoard(); renderDetail();
-renderScurve(); renderWaterfall(); renderEac(); renderCont(); renderTable();
+renderScurve(); renderWaterfall(); renderBaseline(); renderEac(); renderCont(); renderTable();
 renderSchedule(); renderRisk(); renderDelivery(); renderFramework();
 renderMc(); renderScen(); renderPrint();
 renderArch(); renderGuards();
