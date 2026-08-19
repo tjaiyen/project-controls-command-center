@@ -538,7 +538,12 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         Actual cost is what it took. The gaps &mdash; not any single line &mdash; are the story.</p>
       <div class="card" style="margin-top:15px"><div class="chart" id="scurve"></div>
         <div class="legend" id="scurveLegend"></div>
-        <p class="lede" id="scurveRead" style="margin-top:11px;font-size:12.8px"></p></div>
+        <p class="lede" id="scurveRead" style="margin-top:11px;font-size:12.8px"></p>
+        <details class="dbox" style="margin-top:16px">
+          <summary>How this is actually computed</summary>
+          <div id="scurveMathBody"></div>
+        </details>
+      </div>
 
       <div class="sec-h" style="margin-top:34px"><h2>Where the overrun comes from</h2><span class="tag">variance bridge</span></div>
       <p class="lede">Budget at completion bridged to forecast at completion, package by package. Bars
@@ -1930,6 +1935,37 @@ function renderScurve(){
     tip.style.top=Math.min(e.clientY+14,window.innerHeight-130)+"px";
   });
   host.addEventListener("mouseleave",function(){ tip.classList.remove("on"); });
+}
+
+/* The math explainer — SPI/CPI/SV/CV are genuinely computed from the ledger (every number here
+   traces to rows[]/T), but the MONTHLY CURVE drawn above is not raw monthly data: the ledger only
+   ever carries one current snapshot per control account (pv/ev/ac as of the data date), not a
+   full time series. The curve is a bell-shaped interpolation anchored exactly to the real
+   endpoints (PV/EV/AC at the data date, BAC/EAC at completion) — said plainly here rather than
+   left to look like tracked monthly actuals. */
+function renderScurveMath(){
+  var r=rows.filter(function(x){ return x.id==="CP-201"; })[0];
+  var share=r.pv/T.pv;
+  document.getElementById("scurveMathBody").innerHTML=
+    "<p>The three totals are a straight sum across all "+rows.length+" control accounts &mdash; "+
+    "<code>PV = &Sigma; planned value</code>, <code>EV = &Sigma; earned value</code>, "+
+    "<code>AC = &Sigma; actual cost</code>, each read directly off the ledger, nothing derived. "+
+    "Everything else on this chart is arithmetic on those three sums: "+
+    "<code>SPI = EV &divide; PV</code>, <code>CPI = EV &divide; AC</code>, "+
+    "<code>SV = EV &minus; PV</code>, <code>CV = EV &minus; AC</code>.</p>"+
+    "<p style='margin-top:8px'>Right now: PV <b style='color:rgb(var(--c-ink))'>"+m(T.pv)+
+    "</b>, EV <b style='color:rgb(var(--c-ink))'>"+m(T.ev)+"</b>, AC <b style='color:rgb(var(--c-ink))'>"+m(T.ac)+
+    "</b> &rarr; SPI <b style='color:rgb(var(--c-ink))'>"+idx(T.spi)+"</b>, CPI <b style='color:rgb(var(--c-ink))'>"+
+    idx(T.cpi)+"</b>. Worked against one control account, <b style='color:rgb(var(--c-ink))'>"+r.n.replace(/&amp;/g,"&")+
+    " ("+r.id+")</b>: its own PV of "+m(r.pv)+" is "+pct(share,0)+" of the program total &mdash; "+
+    "the same share-of-total logic every account contributes, summed once, not twenty separate averages.</p>"+
+    "<p style='margin-top:8px'><b style='color:rgb(var(--c-code))'>What the smooth monthly curve is, honestly:</b> "+
+    "the ledger only ever carries one current snapshot per account &mdash; today's PV/EV/AC &mdash; not a tracked "+
+    "history of every prior month. The curve between month 1 and the data date is a constructed bell-shaped "+
+    "interpolation, built to land exactly on the real numbers above at the data date and exactly on BAC/EAC at "+
+    "completion, not a record of what actually happened each month in between. Hover any point on the chart to "+
+    "see that month's interpolated PV/EV/AC/CPI/SPI &mdash; useful for reading the shape of the trend, not a "+
+    "substitute for a real monthly-actuals feed.</p>";
 }
 
 /* ---------- variance waterfall ---------- */
@@ -3908,7 +3944,7 @@ document.getElementById("mcViewCdf").addEventListener("click",function(){ state.
 
 /* init */
 renderPhases(); renderStrip(); renderPortfolio(); renderFilters(); renderBoard(); renderDetail();
-renderScurve(); renderWaterfall(); renderBaseline(); renderEac(); renderCont(); renderTable();
+renderScurve(); renderScurveMath(); renderWaterfall(); renderBaseline(); renderEac(); renderCont(); renderTable();
 renderEacTrend(); renderFcastTable(); renderCashflow();
 renderSchedule(); renderRisk(); renderContracts(); renderDelivery(); renderFramework(); renderActions();
 renderDataStrategy();

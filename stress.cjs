@@ -281,6 +281,22 @@ has("strip", "66.1%", "strip: 66.1% complete");
 has("strip", "20 of 20", "strip: 20 of 20 KPIs live in construction");
 has("scurveRead", "$37.9M", "S-curve copy: CV $37.9M");
 has("scurveRead", "$27.3M", "S-curve copy: SV $27.3M");
+
+// S-curve math explainer (2026-08-19) — same "how this is computed" pattern as Monte Carlo
+has("scurveMathBody", "PV = &Sigma;", "S-curve math panel states the PV formula");
+has("scurveMathBody", "$847.0M", "S-curve math panel states the live PV total");
+has("scurveMathBody", "$819.7M", "S-curve math panel states the live EV total");
+has("scurveMathBody", "$857.6M", "S-curve math panel states the live AC total");
+has("scurveMathBody", "0.968", "S-curve math panel states the live SPI");
+has("scurveMathBody", "0.956", "S-curve math panel states the live CPI");
+has("scurveMathBody", "CP-201", "S-curve math panel names its worked-example control account");
+has("scurveMathBody", "bell-shaped interpolation",
+  "S-curve math panel honestly discloses the monthly curve is a constructed interpolation, not tracked monthly actuals");
+{
+  const cp201row = rows.find(r => r.id === "CP-201");
+  const share = Math.round((cp201row.pv / T.pv) * 100) + "%";
+  has("scurveMathBody", share, "S-curve worked example's share-of-total matches independent recomputation");
+}
 has("eacTable", "$1,303.7M", "EAC table: bottom-up $1,303.7M");
 has("eacTable", "$1,297.3M", "EAC table: BAC/CPI $1,297.3M");
 // user-reported layout finding (2026-08-19): "Estimate at completion" + "Contingency vs. progress"
