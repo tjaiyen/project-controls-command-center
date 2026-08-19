@@ -7,7 +7,11 @@
 //    string-matches the rendered markup
 // 5. Compliance sweeps: fabrication + sanitization patterns (B35/B22 style)
 const fs = require("fs");
-const DIR = "/Users/theerayutjaiyen/dev/project-controls-command-center/";
+// __dirname, not a hardcoded absolute path — a hardcoded path silently reads/grades whatever
+// happens to sit at that literal location on the author's own machine (possibly a stale or
+// different copy than the one actually in front of a reviewer/CI run) instead of failing loudly
+// on a clone elsewhere (/stress-test finding, 2026-08-18: reproduced both failure modes).
+const DIR = __dirname + "/";
 const indexSrc = fs.readFileSync(DIR + "index.html", "utf8");
 const otakSrc = fs.readFileSync(DIR + "otak.html", "utf8");
 
@@ -26,7 +30,13 @@ function makeEl(id) {
     addEventListener(t, fn){ (this._listeners[t] = this._listeners[t] || []).push(fn); },
     removeEventListener(){},
     setAttribute(n, v){ this._attrs[n] = String(v); }, getAttribute(n){ return n in this._attrs ? this._attrs[n] : null; },
-    insertAdjacentHTML(_pos, h){ this._html += h; }, scrollIntoView(){}, click(){}, focus(){},
+    insertAdjacentHTML(_pos, h){ this._html += h; }, scrollIntoView(){},
+    // click() now actually dispatches this element's own registered "click" listeners, matching
+    // real DOM behavior — it was a dead no-op before, silently masking that app code calling
+    // .click() (e.g. the tab-bar's keydown handler) had never actually been exercised by any
+    // test in this file; every prior test worked around it via fire() directly instead
+    // (/stress-test finding, 2026-08-18).
+    click(){ fire(this, "click"); }, focus(){},
     closest(){ return null; },
     querySelector(){ return makeEl(); }, querySelectorAll(){ return []; },
   };
@@ -122,6 +132,13 @@ ok((indexSrc.match(/class="nav-ic"/g) || []).length === 11, "all 11 nav-rail tab
 // as a direct probe that this CSS/markup-only change didn't silently touch the tab logic
 ok(idsA.filter(id => /^t-(over|port|cost|sched|risk|del|ai|fw|act|gloss|data)$/.test(id)).length === 11,
   "all 11 tab buttons still present with their original ids after the rail markup change");
+// roving tabindex on genuinely pristine (pre-any-click) markup: the D. interactions section's
+// own tabindex assertions run after earlier tests have already clicked several tabs, so they
+// verify the MECHANISM (flips correctly on activateTab) but not the untouched initial-load DOM.
+// This checks the static source directly, independent of any test execution order.
+ok(/id="t-over"[^>]*tabindex="0"/.test(indexSrc), "t-over declares tabindex=0 explicitly in markup (not relying on the button-default)");
+ok((indexSrc.match(/aria-selected="false" tabindex="-1"/g) || []).length === 10,
+  "all 10 non-default tabs declare tabindex=-1 in markup, matching t-over's explicit tabindex=0");
 
 /* =========================================================================
    B. RUNTIME — index.html
@@ -251,6 +268,34 @@ try {
   fire(G["t-over"], "click");
   ok(G["p-over"].hidden === false, "tab switch back to overview");
 } catch (e) { ok(false, "tab switching", e.message); }
+// /stress-test finding (2026-08-18): the tab bar had no keyboard-nav test at all, and Tier 3's
+// vertical rail (>=1050px) needs Up/Down arrows + a synced aria-orientation on top of the
+// original horizontal Left/Right — plus a roving tabindex so Tab enters/exits the rail in one
+// stop instead of stopping at all 11 buttons individually.
+try {
+  ok(G.tabs.getAttribute("aria-orientation") === "vertical",
+    "aria-orientation syncs to the stub's matchMedia (always matches:true, i.e. the >=1050px rail) at load");
+  ok(G["t-over"].getAttribute("tabindex") === "0", "the initially-selected tab is the roving tabindex=0 stop");
+  // TABS is a var inside the eval'd page IIFE, not visible at this module's scope — same 11
+  // ids TABS_CHECK() below regex-extracts from source, hardcoded here to match that convention
+  const TAB_IDS = ["over", "port", "cost", "sched", "risk", "del", "ai", "fw", "act", "gloss", "data"];
+  ok(TAB_IDS.filter(id => id !== "over").every(id => G["t-" + id].getAttribute("tabindex") === "-1"),
+    "every other tab starts at tabindex=-1");
+  fire(G["t-cost"], "click");
+  ok(G["t-cost"].getAttribute("tabindex") === "0" && G["t-over"].getAttribute("tabindex") === "-1",
+    "activating a different tab moves the roving tabindex=0 stop with it");
+  fire(G["t-over"], "click"); // back to a known state before exercising the keydown handler
+  // ArrowRight/ArrowDown both move forward; ArrowLeft/ArrowUp both move backward — the same
+  // physical keydown handler serves the bar below 1050px and the rail at/above it
+  fire(G.tabs, "keydown", { key: "ArrowRight" });
+  ok(G["p-port"].hidden === false, "ArrowRight (horizontal-bar convention) advances to the next tab");
+  fire(G.tabs, "keydown", { key: "ArrowDown" });
+  ok(G["p-cost"].hidden === false, "ArrowDown (vertical-rail convention) also advances to the next tab");
+  fire(G.tabs, "keydown", { key: "ArrowUp" });
+  ok(G["p-port"].hidden === false, "ArrowUp moves back");
+  fire(G.tabs, "keydown", { key: "ArrowLeft" });
+  ok(G["p-over"].hidden === false, "ArrowLeft also moves back, wrapping to Overview");
+} catch (e) { ok(false, "nav-rail keyboard + roving tabindex + orientation", e.message); }
 // phase re-scope to final design: 5 KPIs live (bei, msv, expo, ccr, rfi)
 try {
   fire(G.phases, "click", { target: { closest: () => ({ dataset: { ph: "fd" } }) } });
@@ -959,7 +1004,10 @@ ok(P.findGloss("does-not-exist") === undefined, "findGloss returns undefined for
 try {
   // getBoundingClientRect: openHelp() positions the popover from it; every real DOM element has
   // one, but this stub's makeEl() never needed it before this feature, so the mock supplies it.
-  const wbsIconEl = { dataset: { help: "wbs" }, getBoundingClientRect: () => ({ bottom: 40, left: 20 }) };
+  // setAttribute/focus: openHelp()/closeHelp() now toggle aria-expanded and manage focus on the
+  // trigger element — every real DOM element has these, but this lightweight mock predates that
+  // and needs them added explicitly (same class of gap as the getBoundingClientRect fix above).
+  const wbsIconEl = { dataset: { help: "wbs" }, getBoundingClientRect: () => ({ bottom: 40, left: 20 }), setAttribute(){}, focus(){} };
   const wbsIcon = { closest: sel => (sel === "[data-help]" ? wbsIconEl : null) };
   fire(R.win, "click", { target: wbsIcon });
   ok(G.helpPop.hidden === false, "help popover opens on icon click");
@@ -981,6 +1029,24 @@ try {
   ok(G["p-gloss"].hidden === false, "'Explore in Glossary' switches to the Glossary tab");
   ok(G.glossQ.value === "WBS", "'Explore in Glossary' pre-fills the search box with the term name (dash stripped)", G.glossQ.value);
 } catch (e) { ok(false, "inline help popover interaction", e.message); }
+// /stress-test finding (2026-08-18): openHelp() had no bottom-edge collision handling — an
+// anchor near the bottom of the viewport put the popover ~94% off-screen with no way to reach
+// it (position:fixed, so page scroll can't help). Fixed by flipping above when there's no room
+// below. The pure DOM stub has no real layout engine, so offsetHeight/innerHeight are injected
+// here to actually exercise the flip math, matching the getBoundingClientRect mock above.
+try {
+  G.helpPop.hidden = true; G.helpPop.innerHTML = ""; // reset state from the block above
+  R.win.innerHeight = 700;
+  G.helpPop.offsetHeight = 210; // a realistic popover height
+  const bottomEdgeIcon = { closest: sel => (sel === "[data-help]" ? { dataset: { help: "ids" }, getBoundingClientRect: () => ({ top: 664, bottom: 680, left: 300 }), setAttribute(){}, focus(){} } : null) };
+  fire(R.win, "click", { target: bottomEdgeIcon });
+  ok(G.helpPop.hidden === false, "popover opens for a bottom-edge anchor");
+  ok(parseFloat(G.helpPop.style.top) < 664, "popover flips ABOVE an anchor with no room below it (would otherwise render off-screen)", G.helpPop.style.top);
+  G.helpPop.hidden = true; G.helpPop.innerHTML = "";
+  const topEdgeIcon = { closest: sel => (sel === "[data-help]" ? { dataset: { help: "cde" }, getBoundingClientRect: () => ({ top: 100, bottom: 116, left: 300 }), setAttribute(){}, focus(){} } : null) };
+  fire(R.win, "click", { target: topEdgeIcon });
+  ok(G.helpPop.style.top === "124px", "popover still renders BELOW an anchor with plenty of room (flip logic doesn't fire when unneeded)", G.helpPop.style.top);
+} catch (e) { ok(false, "help popover bottom-edge flip", e.message); }
 fire(G["t-over"], "click"); // restore "over" as active for the sections below, matching D9's own convention
 
 /* =========================================================================

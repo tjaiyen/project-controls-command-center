@@ -393,18 +393,18 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
 
 <div class="wrap" id="main">
 
-  <div class="tabs" role="tablist" aria-label="Command center sections">
-    <button role="tab" id="t-over"  aria-controls="p-over"  aria-selected="true"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><rect x="2" y="2" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="2" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="2" y="9" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="9" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>Overview<span class="cnt" id="cntOver">20</span></button>
-    <button role="tab" id="t-port"  aria-controls="p-port"  aria-selected="false"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><path d="M2 5.5a1 1 0 0 1 1-1h3l1.2 1.6H13a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Portfolio</button>
-    <button role="tab" id="t-cost"  aria-controls="p-cost"  aria-selected="false"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><line x1="3" y1="13" x2="3" y2="9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><line x1="7" y1="13" x2="7" y2="5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><line x1="11" y1="13" x2="11" y2="7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><line x1="13.5" y1="13" x2="13.5" y2="3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Cost</button>
-    <button role="tab" id="t-sched" aria-controls="p-sched" aria-selected="false"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><rect x="2.3" y="3.3" width="11.4" height="10.4" rx="1.3" fill="none" stroke="currentColor" stroke-width="1.3"/><line x1="2.3" y1="6.3" x2="13.7" y2="6.3" stroke="currentColor" stroke-width="1.3"/><line x1="5.3" y1="2" x2="5.3" y2="4.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="10.7" y1="2" x2="10.7" y2="4.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>Schedule</button>
-    <button role="tab" id="t-risk"  aria-controls="p-risk"  aria-selected="false"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><path d="M8 2.6 14.2 13H1.8Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><line x1="8" y1="6.5" x2="8" y2="9.8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="11.6" r="0.8" fill="currentColor"/></svg>Risk &amp; Change</button>
-    <button role="tab" id="t-del"   aria-controls="p-del"   aria-selected="false"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><path d="M8 2.3 13.6 5.5v6L8 14.7 2.4 11.5v-6Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M2.4 5.5 8 8.7l5.6-3.2M8 8.7v6" stroke="currentColor" stroke-width="1.1" fill="none"/></svg>Delivery</button>
-    <button role="tab" id="t-ai"    aria-controls="p-ai"    aria-selected="false"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><circle cx="8" cy="8" r="1.6" fill="currentColor"/><circle cx="3" cy="4" r="1.3" fill="none" stroke="currentColor" stroke-width="1.1"/><circle cx="13" cy="4" r="1.3" fill="none" stroke="currentColor" stroke-width="1.1"/><circle cx="3" cy="12" r="1.3" fill="none" stroke="currentColor" stroke-width="1.1"/><circle cx="13" cy="12" r="1.3" fill="none" stroke="currentColor" stroke-width="1.1"/><line x1="4.1" y1="4.8" x2="7" y2="7" stroke="currentColor" stroke-width="1"/><line x1="11.9" y1="4.8" x2="9" y2="7" stroke="currentColor" stroke-width="1"/><line x1="4.1" y1="11.2" x2="7" y2="9" stroke="currentColor" stroke-width="1"/><line x1="11.9" y1="11.2" x2="9" y2="9" stroke="currentColor" stroke-width="1"/></svg>AI &amp; Data</button>
-    <button role="tab" id="t-fw"    aria-controls="p-fw"    aria-selected="false"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><circle cx="3" cy="8" r="1.6" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="1.6" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="13" cy="8" r="1.6" fill="none" stroke="currentColor" stroke-width="1.3"/><line x1="4.6" y1="8" x2="6.4" y2="8" stroke="currentColor" stroke-width="1.3"/><line x1="9.6" y1="8" x2="11.4" y2="8" stroke="currentColor" stroke-width="1.3"/></svg>Operating Framework</button>
-    <button role="tab" id="t-act"   aria-controls="p-act"   aria-selected="false"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.3"/><polyline points="5,8.3 7.2,10.3 11,6.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Actions<span class="cnt" id="cntAct"></span></button>
-    <button role="tab" id="t-gloss" aria-controls="p-gloss" aria-selected="false"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><path d="M2.5 3.3c1.6-.6 3.4-.6 5.5.4v9c-2.1-1-3.9-1-5.5-.4Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M13.5 3.3c-1.6-.6-3.4-.6-5.5.4v9c2.1-1 3.9-1 5.5-.4Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>Glossary</button>
-    <button role="tab" id="t-data"  aria-controls="p-data"  aria-selected="false"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><ellipse cx="8" cy="3.6" rx="5.3" ry="1.7" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M2.7 3.6v8.8c0 .9 2.4 1.7 5.3 1.7s5.3-.8 5.3-1.7V3.6" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M2.7 8c0 .9 2.4 1.7 5.3 1.7s5.3-.8 5.3-1.7" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>Data Strategy</button>
+  <div class="tabs" id="tabs" role="tablist" aria-label="Command center sections">
+    <button role="tab" id="t-over"  aria-controls="p-over"  aria-selected="true" tabindex="0"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><rect x="2" y="2" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="2" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="2" y="9" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="9" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>Overview<span class="cnt" id="cntOver">20</span></button>
+    <button role="tab" id="t-port"  aria-controls="p-port"  aria-selected="false" tabindex="-1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><path d="M2 5.5a1 1 0 0 1 1-1h3l1.2 1.6H13a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Portfolio</button>
+    <button role="tab" id="t-cost"  aria-controls="p-cost"  aria-selected="false" tabindex="-1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><line x1="3" y1="13" x2="3" y2="9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><line x1="7" y1="13" x2="7" y2="5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><line x1="11" y1="13" x2="11" y2="7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><line x1="13.5" y1="13" x2="13.5" y2="3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Cost</button>
+    <button role="tab" id="t-sched" aria-controls="p-sched" aria-selected="false" tabindex="-1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><rect x="2.3" y="3.3" width="11.4" height="10.4" rx="1.3" fill="none" stroke="currentColor" stroke-width="1.3"/><line x1="2.3" y1="6.3" x2="13.7" y2="6.3" stroke="currentColor" stroke-width="1.3"/><line x1="5.3" y1="2" x2="5.3" y2="4.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="10.7" y1="2" x2="10.7" y2="4.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>Schedule</button>
+    <button role="tab" id="t-risk"  aria-controls="p-risk"  aria-selected="false" tabindex="-1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><path d="M8 2.6 14.2 13H1.8Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><line x1="8" y1="6.5" x2="8" y2="9.8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="11.6" r="0.8" fill="currentColor"/></svg>Risk &amp; Change</button>
+    <button role="tab" id="t-del"   aria-controls="p-del"   aria-selected="false" tabindex="-1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><path d="M8 2.3 13.6 5.5v6L8 14.7 2.4 11.5v-6Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M2.4 5.5 8 8.7l5.6-3.2M8 8.7v6" stroke="currentColor" stroke-width="1.1" fill="none"/></svg>Delivery</button>
+    <button role="tab" id="t-ai"    aria-controls="p-ai"    aria-selected="false" tabindex="-1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><circle cx="8" cy="8" r="1.6" fill="currentColor"/><circle cx="3" cy="4" r="1.3" fill="none" stroke="currentColor" stroke-width="1.1"/><circle cx="13" cy="4" r="1.3" fill="none" stroke="currentColor" stroke-width="1.1"/><circle cx="3" cy="12" r="1.3" fill="none" stroke="currentColor" stroke-width="1.1"/><circle cx="13" cy="12" r="1.3" fill="none" stroke="currentColor" stroke-width="1.1"/><line x1="4.1" y1="4.8" x2="7" y2="7" stroke="currentColor" stroke-width="1"/><line x1="11.9" y1="4.8" x2="9" y2="7" stroke="currentColor" stroke-width="1"/><line x1="4.1" y1="11.2" x2="7" y2="9" stroke="currentColor" stroke-width="1"/><line x1="11.9" y1="11.2" x2="9" y2="9" stroke="currentColor" stroke-width="1"/></svg>AI &amp; Data</button>
+    <button role="tab" id="t-fw"    aria-controls="p-fw"    aria-selected="false" tabindex="-1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><circle cx="3" cy="8" r="1.6" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="1.6" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="13" cy="8" r="1.6" fill="none" stroke="currentColor" stroke-width="1.3"/><line x1="4.6" y1="8" x2="6.4" y2="8" stroke="currentColor" stroke-width="1.3"/><line x1="9.6" y1="8" x2="11.4" y2="8" stroke="currentColor" stroke-width="1.3"/></svg>Operating Framework</button>
+    <button role="tab" id="t-act"   aria-controls="p-act"   aria-selected="false" tabindex="-1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.3"/><polyline points="5,8.3 7.2,10.3 11,6.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Actions<span class="cnt" id="cntAct"></span></button>
+    <button role="tab" id="t-gloss" aria-controls="p-gloss" aria-selected="false" tabindex="-1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><path d="M2.5 3.3c1.6-.6 3.4-.6 5.5.4v9c-2.1-1-3.9-1-5.5-.4Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M13.5 3.3c-1.6-.6-3.4-.6-5.5.4v9c2.1-1 3.9-1 5.5-.4Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>Glossary</button>
+    <button role="tab" id="t-data"  aria-controls="p-data"  aria-selected="false" tabindex="-1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><ellipse cx="8" cy="3.6" rx="5.3" ry="1.7" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M2.7 3.6v8.8c0 .9 2.4 1.7 5.3 1.7s5.3-.8 5.3-1.7V3.6" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M2.7 8c0 .9 2.4 1.7 5.3 1.7s5.3-.8 5.3-1.7" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>Data Strategy</button>
   </div>
 
   <!-- ============================ OVERVIEW ============================ -->
@@ -543,7 +543,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         <div class="slider"><label for="sCpi">Cost index</label><input type="range" id="sCpi" min="0.80" max="1.20" step="0.005"><span class="tab-num mono" id="vCpi"></span></div>
         <div class="slider"><label for="sSpi">Schedule index</label><input type="range" id="sSpi" min="0.80" max="1.20" step="0.005"><span class="tab-num mono" id="vSpi"></span></div>
         <div class="slider"><label for="sCont">Contingency $M</label><input type="range" id="sCont" min="0" max="300" step="1"><span class="tab-num mono" id="vCont"></span></div>
-        <div class="outbox" id="whatIfOut"></div>
+        <div class="outbox" id="whatIfOut" aria-live="polite"></div>
         <p class="lede" id="whatIfRead" style="margin-top:12px;font-size:12.8px"></p>
         <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
           <button class="btn" id="resetWhatIf" type="button">Reset to actuals</button>
@@ -586,7 +586,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
       <div class="grid g2">
         <div class="card"><h3>Total float by package <span style="font-weight:400;color:rgb(var(--c-mut))">(working days)</span></h3>
           <div id="floats"></div></div>
-        <div class="card"><h3>Critical Path Length Index<button type="button" class="help-ic" data-help="cpli" aria-label="What does this term mean?">i</button></h3>
+        <div class="card"><h3>Critical Path Length Index<button type="button" class="help-ic" data-help="cpli" aria-label="What does this term mean?" aria-expanded="false">i</button></h3>
           <p class="lede" style="font-size:12.5px;margin-top:5px">CPLI = (remaining duration + total float) &divide;
             remaining duration. Below 1.00 the path cannot absorb any more slip; DCMA flags below 0.95.</p>
           <div id="cpli"></div></div>
@@ -918,9 +918,9 @@ join dim_control_account b using (package_id)</pre></div>
 
       <div class="sec-h" style="margin-top:30px"><h3>The problem, stated plainly</h3></div>
       <p class="lede">There's a specific, well-documented version of this: the Work Breakdown
-        Structure (WBS)<button type="button" class="help-ic" data-help="wbs" aria-label="What does this term mean?">i</button>
+        Structure (WBS)<button type="button" class="help-ic" data-help="wbs" aria-label="What does this term mean?" aria-expanded="false">i</button>
         contractors use for project controls, and the Asset Breakdown Structure
-        (ABS)<button type="button" class="help-ic" data-help="abs" aria-label="What does this term mean?">i</button>
+        (ABS)<button type="button" class="help-ic" data-help="abs" aria-label="What does this term mean?" aria-expanded="false">i</button>
         transit agencies use for operations and maintenance, are organized around
         fundamentally different logic &mdash; work packages and spatial boundaries versus
         functional system topology. That mismatch is a documented, recurring cause of data loss at
@@ -932,7 +932,7 @@ join dim_control_account b using (package_id)</pre></div>
 
       <div class="sec-h" style="margin-top:30px"><h3>Architecture &mdash; a governed staging pipeline, not a direct feed</h3></div>
       <p class="lede">The AEC industry's own real, named version of "stage before trust" is the
-        <b>Common Data Environment (CDE)</b><button type="button" class="help-ic" data-help="cde" aria-label="What does this term mean?">i</button>
+        <b>Common Data Environment (CDE)</b><button type="button" class="help-ic" data-help="cde" aria-label="What does this term mean?" aria-expanded="false">i</button>
         under <b>ISO 19650</b> &mdash; four defined states,
         each requiring a specific approval gate before information can advance. The rule that
         matters most isn't the four states themselves &mdash; it's that nothing downstream ever
@@ -956,11 +956,16 @@ join dim_control_account b using (package_id)</pre></div>
           equipment at $0.60/hr</b> &mdash; verified directly against the primary document, not
           cited secondhand. This kind of data governance already has a real dollar figure attached
           to it on a real transit agency's own contracts.</p>
+        <p style="margin:8px 0 0;font-size:12px;color:rgb(var(--c-mut))">One boundary worth being
+          precise about: this billing-rate clause is a real, verified fact about a digital-tooling
+          reimbursement rate. The CDE/ISO 19650 architecture above it is a separate thing &mdash;
+          this program's own proposed staging framework, not something Sound Transit's contracts
+          require or reference by name.</p>
       </div>
 
       <div class="sec-h" style="margin-top:30px"><h3>Automated guardrails &mdash; machine-readable, not just described</h3></div>
       <p class="lede">A real, small-scale version of buildingSMART's <b>Information Delivery
-        Specification (IDS)</b><button type="button" class="help-ic" data-help="ids" aria-label="What does this term mean?">i</button>
+        Specification (IDS)</b><button type="button" class="help-ic" data-help="ids" aria-label="What does this term mean?" aria-expanded="false">i</button>
         &mdash; an XML standard pairing <i>applicability</i> (which
         records a rule governs) with <i>requirements</i> (what those records must have) so a
         submittal that fails gets rejected with a specific, itemized reason. This dashboard's own
@@ -1011,7 +1016,7 @@ join dim_control_account b using (package_id)</pre></div>
   </footer>
 </div>
 <div class="tip" id="tip" role="tooltip"></div>
-<div id="helpPop" role="dialog" aria-label="Term definition" hidden></div>
+<div id="helpPop" role="dialog" aria-label="Term definition" tabindex="-1" hidden></div>
 
 <script>
 (function(){
@@ -1567,7 +1572,7 @@ function sparkline(series, ragColor){
    7. RENDERERS
    ========================================================================= */
 var state = {phase:"con", fam:"All", kpi:null, pkg:2, actFilter:"All", act:null,
-  presenting:false, presentSet:"full", beatIdx:0};
+  presenting:false, presentSet:"full", beatIdx:0, tab:"over"};
 
 function renderPhases(){
   document.getElementById("phases").innerHTML = PHASES.map(function(p,i){
@@ -3156,7 +3161,8 @@ var GLOSS=[
  {k:"submittal", t:"Submittal", p:"A document the contractor must send for approval before work — shop drawings, materials, mix designs. Slow submittal turnaround quietly delays procurement months before it shows up in the schedule.",
   e:function(){ return PROGRAM.subOpen+" in the queue, turning around in "+PROGRAM.subTurnaround+" days against a "+PROGRAM.subTarget+"-day target."; }},
  {k:"riskexposure", t:"Risk exposure", p:"The risk register priced: each risk's cost multiplied by its probability, added up. It turns a list of worries into a dollar figure you can compare directly against contingency.",
-  e:function(){ return m(T.riskExposure)+" across "+RISKS.length+" risks, and "+pct(0.7*18.5/T.riskExposure,0)+" of it is one risk — tunnel ground conditions ("+m(0.7*18.5)+"). Concentration, not count, is what leadership needs to see."; }},
+  e:function(){ var r01=RISKS.filter(function(x){return x.id==="R-01";})[0], r01exp=P_BAND[r01.p]*r01.cost;
+    return m(T.riskExposure)+" across "+RISKS.length+" risks, and "+pct(r01exp/T.riskExposure,0)+" of it is one risk — tunnel ground conditions ("+m(r01exp)+"). Concentration, not count, is what leadership needs to see."; }},
  {k:"montecarlo", t:"Monte Carlo simulation", p:"Instead of one forecast, run the finish thousands of times, each time letting each package's remaining efficiency vary around what it has actually achieved. The result is a distribution: not \"the answer\" but the honest odds.",
   e:function(){ return "4,000 runs here, fixed seed so it is reproducible. Median finish "+m(MC.p50)+"; "+pct(MC.pOver,0)+" of runs finish over budget; "+pct(MC.pBust,0)+" bust through budget plus all remaining contingency."; }},
  {k:"trir", t:"TRIR — Total Recordable Incident Rate", p:"The standard safety yardstick: recordable injuries per 200,000 hours worked — roughly 100 people working full time for a year. The one metric that can stop a job regardless of cost or schedule.",
@@ -3172,7 +3178,8 @@ var GLOSS=[
  {k:"buyout", t:"Buyout", p:"Letting the subcontracts and major purchases after the contract is won. When the market prices below the estimate, the difference is buyout savings — margin captured at the source, before any risk can touch it.",
   e:function(){ return m(Math.abs(BASELINE[3].v))+" of buyout savings is baked into this baseline. The opposite — buyout above estimate — is an overrun that arrives on day one."; }},
  {k:"tia", t:"Time Impact Analysis (TIA)", p:"The disciplined way to answer \"how many days did that event cost?\": insert the delay into the schedule model as a small sub-network (a fragnet), re-run the dates, and read the difference. It turns an argument into arithmetic — and sets whether the event buys time, money, both, or neither.",
-  e:function(){ return "D-02's fragnet measures "+days(40)+" of impact on the tunnel — exactly the "+(-G_TUN.float)+" days of negative float CP-201 carries, and the driver of revenue service landing "+days(MILES[MILES.length-1].d)+"."; }},
+  e:function(){ var d02=DELAYS.filter(function(x){return x.id==="D-02";})[0];
+    return "D-02's fragnet measures "+days(d02.d)+" of impact on the tunnel — exactly the "+(-G_TUN.float)+" days of negative float CP-201 carries, and the driver of revenue service landing "+days(MILES[MILES.length-1].d)+"."; }},
  {k:"cde", t:"CDE — Common Data Environment", p:"A governed workspace for project information under ISO 19650, the international standard for managing data across a built asset's lifecycle. Not a file share — four defined states (Work in Progress, Shared, Published, Archived), each requiring a specific approval before information can advance to the next.",
   e:function(){ return "The Data Strategy tab's four cards — Work in Progress, Shared, Published, Archived — are exactly these four states, each with the real gate that moves information from one to the next."; }},
  {k:"ids", t:"IDS — Information Delivery Specification", p:"An XML-based, machine-readable standard from buildingSMART defining exactly what information a submittal must carry before it can pass a gate. Pairs an applicability rule (which records this governs) with a requirement (what those records must have) — a failed submittal gets rejected with a specific, itemized reason, not a vague quality flag.",
@@ -3234,24 +3241,39 @@ function renderDataStrategy(){
 /* Inline term help — a small clickable "i" next to jargon, anywhere on the page, showing the
    same GLOSS entry the full Glossary tab uses (no separate content to maintain or let drift).
    Click-driven, not hover-only, so it works the same on touch as on a mouse. */
-function helpIcon(key){
-  return '<button type="button" class="help-ic" data-help="'+key+'" aria-label="What does this term mean?">i</button>';
-}
 function findGloss(key){ return GLOSS.filter(function(g){ return g.k===key; })[0]; }
-var helpOpenKey=null;
-function closeHelp(){ helpOpenKey=null; var el=document.getElementById("helpPop"); el.hidden=true; el.innerHTML=""; }
+var helpOpenKey=null, helpOpenAnchor=null;
+function closeHelp(){
+  helpOpenKey=null;
+  var el=document.getElementById("helpPop");
+  el.hidden=true; el.innerHTML="";
+  if(helpOpenAnchor){ helpOpenAnchor.setAttribute("aria-expanded","false"); helpOpenAnchor.focus(); }
+  helpOpenAnchor=null;
+}
 function openHelp(key, anchorEl){
   var g=findGloss(key);
   if(!g){ closeHelp(); return; }
-  helpOpenKey=key;
+  if(helpOpenAnchor) helpOpenAnchor.setAttribute("aria-expanded","false"); // clear any prior anchor's state
+  helpOpenKey=key; helpOpenAnchor=anchorEl;
+  anchorEl.setAttribute("aria-expanded","true");
   var el=document.getElementById("helpPop");
   el.hidden=false;
+  el.setAttribute("aria-label",g.t+" — definition");
   el.innerHTML='<b>'+g.t+'</b><p>'+g.p+'</p><div class="help-actions">'+
     '<button type="button" class="btn" data-explore="'+g.t.replace(/"/g,"&quot;")+'">Explore in Glossary &rarr;</button>'+
     '<button type="button" class="help-pop-close" id="helpPopClose" aria-label="Close">&times;</button></div>';
   var r=anchorEl.getBoundingClientRect();
-  var top=r.bottom+8, left=Math.min(r.left,(window.innerWidth||1200)-296);
+  var vh=window.innerHeight||800, popH=el.offsetHeight;
+  // flip above the icon when there isn't room below — otherwise a popover opened near the
+  // bottom of the viewport (position:fixed, so scrolling can never bring it into view) renders
+  // mostly or entirely off-screen with no visible feedback (found by /stress-test, 2026-08-18)
+  var top=(r.bottom+8+popH>vh)? Math.max(8,r.top-popH-8) : r.bottom+8;
+  var left=Math.min(r.left,(window.innerWidth||1200)-296);
   el.style.top=Math.max(8,top)+"px"; el.style.left=Math.max(8,left)+"px";
+  // move focus into the dialog itself (not straight to a button) so a keyboard/AT user hears its
+  // accessible name and content before reaching its two actions — otherwise Tab from the trigger
+  // skips over it entirely, since it sits last in the DOM (/stress-test finding, 2026-08-18)
+  el.focus();
 }
 
 function renderGlossary(q){
@@ -3409,9 +3431,12 @@ window.addEventListener("keydown",function(e){
 
 var TABS=["over","port","cost","sched","risk","del","ai","fw","act","gloss","data"];
 function activateTab(id){
+  state.tab=id;
   TABS.forEach(function(o){
-    document.getElementById("t-"+o).setAttribute("aria-selected",String(o===id));
-    document.getElementById("p-"+o).hidden = (o!==id);
+    var sel=o===id;
+    document.getElementById("t-"+o).setAttribute("aria-selected",String(sel));
+    document.getElementById("t-"+o).setAttribute("tabindex",sel?"0":"-1"); // roving tabindex: Tab enters/exits the tablist in one stop, arrow keys move within it
+    document.getElementById("p-"+o).hidden = !sel;
   });
   window.scrollTo({top:0,behavior:"smooth"});
   redrawCharts();
@@ -3419,10 +3444,26 @@ function activateTab(id){
 TABS.forEach(function(id){
   document.getElementById("t-"+id).addEventListener("click",function(){ activateTab(id); });
 });
-document.querySelector(".tabs").addEventListener("keydown",function(e){
-  if(e.key!=="ArrowRight"&&e.key!=="ArrowLeft") return;
-  var i=TABS.indexOf(document.querySelector('[role="tab"][aria-selected="true"]').id.slice(2));
-  var n=(i+(e.key==="ArrowRight"?1:TABS.length-1))%TABS.length;
+// the rail is horizontal below 1050px and a vertical column at/above it (Tier 3) — keep
+// aria-orientation in sync with the CSS breakpoint that actually drives the visible layout
+function syncTabsOrientation(){
+  var vertical = window.matchMedia && window.matchMedia("(min-width:1050px)").matches;
+  document.getElementById("tabs").setAttribute("aria-orientation", vertical?"vertical":"horizontal");
+}
+syncTabsOrientation();
+if(window.matchMedia){
+  var railMq=window.matchMedia("(min-width:1050px)");
+  if(railMq.addEventListener) railMq.addEventListener("change",syncTabsOrientation);
+  else if(railMq.addListener) railMq.addListener(syncTabsOrientation); // older-Safari fallback
+}
+document.getElementById("tabs").addEventListener("keydown",function(e){
+  // Right/Down = forward, Left/Up = backward, regardless of current orientation — the same
+  // container flips between a horizontal bar and a vertical rail responsively, so supporting
+  // both axes unconditionally is simpler and never wrong (/stress-test finding, 2026-08-18)
+  var fwd=e.key==="ArrowRight"||e.key==="ArrowDown", bwd=e.key==="ArrowLeft"||e.key==="ArrowUp";
+  if(!fwd&&!bwd) return;
+  var i=TABS.indexOf(state.tab); // the tab activateTab() most recently set, not a DOM re-query
+  var n=(i+(fwd?1:TABS.length-1))%TABS.length;
   document.getElementById("t-"+TABS[n]).click(); document.getElementById("t-"+TABS[n]).focus();
 });
 

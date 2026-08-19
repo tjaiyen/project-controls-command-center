@@ -2,7 +2,8 @@
 // Stubs the DOM, runs the inline IIFE, then independently re-derives every
 // portfolio total and compares against window.__PCC__.
 const fs = require("fs");
-const html = fs.readFileSync("/Users/theerayutjaiyen/dev/project-controls-command-center/index.html", "utf8");
+// __dirname, not a hardcoded absolute path (same /stress-test finding as stress.cjs, 2026-08-18)
+const html = fs.readFileSync(__dirname + "/index.html", "utf8");
 const m = html.match(/<script>([\s\S]*)<\/script>/);
 if (!m) { console.error("no script block found"); process.exit(1); }
 
