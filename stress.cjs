@@ -982,33 +982,79 @@ ok(fs.existsSync(DIR + "pipeline/run_pipeline.py") && fs.existsSync(DIR + "pipel
    D4. STORY + GLOSSARY + MOTION
    (before section E: runPage for otak.html reassigns the globals)
    ========================================================================= */
-console.log("== D4. story / glossary / motion ==");
+console.log("== D4. tour / glossary / motion ==");
 ok(idsA.includes("t-gloss") && idsA.includes("p-gloss"), "glossary tab/panel pair exists");
-// story: chapter 1 renders with live figures, navigation works, clamps at ends
-has("storyTitle", "A billion-dollar promise", "story opens on chapter 1");
-has("storyText", "$1,240.0M", "story chapter 1 quotes derived BAC");
-ok(G.storyPos.textContent === "1 of 5", "story position indicator renders", G.storyPos.textContent);
-ok((G.storyDots._html.match(/<i /g) || []).length === 5, "story renders 5 progress dots");
+ok(idsA.includes("storyTourBtn"), "the Overview teaser card carries its own tour entry point");
+// self-guided tour: 10 stops, hidden until entered, opens on stop 1 with live figures.
+// tourBar's initial hidden state comes from the raw `hidden` HTML attribute (correct in a real
+// browser, same as presentBar above); the stub doesn't parse markup into initial DOM state, only
+// JS-driven changes, so the meaningful thing to verify is the actual transition once entered.
+ok(P.tourBeats.length === 10, "tour carries 10 stops", String(P.tourBeats.length));
 try {
-  fire(G.storyNext, "click");
-  has("storyTitle", "The money starts leaking", "next advances to chapter 2");
-  has("storyText", "$37.9M", "chapter 2 quotes derived CV $37.9M");
-  has("storyText", "0.956", "chapter 2 quotes derived CPI 0.956");
-  fire(G.storyNext, "click");
-  has("storyText", "CP-201", "chapter 3 names the tunnel");
-  fire(G.storyGo, "click");
-  ok(G["p-sched"].hidden === false && G["p-over"].hidden === true,
-    "story 'see the evidence' switches to the schedule tab");
+  fire(G.storyTourBtn, "click"); // the Overview teaser card's own entry point
+  ok(G.tourBar.hidden === false, "starting the tour from the Overview teaser card shows the bar");
+  ok(G.tourBtn.getAttribute("aria-pressed") === "true", "tourBtn reports pressed once touring");
+  has("tourBar", "1 / 10", "tour opens on stop 1 of 10");
+  has("tourBar", "A billion-dollar promise", "stop 1 keeps the folded-in story's original opening title");
+  has("tourBar", "$1,240.0M", "stop 1 quotes the live derived BAC");
+  has("tourBar", "disabled", "Back is disabled on stop 1");
+  ok((G.tourBar._html.match(/data-tour="/g) || []).length === 10, "tour bar renders one clickable dot per stop");
+
+  fire(G.tourBar, "click", { target: { closest: (sel) => sel === "[data-t]" ? { dataset: { t: "next" } } : null } });
+  has("tourBar", "2 / 10", "Next advances to stop 2");
+  has("tourBar", "The money starts leaking", "stop 2 keeps the folded-in story's title");
+  ok(G["p-cost"].hidden === false && G["p-over"].hidden === true, "stop 2 switches to the Cost tab");
+  ok(!G.tourBar._html.includes("disabled"), "Back is enabled once past stop 1");
+
+  // jump straight to a net-new stop (risk) non-linearly via its own dot, same as Presentation Mode
+  const riskIdx = P.tourBeats.findIndex((b) => b.tab === "risk");
+  ok(riskIdx >= 0, "a tour stop covers the Risk tab", String(riskIdx));
+  fire(G.tourBar, "click", { target: { closest: (sel) => (sel === "[data-tour]" ? { dataset: { tour: String(riskIdx) } } : null) } });
+  ok(G["p-risk"].hidden === false, "clicking the risk stop's dot jumps straight there, switching tabs");
+  has("tourBar", "Betting on the unknown", "risk stop shows its own title");
+
+  // Gate 5 stop replays the reveal and syncs the Gate Line diagram — same mechanism and same
+  // caveat as Presentation Mode's own Gate 5 beat check just above: querySelectorAll always
+  // returns [] in this stub, so the Gate Line's own story title is the observable proxy here.
+  const gate5Idx = P.tourBeats.findIndex((b) => b.anchor === "gate5Card");
+  ok(gate5Idx >= 0, "a tour stop anchors to gate5Card", String(gate5Idx));
+  fire(G.tourBar, "click", { target: { closest: (sel) => (sel === "[data-tour]" ? { dataset: { tour: String(gate5Idx) } } : null) } });
+  has("glStoryTitle", "Gate 5", "landing on the tour's Gate 5 stop syncs the Gate Line diagram to its own Gate 5 node");
+
+  // last stop's Next button reads "Done" instead of "Next", and clicking it exits the tour
+  const lastIdx = P.tourBeats.length - 1;
+  fire(G.tourBar, "click", { target: { closest: (sel) => (sel === "[data-tour]" ? { dataset: { tour: String(lastIdx) } } : null) } });
+  has("tourBar", "Done", "the final stop's Next button reads Done, not Next");
+  has("tourBar", "Monday morning", "the final stop is the folded-in story's original closing beat");
+  fire(G.tourBar, "click", { target: { closest: (sel) => (sel === "[data-t]" ? { dataset: { t: "next" } } : null) } });
+  ok(G.tourBar.hidden === true, "clicking Done on the final stop exits the tour");
+  ok(G.tourBtn.getAttribute("aria-pressed") === "false", "exiting un-presses the tour button");
+
+  // arrow-key nav (not N/P — those are Presentation Mode's, so the two never collide), only
+  // while touring, and inert once exited
+  fire(G.tourBtn, "click"); // re-enter via the header button this time, resets to stop 1
+  ok(G.tourBar.hidden === false, "re-entering the tour works a second time");
+  has("tourBar", "1 / 10", "re-entering resets to stop 1");
+  fire(R.win, "keydown", { key: "ArrowRight", target: { tagName: "BODY" } });
+  has("tourBar", "2 / 10", "ArrowRight advances a stop while touring");
+  fire(R.win, "keydown", { key: "ArrowLeft", target: { tagName: "BODY" } });
+  has("tourBar", "1 / 10", "ArrowLeft steps back a stop while touring");
+  fire(R.win, "keydown", { key: "Escape", target: { tagName: "BODY" } });
+  ok(G.tourBar.hidden === true, "Escape exits the tour");
+  const beforeKey = G.tourBar._html;
+  fire(R.win, "keydown", { key: "ArrowRight", target: { tagName: "BODY" } });
+  ok(G.tourBar._html === beforeKey, "ArrowRight does nothing when not touring");
+
+  // mutual exclusivity with Presentation Mode — the two fixed bars must never stack
+  fire(G.tourBtn, "click");
+  ok(G.tourBar.hidden === false, "tour re-entered for the mutual-exclusivity check");
+  fire(G.presentBtn, "click");
+  ok(G.presentBar.hidden === false && G.tourBar.hidden === true, "entering Presentation Mode exits an active tour");
+  fire(G.tourBtn, "click");
+  ok(G.tourBar.hidden === false && G.presentBar.hidden === true, "entering the tour exits an active Presentation Mode");
+  fire(G.tourBtn, "click"); // exit, and back to the Overview tab, so later sections aren't disturbed
   fire(G["t-over"], "click");
-  fire(G.storyNext, "click");
-  has("storyText", "1.099", "chapter 4 quotes derived TCPI 1.099");
-  fire(G.storyNext, "click");
-  ok(G.storyPos.textContent === "5 of 5", "story reaches final chapter", G.storyPos.textContent);
-  fire(G.storyNext, "click");
-  ok(G.storyPos.textContent === "5 of 5", "story clamps at the last chapter", G.storyPos.textContent);
-  fire(G.storyPrev, "click");
-  ok(G.storyPos.textContent === "4 of 5", "story steps back", G.storyPos.textContent);
-} catch (e) { ok(false, "story navigation", e.message); }
+} catch (e) { ok(false, "tour navigation", e.message); }
 // glossary: full render, live figures in examples, filter narrows and restores
 const glossAll = (G.glossList._html.match(/class="gcard"/g) || []).length;
 ok(glossAll >= 18, "glossary renders at least 18 terms", String(glossAll));
@@ -1034,20 +1080,21 @@ ok((G.kboard._html.match(/animation-delay:/g) || []).length === 20,
   "all 20 KPI cards carry staggered entrance delays");
 ok(indexSrc.includes("@keyframes drawin") && indexSrc.includes("prefers-reduced-motion"),
   "motion CSS present with reduced-motion guard");
-// first-visit cue on the story card: this DOM stub has no window.localStorage (same gap that
-// broke document.addEventListener earlier this project), so fvVisited()/fvClear() must be
-// try/catch-guarded rather than assume localStorage exists — confirm that guard by source
-// (classList is a stub no-op here, so "does the class actually toggle" can't be observed live)
-// and confirm the guarded functions don't crash the page or any walkthrough interaction.
+// first-visit cue, now on the tour button (2026-08-19: retargeted from the old story card since
+// the tour is reachable from every tab, not just Overview): this DOM stub has no
+// window.localStorage (same gap that broke document.addEventListener earlier this project), so
+// fvVisited()/fvClear() must be try/catch-guarded rather than assume localStorage exists —
+// confirm that guard by source (classList is a stub no-op here, so "does the class actually
+// toggle" can't be observed live) and confirm the guarded functions don't crash the page or any
+// tour interaction.
 ok(/try\{\s*return window\.localStorage/.test(indexSrc), "fvVisited() try/catches the localStorage read");
 ok(/try\{\s*if\(window\.localStorage\)/.test(indexSrc), "fvClear() try/catches the localStorage write");
 try {
-  fire(G.storyPrev, "click");
-  fire(G.storyNext, "click");
-  ok(true, "first-visit cue wiring never throws on walkthrough navigation with no localStorage");
+  fire(G.tourBtn, "click");
+  fire(G.tourBtn, "click");
+  ok(true, "first-visit cue wiring never throws on tour entry/exit with no localStorage");
 } catch (e) { ok(false, "first-visit cue (no-localStorage guard)", e.message); }
-// storyGo is exercised separately further up this section (it also calls activateTab, which
-// would leave a non-"over" tab active for every test after this one if fired here)
+fire(G["t-over"], "click"); // the tour block above ends back on Overview, but stay defensive
 
 /* =========================================================================
    D5. RESUME-INSIGHT MODULES — baseline bridge, change pricing, TIA, stakeholders

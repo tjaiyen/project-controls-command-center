@@ -82,24 +82,35 @@ a{color:rgb(var(--c-accent))}
 .present-bar .pset button{font-size:11px;padding:4px 9px;min-height:0}
 /* clickable beat dots — same visual language as .story-dots (Overview narrator, Gate Line, CDE
    flow) but individually focusable/clickable here rather than decorative, so jumping non-linearly
-   to answer a real question mid-room doesn't need a new pattern invented for it. */
-.present-bar .pdots{display:flex;gap:2px;flex:none}
+   to answer a real question mid-room doesn't need a new pattern invented for it. Shared verbatim
+   with .tour-bar's dots (2026-08-19) — same tight-row geometry, same fix, no reason to duplicate. */
+.present-bar .pdots,.tour-bar .pdots{display:flex;gap:2px;flex:none}
 /* real tap target grows to 20px (a straight .help-ic::before 44px overlay would overlap its
    neighbors here — dots sit 14px apart, unlike an isolated inline .help-ic — so taps would
    land on the wrong beat; 20px is the largest that doesn't overlap the next dot at this
    spacing, mobile upgrade 2026-08-19); the visible mark stays a small centered dot via ::after
    so the row doesn't visually sprawl or break the .story-dots language shared with the other
    three dot-widgets in this file. */
-.present-bar .pdots button{width:20px;height:20px;padding:0;border:none;background:none;
-  cursor:pointer;min-height:0;display:inline-flex;align-items:center;justify-content:center}
-.present-bar .pdots button::after{content:"";width:9px;height:9px;border-radius:50%;
-  background:rgb(var(--c-mut) / .4)}
-.present-bar .pdots button.on::after{background:rgb(var(--c-accent))}
-.present-bar .pdots button:focus-visible{outline:2px solid rgb(var(--c-accent));outline-offset:2px}
+.present-bar .pdots button,.tour-bar .pdots button{width:20px;height:20px;padding:0;border:none;
+  background:none;cursor:pointer;min-height:0;display:inline-flex;align-items:center;justify-content:center}
+.present-bar .pdots button::after,.tour-bar .pdots button::after{content:"";width:9px;height:9px;
+  border-radius:50%;background:rgb(var(--c-mut) / .4)}
+.present-bar .pdots button.on::after,.tour-bar .pdots button.on::after{background:rgb(var(--c-accent))}
+.present-bar .pdots button:focus-visible,.tour-bar .pdots button:focus-visible{outline:2px solid rgb(var(--c-accent));outline-offset:2px}
 /* the audience-facing "ask the room" callout — a shared visual moment, not the presenter's
    private notes. Empty/hidden on every beat except the one that sets onScreen. */
 .present-onscreen{max-width:1180px;margin:10px auto 0;padding:14px 20px;background:rgb(var(--c-accent) / .10);
   border:1px solid rgb(var(--c-accent) / .35);border-radius:10px;animation:rise .4s ease-out}
+/* self-guided tour bar — same sticky-under-header docking as .present-bar (free, inherited from
+   .bar{position:sticky}), but this one carries the FULL explanation on screen since there's no
+   presenter to say it out loud; taller than .present-bar by design, not a size bug. */
+.tour-bar{background:rgb(var(--c-accent) / .10);border-top:1px solid rgb(var(--c-accent) / .3)}
+.tour-bar-in{max-width:900px;margin:0 auto;padding:14px 20px 16px}
+.tour-bar .thead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12.5px}
+.tour-bar .tnum{font:600 10.5px/1 ui-monospace,monospace;color:rgb(var(--c-code));flex:none}
+.tour-bar h4{margin:0;font-size:15px;flex:1 1 auto;min-width:160px}
+.tour-bar p{margin:8px 0 0;font-size:13.5px;line-height:1.65;color:rgb(var(--c-mut));max-width:74ch}
+.tour-bar .tctl{display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap}
 .present-onscreen p{margin:6px 0 0;font-size:16px;font-weight:600;color:rgb(var(--c-ink))}
 .brand{display:flex;gap:9px;align-items:center;font-weight:600;text-decoration:none;color:inherit}
 .brand small{display:block;font:400 11px/1.3 ui-monospace,Menlo,monospace;color:rgb(var(--c-mut))}
@@ -427,15 +438,17 @@ rect.acc-hover{stroke:rgb(var(--c-accent));stroke-width:2px}
 .story-dots i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;
   background:rgb(var(--c-mut) / .35);transition:background .2s}
 .story-dots i.on{background:rgb(var(--c-accent))}
-#storyText{transition:opacity .18s}
-/* first-visit-only cue on the story card — invites a new visitor into the walkthrough without
-   nagging a returning one; the badge and ring both clear permanently on first interaction */
-#storyCard.first-visit{position:relative;animation:fvRing 1.8s ease-in-out 3}
+#tourText{transition:opacity .18s}
+/* first-visit-only cue — now on the header's tour button rather than the old story card
+   (2026-08-19: the tour is reachable from every tab, so the invite lives where the entry point
+   actually is) — invites a new visitor into the tour without nagging a returning one; the badge
+   and ring both clear permanently on first interaction */
+#tourBtn.first-visit{position:relative;animation:fvRing 1.8s ease-in-out 3}
 @keyframes fvRing{0%,100%{box-shadow:0 0 0 0 rgb(var(--c-accent) / 0)}50%{box-shadow:0 0 0 5px rgb(var(--c-accent) / .16)}}
 .fv-badge{display:none;align-items:center;gap:5px;margin-left:9px;padding:2px 8px;border-radius:99px;
   background:rgb(var(--c-accent) / .14);color:rgb(var(--c-code));font:600 10px/1.6 ui-monospace,monospace;
   letter-spacing:.03em;vertical-align:2px}
-#storyCard.first-visit .fv-badge{display:inline-flex}
+#tourBtn.first-visit .fv-badge{display:inline-flex}
 /* SLA-aging glow on stale action rows — reuses the .dbox left-accent-stripe convention (an
    inset stripe, not a full-perimeter halo) so it reads as "flagged" rather than "alarm", and
    pulses gently rather than continuously at full contrast — a dashboard with several stale
@@ -483,11 +496,13 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
       <span class="pill i" id="ddBadge">data date &mdash;</span>
       <a class="btn" href="architecture.html" style="text-decoration:none;display:inline-flex;align-items:center">Architecture map</a>
       <button class="btn" id="printBtn" type="button">Print brief</button>
+      <button class="btn" id="tourBtn" type="button" aria-pressed="false">Take the tour<span class="fv-badge" id="fvBadge">&#10148; new here? start here</span></button>
       <button class="btn" id="presentBtn" type="button" aria-pressed="false">Present</button>
       <button class="btn" id="themeBtn" type="button">Theme</button>
     </div>
   </div>
   <div id="presentBar" class="present-bar" hidden></div>
+  <div id="tourBar" class="tour-bar" hidden></div>
 </div>
 <div id="presentOnScreen" aria-live="polite"></div>
 
@@ -522,16 +537,18 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         to exercise the framework. No client, employer or agency data appears anywhere. The
         <em>method</em> is the content.</span></div>
 
+      <!-- entry point, not a second narrator (2026-08-19): the tour itself lives in the fixed
+           #tourBar so it can follow the visitor across tabs; this card is just an on-page invite
+           with the same job as the header's "Take the tour" button, not its own prev/next widget -->
       <div class="card" style="margin-top:16px" id="storyCard">
-        <div class="eyebrow">Start here &middot; the story <span class="fv-badge" id="fvBadge">&#10148; new here? start here</span></div>
-        <h3 id="storyTitle" style="margin:0 0 7px"></h3>
-        <p id="storyText" style="margin:0;font-size:13.6px;line-height:1.7;color:rgb(var(--c-mut));max-width:74ch"></p>
+        <div class="eyebrow">Start here</div>
+        <h3 style="margin:0 0 7px">Ten stops, the whole dashboard, in plain language</h3>
+        <p style="margin:0;font-size:13.6px;line-height:1.7;color:rgb(var(--c-mut));max-width:74ch">
+          Where the money's going, why the tunnel owns the schedule, what a gate that can actually say
+          no looks like, and who's on the hook when a number turns red — narrated stop by stop, no
+          project-controls background required.</p>
         <div style="display:flex;gap:8px;align-items:center;margin-top:14px;flex-wrap:wrap">
-          <button class="btn" id="storyPrev" type="button">&larr; Back</button>
-          <span class="story-dots" id="storyDots" aria-hidden="true"></span>
-          <span class="mono" id="storyPos" style="font-size:11px;color:rgb(var(--c-mut))"></span>
-          <button class="btn" id="storyNext" type="button">Next &rarr;</button>
-          <button class="btn on" id="storyGo" type="button">See the evidence &rarr;</button>
+          <button class="btn on" id="storyTourBtn" type="button">Start the tour &rarr;</button>
         </div>
       </div>
 
@@ -1856,7 +1873,7 @@ function sparkline(series, ragColor){
    7. RENDERERS
    ========================================================================= */
 var state = {phase:"con", fam:"All", audience:"pcm", kpi:null, pkg:2, actFilter:"All", act:null,
-  presenting:false, presentSet:"full", beatIdx:0, tab:"over", mcView:"hist",
+  presenting:false, presentSet:"full", beatIdx:0, touring:false, tourIdx:0, tab:"over", mcView:"hist",
   mcIncluded:rows.map(function(r){ return r.id; })};
 
 function renderPhases(){
@@ -4135,11 +4152,19 @@ function renderNarr(){
 }
 
 /* =========================================================================
-   7.5 STORY + GLOSSARY — guided narrative and plain-language reference.
+   7.5 TOUR + GLOSSARY — guided narrative and plain-language reference.
    Every figure inside the text below is computed from the ledger at render
    time, exactly like the charts — the words are templated, the numbers are not.
    ========================================================================= */
-var STORY=[
+/* The self-guided tour — one narrator, not two (2026-08-19 upgrade folded the old 5-beat STORY
+   card into this, TJ's call: "one narrator, not two competing ones"). Same beat shape as
+   PRESENT_BEATS_* (t/tab/anchor/x), but written to stand alone on screen with no presenter
+   reading a private notes popup — this is the only voice a solo visitor gets, so every beat's
+   x() carries the full explanation, not a terse label. 10 stops across every tab: the first 4
+   and the close are the original STORY beats verbatim (same prose, same live-templated figures,
+   moved here rather than duplicated); the 5 in between are net-new, covering the ground STORY
+   never reached — risk, delivery, gate governance, data integrity, accountability. */
+var TOUR_BEATS=[
  {t:"A billion-dollar promise", tab:"over",
   x:function(){ return "The "+PROGRAM.name+" is a "+m(T.bac)+" capital program — "+PROGRAM.corridor.replace(/&[a-z]+;/g," ")+
     ", delivered as "+PROGRAM.delivery.replace(/&[a-z]+;/g," ")+". Right now "+pct(T.pct)+" of the value is earned with "+
@@ -4161,21 +4186,44 @@ var STORY=[
     " — the to-complete index. The program has actually been running at "+idx(T.cpi)+". When the required efficiency sits above the "+
     "demonstrated one, the budget is not a plan, it is a hope. The simulation says the same thing in another language: "+
     pct(MC.pBust,0)+" of 4,000 simulated completions bust through budget plus the remaining "+m(T.contRemaining)+" of contingency."; }},
+ {t:"Betting on the unknown", tab:"risk", anchor:"tornado",
+  x:function(){ var top=RISKS.reduce(function(mx,k){ return P_BAND[k.p]*k.cost>P_BAND[mx.p]*mx.cost?k:mx; },RISKS[0]);
+    return "Every risk on this register gets the same treatment: a probability band times a cost impact, nothing eyeballed. "+
+    "Right now that comes to "+m(T.riskExposure)+" of exposure, and the single biggest slice is "+top.n.replace(/&amp;/g,"&")+
+    " ("+top.id+") — the same tunnel already driving the schedule. Contingency has "+m(T.contRemaining)+" left to absorb it, a "+
+    "coverage ratio of "+idx(T.contCoverage)+". The simulation from the honesty test is the same math run 4,000 times instead of "+
+    "once: "+pct(MC.pBust,0)+" of those runs still bust the budget even after spending every dollar of what's left."; }},
+ {t:"The people doing the work", tab:"del", anchor:"cphCard",
+  x:function(){ return "Behind every dollar of actual cost is a crew, and a "+idx(T.pf)+" productivity factor program-wide means "+
+    "those crews are running about "+((1/T.pf-1)*100).toFixed(1)+"% over the hours the estimate assumed — the tunnel crew worst "+
+    "of all at "+idx(G_TUN.pf)+". Some of that is genuinely the ground; some of it is how long people wait for an answer. The mean "+
+    "RFI sits open "+PROGRAM.rfiAvgAge+" days against a "+PROGRAM.rfiTarget+"-day target — every one of those days is a crew "+
+    "standing by or guessing."; }},
+ {t:"A gate that says no", tab:"fw", anchor:"gate5Card",
+  x:function(){ return "Five gates sit between concept and closeout, and Gate 5 is the one that actually bites: three checks, "+
+    "and every one of them has to be true, not mostly true. Right now this program is failing on the third — contingency "+
+    "coverage sits at "+idx(T.contCoverage)+" against a required 1.00 — and everything upstream of that number, the tunnel's "+
+    "ground conditions, the risk exposure from a minute ago, rolls forward into this one gate. A gate that only ever passes "+
+    "isn't governance, it's decoration."; }},
+ {t:"Trust the number before you read it", tab:"data", anchor:"cdeFlow",
+  x:function(){ return "Nothing on this dashboard is trustworthy by default — it earns that by passing through checks before it "+
+    "ever reaches a chart. Every record moves through four guardrail types (does it have the right shape, is it in a plausible "+
+    "range, do two systems agree, is it fresh) before it's allowed to update a live number. The same discipline extends to AI: "+
+    "any narrative summary this dashboard generates gets re-derived from the ledger and blocked from publishing if the two "+
+    "disagree — a machine's sentence doesn't get to be the source of truth."; }},
+ {t:"The clock doesn't stop for a status update", tab:"act", anchor:"actTable",
+  x:function(){ var stale=ACTIONS.filter(function(a){ return isStale(a); }).length;
+    return "An open action with no recent movement is the same as no action at all, so this dashboard tracks the silence, not "+
+    "just the list: "+stale+" of "+ACTIONS.length+" open items haven't been touched in 10 days or more, and each one escalates "+
+    "on its own clock to a named owner, not a shared inbox. A due date with no owner is a wish; an owner with no clock is a "+
+    "suggestion."; }},
  {t:"Monday morning", tab:"fw",
   x:function(){ return "A dashboard nobody acts on is a screensaver, so every threshold here has a named owner and a clock. Right now "+
     firingEscalations().length+" escalation rules are firing — from a cost index under 0.95 to change orders running "+
     (PROGRAM.coCycleDays-PROGRAM.coCycleTarget)+" days past their cycle target. The framework tab is the operating playbook: what gets "+
-    "set up in each phase, who receives which report on which day, and exactly what happens when a line turns red."; }}
+    "set up in each phase, who receives which report on which day, and exactly what happens when a line turns red. That's the "+
+    "whole tour — the KPI board, the glossary and Presentation Mode are all still here whenever you want to go deeper."; }}
 ];
-var storyIdx=0;
-function renderStory(i){
-  storyIdx=Math.max(0,Math.min(STORY.length-1,i));
-  document.getElementById("storyTitle").innerHTML=STORY[storyIdx].t;
-  document.getElementById("storyText").innerHTML=STORY[storyIdx].x();
-  document.getElementById("storyPos").textContent=(storyIdx+1)+" of "+STORY.length;
-  document.getElementById("storyDots").innerHTML=STORY.map(function(_,j){
-    return '<i class="'+(j===storyIdx?"on":"")+'"></i>'; }).join("");
-}
 
 var G_TUN=rows.filter(function(r){return r.id==="CP-201";})[0];
 var G_UT=rows.filter(function(r){return r.id==="CP-601";})[0];
@@ -4602,6 +4650,7 @@ function goToBeat(i){
 }
 function switchPresentSet(set){ state.presentSet=set; goToBeat(0); }
 function enterPresent(){
+  if(state.touring) exitTour();
   state.presenting=true; state.beatIdx=0;
   document.getElementById("presentBtn").setAttribute("aria-pressed","true");
   document.getElementById("presentBar").hidden=false;
@@ -4647,6 +4696,63 @@ function updatePresentNotes(){
     '<h2>'+b.label+'</h2><ul>'+b.notes.map(function(n){ return '<li>'+n+'</li>'; }).join("")+'</ul>';
 }
 
+/* The self-guided tour engine — deliberately its OWN goToTourStop(), not a shared call into
+   goToBeat() above. The two functions overlap (tab activate, Gate 5 replay, anchor scroll) but
+   drive genuinely different chrome — a presenter's toolbar with private notes vs. a solo
+   visitor's on-screen paragraph, and this file's own established pattern (three independent
+   Prev/Next/dots narrators already coexist — Overview, Gate Line, CDE flow) is to accept that
+   small duplication rather than tangle two different UI concepts behind one shared function. */
+function renderTourBar(){
+  var b=TOUR_BEATS[state.tourIdx];
+  var dots=TOUR_BEATS.map(function(stop,j){
+    return '<button type="button" class="'+(j===state.tourIdx?"on":"")+'" data-tour="'+j+'" '+
+      'aria-label="Jump to stop '+(j+1)+': '+stop.t+'" aria-pressed="'+(j===state.tourIdx)+'"></button>';
+  }).join("");
+  document.getElementById("tourBar").innerHTML=
+    '<div class="tour-bar-in">'+
+    '<div class="thead"><span class="tnum">'+(state.tourIdx+1)+' / '+TOUR_BEATS.length+'</span>'+
+    '<div class="pdots" role="group" aria-label="Jump to tour stop">'+dots+'</div>'+
+    '<h4>'+b.t+'</h4></div>'+
+    '<p id="tourText">'+b.x()+'</p>'+
+    '<div class="tctl">'+
+      '<button class="btn" data-t="prev" type="button" '+(state.tourIdx===0?"disabled":"")+'>&larr; Back</button>'+
+      '<button class="btn on" data-t="next" type="button">'+
+        (state.tourIdx===TOUR_BEATS.length-1?"Done":"Next &rarr;")+'</button>'+
+      '<button class="btn" data-t="exit" type="button">Exit tour <span class="mono" style="opacity:.6">(Esc)</span></button>'+
+    '</div></div>';
+}
+function goToTourStop(i){
+  if(i<0) i=0; if(i>TOUR_BEATS.length-1) i=TOUR_BEATS.length-1;
+  state.tourIdx=i;
+  var b=TOUR_BEATS[i];
+  activateTab(b.tab);
+  renderTourBar();
+  if(b.anchor==="gate5Card"){
+    // same live replay as Presentation Mode's Gate 5 beat — see goToBeat() above for why
+    renderInversion(renderGates());
+    renderGateLine();
+    var g5=GL_NODES.findIndex(function(n){ return n.type==="gate" && GATES[n.i].gate===5; });
+    if(g5>=0) selectGL(g5);
+  }
+  if(b.anchor){
+    setTimeout(function(){ var el=document.getElementById(b.anchor);
+      if(el) el.scrollIntoView({block:"center",behavior:"smooth"}); },260);
+  }
+}
+function enterTour(){
+  if(state.presenting) exitPresent();
+  state.touring=true; state.tourIdx=0;
+  document.getElementById("tourBtn").setAttribute("aria-pressed","true");
+  document.getElementById("tourBar").hidden=false;
+  goToTourStop(0);
+  fvClear();
+}
+function exitTour(){
+  state.touring=false;
+  document.getElementById("tourBtn").setAttribute("aria-pressed","false");
+  document.getElementById("tourBar").hidden=true;
+}
+
 /* =========================================================================
    8. WIRING
    ========================================================================= */
@@ -4682,6 +4788,33 @@ window.addEventListener("keydown",function(e){
   if(e.key==="n"||e.key==="N") goToBeat(state.beatIdx+1);
   else if(e.key==="p"||e.key==="P") goToBeat(state.beatIdx-1);
   else if(e.key==="Escape") exitPresent();
+});
+document.getElementById("tourBtn").addEventListener("click",function(){
+  if(state.touring) exitTour(); else enterTour();
+});
+document.getElementById("storyTourBtn").addEventListener("click",enterTour);
+document.getElementById("tourBar").addEventListener("click",function(e){
+  var t=e.target.closest("[data-t]");
+  if(t){
+    if(t.dataset.t==="prev") goToTourStop(state.tourIdx-1);
+    else if(t.dataset.t==="next"){
+      if(state.tourIdx===TOUR_BEATS.length-1) exitTour(); else goToTourStop(state.tourIdx+1);
+    }
+    else if(t.dataset.t==="exit") exitTour();
+    return;
+  }
+  var d=e.target.closest("[data-tour]");
+  if(d) goToTourStop(+d.dataset.tour);
+});
+// solo visitor, no live audience to say "press N" out loud — arrow keys instead of Presentation
+// Mode's N/P, so the two modes' keyboard nav never collides if a visitor tries both in one visit
+window.addEventListener("keydown",function(e){
+  if(!state.touring) return;
+  var tag=(e.target&&e.target.tagName||"").toLowerCase();
+  if(tag==="input"||tag==="textarea") return;
+  if(e.key==="ArrowRight") goToTourStop(state.tourIdx+1);
+  else if(e.key==="ArrowLeft") goToTourStop(state.tourIdx-1);
+  else if(e.key==="Escape") exitTour();
 });
 
 /* Inline term-help delegation — one listener for every "i" icon on the page, present or future,
@@ -4838,20 +4971,17 @@ document.getElementById("printBtn").addEventListener("click",function(){ renderP
 document.getElementById("aiNarrBtn").addEventListener("click",renderNarr);
 /* first-visit cue — try/catch guards localStorage since it's absent in the stress.cjs DOM stub
    and can throw in a locked-down/private-browsing context; either failure just means "always show
-   the walkthrough as new," never a crash. */
+   the tour as new," never a crash. */
 function fvVisited(){ try{ return window.localStorage && window.localStorage.getItem("pccVisited"); }catch(e){ return "1"; } }
 function fvClear(){
-  var el=document.getElementById("storyCard");
+  var el=document.getElementById("tourBtn");
   if(el) el.classList.remove("first-visit");
   try{ if(window.localStorage) window.localStorage.setItem("pccVisited","1"); }catch(e){}
 }
 if(!fvVisited()){
-  var storyCardEl=document.getElementById("storyCard");
-  if(storyCardEl) storyCardEl.classList.add("first-visit");
+  var tourBtnEl=document.getElementById("tourBtn");
+  if(tourBtnEl) tourBtnEl.classList.add("first-visit");
 }
-document.getElementById("storyPrev").addEventListener("click",function(){ renderStory(storyIdx-1); fvClear(); });
-document.getElementById("storyNext").addEventListener("click",function(){ renderStory(storyIdx+1); fvClear(); });
-document.getElementById("storyGo").addEventListener("click",function(){ activateTab(STORY[storyIdx].tab); fvClear(); });
 document.getElementById("glossQ").addEventListener("input",function(){ renderGlossary(this.value); });
 window.addEventListener("scroll",function(){ document.getElementById("tip").classList.remove("on"); },{passive:true});
 
@@ -4879,7 +5009,7 @@ renderGantt(); renderSchedule(); renderRisk(); renderContracts(); renderDelivery
 renderDataStrategy();
 renderMcFilter(); syncMcView(); renderMcMath(); renderScen(); renderPrint();
 renderArch(); renderGuards();
-renderStory(0); renderGlossary("");
+renderGlossary("");
 document.getElementById("sCpi").value=T.cpi;
 document.getElementById("sSpi").value=T.spi;
 document.getElementById("sCont").value=PROGRAM.contingency;
@@ -4900,7 +5030,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   risks:RISKS,pBand:P_BAND,tweenNum:tweenNum,
   eacTrendSeries:eacTrendSeries,acHistorySeries:acHistorySeries,forecastAccuracy:forecastAccuracy,
   revSvcDriftSeries:revSvcDriftSeries,pvA:pvA,acA:acA,evA:evA,pvB:pvB,milesLast:MILES[MILES.length-1],
-  presentBeatsFull:PRESENT_BEATS_FULL,presentBeatsQuick:PRESENT_BEATS_QUICK,state:state,
+  presentBeatsFull:PRESENT_BEATS_FULL,presentBeatsQuick:PRESENT_BEATS_QUICK,tourBeats:TOUR_BEATS,state:state,
   guardrails:GUARDRAILS,discrepancySteps:DISCREPANCY_STEPS,rollout:ROLLOUT,dsNodes:DS_NODES,dsCaption:dsCaption,
   gloss:GLOSS,findGloss:findGloss};
 })();
