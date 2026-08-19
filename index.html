@@ -346,6 +346,14 @@ input[type=range]{width:100%;accent-color:rgb(var(--c-accent))}
 .pcard h3{margin:7px 0 8px}
 ul.t{margin:8px 0 0;padding-left:18px} ul.t li{margin:5px 0;font-size:12.8px;color:rgb(var(--c-mut))}
 ul.t li b{color:rgb(var(--c-ink))}
+/* clickable/focusable nodes inside a hand-authored SVG flow diagram (Gate Line, data-strategy
+   pipeline) — one shared style, not per-diagram copies. outline instead of a fill change so it
+   never fights the node's own live status color (ok/bad/muted). */
+.flow-node{cursor:pointer}
+.flow-node:hover rect,.flow-node:hover polygon{stroke-width:2.4}
+.flow-node:focus{outline:none}
+.flow-node:focus rect,.flow-node:focus polygon{stroke:rgb(var(--c-accent));stroke-width:2.6}
+.flow-node.on rect,.flow-node.on polygon{stroke:rgb(var(--c-accent));stroke-width:2.6}
 dl.gl{display:grid;grid-template-columns:1fr;gap:11px;margin:14px 0 0}
 @media(min-width:780px){dl.gl{grid-template-columns:1fr 1fr;gap:11px 26px}}
 dl.gl dt{font:600 12px/1.4 ui-monospace,monospace;color:rgb(var(--c-code))}
@@ -972,6 +980,25 @@ join dim_control_account b using (package_id)</pre></div>
         already works &mdash; not impose.</p>
 
       <div class="sec-h" style="margin-top:30px"><h3>Phase playbook</h3></div>
+      <p class="lede">The same seven phases and six gates as the tables below, drawn as one line instead
+        of two separate lists &mdash; click any phase or gate, or step through with the controls, to see
+        why it's colored the way it is. Nothing here is a second copy of the data; every caption reads
+        off the same <span class="mono" style="font-size:11.5px">PHASES</span>/<span class="mono" style="font-size:11.5px">GATES</span>/<span class="mono" style="font-size:11.5px">GATE5_CHECKS</span>
+        the tables use.</p>
+      <div class="card"><div class="chart" id="gateLine"></div></div>
+      <div id="glDetail" aria-live="polite"></div>
+      <div class="card" style="margin-top:14px" id="glStoryCard">
+        <div class="eyebrow">Walk the gate line</div>
+        <h4 id="glStoryTitle" style="margin:0 0 7px"></h4>
+        <p id="glStoryText" style="margin:0;font-size:13.2px;line-height:1.65;color:rgb(var(--c-mut));max-width:74ch"></p>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap">
+          <button class="btn" id="glPrev" type="button">&larr; Back</button>
+          <span class="story-dots" id="glDots" aria-hidden="true"></span>
+          <span class="mono" id="glPos" style="font-size:11px;color:rgb(var(--c-mut))"></span>
+          <button class="btn" id="glNext" type="button">Next &rarr;</button>
+        </div>
+      </div>
+
       <div id="playbook"></div>
 
       <div class="sec-h" style="margin-top:34px"><h3>WBS &middot; CBS &middot; OBS control-account mapping</h3></div>
@@ -1113,8 +1140,23 @@ join dim_control_account b using (package_id)</pre></div>
         under <b>ISO 19650</b> &mdash; four defined states,
         each requiring a specific approval gate before information can advance. The rule that
         matters most isn't the four states themselves &mdash; it's that nothing downstream ever
-        reads a raw source directly, and nothing advances without its gate.</p>
-      <div class="dgrid">
+        reads a raw source directly, and nothing advances without its gate. Drawn below as a flow,
+        with the discrepancy-resolution loop from "When systems disagree" (further down this tab)
+        folded in at the point it actually happens &mdash; the verification gate into Shared.</p>
+      <div class="card"><div class="chart" id="cdeFlow"></div></div>
+      <div id="dsDetail" aria-live="polite"></div>
+      <div class="card" style="margin-top:14px" id="dsStoryCard">
+        <div class="eyebrow">Follow one record through the pipeline</div>
+        <h4 id="dsStoryTitle" style="margin:0 0 7px"></h4>
+        <p id="dsStoryText" style="margin:0;font-size:13.2px;line-height:1.65;color:rgb(var(--c-mut));max-width:74ch"></p>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap">
+          <button class="btn" id="dsPrev" type="button">&larr; Back</button>
+          <span class="story-dots" id="dsDots" aria-hidden="true"></span>
+          <span class="mono" id="dsPos" style="font-size:11px;color:rgb(var(--c-mut))"></span>
+          <button class="btn" id="dsNext" type="button">Next &rarr;</button>
+        </div>
+      </div>
+      <div class="dgrid" style="margin-top:16px">
         <div class="dbox"><h4>Work in Progress</h4><p>Individual discipline teams develop models
           and documents. Unverified, visible only to the originating team.</p></div>
         <div class="dbox"><h4>Shared</h4><p>Validated information exchanged across disciplines for
@@ -3377,8 +3419,102 @@ function renderInversion(gate5Res){
     (lead?'<button type="button" class="btn" data-jump="'+lead.id+'" style="margin-top:12px">Open '+lead.id+' on the Actions tab &rarr;</button>':"");
 }
 
+/* The Gate Line — the same PHASES/GATES/GATE5_CHECKS the tables already render, drawn as one
+   flow instead of two lists. GL_NODES flattens phase-then-its-exit-gate into left-to-right visual
+   order (7 phases, 6 exit gates — Closeout has none, nothing comes after it) so click, keyboard,
+   and the story Prev/Next controls all drive the exact same selection function. Nothing here is a
+   second copy of program state: every caption is composed from the live arrays at render time. */
+var GL_NODES=(function(){
+  var out=[];
+  PHASES.forEach(function(p,i){ out.push({type:"phase",i:i});
+    if(i<GATES.length-1) out.push({type:"gate",i:i}); });
+  return out;
+})();
+var glIdx=0;
+function glCaption(node){
+  if(node.type==="phase"){
+    var p=PHASES[node.i], pb=PLAYBOOK.filter(function(x){return x.k===p.k;})[0];
+    var live=KPIS.filter(function(k){return k.ph.indexOf(p.k)>=0;});
+    var state=node.i<PROGRAM.phaseIdx?"complete":node.i===PROGRAM.phaseIdx?"the program's current phase":"upcoming";
+    return {title:"Phase "+(node.i+1)+" &middot; "+p.n, text:"Status: "+state+". Stand up: "+pb.set+" Watch: "+
+      pb.watch+" Gate decision: "+pb.dec+" "+live.length+" KPI"+(live.length===1?"":"s")+" live in this phase: "+
+      live.map(function(k){return k.abbr;}).join(", ")+"."};
+  }
+  var g=GATES[node.i];
+  if(g.gate===5){
+    var res=GATE5_CHECKS.map(function(c){ var r=c.run(); return {n:c.n,pass:r[0],detail:r[1]}; });
+    var passN=res.filter(function(r){return r.pass;}).length;
+    return {title:"Gate "+g.gate+" &middot; "+g.name+" &mdash; the hard stop",
+      text:g.board+" "+passN+" of 3 automated checks currently pass: "+
+      res.map(function(r){ return r.n+" ("+(r.pass?"PASS":"FAIL")+" &middot; "+r.detail+")"; }).join("; ")+
+      ". The full working-backward trace from this exact gate is worked out just below the diagram."};
+  }
+  return {title:"Gate "+g.gate+" &middot; "+g.name, text:g.board+" Exit criteria: "+g.exit};
+}
+function glNodeState(node){
+  if(node.type==="phase") return node.i<PROGRAM.phaseIdx?"ok":node.i===PROGRAM.phaseIdx?"cur":"pend";
+  var g=GATES[node.i];
+  if(g.gate===5) return GATE5_CHECKS.every(function(c){return c.run()[0];})?"ok":"bad";
+  return node.i<PROGRAM.phaseIdx?"ok":"pend";
+}
+function selectGL(idx){
+  glIdx=Math.max(0,Math.min(GL_NODES.length-1,idx));
+  var node=GL_NODES[glIdx], cap=glCaption(node);
+  Array.prototype.forEach.call(document.querySelectorAll("#gateLine .flow-node"),function(el){
+    el.classList.toggle("on", +el.dataset.idx===glIdx);
+  });
+  document.getElementById("glDetail").innerHTML=
+    '<div class="dbox" style="margin-top:2px"><h4>'+cap.title+'</h4><p>'+cap.text+'</p></div>';
+  document.getElementById("glStoryTitle").innerHTML=cap.title;
+  document.getElementById("glStoryText").innerHTML=cap.text;
+  document.getElementById("glPos").textContent=(glIdx+1)+" of "+GL_NODES.length;
+  document.getElementById("glDots").innerHTML=GL_NODES.map(function(_,j){
+    return '<i class="'+(j===glIdx?"on":"")+'"></i>'; }).join("");
+}
+function renderGateLine(){
+  var W=1180,H=140,boxW=100,boxH=54,boxY=(H-boxH)/2,gap=68,step=boxW+gap,cy=H/2;
+  var STATE_C={ok:"ok",cur:"accent",pend:"mut",bad:"bad"};
+  /* SMIL <animate> (the "you are here" pulse below) isn't touched by the global CSS
+     prefers-reduced-motion rule — that rule only zeroes animation-duration/transition-duration
+     for CSS animations, and SMIL is a different mechanism entirely. Has to be gated here, in JS,
+     same reason wireDetailsAnimation() gates its WAAPI call in JS instead of CSS. */
+  var reduceMotion=window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function px(i){ return 20+i*step; }
+  function gx(i){ return px(i)+boxW+gap/2; }
+  var parts="";
+  GL_NODES.forEach(function(node,idx){
+    var st=glNodeState(node), col=C(STATE_C[st]);
+    if(node.type==="phase"){
+      var p=PHASES[node.i], x=px(node.i);
+      var label=st==="cur"?'<circle cx="'+(x+boxW/2)+'" cy="'+(boxY-13)+'" r="3.4" fill="'+C("accent")+'">'+
+        (reduceMotion?"":'<animate attributeName="opacity" values="1;.25;1" dur="1.6s" repeatCount="indefinite"/>')+'</circle>':"";
+      parts+='<g class="flow-node" tabindex="0" role="button" data-idx="'+idx+'" '+
+        'aria-label="Phase '+(node.i+1)+', '+p.n.replace(/&[a-z]+;/g,"")+', '+(st==="ok"?"complete":st==="cur"?"current phase":"upcoming")+'">'+
+        label+
+        '<rect x="'+x+'" y="'+boxY+'" width="'+boxW+'" height="'+boxH+'" rx="8" '+
+        'style="fill:rgb(var(--c-bg));stroke:'+col+';stroke-width:'+(st==="cur"?"2.2":"1.4")+';opacity:'+(st==="pend"?".55":"1")+'"/>'+
+        '<text x="'+(x+boxW/2)+'" y="'+(cy-6)+'" text-anchor="middle" font-size="9.5" font-weight="600" style="fill:'+col+'">PHASE '+(node.i+1)+'</text>'+
+        '<text x="'+(x+boxW/2)+'" y="'+(cy+10)+'" text-anchor="middle" font-size="10.5" style="fill:rgb(var(--c-ink));opacity:'+(st==="pend"?".7":"1")+'">'+
+        p.n.replace(/&[a-z]+;/g,"").split(" ").slice(0,2).join(" ")+'</text></g>';
+      if(node.i<PHASES.length-1) parts+='<line x1="'+(x+boxW)+'" y1="'+cy+'" x2="'+(gx(node.i)-15)+'" y2="'+cy+'" style="stroke:rgb(var(--c-mut));stroke-width:1.3"/>';
+    } else {
+      var g=GATES[node.i], gxp=gx(node.i);
+      parts+='<g class="flow-node" tabindex="0" role="button" data-idx="'+idx+'" '+
+        'aria-label="Gate '+g.gate+', '+g.name.replace(/&[a-z]+;/g,"")+', '+(st==="ok"?"cleared":st==="bad"?"blocked":"not yet reached")+'">'+
+        '<polygon points="'+gxp+',6 '+(gxp+16)+',20 '+gxp+',34 '+(gxp-16)+',20" '+
+        'transform="translate(0,'+(cy-20)+')" style="fill:rgb(var(--c-bg));stroke:'+col+';stroke-width:'+(st==="bad"?"2.2":"1.5")+'"/>'+
+        '<text x="'+gxp+'" y="'+(cy+4)+'" text-anchor="middle" font-size="10" font-weight="700" style="fill:'+col+'">G'+g.gate+'</text></g>'+
+        '<line x1="'+(gxp+16)+'" y1="'+cy+'" x2="'+(px(node.i+1))+'" y2="'+cy+'" style="stroke:rgb(var(--c-mut));stroke-width:1.3"/>';
+    }
+  });
+  document.getElementById("gateLine").innerHTML=svg(W,H,parts,
+    "Seven-phase lifecycle with six Board gates between them; Gate "+GATES.filter(function(g){return g.gate===5;})[0].gate+
+    " currently "+(GATE5_CHECKS.every(function(c){return c.run()[0];})?"clears":"blocks")+" advancement out of the program's current phase.");
+  selectGL(glIdx);
+}
+
 function renderFramework(){
-  renderWbs(); renderInversion(renderGates());
+  renderWbs(); renderInversion(renderGates()); renderGateLine();
   document.getElementById("playbook").innerHTML=PHASES.map(function(p,i){
     var pb=PLAYBOOK.filter(function(x){return x.k===p.k;})[0];
     var live=KPIS.filter(function(k){return k.ph.indexOf(p.k)>=0;});
@@ -4036,7 +4172,121 @@ var ROLLOUT=[
  {ph:"Phase 2",n:"Guard the highest-risk domains",w:"Stand up staging, validation, and all four guardrail types for those domains specifically. Run the discrepancy-resolution process on real disagreements — even manually at first, to learn the actual recurring patterns before automating them."},
  {ph:"Phase 3",n:"Scale and automate recovery",w:"Expand to the remaining domains; add circuit breakers and self-healing for the patterns Phase 2 proved out. The auto-resolve rule set starts reducing escalation volume instead of just routing it faster."}
 ];
+/* The CDE flow — the same four ISO 19650 states already described as static cards below, drawn as
+   a pipeline, with the "When systems disagree" discrepancy-resolution steps (DISCREPANCY_STEPS)
+   folded in as a real branch off the Shared verification gate instead of a separate list further
+   down the tab. The loop (a resolved discrepancy gets promoted into a new auto-resolve rule) is
+   the one thing prose can describe but a diagram can actually show. */
+var DS_NODES=[
+ {k:"wip",lane:"main",n:"Work in Progress"},
+ {k:"g1",lane:"gate",n:"Verification / model audit"},
+ {k:"shared",lane:"main",n:"Shared"},
+ {k:"detect",lane:"branch",n:"Discrepancy detected"},
+ {k:"known",lane:"branch",n:"Known pattern?"},
+ {k:"escalate",lane:"branch",n:"Escalate to owner"},
+ {k:"promote",lane:"branch",n:"Resolved, logged &amp; promoted"},
+ {k:"auto",lane:"branch",n:"Auto-resolve"},
+ {k:"g2",lane:"gate",n:"Client / agency authorization"},
+ {k:"published",lane:"main",n:"Published"},
+ {k:"g3",lane:"gate",n:"Final handover verification"},
+ {k:"archived",lane:"main",n:"Archived"}
+];
+function dsCaption(node){
+  switch(node.k){
+    case "wip": return {t:"Work in Progress",x:"Individual discipline teams develop models and documents here. Unverified, visible only to the originating team &mdash; nothing downstream reads this directly."};
+    case "g1": return {t:"Gate &middot; technical verification / model audit",x:"Nothing advances into Shared without passing this. This dashboard's own "+GUARDS.length+"-check integrity gate (AI &amp; Data tab) is a small, working version of exactly this kind of gate."};
+    case "shared": return {t:"Shared",x:"Validated information exchanged across disciplines for coordination and clash detection. This is also where cross-system disagreement first surfaces &mdash; follow the branch below."};
+    case "detect": return {t:"Discrepancy detected",x:"A verification check inside the Shared gate finds two systems disagreeing on the same record &mdash; step 1 of the real process: "+DISCREPANCY_STEPS[0].w};
+    case "known": return {t:"Known pattern?",x:"Most discrepancies aren't novel &mdash; the same three or four root causes recur. "+DISCREPANCY_STEPS[1].w};
+    case "escalate": return {t:"No &mdash; escalate to a named owner",x:DISCREPANCY_STEPS[2].w};
+    case "promote": return {t:"Resolved, logged &amp; promoted",x:DISCREPANCY_STEPS[3].w+" "+DISCREPANCY_STEPS[4].w+" That's the loop arrow back to “Known pattern?” &mdash; the same discrepancy type resolves itself next time."};
+    case "auto": return {t:"Yes &mdash; auto-resolve",x:"A known pattern resolves itself automatically and the record continues straight through &mdash; no person in the loop for something already understood."};
+    case "g2": return {t:"Gate &middot; client / agency formal authorization",x:"The deliverable becomes the contractual baseline for procurement and construction &mdash; gated, not assumed."};
+    case "published": return {t:"Published",x:"Fully authorized deliverables. Design, budget and schedule commitments downstream all read from here, never from an unverified draft."};
+    case "g3": return {t:"Gate &middot; final handover verification",x:"Confirms the as-built record actually matches what was built, before it becomes the permanent record."};
+    case "archived": return {t:"Archived",x:"Immutable long-term record: as-built models, transaction history, full audit trail."};
+  }
+}
+var dsIdx=0;
+function selectDS(idx){
+  dsIdx=Math.max(0,Math.min(DS_NODES.length-1,idx));
+  var node=DS_NODES[dsIdx], cap=dsCaption(node);
+  Array.prototype.forEach.call(document.querySelectorAll("#cdeFlow .flow-node"),function(el){
+    el.classList.toggle("on", el.dataset.k===node.k);
+  });
+  document.getElementById("dsDetail").innerHTML='<div class="dbox" style="margin-top:2px"><h4>'+cap.t+'</h4><p>'+cap.x+'</p></div>';
+  document.getElementById("dsStoryTitle").innerHTML=cap.t;
+  document.getElementById("dsStoryText").innerHTML=cap.x;
+  document.getElementById("dsPos").textContent=(dsIdx+1)+" of "+DS_NODES.length;
+  document.getElementById("dsDots").innerHTML=DS_NODES.map(function(_,j){
+    return '<i class="'+(j===dsIdx?"on":"")+'"></i>'; }).join("");
+}
+function renderCdeFlow(){
+  var W=1180,H=330;
+  var LANE_C={main:C("accent"),gate:C("mut"),branch:C("warn")};
+  function tri(x,y,ang){ return '<polygon points="'+x+',' +y+' '+(x-7)+',' +(y-4)+' '+(x-7)+',' +(y+4)+'" transform="rotate('+ang+' '+x+' '+y+')" style="fill:rgb(var(--c-mut))"/>'; }
+  function stage(x,y,w,h,k,label){
+    return '<g class="flow-node" tabindex="0" role="button" data-k="'+k+'" aria-label="'+label+'">'+
+      '<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="8" style="fill:rgb(var(--c-bg));stroke:'+LANE_C.main+';stroke-width:1.6"/>'+
+      '<text x="'+(x+w/2)+'" y="'+(y+h/2+4)+'" text-anchor="middle" font-size="11" font-weight="600" style="fill:rgb(var(--c-ink))">'+label+'</text></g>';
+  }
+  function gatePill(cx,cy,k,label){
+    var w=Math.max(84,label.length*5.6);
+    return '<g class="flow-node" tabindex="0" role="button" data-k="'+k+'" aria-label="Gate: '+label+'">'+
+      '<rect x="'+(cx-w/2)+'" y="'+(cy-11)+'" width="'+w+'" height="22" rx="11" style="fill:rgb(var(--c-bg));stroke:'+LANE_C.gate+';stroke-width:1.3;stroke-dasharray:3 2"/>'+
+      '<text x="'+cx+'" y="'+(cy+3.5)+'" text-anchor="middle" font-size="9" style="fill:rgb(var(--c-mut))">'+label+'</text></g>';
+  }
+  function branchBox(x,y,w,h,k,label,dashed){
+    return '<g class="flow-node" tabindex="0" role="button" data-k="'+k+'" aria-label="'+label+'">'+
+      '<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="7" style="fill:rgb(var(--c-bg));stroke:'+LANE_C.branch+';stroke-width:1.4'+(dashed?';stroke-dasharray:4 3':'')+'"/>'+
+      '<text x="'+(x+w/2)+'" y="'+(y+h/2+4)+'" text-anchor="middle" font-size="10" style="fill:rgb(var(--c-ink))">'+label+'</text></g>';
+  }
+  function diamond(cx,cy,k,label){
+    return '<g class="flow-node" tabindex="0" role="button" data-k="'+k+'" aria-label="'+label+'">'+
+      '<polygon points="'+cx+',' +(cy-24)+' '+(cx+62)+',' +cy+' '+cx+',' +(cy+24)+' '+(cx-62)+',' +cy+'" style="fill:rgb(var(--c-bg));stroke:'+LANE_C.branch+';stroke-width:1.5"/>'+
+      '<text x="'+cx+'" y="'+(cy+4)+'" text-anchor="middle" font-size="10" font-weight="600" style="fill:rgb(var(--c-ink))">'+label+'</text></g>';
+  }
+  var mY=50,mH=48; // main lane
+  var wipX=20,wipW=130, sharedX=330,sharedW=130, pubX=760,pubW=140, arcX=1030,arcW=130;
+  var s="";
+  s+=stage(wipX,mY-mH/2,wipW,mH,"wip","Work in Progress");
+  s+='<line x1="'+(wipX+wipW)+'" y1="'+mY+'" x2="'+(sharedX-4)+'" y2="'+mY+'" style="stroke:rgb(var(--c-mut));stroke-width:1.3"/>'+tri(sharedX-4,mY,90);
+  s+=gatePill((wipX+wipW+sharedX)/2,mY,"g1","technical verification");
+  s+=stage(sharedX,mY-mH/2,sharedW,mH,"shared","Shared");
+  s+='<line x1="'+(sharedX+sharedW)+'" y1="'+mY+'" x2="'+(pubX-4)+'" y2="'+mY+'" style="stroke:rgb(var(--c-mut));stroke-width:1.3"/>'+tri(pubX-4,mY,90);
+  s+=gatePill((sharedX+sharedW+pubX)/2,mY,"g2","client/agency authorization");
+  s+=stage(pubX,mY-mH/2,pubW,mH,"published","Published");
+  s+='<line x1="'+(pubX+pubW)+'" y1="'+mY+'" x2="'+(arcX-4)+'" y2="'+mY+'" style="stroke:rgb(var(--c-mut));stroke-width:1.3"/>'+tri(arcX-4,mY,90);
+  s+=gatePill((pubX+pubW+arcX)/2,mY,"g3","final handover verification");
+  s+=stage(arcX,mY-mH/2,arcW,mH,"archived","Archived");
+
+  var bY=200,bH=42, detX=280,detW=150, diaCx=560, escX=650,escW=130, proX=810,proW=180, autoX=430,autoY=270,autoW=130,autoH=40;
+  s+='<line x1="'+(sharedX+sharedW/2)+'" y1="'+(mY+mH/2)+'" x2="'+(sharedX+sharedW/2)+'" y2="'+(bY-4)+'" style="stroke:rgb(var(--c-warn) / .7);stroke-width:1.3;stroke-dasharray:3 2"/>'+tri(sharedX+sharedW/2,bY-4,180);
+  s+=branchBox(detX,bY-bH/2,detW,bH,"detect","Discrepancy detected");
+  s+='<line x1="'+(detX+detW)+'" y1="'+bY+'" x2="'+(diaCx-66)+'" y2="'+bY+'" style="stroke:rgb(var(--c-warn) / .7);stroke-width:1.3"/>'+tri(diaCx-66,bY,90);
+  s+=diamond(diaCx,bY,"known","Known pattern?");
+  s+='<line x1="'+(diaCx+62)+'" y1="'+bY+'" x2="'+(escX-4)+'" y2="'+bY+'" style="stroke:rgb(var(--c-warn) / .7);stroke-width:1.3"/>'+tri(escX-4,bY,90)+
+     '<text x="'+((diaCx+62+escX)/2)+'" y="'+(bY-6)+'" text-anchor="middle" font-size="8.5" style="fill:rgb(var(--c-mut))">no</text>';
+  s+=branchBox(escX,bY-bH/2,escW,bH,"escalate","Escalate to owner");
+  s+='<line x1="'+(escX+escW)+'" y1="'+bY+'" x2="'+(proX-4)+'" y2="'+bY+'" style="stroke:rgb(var(--c-warn) / .7);stroke-width:1.3"/>'+tri(proX-4,bY,90);
+  s+=branchBox(proX,bY-bH/2,proW,bH,"promote","Resolved, logged &amp; promoted");
+  s+='<path d="M'+(proX+proW/2)+' '+(bY-bH/2)+' Q '+((proX+diaCx)/2)+' 130 '+diaCx+' '+(bY-24)+'" style="fill:none;stroke:rgb(var(--c-warn) / .7);stroke-width:1.3;stroke-dasharray:2 3"/>'+tri(diaCx+4,bY-26,205)+
+     '<text x="'+((proX+diaCx)/2)+'" y="122" text-anchor="middle" font-size="8.5" style="fill:rgb(var(--c-mut))">becomes a known pattern</text>';
+  s+='<line x1="'+diaCx+'" y1="'+(bY+24)+'" x2="'+(autoX+autoW/2)+'" y2="'+(autoY-4)+'" style="stroke:rgb(var(--c-warn) / .7);stroke-width:1.3"/>'+tri(autoX+autoW/2,autoY-4,180)+
+     '<text x="'+((diaCx+autoX+autoW/2)/2-16)+'" y="'+((bY+24+autoY)/2+4)+'" text-anchor="middle" font-size="8.5" style="fill:rgb(var(--c-mut))">yes</text>';
+  s+=branchBox(autoX,autoY,autoW,autoH,"auto","Auto-resolve");
+  s+='<path d="M'+(autoX+autoW)+' '+(autoY+autoH/2)+' Q '+((autoX+autoW+pubX+pubW/2)/2)+' 250 '+(pubX+pubW/2)+' '+(mY+mH/2)+'" style="fill:none;stroke:rgb(var(--c-warn) / .7);stroke-width:1.3;stroke-dasharray:2 3"/>'+tri(pubX+pubW/2,mY+mH/2-2,270);
+
+  document.getElementById("cdeFlow").innerHTML=svg(W,H,s,
+    "The four ISO 19650 CDE states as a pipeline (Work in Progress, Shared, Published, Archived), "+
+    "with the discrepancy-resolution loop branching off the Shared verification gate: a known "+
+    "pattern auto-resolves, a novel one escalates to a named owner and gets promoted into a new "+
+    "auto-resolve rule for next time.");
+  selectDS(dsIdx);
+}
+
 function renderDataStrategy(){
+  renderCdeFlow();
   document.getElementById("guardrailTable").innerHTML=
     '<thead><tr><th scope="col">Check type</th><th scope="col">What it catches</th><th scope="col">Example</th></tr></thead><tbody>'+
     GUARDRAILS.map(function(g){ return '<tr style="cursor:default"><td style="white-space:normal;font-weight:600">'+guardIcon(g.t)+g.t+
@@ -4380,6 +4630,27 @@ document.getElementById("kdetail").addEventListener("click",function(e){
 document.getElementById("invCard").addEventListener("click",function(e){
   var b=e.target.closest("[data-jump]"); if(b) jumpToAction(b.dataset.jump);
 });
+document.getElementById("gateLine").addEventListener("click",function(e){
+  var n=e.target.closest("[data-idx]"); if(n) selectGL(+n.dataset.idx);
+});
+document.getElementById("gateLine").addEventListener("keydown",function(e){
+  if(e.key!=="Enter"&&e.key!==" ") return;
+  var n=e.target.closest("[data-idx]"); if(!n) return; e.preventDefault();
+  selectGL(+n.dataset.idx);
+});
+document.getElementById("glPrev").addEventListener("click",function(){ selectGL(glIdx-1); });
+document.getElementById("glNext").addEventListener("click",function(){ selectGL(glIdx+1); });
+document.getElementById("cdeFlow").addEventListener("click",function(e){
+  var n=e.target.closest("[data-k]"); if(!n) return;
+  var i=DS_NODES.map(function(d){return d.k;}).indexOf(n.dataset.k); if(i>=0) selectDS(i);
+});
+document.getElementById("cdeFlow").addEventListener("keydown",function(e){
+  if(e.key!=="Enter"&&e.key!==" ") return;
+  var n=e.target.closest("[data-k]"); if(!n) return; e.preventDefault();
+  var i=DS_NODES.map(function(d){return d.k;}).indexOf(n.dataset.k); if(i>=0) selectDS(i);
+});
+document.getElementById("dsPrev").addEventListener("click",function(){ selectDS(dsIdx-1); });
+document.getElementById("dsNext").addEventListener("click",function(){ selectDS(dsIdx+1); });
 document.getElementById("actFilters").addEventListener("click",function(e){
   var b=e.target.closest("[data-actf]"); if(!b) return;
   state.actFilter=b.dataset.actf; renderActions();
@@ -4448,7 +4719,7 @@ window.addEventListener("scroll",function(){ document.getElementById("tip").clas
    pre-existing pattern) silently reset the scrubber's cursor to hidden while the slider value and
    HUD text stayed on whatever month was last scrubbed — the display and the control disagreeing
    with each other, silently, on the single most ordinary action in the app. */
-function redrawCharts(){ renderScurve(); renderWaterfall(); renderCont(); renderRisk(); syncMcView(); renderGantt(); renderScurveScrub(); }
+function redrawCharts(){ renderScurve(); renderWaterfall(); renderCont(); renderRisk(); syncMcView(); renderGantt(); renderScurveScrub(); renderGateLine(); renderCdeFlow(); }
 document.getElementById("mcViewHist").addEventListener("click",function(){ state.mcView="hist"; syncMcView(); });
 document.getElementById("mcViewCdf").addEventListener("click",function(){ state.mcView="cdf"; syncMcView(); });
 
@@ -4477,7 +4748,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,program:PROGRAM,eacs:EACS,mc:MC,
   actions:ACTIONS,actionStatus:actionStatus,isStale:isStale,
   escalation:ESCALATION,kpiEscalation:KPI_ESCALATION,actionsForKpi:actionsForKpi,jumpToAction:jumpToAction,
   firingEscalations:firingEscalations,
-  wbs:WBS,gates:GATES,gate5Checks:GATE5_CHECKS,
+  wbs:WBS,gates:GATES,gate5Checks:GATE5_CHECKS,glNodes:GL_NODES,glCaption:glCaption,glNodeState:glNodeState,
   contracts:CONTRACTS,deriveContract:deriveContract,
   portfolioRows:portfolioRows,fundingTier:fundingTier,
   cphCells:CPH_CELLS,deriveCph:deriveCph,
@@ -4485,7 +4756,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,program:PROGRAM,eacs:EACS,mc:MC,
   eacTrendSeries:eacTrendSeries,acHistorySeries:acHistorySeries,forecastAccuracy:forecastAccuracy,
   revSvcDriftSeries:revSvcDriftSeries,pvA:pvA,acA:acA,evA:evA,pvB:pvB,milesLast:MILES[MILES.length-1],
   presentBeatsFull:PRESENT_BEATS_FULL,presentBeatsQuick:PRESENT_BEATS_QUICK,
-  guardrails:GUARDRAILS,discrepancySteps:DISCREPANCY_STEPS,rollout:ROLLOUT,
+  guardrails:GUARDRAILS,discrepancySteps:DISCREPANCY_STEPS,rollout:ROLLOUT,dsNodes:DS_NODES,dsCaption:dsCaption,
   gloss:GLOSS,findGloss:findGloss};
 })();
 </script>

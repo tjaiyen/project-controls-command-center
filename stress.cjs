@@ -1185,6 +1185,55 @@ try {
   has("actDrill", "A-09", "landing on the Actions tab from the inversion card opens A-09's own drill-down");
 } catch (e) { ok(false, "inversion card jump interaction", e.message); }
 
+console.log("== D5.8. the gate line (flow diagram) ==");
+{
+  ok(["gateLine", "glDetail", "glStoryCard", "glPrev", "glNext", "glDots", "glPos"].every(id => idsA.includes(id)),
+    "markup contains all Gate Line elements");
+  ok(P.glNodes.length === 13, "GL_NODES flattens 7 phases + 6 exit gates into 13 stops", String(P.glNodes.length));
+  // pre-registered against the same live ledger D5.5's Gate 5 test already asserts against —
+  // if this ever contradicts D5.5, that contradiction IS the finding (B35), not something to
+  // reconcile by editing one side quietly.
+  const curPhaseNode = P.glNodes[8]; // phase index 4 (Procurement) sits at flattened index 8
+  ok(curPhaseNode.type === "phase" && curPhaseNode.i === 4, "flattened index 8 is phase index 4 (Procurement)");
+  ok(P.glNodeState(curPhaseNode) === "cur", "the program's current phase renders as 'cur', not 'ok'/'pend'");
+  const gate5Node = P.glNodes[9]; // gate index 4 = GATES[4].gate===5, sits right after the current phase
+  ok(gate5Node.type === "gate" && P.gates[gate5Node.i].gate === 5, "flattened index 9 is Gate 5");
+  ok(P.glNodeState(gate5Node) === "bad", "Gate 5 renders 'bad' (blocked) — matches the contingency-coverage FAIL already asserted in D5.5/D5.7",
+    P.glNodeState(gate5Node));
+  const gate5Cap = P.glCaption(gate5Node);
+  ok(gate5Cap.text.includes("0.588") && gate5Cap.text.includes("FAIL"),
+    "Gate 5's own caption states the live 0.588/FAIL value, not a static description", gate5Cap.text);
+  ok((G.gateLine._html.match(/data-idx="/g) || []).length === 13,
+    "rendered SVG contains all 13 clickable nodes", String((G.gateLine._html.match(/data-idx="/g) || []).length));
+  // this harness's matchMedia stub always reports matches:true (prefers-reduced-motion: reduce) —
+  // real coverage for the motion-allowed branch is live-browser verified (both directions
+  // confirmed: SMIL <animate> present when matches:false, absent when matches:true), same
+  // division of labor as D11's wireDetailsAnimation checks below.
+  ok(!G.gateLine._html.includes("<animate"),
+    "the 'you are here' SMIL pulse is omitted under the stub's reduced-motion-on default");
+  try {
+    fire(G.gateLine, "click", { target: { closest: (sel) => sel === "[data-idx]" ? { dataset: { idx: "9" } } : null } });
+    ok(G.glStoryTitle._html.includes("Gate 5"), "clicking Gate 5's node updates the story title");
+    ok(G.glStoryText._html.includes("0.588"), "clicking Gate 5's node updates the story text with the live value");
+  } catch (e) { ok(false, "gate line click interaction", e.message); }
+  try {
+    fire(G.gateLine, "keydown", { key: "Enter", preventDefault(){}, target: { closest: (sel) => sel === "[data-idx]" ? { dataset: { idx: "0" } } : null } });
+    ok(G.glStoryTitle._html.includes("Phase 1"), "Enter-key activation on a node works the same as a click");
+  } catch (e) { ok(false, "gate line keyboard interaction", e.message); }
+  try {
+    // starts from wherever the click/keydown tests above left glIdx (index 0, the last one to
+    // run successfully) — asserted explicitly rather than assumed, so this block doesn't
+    // silently depend on execution order above it.
+    ok(String(G.glPos.textContent).includes("1 of 13"), "sanity: story position is at stop 1 before the nav-clamp checks below", String(G.glPos.textContent));
+    fire(G.glNext, "click");
+    ok(String(G.glPos.textContent).includes("2 of 13"), "story Next button advances by one stop");
+    for (let i = 0; i < 20; i++) fire(G.glNext, "click");
+    ok(String(G.glPos.textContent).includes("13 of 13"), "story Next clamps at the last stop rather than throwing/wrapping");
+    for (let i = 0; i < 20; i++) fire(G.glPrev, "click");
+    ok(String(G.glPos.textContent).includes("1 of 13"), "story Prev clamps at the first stop");
+  } catch (e) { ok(false, "gate line story nav", e.message); }
+}
+
 /* =========================================================================
    D5.6. CONTRACT COMMERCIAL REGISTER — a third aggregation axis (Gap 2)
    ========================================================================= */
@@ -1480,6 +1529,57 @@ try {
   ok(G["p-data"].hidden === false, "clicking the Data Strategy tab shows its panel");
   ok(G["p-over"].hidden === true, "clicking the Data Strategy tab hides Overview");
 } catch (e) { ok(false, "data strategy tab activation", e.message); }
+
+console.log("== D9.1. the CDE flow diagram (data strategy) ==");
+{
+  ok(["cdeFlow", "dsDetail", "dsStoryCard", "dsPrev", "dsNext", "dsDots", "dsPos"].every(id => idsA.includes(id)),
+    "markup contains all CDE flow elements");
+  ok(P.dsNodes.length === 12, "DS_NODES has 4 CDE stages + 3 gates + 5 discrepancy-branch nodes",
+    String(P.dsNodes.length));
+  const keys = P.dsNodes.map(n => n.k);
+  ["wip", "shared", "published", "archived"].forEach(k =>
+    ok(keys.includes(k), "DS_NODES includes the CDE stage '" + k + "'"));
+  ok(keys.includes("known") && keys.includes("promote") && keys.includes("auto"),
+    "DS_NODES includes the discrepancy-resolution branch (known pattern? / promote / auto-resolve)");
+  // pre-registered: DISCREPANCY_STEPS is the single source for this branch's captions — a
+  // caption quoting different text than the step it claims to summarize would be real drift,
+  // the same class of finding B27/B35 exist to catch. promote's caption is composed from
+  // DISCREPANCY_STEPS[3]+[4] directly (see dsCaption's "promote" case), so checking it echoes
+  // step 5's own real phrase ("log every override, and promote recurring fixes") IS checking it
+  // against the single source, not a second hand-typed copy that could quietly drift from it.
+  const promoteCap = P.dsCaption(P.dsNodes.filter(n => n.k === "promote")[0]);
+  ok(/audit trail/i.test(promoteCap.x) && /auto-resolve rule/i.test(promoteCap.x),
+    "the 'promoted' node's caption actually reflects DISCREPANCY_STEPS' own step 5 content", promoteCap.x);
+  // the verification gate's caption cites GUARDS.length (the AI & Data tab's own live integrity-
+  // gate count) — cross-checked against guardCountLede, the other place that same live count is
+  // rendered, rather than re-deriving GUARDS.length a third time from the array literal text.
+  const g1Cap = P.dsCaption(P.dsNodes.filter(n => n.k === "g1")[0]);
+  // renderGuards() sets this via .textContent, not .innerHTML — the stub's textContent is a
+  // plain field with no number-to-string coercion (same gotcha as G.cntAct elsewhere in this
+  // file), so String(...) it before comparing.
+  const liveGuardCount = String(G.guardCountLede.textContent);
+  ok(!!liveGuardCount && liveGuardCount !== "undefined" && g1Cap.x.includes(liveGuardCount + "-check"),
+    "the verification gate's caption cites the dashboard's own live integrity-gate check count, not a typed number",
+    "lede=" + liveGuardCount + " caption=" + g1Cap.x);
+  ok((G.cdeFlow._html.match(/data-k="/g) || []).length === 12,
+    "rendered SVG contains all 12 clickable nodes", String((G.cdeFlow._html.match(/data-k="/g) || []).length));
+  try {
+    fire(G.cdeFlow, "click", { target: { closest: (sel) => sel === "[data-k]" ? { dataset: { k: "known" } } : null } });
+    ok(G.dsStoryTitle._html.includes("Known pattern"), "clicking the branch diamond updates the story title");
+  } catch (e) { ok(false, "cde flow click interaction", e.message); }
+  try {
+    fire(G.cdeFlow, "keydown", { key: " ", preventDefault(){}, target: { closest: (sel) => sel === "[data-k]" ? { dataset: { k: "archived" } } : null } });
+    ok(G.dsStoryTitle._html.includes("Archived"), "Space-key activation on a node works the same as a click");
+  } catch (e) { ok(false, "cde flow keyboard interaction", e.message); }
+  try {
+    // starts from wherever "archived" (stop 12) left dsIdx, asserted rather than assumed
+    ok(String(G.dsPos.textContent).includes("12 of 12"), "sanity: story position is at the last stop before the nav-clamp checks below", String(G.dsPos.textContent));
+    for (let i = 0; i < 20; i++) fire(G.dsNext, "click");
+    ok(String(G.dsPos.textContent).includes("12 of 12"), "story Next clamps at the last stop");
+    for (let i = 0; i < 20; i++) fire(G.dsPrev, "click");
+    ok(String(G.dsPos.textContent).includes("1 of 12"), "story Prev clamps at the first stop");
+  } catch (e) { ok(false, "cde flow story nav", e.message); }
+}
 
 /* =========================================================================
    D10. INLINE TERM HELP — click-driven popover reusing GLOSS as its only source
