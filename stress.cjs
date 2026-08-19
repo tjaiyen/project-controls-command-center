@@ -264,6 +264,13 @@ has("scurveRead", "$37.9M", "S-curve copy: CV $37.9M");
 has("scurveRead", "$27.3M", "S-curve copy: SV $27.3M");
 has("eacTable", "$1,303.7M", "EAC table: bottom-up $1,303.7M");
 has("eacTable", "$1,297.3M", "EAC table: BAC/CPI $1,297.3M");
+// user-reported layout finding (2026-08-19): "Estimate at completion" + "Contingency vs. progress"
+// sat in a 2-column grid.g2 that squeezed each to half-width at >=840px, cutting off the table/
+// chart. Confirmed live: at 1400px both cards now measure the SAME full width and stack, not
+// split into halves — this static check locks in the markup change (12 other grid g2 pairs
+// elsewhere on the page are deliberately untouched, only this one pair's wrapper changed).
+ok(/How the baseline was built[\s\S]{0,600}<div class="grid">\s*<div class="card">\s*<h3>Estimate at completion/.test(indexSrc),
+  "the EAC-methods / contingency-vs-progress pair no longer uses the 2-column grid.g2 wrapper");
 has("drill", "CP-201", "default drill-down is CP-201");
 has("drill", (shareCP201 * 100).toFixed(1) + "%", "drill: CP-201 share of gross overrun " + (shareCP201 * 100).toFixed(1) + "%");
 has("miles", "+40d", "milestones: revenue service +40d");
