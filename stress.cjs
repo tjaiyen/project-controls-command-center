@@ -925,6 +925,19 @@ ok(P.cphCells.length === 1, "exactly 1 CPH cell in this pass", String(P.cphCells
     "deriveCph's totals match the independent re-derivation");
   ok(idle / overrun > 0.68 && idle / overrun < 0.69, "idle time is ~68.7% of the total overrun",
     (idle / overrun * 100).toFixed(1) + "%");
+
+  // math explainer (2026-08-19): formulas + a live worked example against the most recent week
+  const last = c.weeks[c.weeks.length - 1];
+  has("cphMathBody", "weekly overrun = (actual", "math panel states the weekly-overrun formula");
+  has("cphMathBody", "idle-attributable = idle", "math panel states the idle-leakage formula");
+  has("cphMathBody", last.w, "math panel's worked example names the actual most-recent week");
+  function usd(v) { return (v < 0 ? "−" : "") + "$" + Math.round(Math.abs(v)).toLocaleString("en-US"); }
+  has("cphMathBody", usd(last.actual) + "/hr", "math panel states the worked week's actual live rate");
+  has("cphMathBody", usd(c.baseline) + "/hr", "math panel states the live standard rate");
+  has("cphMathBody", usd(last.weeklyOverrun), "math panel's worked-week overrun matches independent recomputation");
+  has("cphMathBody", usd(last.idleLeakage), "math panel's worked-week idle leakage matches independent recomputation");
+  has("cphMathBody", usd(overrun), "math panel states the same $145,880 total as the card above it");
+  has("cphMathBody", usd(idle), "math panel states the same $100,156 idle total as the card above it");
 }
 has("cphCard", "Tunnel liner", "CPH card names the tunnel crew");
 has("cphCard", "R-01", "CPH prose cross-references the tunnel ground-condition risk");

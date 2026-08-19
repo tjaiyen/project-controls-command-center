@@ -820,6 +820,10 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         the control account's own CPI, and because it is tracked weekly rather than monthly, it can isolate
         <em>why</em> the burn rate moved, not just that it did.</p>
       <div class="card" style="margin-top:15px" id="cphCard"></div>
+      <details class="dbox" style="margin-top:16px">
+        <summary>How this is actually computed</summary>
+        <div id="cphMathBody"></div>
+      </details>
     </div>
   </section>
 
@@ -2814,6 +2818,33 @@ function renderCph(){
   bars("cphBars",c.weeks.map(function(w){
     return {id:w.w,v:w.varPerHr,c:w.varPerHr>350?"var(--c-pill-r)":w.varPerHr>150?"var(--c-pill-a)":"var(--c-pill-g)"}; }),
     function(v){return sgnUsd(v)+"/hr";});
+  renderCphMath(c,last);
+}
+
+/* The math explainer — deriveCph() already computes weeklyOverrun and idleLeakage per week;
+   this panel names the two formulas and walks the most recent week's own numbers through them,
+   rather than leaving "$145,880 overrun, 68.7% idle" to be taken on faith. */
+function renderCphMath(c,last){
+  document.getElementById("cphMathBody").innerHTML=
+    "<p>Two formulas, applied to every week: <code>weekly overrun = (actual &minus; standard) &times; hrs/week</code> "+
+    "&mdash; the dollar cost of running above standard cost-per-hour at all &mdash; and "+
+    "<code>idle-attributable = idle% &times; hrs/week &times; standard</code> &mdash; the slice of that week's "+
+    "standard-rate labor spent specifically idle, not working at any rate. The two are separate questions: the "+
+    "first is how far off standard the crew ran; the second is how much of the crew's time that week was idle "+
+    "at all.</p>"+
+    "<p style='margin-top:8px'>Worked against the most recent week, <b style='color:rgb(var(--c-ink))'>"+last.w+
+    "</b>: actual ran <b style='color:rgb(var(--c-ink))'>"+usd(last.actual)+"/hr</b> against a "+
+    "<b style='color:rgb(var(--c-ink))'>"+usd(c.baseline)+"/hr</b> standard, a variance of "+
+    "<b style='color:rgb(var(--c-ink))'>"+sgnUsd(last.varPerHr)+"/hr</b>. Over "+c.hrsPerWeek+" hours that week: "+
+    "<code>"+sgnUsd(last.varPerHr)+" &times; "+c.hrsPerWeek+" = "+sgnUsd(last.weeklyOverrun)+"</code> of weekly "+
+    "overrun. Idle time was <b style='color:rgb(var(--c-ink))'>"+pct(last.idlePct)+"</b> of the crew's hours: "+
+    "<code>"+pct(last.idlePct)+" &times; "+c.hrsPerWeek+" &times; "+usd(c.baseline)+" = "+usd(last.idleLeakage)+
+    "</code> of that week's labor spent idle, at standard rate.</p>"+
+    "<p style='margin-top:8px'>Summed across all "+c.weeks.length+" weeks shown: "+usd(c.totalOverrun)+
+    " total overrun, of which "+usd(c.totalIdle)+" &mdash; "+pct(c.totalIdle/c.totalOverrun)+
+    " &mdash; is idle time specifically. That split is the actual point of tracking this weekly: it separates "+
+    "a logistics problem (idle time, fixable by resequencing) from an engineering one (the remaining variance, "+
+    "the ground-condition rework itself).</p>";
 }
 
 /* ---------- framework tab ---------- */
