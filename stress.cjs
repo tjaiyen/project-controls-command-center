@@ -118,6 +118,26 @@ ok(indexSrc.includes('aria-controls="p-over"'), "tab aria-controls present");
 ok(/\.grid>\*\{min-width:0\}/.test(indexSrc), "index.html: grid items have min-width:0 (mobile overflow guard)");
 ok(/\.grid2>\*\{min-width:0\}/.test(otakSrc), "otak.html: grid items have min-width:0 (mobile overflow guard)");
 
+// Table no-horizontal-scroll fix (2026-08-19, user-reported: "I want to see the entire component
+// at once"). Same class of guard as above — real width-fitting behavior needs a real layout
+// engine, so these are static tripwires; browser-verified live 2026-08-19 at 768/1050/1400px:
+// all 7 of the widest tables (portTable, contractTable, wbsTable, gateTable, stakeMap, libTable,
+// guardrailTable) fit their container with zero horizontal scroll at every width from 768px up,
+// with 0 page-level overflow at any width tested (down to 375px mobile, where these specific
+// dense tables still need scroll — a card-layout redesign, not a CSS fix, stated as a known,
+// accepted limitation rather than silently dropped).
+ok(!/table\{width:100%;border-collapse:collapse;font-size:12\.8px;min-width:800px\}/.test(indexSrc),
+  "the global table min-width:800px floor (root cause of forced horizontal scroll) is gone");
+["portTable", "contractTable", "wbsTable", "gateTable", "stakeMap", "libTable", "guardrailTable"].forEach(id =>
+  ok(!new RegExp('id="' + id + '"[^>]*style="min-width:\\d+px"').test(indexSrc),
+    "#" + id + " no longer carries a fixed min-width forcing scroll"));
+ok(/th,td\{text-align:right;padding:9px 11px;border-bottom:1px solid var\(--c-line\);\s*font-variant-numeric:tabular-nums;white-space:normal\}/.test(indexSrc),
+  "table cells wrap by default now (was nowrap — the other half of the root cause)");
+ok(/\.tab-num,td\.mono\{white-space:nowrap\}/.test(indexSrc),
+  "numeric/date cells stay protected from mid-content wrapping");
+ok(/td \.pill\{white-space:normal;max-width:96px;text-align:center;line-height:1\.3\}/.test(indexSrc),
+  "pills inside table cells wrap when genuinely tight instead of forcing the table wider — the single biggest cause found (a 3-word status label was as wide as 5 numeric columns combined)");
+
 // Tier 3 nav rail: same class of guard as above — a jsdom-less stub can't run real CSS Grid/
 // media-query layout, so these are static tripwires (browser-verified live at 1400px desktop
 // and 390px mobile 2026-08-18: rail renders and switches tabs correctly at desktop width;

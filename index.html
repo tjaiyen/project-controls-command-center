@@ -231,12 +231,26 @@ h4{font-size:.86rem;margin:0 0 5px}
 
 /* tables */
 .tw{overflow-x:auto;margin-top:14px;border:1px solid var(--c-line);border-radius:11px}
-table{width:100%;border-collapse:collapse;font-size:12.8px;min-width:800px}
+table{width:100%;border-collapse:collapse;font-size:12.8px}
 th,td{text-align:right;padding:9px 11px;border-bottom:1px solid var(--c-line);
-  font-variant-numeric:tabular-nums;white-space:nowrap}
+  font-variant-numeric:tabular-nums;white-space:normal}
 th{font:600 9.5px/1.3 ui-monospace,monospace;letter-spacing:.09em;text-transform:uppercase;
   color:rgb(var(--c-mut));background:rgb(var(--c-card))}
 th:first-child,td:first-child{text-align:left;white-space:normal}
+/* nowrap is the exception now, not the default (/stress-test finding, 2026-08-19: fixed-width
+   tables forced every wide table into horizontal scroll — a table now shrinks to fit its column
+   and wraps long text instead; these three cell kinds stay unbroken since a wrapped number, date,
+   or pill label reads badly no matter how much room there is) */
+.tab-num,td.mono{white-space:nowrap}
+/* pills inside a table cell wrap when genuinely tight instead of forcing the whole table wider —
+   a multi-word status label ("Within Managed Variance") was, by itself, as wide as five numeric
+   columns combined and was the single biggest cause of tables needing horizontal scroll
+   (/stress-test finding, 2026-08-19). .pill everywhere ELSE on the page stays single-line. */
+td .pill{white-space:normal;max-width:96px;text-align:center;line-height:1.3}
+/* portTable specifically: 8 columns including two wrappable pill columns is the single densest
+   table on the page — a few px of horizontal padding was the last thing standing between it and
+   fitting at every width without scroll (/stress-test finding, 2026-08-19) */
+#portTable th,#portTable td{padding:9px 7px}
 tbody tr{cursor:pointer;transition:background .12s}
 tbody tr:hover{background:rgb(var(--c-accent) / .07)}
 tbody tr.sel{background:rgb(var(--c-accent) / .13);box-shadow:inset 3px 0 0 rgb(var(--c-accent))}
@@ -468,7 +482,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
       <div class="strip" id="portStrip"></div>
 
       <div class="sec-h" style="margin-top:30px"><h3>Portfolio rollup</h3></div>
-      <div class="tw"><table id="portTable" style="min-width:760px"></table></div>
+      <div class="tw"><table id="portTable"></table></div>
 
       <div class="note"><b>Funding gap, illustrative.</b> The net variance at completion summed across
         all four lines &mdash; the same VAC math every control account on this dashboard already uses,
@@ -702,7 +716,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         and one does not map 1:1 onto the other. The guideway bid-build contract alone covers two control
         accounts. Award value, contingency allocation and uncommitted reserve are all derived from the
         same ledger every other tab reads; nothing here is entered twice.</p>
-      <div class="tw"><table id="contractTable" style="min-width:820px"></table></div>
+      <div class="tw"><table id="contractTable"></table></div>
       <p class="lede" id="contractFoot" style="margin-top:9px;font-size:12.5px"></p>
 
       <div class="sec-h" style="margin-top:34px"><h2>Change &amp; claims</h2><span class="tag">commercial</span></div>
@@ -858,7 +872,7 @@ join dim_control_account b using (package_id)</pre></div>
         category, and an accountable owner. This is what makes Control Account performance measurement
         (the EVM math on every other tab) defensible rather than an aggregate guess &mdash; and what a
         Board or a lender actually checks before releasing funding.</p>
-      <div class="tw"><table id="wbsTable" style="min-width:820px"></table></div>
+      <div class="tw"><table id="wbsTable"></table></div>
       <p class="lede" id="wbsFoot" style="margin-top:9px;font-size:12.5px"></p>
 
       <div class="sec-h" style="margin-top:34px"><h3>Board phase-gate governance</h3></div>
@@ -866,7 +880,7 @@ join dim_control_account b using (package_id)</pre></div>
         budget or contract authority into the next phase. Gate 5 is the hinge: once the lifetime baseline
         is formally adopted, every earned-value figure on this dashboard becomes a variance <em>against
         that specific number</em>, not a moving target.</p>
-      <div class="tw"><table id="gateTable" style="min-width:760px"></table></div>
+      <div class="tw"><table id="gateTable"></table></div>
       <div class="card" style="margin-top:15px" id="gate5Card"></div>
 
       <div class="sec-h" style="margin-top:34px"><h3>Escalation matrix</h3></div>
@@ -889,12 +903,12 @@ join dim_control_account b using (package_id)</pre></div>
       <p class="lede">Controls is a coordination job before it is a math job. Every interface below has a
         forum, a cadence, and a named artifact &mdash; the document that carries the truth into the room.
         When coordination fails, it fails at one of these three: no forum, no rhythm, or no shared artifact.</p>
-      <div class="tw"><table id="stakeMap" style="min-width:820px"></table></div>
+      <div class="tw"><table id="stakeMap"></table></div>
 
       <div class="sec-h" style="margin-top:34px"><h3>KPI reference library</h3></div>
       <p class="lede">All twenty, with the formula as implemented and the system of record each one needs.
         A metric with no owned data source is a metric that will quietly stop being true.</p>
-      <div class="tw"><table id="libTable" style="min-width:900px"></table></div>
+      <div class="tw"><table id="libTable"></table></div>
 
       <div class="note"><b>On the numbers.</b> Every figure in this tool is computed from a
         ledger of eleven inputs per control account &mdash; budget, planned value, earned value, actual
@@ -1026,7 +1040,7 @@ join dim_control_account b using (package_id)</pre></div>
         records a rule governs) with <i>requirements</i> (what those records must have) so a
         submittal that fails gets rejected with a specific, itemized reason. This dashboard's own
         27-check integrity gate is a working small-scale version of the same pattern.</p>
-      <div class="tw"><table id="guardrailTable" style="min-width:760px"></table></div>
+      <div class="tw"><table id="guardrailTable"></table></div>
 
       <div class="sec-h" style="margin-top:30px"><h3>When systems disagree</h3></div>
       <p class="lede">Most reporting tools skip this entirely. The actual process, step by step
