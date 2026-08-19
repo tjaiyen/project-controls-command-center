@@ -273,8 +273,12 @@ try {
   G.sCpi.value = "1.10";
   fire(G.sCpi, "input");
   has("whatIfOut", "$1,127.3M", "what-if at CPI 1.10 gives EAC $1,127.3M");
+  ok(G.whatIfOut._html.includes("wi-flash"), "what-if values that changed carry the flash animation class");
+  fire(G.sCpi, "input"); // same value again — nothing actually changed this time
+  ok(!G.whatIfOut._html.includes("wi-flash"), "re-firing with an unchanged value carries no flash class");
   fire(G.resetWhatIf, "click");
   has("whatIfOut", "$1,297.3M", "what-if reset returns to actuals ($1,297.3M)");
+  ok(G.whatIfOut._html.includes("wi-flash"), "reset (a real value change back) re-triggers the flash class");
 } catch (e) { ok(false, "what-if model", e.message); }
 
 /* =========================================================================
@@ -434,6 +438,20 @@ ok((G.kboard._html.match(/animation-delay:/g) || []).length === 20,
   "all 20 KPI cards carry staggered entrance delays");
 ok(indexSrc.includes("@keyframes drawin") && indexSrc.includes("prefers-reduced-motion"),
   "motion CSS present with reduced-motion guard");
+// first-visit cue on the story card: this DOM stub has no window.localStorage (same gap that
+// broke document.addEventListener earlier this project), so fvVisited()/fvClear() must be
+// try/catch-guarded rather than assume localStorage exists — confirm that guard by source
+// (classList is a stub no-op here, so "does the class actually toggle" can't be observed live)
+// and confirm the guarded functions don't crash the page or any walkthrough interaction.
+ok(/try\{\s*return window\.localStorage/.test(indexSrc), "fvVisited() try/catches the localStorage read");
+ok(/try\{\s*if\(window\.localStorage\)/.test(indexSrc), "fvClear() try/catches the localStorage write");
+try {
+  fire(G.storyPrev, "click");
+  fire(G.storyNext, "click");
+  ok(true, "first-visit cue wiring never throws on walkthrough navigation with no localStorage");
+} catch (e) { ok(false, "first-visit cue (no-localStorage guard)", e.message); }
+// storyGo is exercised separately further up this section (it also calls activateTab, which
+// would leave a non-"over" tab active for every test after this one if fired here)
 
 /* =========================================================================
    D5. RESUME-INSIGHT MODULES — baseline bridge, change pricing, TIA, stakeholders
@@ -885,6 +903,47 @@ try {
   ok(G["p-data"].hidden === false, "clicking the Data Strategy tab shows its panel");
   ok(G["p-over"].hidden === true, "clicking the Data Strategy tab hides Overview");
 } catch (e) { ok(false, "data strategy tab activation", e.message); }
+
+/* =========================================================================
+   D10. INLINE TERM HELP — click-driven popover reusing GLOSS as its only source
+   (returns the active tab to "over" at the end, since D9 above left "data" active)
+   ========================================================================= */
+console.log("== D10. inline term help ==");
+ok(P.gloss.length === 29, "GLOSS grew to 29 entries (25 original + cde/ids/wbs/abs)", String(P.gloss.length));
+["cde", "ids", "wbs", "abs"].forEach(k => {
+  const g = P.findGloss(k);
+  ok(!!g && typeof g.p === "string" && g.p.length > 0, "findGloss resolves new term '" + k + "'");
+  ok(typeof g.e() === "string" && g.e().length > 0, "'" + k + "' example function returns text");
+});
+ok(P.findGloss("does-not-exist") === undefined, "findGloss returns undefined for an unknown key");
+["wbs", "abs", "cde", "ids", "cpli"].forEach(k =>
+  ok(indexSrc.includes('data-help="' + k + '"'), "help icon markup present for '" + k + "'"));
+try {
+  // getBoundingClientRect: openHelp() positions the popover from it; every real DOM element has
+  // one, but this stub's makeEl() never needed it before this feature, so the mock supplies it.
+  const wbsIconEl = { dataset: { help: "wbs" }, getBoundingClientRect: () => ({ bottom: 40, left: 20 }) };
+  const wbsIcon = { closest: sel => (sel === "[data-help]" ? wbsIconEl : null) };
+  fire(R.win, "click", { target: wbsIcon });
+  ok(G.helpPop.hidden === false, "help popover opens on icon click");
+  has("helpPop", "WBS", "help popover shows the WBS term title");
+  has("helpPop", "Explore in Glossary", "help popover offers the Explore-in-Glossary action");
+  fire(R.win, "click", { target: wbsIcon }); // same icon again -> toggle-close
+  ok(G.helpPop.hidden === true, "help popover toggle-closes on a second click of the same icon");
+  fire(R.win, "click", { target: wbsIcon });
+  ok(G.helpPop.hidden === false, "help popover re-opens");
+  fire(R.win, "click", { target: { closest: () => null } }); // click elsewhere on the page
+  ok(G.helpPop.hidden === true, "help popover closes on a click outside it");
+  fire(R.win, "click", { target: wbsIcon });
+  fire(R.win, "keydown", { key: "Escape" });
+  ok(G.helpPop.hidden === true, "help popover closes on Escape");
+  fire(R.win, "click", { target: wbsIcon });
+  const exploreLink = { closest: sel => (sel === "[data-explore]" ? { dataset: { explore: "WBS — Work Breakdown Structure" } } : null) };
+  fire(R.win, "click", { target: exploreLink });
+  ok(G.helpPop.hidden === true, "'Explore in Glossary' also closes the popover");
+  ok(G["p-gloss"].hidden === false, "'Explore in Glossary' switches to the Glossary tab");
+  ok(G.glossQ.value === "WBS", "'Explore in Glossary' pre-fills the search box with the term name (dash stripped)", G.glossQ.value);
+} catch (e) { ok(false, "inline help popover interaction", e.message); }
+fire(G["t-over"], "click"); // restore "over" as active for the sections below, matching D9's own convention
 
 /* =========================================================================
    E. otak.html — runtime + internal consistency
