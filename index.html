@@ -635,6 +635,19 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
           <div class="outbox" id="schedTriad"></div></div>
       </div>
 
+      <div class="dbox" style="margin-top:16px;border-left-color:rgb(var(--c-ok) / .55)">
+        <h4>A real, verified requirement behind this DCMA framing</h4>
+        <p>Sound Transit's own 2023 Standard Division 01 Specifications require prime contractors to
+          schedule in <b style="color:rgb(var(--c-code))">Oracle Primavera P6</b> &mdash; Section
+          01&nbsp;32&nbsp;13.25, &ldquo;Scheduling of Work&rdquo; (the sub-$10M design-bid-build
+          variant; sibling sections 01&nbsp;32&nbsp;13.10/.15/.20 cover larger and design-build
+          contracts). This tab's own DCMA-style logic &mdash; CPLI, BEI, float erosion &mdash; is
+          built from the same real methodology those specifications require, independently
+          re-verified directly against the primary specification document, not cited secondhand.
+          (Sound Transit 2023 Standard Division 01 Specifications, verified 19&nbsp;Aug&nbsp;2026 &mdash;
+          a real, external citation, not this program's own data.)</p>
+      </div>
+
       <div class="sec-h" style="margin-top:34px"><h2>Revenue-service forecast drift</h2><span class="tag">trend, not a snapshot</span></div>
       <p class="lede">The milestone table above shows today's variance against the contractual date. This
         shows the same forecast&rsquo;s <em>trajectory</em> &mdash; whether the projected date has been
@@ -2451,11 +2464,13 @@ var PRESENT_BEATS_QUICK=[
  {label:"Portfolio",tab:"port",notes:[
    "One line is the full ground-truth build, three are summary-only — same idea as a Board rollup.",
    "Do NOT cite the real $34.5B figure — this tab's own footnote says it isn't trying to reproduce that number.",
-   "If it comes up: “this computes its own portfolio funding gap, same variance math, different number, same idea.”"]},
+   "If it comes up: “this computes its own portfolio funding gap, same variance math, different number, same idea.”",
+   "New: funding-tier column — modeled on the real tiering exercise Sound Transit's board ran on ST3 in May 2026, not a reproduction of their criteria."]},
  {label:"Cost — EAC + Monte Carlo",tab:"cost",notes:[
    "Four real methods: current-efficiency-continues, remaining-work-at-budgeted-rate, cost-and-schedule-pressure-both, bottom-up.",
    "Monte Carlo: 4,000 simulated completions, P10 / P50 / P80.",
-   "Honest sentence: not “we land at $X” but “there's an N% chance the funding line doesn't hold.”"]},
+   "Honest sentence: not “we land at $X” but “there's an N% chance the funding line doesn't hold.”",
+   "New: reference class forecasting box below Monte Carlo — Flyvbjerg's real base rates (rail 45%, fixed-link 34%, road 20% average overrun), a second lens, not a replacement."]},
  {label:"Schedule",tab:"sched",notes:[
    "SPI alone misleads near completion — it drifts to 1.00 regardless of delay.",
    "Paired with CPLI (driving-path float) and BEI (activities actually done, not dollars)."]},
@@ -2476,10 +2491,12 @@ var PRESENT_BEATS_FULL=[
  {label:"Portfolio rollup",tab:"port",notes:[
    "One line is the full ground-truth build, three are summary-only, clearly labeled.",
    "This program's own numbers roll up into the portfolio view live — not a hand-typed slide.",
-   "Signals Manager-level thinking, not analyst-level."]},
+   "Signals Manager-level thinking, not analyst-level.",
+   "New: funding-tier column — modeled on the real ST3 board tiering exercise (May 2026), not a reproduction."]},
  {label:"The tunnel story (Cost)",tab:"cost",notes:[
    "Follow CP-201 all the way through: ground conditions worse than baseline, CPI breach, negative float.",
-   "Forecast reliability: EAC has risen every single one of the last five periods — diverging, not noise."]},
+   "Forecast reliability: EAC has risen every single one of the last five periods — diverging, not noise.",
+   "New: reference class forecasting box — Flyvbjerg's real base rates, a second, complementary lens to Monte Carlo."]},
  {label:"Schedule health",tab:"sched",notes:[
    "Why SPI alone misleads near completion.",
    "CPLI = is the driving path still achievable; BEI = are activities actually finishing on plan."]},

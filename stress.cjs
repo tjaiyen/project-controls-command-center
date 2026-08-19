@@ -250,6 +250,15 @@ has("miles", "24 Apr 2028", "milestones: forecast date rendered");
 has("schedTriad", "0.968", "triad: SPI 0.968");
 has("schedTriad", "0.878", "triad: CPLI 0.878 (driving path)");
 has("schedTriad", "0.937", "triad: BEI 0.937");
+// Schedule-tab citation (2026-08-19): independently verified against the actual 791-page primary
+// Sound Transit specification document (not the untrusted CMP-scheduling research doc that
+// prompted this — that doc's own AI-addressed metadata and several fabricated specifics, PCPP
+// policy numbers and "Section 01 35 00", were confirmed absent from the real primary source and
+// were deliberately never used here).
+ok(indexSrc.includes("01&nbsp;32&nbsp;13.25"), "Schedule tab cites the real, verified 01 32 13.25 section number");
+ok(indexSrc.includes("Oracle Primavera P6"), "Schedule tab cites the real, verified P6 requirement");
+ok(!indexSrc.includes("PCPP"), "the unverifiable PCPP policy numbers from the untrusted research doc never made it onto the page");
+ok(!/01[\s&;a-z]*35[\s&;a-z]*00/i.test(indexSrc), "the fabricated 'Section 01 35 00' citation never made it onto the page");
 has("risks", "$25.7M", "risks: total exposure $25.7M (recomputed " + exposure.toFixed(2) + ")");
 has("risks", (topShare * 100).toFixed(1) + "%", "risks: top risk share " + (topShare * 100).toFixed(1) + "%");
 has("risks", "$11.1M", "risks: contingency shortfall $11.1M before risk");
@@ -852,6 +861,15 @@ ok(idsA.includes("presentBtn") && idsA.includes("presentBar"), "presentation-mod
   const gate5Beat = P.presentBeatsFull.filter(b => b.anchor)[0];
   ok(!!gate5Beat && idsA.includes(gate5Beat.anchor), "the anchor beat points at a real element id",
     gate5Beat && gate5Beat.anchor);
+  // /stress-test finding (2026-08-19): the presenter-notes beats had gone stale relative to
+  // today's 2 newest features — a live walkthrough tool that doesn't mention its own newest,
+  // most differentiated content is a real content gap, not cosmetic
+  [P.presentBeatsFull, P.presentBeatsQuick].forEach(beats => {
+    const portBeat = beats.filter(b => b.tab === "port")[0];
+    const costBeat = beats.filter(b => b.tab === "cost")[0];
+    ok(portBeat.notes.some(n => n.includes("funding-tier")), "Portfolio beat mentions the new funding-tier feature");
+    ok(costBeat.notes.some(n => n.includes("reference class forecasting")), "Cost beat mentions the new reference-class feature");
+  });
 }
 try {
   // presentBar's initial hidden state comes from the raw `hidden` HTML attribute (correct in a
@@ -1131,7 +1149,11 @@ const SAN = /mawl|dagir|izlid|kiji|minirva|glare|milr/i;
 // 2. otak.html's new company-research callout quotes Otak's own site verbatim — "design-build
 //    procurement" describes what OTAK did on East Link, not a claim about TJ's own delivery-
 //    method experience (2026-08-19 /stress-test finding, real, not weakened).
-const FAB_APPROVED = ["not years running P6", "design-build procurement, schedule analysis"];
+// 3. The Schedule tab's new citation states Sound Transit's own real spec requirement of ITS
+//    CONTRACTORS (Primavera P6) — independently verified against the actual 791-page primary
+//    specification document, not a claim about TJ's own tool experience (2026-08-19).
+const FAB_APPROVED = ["not years running P6", "design-build procurement, schedule analysis",
+  "Oracle Primavera P6", "cover larger and design-build"];
 [indexSrc, otakSrc, fs.readFileSync(DIR + "README.md", "utf8")].forEach((s, i) => {
   const stripped = FAB_APPROVED.reduce((acc, phrase) => acc.split(phrase).join(""), s);
   ok(!FAB.test(stripped), "fabrication sweep file " + i);
