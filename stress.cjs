@@ -220,8 +220,9 @@ has("portTable", "full detail", "portfolio table marks the flagship line's drill
 has("portTable", "summary only", "portfolio table marks the synthetic sibling lines");
 has("portTable", "Funding tier", "portfolio table carries the new funding-tier column");
 has("fundingTierRead", "Pursuing added funding", "funding-tier readout names the most exposed line");
-ok(indexSrc.includes("Transit's board ran on the ST3 program in May 2026"),
+ok(indexSrc.includes("Transit's board ran on the ST3 program") && indexSrc.includes("in May 2026"),
   "funding-tier framework is explicitly cited as modeled on the real ST3 exercise, not a reproduction");
+ok(indexSrc.includes("R2026-11"), "the ST3 citation carries a specific, checkable source (board resolution number)");
 has("portStrip", "1 of 4", "strip states exactly 1 of 4 lines has full drill-down");
 has("aiGuards", "flagship line reads live from this program", "integrity gate covers the portfolio tie-out");
 
@@ -714,6 +715,12 @@ has("escTable", "TCPI(BAC)", "escalation matrix carries the explicit TCPI &gt; 1
   ok((G.escTable._html.match(/>Dormant</g) || []).length === P.escalation.length - firing.length,
     "escTable shows 'Dormant' for every non-firing rule");
   has("escTable", "Contingency coverage &lt; 1.00", "the firing set includes the contingency-coverage rule (pre-registered: it's the one Gate 5 fails on)");
+  // /stress-test finding (2026-08-19): escalation matrix was the one Tier-2 table missing a
+  // status icon (Actions register and guardrail table both had one) — now carries one per row
+  ok((G.escTable._html.match(/class="ticon r"/g) || []).length === firing.length,
+    "escTable renders a red 'firing' ticon for every currently-firing rule");
+  ok((G.escTable._html.match(/class="ticon g"/g) || []).length === P.escalation.length - firing.length,
+    "escTable renders a green 'dormant' ticon for every non-firing rule");
 }
 
 /* =========================================================================
@@ -1136,6 +1143,10 @@ ok(otakSrc.includes("adaptive program") && otakSrc.includes("management framewor
   "90-day plan cites the real board mandate");
 ok(otakSrc.includes(">If the") && otakSrc.includes("practice's scope touches Sound Transit's ST3 realignment"),
   "the ST3 tie-in stays conditional (\"if the practice's scope touches\"), not presumptuous, matching the fit brief's existing tone");
+// /stress-test finding (2026-08-19): the ST3 claim lacked a citation date the way the East-Link
+// claim right above it has — now matches
+ok(otakSrc.includes("R2026-11") && otakSrc.includes("verified 19&nbsp;Aug&nbsp;2026"),
+  "the ST3 claim now carries a source citation + verified date, matching the East-Link claim's format");
 
 /* =========================================================================
    F. COMPLIANCE SWEEPS

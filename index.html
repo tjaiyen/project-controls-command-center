@@ -258,7 +258,12 @@ tfoot td{font-weight:600;border-top:1px solid rgb(var(--c-accent) / .40);border-
 .help-ic{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;
   margin-left:4px;border-radius:50%;border:1px solid rgb(var(--c-accent) / .55);background:transparent;
   color:rgb(var(--c-code));font:600 10px/1 ui-monospace,monospace;cursor:pointer;vertical-align:2px;
-  padding:0}
+  padding:0;position:relative}
+/* invisible hit-area expander — the visual circle stays 16px so it doesn't crowd surrounding text,
+   but the actual tappable area grows to the ~44px touch target recommendation (/stress-test
+   finding, 2026-08-19: confirmed too small for touch at the visual size alone) */
+.help-ic::before{content:"";position:absolute;top:50%;left:50%;width:44px;height:44px;
+  transform:translate(-50%,-50%)}
 .help-ic:hover,.help-ic:focus-visible{background:rgb(var(--c-accent) / .14)}
 #helpPop{position:fixed;z-index:80;max-width:280px;background:rgb(var(--c-card));
   border:1px solid rgb(var(--c-accent) / .55);border-radius:10px;box-shadow:var(--c-elev);
@@ -396,7 +401,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
   <div class="tabs" id="tabs" role="tablist" aria-label="Command center sections">
     <button role="tab" id="t-over"  aria-controls="p-over"  aria-selected="true" tabindex="0"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><rect x="2" y="2" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="2" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="2" y="9" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="9" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>Overview<span class="cnt" id="cntOver">20</span></button>
     <button role="tab" id="t-port"  aria-controls="p-port"  aria-selected="false" tabindex="-1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><path d="M2 5.5a1 1 0 0 1 1-1h3l1.2 1.6H13a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Portfolio</button>
-    <button role="tab" id="t-cost"  aria-controls="p-cost"  aria-selected="false" tabindex="-1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><line x1="3" y1="13" x2="3" y2="9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><line x1="7" y1="13" x2="7" y2="5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><line x1="11" y1="13" x2="11" y2="7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><line x1="13.5" y1="13" x2="13.5" y2="3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Cost</button>
+    <button role="tab" id="t-cost"  aria-controls="p-cost"  aria-selected="false" tabindex="-1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><line x1="3" y1="13" x2="3" y2="9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="7" y1="13" x2="7" y2="5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="11" y1="13" x2="11" y2="7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="13.5" y1="13" x2="13.5" y2="3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>Cost</button>
     <button role="tab" id="t-sched" aria-controls="p-sched" aria-selected="false" tabindex="-1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><rect x="2.3" y="3.3" width="11.4" height="10.4" rx="1.3" fill="none" stroke="currentColor" stroke-width="1.3"/><line x1="2.3" y1="6.3" x2="13.7" y2="6.3" stroke="currentColor" stroke-width="1.3"/><line x1="5.3" y1="2" x2="5.3" y2="4.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="10.7" y1="2" x2="10.7" y2="4.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>Schedule</button>
     <button role="tab" id="t-risk"  aria-controls="p-risk"  aria-selected="false" tabindex="-1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><path d="M8 2.6 14.2 13H1.8Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><line x1="8" y1="6.5" x2="8" y2="9.8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="11.6" r="0.8" fill="currentColor"/></svg>Risk &amp; Change</button>
     <button role="tab" id="t-del"   aria-controls="p-del"   aria-selected="false" tabindex="-1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><path d="M8 2.3 13.6 5.5v6L8 14.7 2.4 11.5v-6Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M2.4 5.5 8 8.7l5.6-3.2M8 8.7v6" stroke="currentColor" stroke-width="1.1" fill="none"/></svg>Delivery</button>
@@ -456,7 +461,9 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         &mdash; Cascade Transit Extension</b>, read live from the same eleven-input ledger. The other
         three lines below are portfolio-level summary only &mdash; no drill-down &mdash; illustrating how
         a real Module 2&ndash;5 buildout for those lines would roll up at this, the executive tier.
-        Nothing here is a separate number: the flagship row is the same BAC/AC/EV every other tab reports.</p>
+        Nothing here is a separate number: the flagship row is the same BAC/AC/EV every other tab reports.
+        Below the rollup, a funding-tier model answers the board-level question of what gets protected
+        first if that funding gap ever had to be closed.</p>
 
       <div class="strip" id="portStrip"></div>
 
@@ -470,18 +477,24 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         verified $34.5B) &mdash; not an attempt to reproduce that number. Three of these four lines are
         synthetic and carry no real-world figure at all.</div>
 
-      <div class="sec-h" style="margin-top:30px"><h3>Funding tier &mdash; if the program had to absorb a cut<button type="button" class="help-ic" data-help="fundingtier" aria-label="What does this term mean?" aria-expanded="false">i</button></h3></div>
-      <p class="lede">Status above asks whether a line is on budget right now. This asks a different,
-        board-level question: if the total program had to absorb a real funding constraint, which
-        lines would be protected first, and which would be exposed? Two axes, not one &mdash; how far
+      <div class="sec-h" style="margin-top:30px"><h3>Funding tier &mdash; if the gap above had to be closed<button type="button" class="help-ic" data-help="fundingtier" aria-label="What does this term mean?" aria-expanded="false">i</button></h3></div>
+      <p class="lede">Status above asks whether a line is on budget right now. This asks the natural
+        follow-on, board-level question: if the funding gap above ever had to be closed for real,
+        which lines get protected first, and which get exposed? Two axes, not one &mdash; how far
         along a line is (sunk cost and momentum make an early cut expensive to reverse) crossed with
         whether it is spending efficiently (funding more of an inefficient line is a worse bet than
-        funding more of an efficient one). <b>Modeled on the real prioritization exercise Sound
-        Transit's board ran on the ST3 program in May 2026</b> &mdash; tiering funded, partially
-        funded, and deferred projects under a real affordability gap &mdash; not a reproduction of
-        their actual criteria or figures, which are far more complex than two ratios. This program's
-        thresholds are its own, stated plainly:</p>
+        funding more of an efficient one). This program's thresholds are its own, stated plainly:</p>
       <ul class="t" id="fundingTierRead" style="margin-top:12px"></ul>
+
+      <div class="dbox" style="margin-top:14px;border-left-color:rgb(var(--c-ok) / .55)">
+        <h4>A real, verified exercise behind the framework</h4>
+        <p>Modeled on the real prioritization exercise Sound Transit's board ran on the ST3 program
+          in May 2026 &mdash; tiering funded, partially funded, and deferred projects under a real
+          affordability gap. Not a reproduction of their actual criteria or figures, which are far
+          more complex than two ratios; this program's own two-axis model is its own, stated above.
+          (Sound Transit board resolution R2026-11, verified 19&nbsp;Aug&nbsp;2026 &mdash; a real,
+          external citation, not this program's own data.)</p>
+      </div>
     </div>
   </section>
 
@@ -578,7 +591,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         <div class="outbox" id="mcStats"></div>
         <p class="lede" id="mcRead" style="margin-top:12px;font-size:12.8px"></p></div>
 
-      <div class="dbox" style="margin-top:16px;border-left-color:rgb(var(--c-ok) / .55)">
+      <div class="dbox" style="margin-top:14px;border-left-color:rgb(var(--c-ok) / .55)">
         <h4>A second lens on the same question <button type="button" class="help-ic" data-help="referenceclass" aria-label="What does this term mean?" aria-expanded="false">i</button></h4>
         <p>The Monte Carlo run above answers "given how <em>this program</em> has actually performed,
           what's the range of honest outcomes?" &mdash; it forward-simulates from this ledger's own
@@ -635,7 +648,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
           <div class="outbox" id="schedTriad"></div></div>
       </div>
 
-      <div class="dbox" style="margin-top:16px;border-left-color:rgb(var(--c-ok) / .55)">
+      <div class="dbox" style="margin-top:14px;border-left-color:rgb(var(--c-ok) / .55)">
         <h4>A real, verified requirement behind this DCMA framing</h4>
         <p>Sound Transit's own 2023 Standard Division 01 Specifications require prime contractors to
           schedule in <b style="color:rgb(var(--c-code))">Oracle Primavera P6</b> &mdash; Section
@@ -995,8 +1008,8 @@ join dim_control_account b using (package_id)</pre></div>
         <h4>A real, verified detail &mdash; not a hypothetical</h4>
         <p>Sound Transit's own 2023 Standard Division 01 Specifications (Section 01 20 00.10,
           Appendix B, cost-reimbursable contracts) ties digital-tooling compliance directly to
-          contractor pay: <b>BIM/CAD software at $6.80/hr, non-CAD software at $0.86/hr, computer
-          equipment at $0.60/hr</b> &mdash; verified directly against the primary document, not
+          contractor pay: <b style="color:rgb(var(--c-code))">BIM/CAD software at $6.80/hr,
+          non-CAD software at $0.86/hr, computer equipment at $0.60/hr</b> &mdash; verified directly against the primary document, not
           cited secondhand. This kind of data governance already has a real dollar figure attached
           to it on a real transit agency's own contracts.</p>
         <p style="margin:8px 0 0;font-size:12px;color:rgb(var(--c-mut))">One boundary worth being
@@ -2557,6 +2570,13 @@ var ESCALATION=[
    ESCALATION above). Used only as a fallback in the KPI drawer when actionsForKpi() finds nothing —
    an honest "here is the rule, no item tracks it yet" rather than a silent gap. */
 var KPI_ESCALATION={tcpi:[2,3],vac:[5]};
+/* Status-column icons for the escalation matrix — the one Tier-2 table that hadn't gotten one
+   yet (/stress-test finding, 2026-08-19). Same 1.3/1.1 stroke convention as the guardrail icons:
+   a bell for a rule actually firing, a checkmark for one currently dormant. */
+var ESC_STATUS_ICON={
+ firing:{cls:"r", svg:'<svg viewBox="0 0 16 16"><path d="M8 2.3c-2 0-3.3 1.5-3.3 3.5v2.3c0 .8-.3 1.5-.9 2.1l-.6.6h9.6l-.6-.6c-.6-.6-.9-1.3-.9-2.1V5.8c0-2-1.3-3.5-3.3-3.5Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6.3 12.2a1.8 1.8 0 0 0 3.4 0" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><circle cx="12" cy="3.6" r="1.5" fill="currentColor"/></svg>'},
+ dormant:{cls:"g", svg:'<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.3"/><polyline points="5,8.2 7.1,10.3 11,6.1" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></svg>'}
+};
 var CADENCE=[
  {t:"Daily",w:"Critical-path exceptions only. Aged RFIs on the driving path, safety incidents, any package that went negative float overnight.",a:"Package managers"},
  {t:"Weekly",w:"Recovery cadence on negative-float packages, change-order aging, three-week look-ahead against plan.",a:"Controls manager + package managers"},
@@ -2658,7 +2678,8 @@ function renderFramework(){
   document.getElementById("escTable").innerHTML=
     '<thead><tr><th scope="col">Status</th><th scope="col">Trigger</th><th scope="col">Owner</th><th scope="col">Action</th><th scope="col">Clock</th></tr></thead><tbody>'+
     ESCALATION.map(function(r){ var firing=escFiring.indexOf(r)!==-1;
-      return '<tr style="cursor:default"><td><span class="pill '+(firing?"r":"g")+'">'+(firing?"Firing now":"Dormant")+'</span></td>'+
+      var esi=ESC_STATUS_ICON[firing?"firing":"dormant"];
+      return '<tr style="cursor:default"><td><span class="ticon '+esi.cls+'" aria-hidden="true">'+esi.svg+'</span><span class="pill '+(firing?"r":"g")+'">'+(firing?"Firing now":"Dormant")+'</span></td>'+
       '<td class="mono" style="font-size:12px">'+r[0]+
       '</td><td>'+r[1]+'</td><td style="white-space:normal">'+r[2]+'</td><td>'+r[3]+'</td></tr>'; }).join("")+'</tbody>';
   document.getElementById("cadence").innerHTML=CADENCE.map(function(c){
@@ -2689,9 +2710,9 @@ function actDays(iso){ return Math.round((ACT_ASOF - new Date(iso+"T00:00:00Z"))
 /* small category-icon glyphs for the Type column — currentColor so each inherits its tinted
    badge's own color; plain primitive shapes (circle/line/rect/polygon), not decoration */
 var ACT_TYPE_ICON={
- Issue:{cls:"a", svg:'<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.4"/><line x1="8" y1="4.6" x2="8" y2="8.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="11.2" r="0.9" fill="currentColor"/></svg>'},
- Task:{cls:"i", svg:'<svg viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><polyline points="5,8.3 7.2,10.5 11,6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'},
- Decision:{cls:"g", svg:'<svg viewBox="0 0 16 16"><polygon points="8,2 14,8 8,14 2,8" fill="none" stroke="currentColor" stroke-width="1.4"/><line x1="8" y1="5.6" x2="8" y2="10.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>'}
+ Issue:{cls:"a", svg:'<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.3"/><line x1="8" y1="4.6" x2="8" y2="8.8" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><circle cx="8" cy="11.2" r="0.9" fill="currentColor"/></svg>'},
+ Task:{cls:"i", svg:'<svg viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.3"/><polyline points="5,8.3 7.2,10.5 11,6" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></svg>'},
+ Decision:{cls:"g", svg:'<svg viewBox="0 0 16 16"><polygon points="8,2 14,8 8,14 2,8" fill="none" stroke="currentColor" stroke-width="1.3"/><line x1="8" y1="5.6" x2="8" y2="10.4" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>'}
 };
 function typeIcon(t){
   var d=ACT_TYPE_ICON[t]; if(!d) return "";
