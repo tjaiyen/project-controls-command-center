@@ -1081,6 +1081,12 @@ ok(otakSrc.includes("Sound Transit East Link") && otakSrc.includes("three people
   "otak.html cites Otak's own verified East Link project-controls scaling fact");
 ok(otakSrc.includes("https://www.otak.com/about/projects/sound-transit-east-link-light-rail/"),
   "the East Link claim carries its source citation");
+// 90-day roadmap tie-in (2026-08-19): conditional, humble phrasing ("if the practice's scope
+// touches"), not asserted as fact about Otak's internal work — checked for the hedge explicitly
+ok(otakSrc.includes("adaptive program") && otakSrc.includes("management framework"),
+  "90-day plan cites the real board mandate");
+ok(otakSrc.includes(">If the") && otakSrc.includes("practice's scope touches Sound Transit's ST3 realignment"),
+  "the ST3 tie-in stays conditional (\"if the practice's scope touches\"), not presumptuous, matching the fit brief's existing tone");
 
 /* =========================================================================
    F. COMPLIANCE SWEEPS
