@@ -68,9 +68,43 @@ h2{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;c
    shrinking labels past a legible floor — below 1100px of real container width (tablet portrait,
    phone) the diagram holds that floor and overflow-x becomes the fallback, matching how every
    dense table on the live dashboard already behaves, not a new pattern. */
-.diagram-scroll svg{display:block;width:100%;min-width:1100px;max-width:1520px;height:auto;margin:0 auto}
+.diagram-scroll svg{display:block;width:100%;min-width:1100px;max-width:1520px;height:auto;margin:0 auto;cursor:grab;touch-action:none}
+.diagram-scroll svg.panning{cursor:grabbing}
 figure{margin:0}
 figcaption{margin-top:12px;font-size:13.5px;color:rgb(var(--c-mut));max-width:80ch}
+
+/* pan/zoom + node-interaction controls — same visual language as the live dashboard's own
+   .flow-node (Gate Line / CDE flow diagrams), reimplemented here since this is a standalone
+   file with no shared stylesheet. */
+.diagram-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.diagram-toolbar .icobtn{cursor:pointer;background:none;font:inherit}
+.diagram-toolbar .icobtn[aria-pressed="true"]{color:rgb(var(--c-accent));border-color:rgb(var(--c-accent))}
+.zoom-pct{font-family:ui-monospace,monospace;font-size:12px;color:rgb(var(--c-mut));min-width:44px;text-align:center}
+.flow-node{cursor:pointer}
+.flow-node rect{transition:stroke-width .12s ease}
+.flow-node:hover rect{stroke-width:2.4}
+.flow-node:focus{outline:none}
+.flow-node:focus rect,.flow-node.on rect{stroke:rgb(var(--c-accent))!important;stroke-width:2.6!important}
+.flow-particle{fill:rgb(var(--c-accent))}
+/* off by default — an ambient always-crawling diagram reads as busy, not informative. Gated
+   behind the Play-flow toggle (below) so motion is something the reader asks for, not something
+   thrown at them on load. */
+#archSvg.playing .dash-crawl{animation:dashcrawl 1.1s linear infinite}
+@keyframes dashcrawl{to{stroke-dashoffset:-14}}
+@media(prefers-reduced-motion:reduce){#archSvg.playing .dash-crawl{animation:none}}
+
+.arch-detail{margin-top:14px}
+.story-dots{display:inline-flex;gap:5px}
+.story-dots i{display:inline-block;width:7px;height:7px;border-radius:50%;background:rgb(var(--c-mut) / .4)}
+.story-dots i.on{background:rgb(var(--c-accent))}
+.dbox2{border-left:2px solid rgb(var(--c-accent) / .55);padding-left:12px}
+.dbox2 h4{color:rgb(var(--c-code));font:600 10px/1.4 ui-monospace,monospace;letter-spacing:.1em;text-transform:uppercase;margin:0}
+.dbox2 p{margin:5px 0 0;font-size:13px;color:rgb(var(--c-mut))}
+.btn2{display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:6px 12px;border-radius:8px;
+  border:1px solid var(--c-line);background:rgb(var(--c-card));color:rgb(var(--c-ink));font-size:13px;
+  font-weight:600;cursor:pointer}
+.btn2:hover{background:rgb(var(--c-accent) / .10);border-color:rgb(var(--c-accent) / .5)}
+.card2{background:rgb(var(--c-card));border:1px solid var(--c-line);border-radius:11px;padding:16px;margin-top:14px}
 
 .box-fill{fill:rgb(var(--c-card))}
 .box-stroke{stroke:rgb(var(--c-line-strong,148 163 184) / .5);fill:none}
@@ -130,131 +164,171 @@ footer{margin-top:60px;padding-top:18px;border-top:1px solid var(--c-line);font-
 
   <h2>Data flow</h2>
   <p class="section-lede">Solid arrows are data moving forward — ingest, compute, publish. Dashed
-    arrows are the dashboard checking its own work, not new data arriving.</p>
+    arrows are the dashboard checking its own work, not new data arriving. Click any box for what
+    it is and why it's there — the same fifteen rows as the component schedule below, just
+    click-through instead of scroll-through. Scroll or pinch to zoom, drag to pan.</p>
+
+  <div class="diagram-toolbar">
+    <button type="button" class="icobtn" id="zoomOut" aria-label="Zoom out">&minus;</button>
+    <span class="zoom-pct mono" id="zoomPct">100%</span>
+    <button type="button" class="icobtn" id="zoomIn" aria-label="Zoom in">+</button>
+    <button type="button" class="icobtn" id="zoomReset">Reset view</button>
+    <button type="button" class="icobtn" id="playFlow" aria-pressed="false">&#9654; Play flow</button>
+  </div>
 
   <figure>
-    <div class="diagram-scroll">
-<svg viewBox="0 0 1520 670" role="img" aria-label="Data flow diagram: six upstream source systems feed a single eleven-input ledger across eight control accounts; the ledger computes a twenty-metric KPI board; the KPI board drives phase gates, an escalation matrix, and an actions register, all displayed on the live dashboard; a parallel twenty-seven plus fifty-four check integrity gate independently re-derives and cross-checks the ledger and KPI board before anything is allowed to publish to the executive brief or the AI narrative draft.">
+    <div class="diagram-scroll" id="diagramScroll">
+<svg viewBox="0 0 1520 670" id="archSvg" role="img" aria-label="Data flow diagram: six upstream source systems feed a single eleven-input ledger across eight control accounts; the ledger computes a twenty-metric KPI board; the KPI board drives phase gates, an escalation matrix, and an actions register, all displayed on the live dashboard; a parallel twenty-seven plus fifty-four check integrity gate independently re-derives and cross-checks the ledger and KPI board before anything is allowed to publish to the executive brief or the AI narrative draft.">
   <defs>
     <marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
     </marker>
   </defs>
 
+  <g id="viewport">
   <text x="20" y="14" class="col-tag">UPSTREAM &mdash; SOURCE SYSTEMS</text>
   <text x="1240" y="14" class="col-tag">DOWNSTREAM &mdash; PUBLISHED</text>
 
-  <g class="box-stroke" stroke="rgb(148 163 184 / .35)">
-    <rect x="20" y="20" width="200" height="70" rx="8" class="box-fill"/>
-    <rect x="20" y="130" width="200" height="70" rx="8" class="box-fill"/>
-    <rect x="20" y="240" width="200" height="70" rx="8" class="box-fill"/>
-    <rect x="20" y="350" width="200" height="70" rx="8" class="box-fill"/>
-    <rect x="20" y="460" width="200" height="70" rx="8" class="box-fill"/>
-    <rect x="20" y="570" width="200" height="70" rx="8" class="box-fill"/>
+  <g class="flow-node" tabindex="0" role="button" data-k="SRC-1" aria-label="Cost ledger">
+    <rect x="20" y="20" width="200" height="70" rx="8" class="box-fill box-stroke"/>
+    <text x="34" y="48" class="box-label" font-size="13" font-weight="700">Cost ledger</text>
+    <text x="34" y="66" class="box-sub" font-size="11">ERP &middot; committed &amp; actual cost</text>
   </g>
-  <text x="34" y="48" class="box-label" font-size="13" font-weight="700">Cost ledger</text>
-  <text x="34" y="66" class="box-sub" font-size="11">ERP &middot; committed &amp; actual cost</text>
-  <text x="34" y="158" class="box-label" font-size="13" font-weight="700">CPM schedule export</text>
-  <text x="34" y="176" class="box-sub" font-size="11">float, activity dates, progress</text>
-  <text x="34" y="268" class="box-label" font-size="13" font-weight="700">Timesheets</text>
-  <text x="34" y="286" class="box-sub" font-size="11">earned &amp; actual labor hours</text>
-  <text x="34" y="378" class="box-label" font-size="13" font-weight="700">Document control</text>
-  <text x="34" y="396" class="box-sub" font-size="11">RFI &amp; submittal turnaround</text>
-  <text x="34" y="488" class="box-label" font-size="13" font-weight="700">Change log</text>
-  <text x="34" y="506" class="box-sub" font-size="11">approved, pending, rejected COs</text>
-  <text x="34" y="598" class="box-label" font-size="13" font-weight="700">Risk register</text>
-  <text x="34" y="616" class="box-sub" font-size="11">probability, impact, mitigation</text>
+  <g class="flow-node" tabindex="0" role="button" data-k="SRC-2" aria-label="CPM schedule export">
+    <rect x="20" y="130" width="200" height="70" rx="8" class="box-fill box-stroke"/>
+    <text x="34" y="158" class="box-label" font-size="13" font-weight="700">CPM schedule export</text>
+    <text x="34" y="176" class="box-sub" font-size="11">float, activity dates, progress</text>
+  </g>
+  <g class="flow-node" tabindex="0" role="button" data-k="SRC-3" aria-label="Timesheets">
+    <rect x="20" y="240" width="200" height="70" rx="8" class="box-fill box-stroke"/>
+    <text x="34" y="268" class="box-label" font-size="13" font-weight="700">Timesheets</text>
+    <text x="34" y="286" class="box-sub" font-size="11">earned &amp; actual labor hours</text>
+  </g>
+  <g class="flow-node" tabindex="0" role="button" data-k="SRC-4" aria-label="Document control">
+    <rect x="20" y="350" width="200" height="70" rx="8" class="box-fill box-stroke"/>
+    <text x="34" y="378" class="box-label" font-size="13" font-weight="700">Document control</text>
+    <text x="34" y="396" class="box-sub" font-size="11">RFI &amp; submittal turnaround</text>
+  </g>
+  <g class="flow-node" tabindex="0" role="button" data-k="SRC-5" aria-label="Change log">
+    <rect x="20" y="460" width="200" height="70" rx="8" class="box-fill box-stroke"/>
+    <text x="34" y="488" class="box-label" font-size="13" font-weight="700">Change log</text>
+    <text x="34" y="506" class="box-sub" font-size="11">approved, pending, rejected COs</text>
+  </g>
+  <g class="flow-node" tabindex="0" role="button" data-k="SRC-6" aria-label="Risk register">
+    <rect x="20" y="570" width="200" height="70" rx="8" class="box-fill box-stroke"/>
+    <text x="34" y="598" class="box-label" font-size="13" font-weight="700">Risk register</text>
+    <text x="34" y="616" class="box-sub" font-size="11">probability, impact, mitigation</text>
+  </g>
 
-  <rect x="360" y="280" width="200" height="150" rx="10" fill="rgb(6 182 212 / .08)" stroke="rgb(var(--c-accent))" stroke-width="1.6"/>
-  <text x="460" y="330" text-anchor="middle" class="box-label" font-size="14" font-weight="700">THE LEDGER</text>
-  <text x="460" y="354" text-anchor="middle" class="box-sub" font-size="12">8 control accounts</text>
-  <text x="460" y="372" text-anchor="middle" class="box-sub" font-size="12">&times; 11 raw inputs each</text>
-  <text x="460" y="398" text-anchor="middle" class="box-sub" font-size="10.5" font-style="italic">nothing else on this sheet is typed</text>
+  <g class="flow-node" tabindex="0" role="button" data-k="LDG" aria-label="The ledger">
+    <rect x="360" y="280" width="200" height="150" rx="10" fill="rgb(6 182 212 / .08)" stroke="rgb(var(--c-accent))" stroke-width="1.6"/>
+    <text x="460" y="330" text-anchor="middle" class="box-label" font-size="14" font-weight="700">THE LEDGER</text>
+    <text x="460" y="354" text-anchor="middle" class="box-sub" font-size="12">8 control accounts</text>
+    <text x="460" y="372" text-anchor="middle" class="box-sub" font-size="12">&times; 11 raw inputs each</text>
+    <text x="460" y="398" text-anchor="middle" class="box-sub" font-size="10.5" font-style="italic">nothing else on this sheet is typed</text>
+  </g>
 
   <g class="arrow-line" marker-end="url(#ah2)">
-    <path d="M220,55 L360,300"/>
-    <path d="M220,165 L360,330"/>
-    <path d="M220,275 L360,360"/>
-    <path d="M220,385 L360,375"/>
-    <path d="M220,495 L360,390"/>
-    <path d="M220,605 L360,415"/>
+    <path class="flowline" d="M220,55 L360,300"/>
+    <path class="flowline" d="M220,165 L360,330"/>
+    <path class="flowline" d="M220,275 L360,360"/>
+    <path class="flowline" d="M220,385 L360,375"/>
+    <path class="flowline" d="M220,495 L360,390"/>
+    <path class="flowline" d="M220,605 L360,415"/>
   </g>
   <text x="248" y="352" class="arrow-text">ingest &amp; reconcile</text>
 
-  <rect x="660" y="140" width="200" height="100" rx="8" class="box-fill box-stroke"/>
-  <text x="674" y="170" class="box-label" font-size="13" font-weight="700">KPI board</text>
-  <text x="674" y="188" class="box-sub" font-size="11">20 metrics, 6 families</text>
-  <text x="674" y="204" class="box-sub" font-size="11">cost &middot; schedule &middot; risk &middot; change</text>
-  <text x="674" y="220" class="box-sub" font-size="11">delivery &middot; compliance</text>
+  <g class="flow-node" tabindex="0" role="button" data-k="DRV" aria-label="KPI board">
+    <rect x="660" y="140" width="200" height="100" rx="8" class="box-fill box-stroke"/>
+    <text x="674" y="170" class="box-label" font-size="13" font-weight="700">KPI board</text>
+    <text x="674" y="188" class="box-sub" font-size="11">20 metrics, 6 families</text>
+    <text x="674" y="204" class="box-sub" font-size="11">cost &middot; schedule &middot; risk &middot; change</text>
+    <text x="674" y="220" class="box-sub" font-size="11">delivery &middot; compliance</text>
+  </g>
 
-  <rect x="660" y="430" width="200" height="140" rx="8" fill="rgb(6 182 212 / .06)" stroke="rgb(var(--c-code))" stroke-width="1.4"/>
-  <text x="674" y="460" class="box-label" font-size="13" font-weight="700">Integrity gate</text>
-  <text x="674" y="480" class="box-sub" font-size="11">27 live checks (browser)</text>
-  <text x="674" y="498" class="box-sub" font-size="11">+ 54-check SQL pipeline</text>
-  <text x="674" y="516" class="box-sub" font-size="11">independent re-derivation,</text>
-  <text x="674" y="534" class="box-sub" font-size="11">not a display of the same math</text>
+  <g class="flow-node" tabindex="0" role="button" data-k="VFY" aria-label="Integrity gate">
+    <rect x="660" y="430" width="200" height="140" rx="8" fill="rgb(6 182 212 / .06)" stroke="rgb(var(--c-code))" stroke-width="1.4"/>
+    <text x="674" y="460" class="box-label" font-size="13" font-weight="700">Integrity gate</text>
+    <text x="674" y="480" class="box-sub" font-size="11">27 live checks (browser)</text>
+    <text x="674" y="498" class="box-sub" font-size="11">+ 54-check SQL pipeline</text>
+    <text x="674" y="516" class="box-sub" font-size="11">independent re-derivation,</text>
+    <text x="674" y="534" class="box-sub" font-size="11">not a display of the same math</text>
+  </g>
 
-  <path d="M560,355 L660,190" class="arrow-line" marker-end="url(#ah2)"/>
+  <path d="M560,355 L660,190" class="arrow-line flowline" marker-end="url(#ah2)"/>
   <text x="576" y="270" class="arrow-text">computes live</text>
-  <path d="M560,395 L660,500" class="arrow-line-dash" marker-end="url(#ah2)"/>
+  <path d="M560,395 L660,500" class="arrow-line-dash dash-crawl" marker-end="url(#ah2)"/>
   <text x="574" y="460" class="arrow-text-dash">re-derives</text>
-  <path d="M760,240 L760,430" class="arrow-line-dash" marker-end="url(#ah2)"/>
+  <path d="M760,240 L760,430" class="arrow-line-dash dash-crawl" marker-end="url(#ah2)"/>
   <text x="766" y="340" class="arrow-text-dash">cross-checks</text>
 
-  <rect x="960" y="20" width="200" height="100" rx="8" class="box-fill box-stroke"/>
-  <text x="974" y="50" class="box-label" font-size="13" font-weight="700">Phase gates</text>
-  <text x="974" y="68" class="box-sub" font-size="11">7 gates, Board-authorized</text>
-  <text x="974" y="84" class="box-sub" font-size="11">Gate 5: automated hard stop</text>
-  <text x="974" y="100" class="box-sub" font-size="11">2 of 3 checks pass, today</text>
+  <g class="flow-node" tabindex="0" role="button" data-k="GOV-1" aria-label="Phase gates">
+    <rect x="960" y="20" width="200" height="100" rx="8" class="box-fill box-stroke"/>
+    <text x="974" y="50" class="box-label" font-size="13" font-weight="700">Phase gates</text>
+    <text x="974" y="68" class="box-sub" font-size="11">7 gates, Board-authorized</text>
+    <text x="974" y="84" class="box-sub" font-size="11">Gate 5: automated hard stop</text>
+    <text x="974" y="100" class="box-sub" font-size="11">2 of 3 checks pass, today</text>
+  </g>
 
-  <rect x="960" y="220" width="200" height="100" rx="8" class="box-fill box-stroke"/>
-  <text x="974" y="250" class="box-label" font-size="13" font-weight="700">Escalation matrix</text>
-  <text x="974" y="268" class="box-sub" font-size="11">10 threshold rules</text>
-  <text x="974" y="284" class="box-sub" font-size="11">owner + clock, every rule</text>
-  <text x="974" y="300" class="box-sub" font-size="11">no un-owned breach</text>
+  <g class="flow-node" tabindex="0" role="button" data-k="GOV-2" aria-label="Escalation matrix">
+    <rect x="960" y="220" width="200" height="100" rx="8" class="box-fill box-stroke"/>
+    <text x="974" y="250" class="box-label" font-size="13" font-weight="700">Escalation matrix</text>
+    <text x="974" y="268" class="box-sub" font-size="11">10 threshold rules</text>
+    <text x="974" y="284" class="box-sub" font-size="11">owner + clock, every rule</text>
+    <text x="974" y="300" class="box-sub" font-size="11">no un-owned breach</text>
+  </g>
 
-  <rect x="960" y="420" width="200" height="100" rx="8" class="box-fill box-stroke"/>
-  <text x="974" y="450" class="box-label" font-size="13" font-weight="700">Actions / RAID</text>
-  <text x="974" y="468" class="box-sub" font-size="11">17 tracked items</text>
-  <text x="974" y="484" class="box-sub" font-size="11">root cause, corrective action,</text>
-  <text x="974" y="500" class="box-sub" font-size="11">owner + due date</text>
+  <g class="flow-node" tabindex="0" role="button" data-k="ACT" aria-label="Actions / RAID">
+    <rect x="960" y="420" width="200" height="100" rx="8" class="box-fill box-stroke"/>
+    <text x="974" y="450" class="box-label" font-size="13" font-weight="700">Actions / RAID</text>
+    <text x="974" y="468" class="box-sub" font-size="11">17 tracked items</text>
+    <text x="974" y="484" class="box-sub" font-size="11">root cause, corrective action,</text>
+    <text x="974" y="500" class="box-sub" font-size="11">owner + due date</text>
+  </g>
 
-  <path d="M860,180 L960,80" class="arrow-line" marker-end="url(#ah2)"/>
+  <path d="M860,180 L960,80" class="arrow-line flowline" marker-end="url(#ah2)"/>
   <text x="878" y="120" class="arrow-text">reads thresholds</text>
-  <path d="M860,200 L960,270" class="arrow-line" marker-end="url(#ah2)"/>
+  <path d="M860,200 L960,270" class="arrow-line flowline" marker-end="url(#ah2)"/>
   <text x="874" y="240" class="arrow-text">checks every rule</text>
-  <path d="M1060,320 L1060,420" class="arrow-line" marker-end="url(#ah2)"/>
+  <path d="M1060,320 L1060,420" class="arrow-line flowline" marker-end="url(#ah2)"/>
   <text x="1070" y="375" class="arrow-text">opens, owner + clock</text>
-  <path d="M860,220 L960,460" class="arrow-line-dash" marker-end="url(#ah2)"/>
-  <path d="M960,462 L860,222" class="arrow-line-dash" marker-end="url(#ah2)"/>
+  <path d="M860,220 L960,460" class="arrow-line-dash dash-crawl" marker-end="url(#ah2)"/>
+  <path d="M960,462 L860,222" class="arrow-line-dash dash-crawl" marker-end="url(#ah2)"/>
   <text x="882" y="345" class="arrow-text-dash">root-cause drill-down</text>
   <text x="882" y="359" class="arrow-text-dash">owner + due date, one click</text>
 
-  <rect x="1280" y="60" width="200" height="100" rx="10" fill="rgb(6 182 212 / .08)" stroke="rgb(var(--c-accent))" stroke-width="1.6"/>
-  <text x="1294" y="90" class="box-label" font-size="13" font-weight="700">Live dashboard</text>
-  <text x="1294" y="108" class="box-sub" font-size="11">11 tabs, phase-gated</text>
-  <text x="1294" y="124" class="box-sub" font-size="11">everything on this sheet,</text>
-  <text x="1294" y="140" class="box-sub" font-size="11">recomputed on every load</text>
+  <g class="flow-node" tabindex="0" role="button" data-k="OUT-1" aria-label="Live dashboard">
+    <rect x="1280" y="60" width="200" height="100" rx="10" fill="rgb(6 182 212 / .08)" stroke="rgb(var(--c-accent))" stroke-width="1.6"/>
+    <text x="1294" y="90" class="box-label" font-size="13" font-weight="700">Live dashboard</text>
+    <text x="1294" y="108" class="box-sub" font-size="11">11 tabs, phase-gated</text>
+    <text x="1294" y="124" class="box-sub" font-size="11">everything on this sheet,</text>
+    <text x="1294" y="140" class="box-sub" font-size="11">recomputed on every load</text>
+  </g>
 
-  <rect x="1280" y="260" width="200" height="90" rx="8" class="box-fill box-stroke"/>
-  <text x="1294" y="290" class="box-label" font-size="13" font-weight="700">Executive brief</text>
-  <text x="1294" y="308" class="box-sub" font-size="11">print snapshot of the ledger</text>
-  <text x="1294" y="324" class="box-sub" font-size="11">+ escalation count</text>
+  <g class="flow-node" tabindex="0" role="button" data-k="OUT-2" aria-label="Executive brief">
+    <rect x="1280" y="260" width="200" height="90" rx="8" class="box-fill box-stroke"/>
+    <text x="1294" y="290" class="box-label" font-size="13" font-weight="700">Executive brief</text>
+    <text x="1294" y="308" class="box-sub" font-size="11">print snapshot of the ledger</text>
+    <text x="1294" y="324" class="box-sub" font-size="11">+ escalation count</text>
+  </g>
 
-  <rect x="1280" y="450" width="200" height="100" rx="8" class="box-fill box-stroke"/>
-  <text x="1294" y="480" class="box-label" font-size="13" font-weight="700">AI narrative draft</text>
-  <text x="1294" y="498" class="box-sub" font-size="11">AI writes the sentence,</text>
-  <text x="1294" y="514" class="box-sub" font-size="11">code supplies every number</text>
-  <text x="1294" y="530" class="box-sub" font-size="11">unverifiable figure blocks it</text>
+  <g class="flow-node" tabindex="0" role="button" data-k="OUT-3" aria-label="AI narrative draft">
+    <rect x="1280" y="450" width="200" height="100" rx="8" class="box-fill box-stroke"/>
+    <text x="1294" y="480" class="box-label" font-size="13" font-weight="700">AI narrative draft</text>
+    <text x="1294" y="498" class="box-sub" font-size="11">AI writes the sentence,</text>
+    <text x="1294" y="514" class="box-sub" font-size="11">code supplies every number</text>
+    <text x="1294" y="530" class="box-sub" font-size="11">unverifiable figure blocks it</text>
+  </g>
 
-  <path d="M1160,80 L1280,105" class="arrow-line" marker-end="url(#ah2)"/>
-  <path d="M860,190 L1280,120" class="arrow-line" marker-end="url(#ah2)"/>
-  <path d="M1160,460 L1280,145" class="arrow-line" marker-end="url(#ah2)"/>
+  <path d="M1160,80 L1280,105" class="arrow-line flowline" marker-end="url(#ah2)"/>
+  <path d="M860,190 L1280,120" class="arrow-line flowline" marker-end="url(#ah2)"/>
+  <path d="M1160,460 L1280,145" class="arrow-line flowline" marker-end="url(#ah2)"/>
   <text x="1180" y="200" class="arrow-text">live display</text>
-  <path d="M560,410 L1280,300" class="arrow-line" marker-end="url(#ah2)"/>
+  <path d="M560,410 L1280,300" class="arrow-line flowline" marker-end="url(#ah2)"/>
   <text x="900" y="410" class="arrow-text">snapshot, printed</text>
-  <path d="M860,500 L1280,500" class="arrow-line-dash" marker-end="url(#ah2)"/>
+  <path d="M860,500 L1280,500" class="arrow-line-dash dash-crawl" marker-end="url(#ah2)"/>
   <text x="1000" y="490" class="arrow-text-dash">gates the publish</text>
+  </g>
 
 </svg>
     </div>
@@ -262,6 +336,19 @@ footer{margin-top:60px;padding-top:18px;border-top:1px solid var(--c-line);font-
       every KPI, gate, escalation, and action downstream is a live formula against that ledger,
       never a second copy of the number.</figcaption>
   </figure>
+
+  <div class="arch-detail" id="archDetail" aria-live="polite"></div>
+  <div class="card2" id="archStoryCard">
+    <p class="eyebrow" style="margin:0">Walk the flow</p>
+    <h4 id="archStoryTitle" style="margin:7px 0 6px"></h4>
+    <p id="archStoryText" style="margin:0;font-size:13.5px;line-height:1.65;color:rgb(var(--c-mut));max-width:74ch"></p>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap">
+      <button type="button" class="btn2" id="archPrev">&larr; Back</button>
+      <span class="story-dots" id="archDots" aria-hidden="true"></span>
+      <span class="mono" id="archPos" style="font-size:11px;color:rgb(var(--c-mut))"></span>
+      <button type="button" class="btn2" id="archNext">Next &rarr;</button>
+    </div>
+  </div>
 
   <h2>Component schedule</h2>
   <p class="section-lede">Every box above, in the same order &mdash; what it is, why it's there,
@@ -309,5 +396,203 @@ footer{margin-top:60px;padding-top:18px;border-top:1px solid var(--c-line);font-
   </footer>
 
 </div>
+
+<script>
+(function(){
+"use strict";
+
+/* One entry per .flow-node data-k, in the same order and with the same wording as the
+   Component Schedule table below — this page is a static snapshot by design (unlike index.html,
+   nothing here is computed), so duplicating the table's own "what it is / why it's there" text
+   into this object rather than re-deriving it is the correct call, not a shortcut: both must be
+   kept in sync by hand on any future edit to either. */
+var NODE_INFO = [
+ {k:"SRC-1", t:"Cost ledger", x:"Committed and actual cost per control account — the ERP's own numbers. Origin point; feeds straight into the ledger."},
+ {k:"SRC-2", t:"CPM schedule export", x:"Float, activity dates, percent complete — what schedule health is measured against. Origin point; feeds the ledger."},
+ {k:"SRC-3", t:"Timesheets", x:"Earned vs. actual labor hours — the input productivity factor and CPH are built on. Origin point; feeds the ledger."},
+ {k:"SRC-4", t:"Document control", x:"RFI and submittal turnaround — the earliest leading indicator of a claims problem. Origin point; feeds the ledger."},
+ {k:"SRC-5", t:"Change log", x:"Approved, pending, and rejected change orders against original contract value. Origin point; feeds the ledger."},
+ {k:"SRC-6", t:"Risk register", x:"Probability × impact per risk, with a named owner and mitigation. Origin point; feeds the ledger."},
+ {k:"LDG", t:"The ledger", x:"Eleven raw inputs × eight control accounts. The one place any of the six sources are actually recorded — everything past this point is a formula. Takes in all six sources; feeds the KPI board, the integrity gate, and the executive brief."},
+ {k:"DRV", t:"KPI board", x:"20 metrics across cost, schedule, risk, change, delivery, and compliance. Takes in the ledger; feeds phase gates, the escalation matrix, actions, and the dashboard."},
+ {k:"VFY", t:"Integrity gate", x:"27 browser checks plus a separate 54-check SQL pipeline, independently re-deriving headline numbers to prove the two stacks agree. Takes in the ledger and the KPI board; gates the AI narrative draft."},
+ {k:"GOV-1", t:"Phase gates", x:"7 Board-authorized gates. Gate 5 carries a live hard stop — 2 of 3 checks pass, today. Takes in the KPI board; feeds the dashboard."},
+ {k:"GOV-2", t:"Escalation matrix", x:"10 threshold rules; every one carries a named owner and a clock. Takes in the KPI board; feeds Actions / RAID."},
+ {k:"ACT", t:"Actions / RAID", x:"17 tracked items. Every breached KPI resolves to one of these, or an honest “no item opened yet.” Takes in the escalation matrix and the KPI drill-down; feeds the dashboard."},
+ {k:"OUT-1", t:"Live dashboard", x:"11 tabs, phase-gated. Every figure recomputed on load. Terminal — takes in everything upstream of it."},
+ {k:"OUT-2", t:"Executive brief", x:"A printable snapshot of the ledger and escalation count. Terminal — takes in the ledger."},
+ {k:"OUT-3", t:"AI narrative draft", x:"AI writes only the sentence; code supplies every number first — a verification contract. Terminal — takes in the integrity gate."}
+];
+var idx = 0;
+
+function select(k){
+  var i = NODE_INFO.map(function(n){return n.k;}).indexOf(k);
+  if (i < 0) return;
+  idx = i;
+  var n = NODE_INFO[idx];
+  Array.prototype.forEach.call(document.querySelectorAll("#archSvg .flow-node"), function(el){
+    el.classList.toggle("on", el.dataset.k === n.k);
+  });
+  document.getElementById("archDetail").innerHTML =
+    '<div class="dbox2"><h4>' + n.t + '</h4><p>' + n.x + '</p></div>';
+  document.getElementById("archStoryTitle").textContent = n.t;
+  document.getElementById("archStoryText").textContent = n.x;
+  document.getElementById("archPos").textContent = (idx + 1) + " of " + NODE_INFO.length;
+  document.getElementById("archDots").innerHTML = NODE_INFO.map(function(_, j){
+    return '<i class="' + (j === idx ? "on" : "") + '"></i>'; }).join("");
+}
+select(NODE_INFO[0].k);
+
+document.getElementById("archSvg").addEventListener("click", function(e){
+  var n = e.target.closest("[data-k]");
+  if (n) select(n.dataset.k);
+});
+document.getElementById("archSvg").addEventListener("keydown", function(e){
+  var n = e.target.closest("[data-k]");
+  if (!n) return;
+  if (e.key === "Enter" || e.key === " "){ e.preventDefault(); select(n.dataset.k); return; }
+  // arrow-key traversal: same forward/backward convention as the live dashboard's own tab list
+  // (Right/Down = forward, Left/Up = backward) — the diagram is a DAG, not a strict tree, so a
+  // deterministic story order is a more honest "traverse" than guessing which of several
+  // downstream edges an arrow key should follow.
+  var fwd = e.key === "ArrowRight" || e.key === "ArrowDown";
+  var bwd = e.key === "ArrowLeft" || e.key === "ArrowUp";
+  if (!fwd && !bwd) return;
+  e.preventDefault();
+  var next = Math.max(0, Math.min(NODE_INFO.length - 1, idx + (fwd ? 1 : -1)));
+  select(NODE_INFO[next].k);
+  var sel = document.querySelector('#archSvg [data-k="' + NODE_INFO[next].k + '"]');
+  if (sel && sel.focus) sel.focus();
+});
+document.getElementById("archPrev").addEventListener("click", function(){
+  select(NODE_INFO[Math.max(0, idx - 1)].k);
+});
+document.getElementById("archNext").addEventListener("click", function(){
+  select(NODE_INFO[Math.min(NODE_INFO.length - 1, idx + 1)].k);
+});
+
+/* ---------- pan & zoom ---------- */
+var svg = document.getElementById("archSvg");
+var viewport = document.getElementById("viewport");
+var scroller = document.getElementById("diagramScroll");
+var tx = 0, ty = 0, scale = 1;
+var MIN_SCALE = 0.5, MAX_SCALE = 3;
+function applyTransform(){
+  viewport.setAttribute("transform", "translate(" + tx + " " + ty + ") scale(" + scale + ")");
+  document.getElementById("zoomPct").textContent = Math.round(scale * 100) + "%";
+}
+function zoomBy(factor, cx, cy){
+  var newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale * factor));
+  if (newScale === scale) return;
+  // keep the point under the cursor (or the diagram center, for the toolbar buttons) fixed
+  var ratio = newScale / scale;
+  tx = cx - (cx - tx) * ratio;
+  ty = cy - (cy - ty) * ratio;
+  scale = newScale;
+  applyTransform();
+}
+document.getElementById("zoomIn").addEventListener("click", function(){ zoomBy(1.25, 760, 335); });
+document.getElementById("zoomOut").addEventListener("click", function(){ zoomBy(0.8, 760, 335); });
+document.getElementById("zoomReset").addEventListener("click", function(){ tx = 0; ty = 0; scale = 1; applyTransform(); });
+
+svg.addEventListener("wheel", function(e){
+  if (!e.ctrlKey && !e.metaKey && Math.abs(e.deltaY) < Math.abs(e.deltaX)) return; // let plain horizontal scroll pass through
+  e.preventDefault();
+  var rect = svg.getBoundingClientRect();
+  var vbScaleX = 1520 / rect.width, vbScaleY = 670 / rect.height;
+  var cx = (e.clientX - rect.left) * vbScaleX, cy = (e.clientY - rect.top) * vbScaleY;
+  zoomBy(e.deltaY < 0 ? 1.1 : 0.9, cx, cy);
+}, {passive:false});
+
+var dragging = false, dragStartX = 0, dragStartY = 0, txStart = 0, tyStart = 0;
+function panStart(clientX, clientY){
+  dragging = true; dragStartX = clientX; dragStartY = clientY; txStart = tx; tyStart = ty;
+  svg.classList.add("panning");
+}
+function panMove(clientX, clientY){
+  if (!dragging) return;
+  var rect = svg.getBoundingClientRect();
+  var vbScaleX = 1520 / rect.width, vbScaleY = 670 / rect.height;
+  tx = txStart + (clientX - dragStartX) * vbScaleX;
+  ty = tyStart + (clientY - dragStartY) * vbScaleY;
+  applyTransform();
+}
+function panEnd(){ dragging = false; svg.classList.remove("panning"); }
+svg.addEventListener("mousedown", function(e){
+  if (e.target.closest("[data-k]")) return; // let node clicks through without starting a drag
+  panStart(e.clientX, e.clientY);
+});
+window.addEventListener("mousemove", function(e){ panMove(e.clientX, e.clientY); });
+window.addEventListener("mouseup", panEnd);
+svg.addEventListener("touchstart", function(e){
+  if (e.touches.length !== 1 || e.target.closest("[data-k]")) return;
+  panStart(e.touches[0].clientX, e.touches[0].clientY);
+}, {passive:true});
+svg.addEventListener("touchmove", function(e){
+  if (e.touches.length !== 1) return;
+  panMove(e.touches[0].clientX, e.touches[0].clientY);
+}, {passive:true});
+svg.addEventListener("touchend", panEnd);
+
+/* ---------- play flow: particles along solid arrows, dash-crawl on dashed ones ---------- */
+var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+var playBtn = document.getElementById("playFlow");
+if (reduceMotion){
+  playBtn.disabled = true;
+  playBtn.title = "Motion is reduced by your system setting — arrows already show direction.";
+}
+var playing = false, particles = [], rafId = null, startTime = null;
+var SPEED = 120; // px/s along the path, matches the brief's own stated rate
+function buildParticles(){
+  // scoped to path.flowline specifically, not just .flowline — a <g> wrapper carrying the same
+  // class (the 6 ingest arrows share one <g class="arrow-line">) has no getTotalLength() of its
+  // own and would crash here; caught live, fixed at the markup level too, kept defensive here.
+  var paths = viewport.querySelectorAll("path.flowline");
+  particles = Array.prototype.map.call(paths, function(path){
+    var c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    c.setAttribute("class", "flow-particle");
+    c.setAttribute("r", "3.5");
+    viewport.appendChild(c);
+    return {path: path, len: path.getTotalLength(), el: c};
+  });
+}
+function clearParticles(){
+  particles.forEach(function(p){ p.el.remove(); });
+  particles = [];
+}
+function tick(ts){
+  if (!playing) return;
+  if (startTime === null) startTime = ts;
+  var elapsed = (ts - startTime) / 1000;
+  particles.forEach(function(p){
+    var d = (elapsed * SPEED) % (p.len + 40); // +40 gives a gap before the next lap
+    if (d <= p.len){
+      var pt = p.path.getPointAtLength(d);
+      p.el.setAttribute("cx", pt.x); p.el.setAttribute("cy", pt.y);
+      p.el.style.opacity = "1";
+    } else {
+      p.el.style.opacity = "0";
+    }
+  });
+  rafId = requestAnimationFrame(tick);
+}
+playBtn.addEventListener("click", function(){
+  if (reduceMotion) return;
+  playing = !playing;
+  playBtn.setAttribute("aria-pressed", String(playing));
+  playBtn.innerHTML = playing ? "&#10074;&#10074; Pause flow" : "&#9654; Play flow";
+  svg.classList.toggle("playing", playing);
+  if (playing){
+    startTime = null;
+    buildParticles();
+    rafId = requestAnimationFrame(tick);
+  } else {
+    if (rafId) cancelAnimationFrame(rafId);
+    clearParticles();
+  }
+});
+
+})();
+</script>
 </body>
 </html>
