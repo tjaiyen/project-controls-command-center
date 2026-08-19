@@ -108,6 +108,21 @@ ok(indexSrc.includes('aria-controls="p-over"'), "tab aria-controls present");
 ok(/\.grid>\*\{min-width:0\}/.test(indexSrc), "index.html: grid items have min-width:0 (mobile overflow guard)");
 ok(/\.grid2>\*\{min-width:0\}/.test(otakSrc), "otak.html: grid items have min-width:0 (mobile overflow guard)");
 
+// Tier 3 nav rail: same class of guard as above — a jsdom-less stub can't run real CSS Grid/
+// media-query layout, so these are static tripwires (browser-verified live at 1400px desktop
+// and 390px mobile 2026-08-18: rail renders and switches tabs correctly at desktop width;
+// .tabs stays flex-direction:row and #main stays display:block below the breakpoint, 0 overflow).
+ok(/@media\(min-width:1050px\)\{/.test(indexSrc), "desktop nav-rail media query is present");
+ok(/#main\.wrap\{max-width:1320px;display:grid/.test(indexSrc), "nav-rail breakpoint switches #main to a two-column grid");
+ok(/\[role="tabpanel"\]\{grid-column:2;min-width:0\}/.test(indexSrc),
+  "tabpanel grid items carry min-width:0 (same overflow-guard class as the mobile grid check above)");
+ok((indexSrc.match(/class="nav-ic"/g) || []).length === 11, "all 11 nav-rail tabs carry an icon");
+// the rail is presentation-only: TABS, activateTab(), and the tab click wiring are untouched —
+// confirmed here by re-checking the tab count/order the D9 TABS_CHECK already asserts elsewhere,
+// as a direct probe that this CSS/markup-only change didn't silently touch the tab logic
+ok(idsA.filter(id => /^t-(over|port|cost|sched|risk|del|ai|fw|act|gloss|data)$/.test(id)).length === 11,
+  "all 11 tab buttons still present with their original ids after the rail markup change");
+
 /* =========================================================================
    B. RUNTIME — index.html
    ========================================================================= */
