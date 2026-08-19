@@ -330,6 +330,12 @@ has("scurveMathBody", "0.956", "S-curve math panel states the live CPI");
 has("scurveMathBody", "CP-201", "S-curve math panel names its worked-example control account");
 has("scurveMathBody", "bell-shaped interpolation",
   "S-curve math panel honestly discloses the monthly curve is a constructed interpolation, not tracked monthly actuals");
+// mobile upgrade (2026-08-19): S-curve tooltip is mousemove-only upstream of this fix (never
+// fires on touch) — now also bound to click. Content-detail is already covered by the existing
+// math-panel checks above; this just proves the click path actually wires to the shared #tip.
+G.tip._html = "";
+fire(G.scurve, "click", { target: { classList: { contains: () => true }, dataset: { mo: "0" } }, clientX: 60, clientY: 60 });
+ok(G.tip._html.includes("Month 1"), "tapping the S-curve at month 0 (click, no prior hover) shows that month's tooltip");
 {
   const cp201row = rows.find(r => r.id === "CP-201");
   const share = Math.round((cp201row.pv / T.pv) * 100) + "%";
@@ -390,6 +396,12 @@ has("scurveMathBody", "bell-shaped interpolation",
   fire(G.waterfall, "mousemove", { target: { classList: { contains: () => true }, dataset: { bar: "1" } }, clientX: 100, clientY: 100 });
   ok(G.tip._html.includes(worstRow.id), "hovering bars[1] (the worst VAC step) shows that account's id in the shared tooltip");
   ok(G.tip._html.includes(shareStr), "hover tooltip's share matches the same independently-recomputed figure");
+  // mobile upgrade (2026-08-19): mousemove never fires on touch, so the tooltip is now bound to
+  // click too — same handler, same output, just a second trigger. Prove click alone (no prior
+  // mousemove) produces the identical tooltip.
+  G.tip._html = "";
+  fire(G.waterfall, "click", { target: { classList: { contains: () => true }, dataset: { bar: "1" } }, clientX: 100, clientY: 100 });
+  ok(G.tip._html.includes(worstRow.id), "tapping bars[1] (click, no prior hover) shows the same account id in the tooltip");
 }
 
 has("eacTable", "$1,303.7M", "EAC table: bottom-up $1,303.7M");
@@ -495,6 +507,10 @@ ok(Math.abs(trueMin.cpli - T.cpli) < 1e-9,
   // than forecast finish (less time than the plan implied) — the exact inverse for positive float
   ok(worst.float < 0 && worstBase.getTime() < worstFcst.getTime(),
     "pre-registered: this account's negative float means its baseline-implied finish sits before its forecast finish");
+  // mobile upgrade (2026-08-19): gantt tooltip now bound to click too, same as the S-curve check
+  G.tip._html = "";
+  fire(G.gantt, "click", { target: { classList: { contains: () => true }, dataset: { gantt: "0" } }, clientX: 60, clientY: 60 });
+  ok(G.tip._html.includes("Forecast finish"), "tapping the gantt chart (click, no prior hover) shows a tooltip");
   const aheadRow = rows.find(r => r.float > 0);
   if (aheadRow) {
     const aheadFcst = addDays(ACT_ASOF, aheadRow.cpRem), aheadBase = addDays(ACT_ASOF, aheadRow.cpRem + aheadRow.float);
@@ -529,6 +545,10 @@ ok(heatNums === 25, "heat map renders 25 cells", String(heatNums));
   fire(G.tornado, "mousemove", { target: { classList: { contains: () => true }, dataset: { risk: "0" } }, clientX: 50, clientY: 50 });
   ok(G.tip._html.includes(top.id), "hovering tornado bar 0 (the top risk) shows its id in the shared tooltip");
   ok(G.tip._html.includes(m(top.exp)), "hover tooltip's exposure matches independent recomputation");
+  // mobile upgrade (2026-08-19): click-bound tooltip, same as the waterfall check above
+  G.tip._html = "";
+  fire(G.tornado, "click", { target: { classList: { contains: () => true }, dataset: { risk: "0" } }, clientX: 50, clientY: 50 });
+  ok(G.tip._html.includes(top.id), "tapping tornado bar 0 (click, no prior hover) shows its id in the tooltip");
 }
 
 /* =========================================================================

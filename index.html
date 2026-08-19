@@ -83,10 +83,18 @@ a{color:rgb(var(--c-accent))}
 /* clickable beat dots — same visual language as .story-dots (Overview narrator, Gate Line, CDE
    flow) but individually focusable/clickable here rather than decorative, so jumping non-linearly
    to answer a real question mid-room doesn't need a new pattern invented for it. */
-.present-bar .pdots{display:flex;gap:5px;flex:none}
-.present-bar .pdots button{width:9px;height:9px;padding:0;border:none;border-radius:50%;
-  background:rgb(var(--c-mut) / .4);cursor:pointer;min-height:0}
-.present-bar .pdots button.on{background:rgb(var(--c-accent))}
+.present-bar .pdots{display:flex;gap:2px;flex:none}
+/* real tap target grows to 20px (a straight .help-ic::before 44px overlay would overlap its
+   neighbors here — dots sit 14px apart, unlike an isolated inline .help-ic — so taps would
+   land on the wrong beat; 20px is the largest that doesn't overlap the next dot at this
+   spacing, mobile upgrade 2026-08-19); the visible mark stays a small centered dot via ::after
+   so the row doesn't visually sprawl or break the .story-dots language shared with the other
+   three dot-widgets in this file. */
+.present-bar .pdots button{width:20px;height:20px;padding:0;border:none;background:none;
+  cursor:pointer;min-height:0;display:inline-flex;align-items:center;justify-content:center}
+.present-bar .pdots button::after{content:"";width:9px;height:9px;border-radius:50%;
+  background:rgb(var(--c-mut) / .4)}
+.present-bar .pdots button.on::after{background:rgb(var(--c-accent))}
 .present-bar .pdots button:focus-visible{outline:2px solid rgb(var(--c-accent));outline-offset:2px}
 /* the audience-facing "ask the room" callout — a shared visual moment, not the presenter's
    private notes. Empty/hidden on every beat except the one that sets onScreen. */
@@ -2128,9 +2136,11 @@ function renderScurve(){
     "tab already runs, drawn here as a range instead of a single line: "+pct(MC.pOver,0)+
     " of simulated completions land above the "+m(T.bac)+" budget, spanning "+m(MC.p10)+" (P10) to "+
     m(MC.p80)+" (P80).";
-  // tooltips
+  // tooltips — bound to both mousemove (desktop hover) and click (tap, mobile upgrade
+  // 2026-08-19: mousemove never fires on touch, so a phone user got the chart shape with no
+  // way to read a value; same handler, tapping a bar now shows it, tapping elsewhere clears it)
   var host=document.getElementById("scurve"), tip=document.getElementById("tip");
-  host.addEventListener("mousemove",function(e){
+  function scurveTip(e){
     var t=e.target; if(!t.classList||!t.classList.contains("hot")){ tip.classList.remove("on"); return; }
     var j=+t.dataset.mo;
     tip.innerHTML="<b>Month "+(j+1)+"</b>PV "+m(pvA[j])+"<br>EV "+m(evA[j])+"<br>AC "+m(acA[j])+
@@ -2138,7 +2148,9 @@ function renderScurve(){
     tip.classList.add("on");
     tip.style.left=Math.min(e.clientX+14,window.innerWidth-262)+"px";
     tip.style.top=Math.min(e.clientY+14,window.innerHeight-130)+"px";
-  });
+  }
+  host.addEventListener("mousemove",scurveTip);
+  host.addEventListener("click",scurveTip);
   host.addEventListener("mouseleave",function(){ tip.classList.remove("on"); });
 }
 
@@ -2288,9 +2300,10 @@ function renderWaterfall(){
   }).join("");
   document.getElementById("waterfall").innerHTML=svg(W,H,g+body,
     "Variance bridge from budget at completion to forecast at completion, decomposed by control account.");
-  // hover — same shared #tip element the S-curve uses, not a new tooltip mechanism
+  // hover/tap — same shared #tip element the S-curve uses, bound to click too (mobile upgrade,
+  // see the scurve tooltip above for why)
   var host=document.getElementById("waterfall"), tip=document.getElementById("tip");
-  host.addEventListener("mousemove",function(e){
+  function waterfallTip(e){
     var t=e.target; if(!t.classList||!t.classList.contains("hot")){ tip.classList.remove("on"); return; }
     var b=bars[+t.dataset.bar];
     if(b.type==="total"){ tip.innerHTML="<b>"+b.l+"</b>"+m(b.y1); }
@@ -2301,7 +2314,9 @@ function renderWaterfall(){
     tip.classList.add("on");
     tip.style.left=Math.min(e.clientX+14,window.innerWidth-262)+"px";
     tip.style.top=Math.min(e.clientY+14,window.innerHeight-130)+"px";
-  });
+  }
+  host.addEventListener("mousemove",waterfallTip);
+  host.addEventListener("click",waterfallTip);
   host.addEventListener("mouseleave",function(){ tip.classList.remove("on"); });
   renderWaterfallRead(sorted);
 }
@@ -2946,8 +2961,9 @@ function renderGantt(){
     '<text x="'+todayX.toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" font-size="10.5" font-family="ui-monospace,monospace" fill="'+C("accent")+'">data date &middot; '+PROGRAM.dataDate+'</text>';
   document.getElementById("gantt").innerHTML=svg(W,H,g+body,
     "Tracking Gantt: remaining schedule runway per control account from the data date — a ghosted bar to the baseline-implied finish, a solid bar to the actual forecast finish, colored red where the account is behind.");
+  // hover/tap — bound to click too (mobile upgrade, see the scurve tooltip for why)
   var host=document.getElementById("gantt"), tip=document.getElementById("tip");
-  host.addEventListener("mousemove",function(e){
+  function ganttTip(e){
     var t=e.target; if(!t.classList||!t.classList.contains("hot")){ tip.classList.remove("on"); return; }
     var d=ends[+t.dataset.gantt];
     tip.innerHTML="<b>"+d.r.id+"</b>"+d.r.n.replace(/&amp;/g,"&")+"<br>Baseline-implied finish "+fmtDate(d.base)+
@@ -2955,7 +2971,9 @@ function renderGantt(){
     tip.classList.add("on");
     tip.style.left=Math.min(e.clientX+14,window.innerWidth-262)+"px";
     tip.style.top=Math.min(e.clientY+14,window.innerHeight-130)+"px";
-  });
+  }
+  host.addEventListener("mousemove",ganttTip);
+  host.addEventListener("click",ganttTip);
   host.addEventListener("mouseleave",function(){ tip.classList.remove("on"); });
   renderGanttMath(ends);
 }
@@ -3106,9 +3124,10 @@ function renderRisk(){
       '<text x="'+(PL-8)+'" y="'+(y+h/2+3.5).toFixed(1)+'" text-anchor="end" font-size="10.5" font-family="ui-monospace,monospace" fill="'+C("mut")+'">'+k.id+'</text>'+
       '<text x="'+(PL+w+7).toFixed(1)+'" y="'+(y+h/2+3.5).toFixed(1)+'" font-size="10.5" font-family="ui-monospace,monospace" fill="'+C("ink")+'">'+m(k.exp)+'</text>';
   }).join(""),"Risk exposure ranked by probability-weighted cost.");
-  // hover — same shared #tip element the S-curve and variance bridge already use
+  // hover/tap — same shared #tip element the S-curve and variance bridge already use, bound to
+  // click too (mobile upgrade, see the scurve tooltip for why)
   var tornHost=document.getElementById("tornado"), tornTip=document.getElementById("tip");
-  tornHost.addEventListener("mousemove",function(e){
+  function tornTipFn(e){
     var t=e.target; if(!t.classList||!t.classList.contains("hot")){ tornTip.classList.remove("on"); return; }
     var k=ranked[+t.dataset.risk];
     tornTip.innerHTML="<b>"+k.id+"</b>"+k.n+"<br>P"+k.p+" ("+Math.round(P_BAND[k.p]*100)+"%) &times; "+m(k.cost)+
@@ -3116,7 +3135,9 @@ function renderRisk(){
     tornTip.classList.add("on");
     tornTip.style.left=Math.min(e.clientX+14,window.innerWidth-262)+"px";
     tornTip.style.top=Math.min(e.clientY+14,window.innerHeight-130)+"px";
-  });
+  }
+  tornHost.addEventListener("mousemove",tornTipFn);
+  tornHost.addEventListener("click",tornTipFn);
   tornHost.addEventListener("mouseleave",function(){ tornTip.classList.remove("on"); });
   renderRiskMath(ranked);
   var grid={}; RISKS.forEach(function(k){ grid[k.p+"-"+k.i]=(grid[k.p+"-"+k.i]||0)+1; });
