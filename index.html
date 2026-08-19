@@ -209,6 +209,7 @@ h4{font-size:.86rem;margin:0 0 5px}
 .dbox[open] summary{margin-bottom:6px}
 .dbox code{font:12px/1.5 ui-monospace,monospace;color:rgb(var(--c-code));background:rgb(var(--c-accent) / .10);
   padding:1px 5px;border-radius:4px}
+.dbox-anim-wrap{overflow:hidden}
 
 /* pills / status */
 .pill{display:inline-block;padding:2px 9px;border-radius:999px;font:600 10.5px/1.6 ui-monospace,monospace}
@@ -3782,6 +3783,50 @@ function renderDataStrategy(){
    same GLOSS entry the full Glossary tab uses (no separate content to maintain or let drift).
    Click-driven, not hover-only, so it works the same on touch as on a mouse. */
 function findGloss(key){ return GLOSS.filter(function(g){ return g.k===key; })[0]; }
+/* Animated open/close for every <details class="dbox"> "how this is actually computed" panel,
+   site-wide — one shared wiring, not five copies. Moves each panel's post-summary children into
+   a single measurable wrapper (once, at init) so the animation only ever has to track one
+   element's height regardless of how many children a given panel has (the Monte Carlo panel has
+   two: the math body and the "run one simulation" block). Respects prefers-reduced-motion by
+   skipping straight to the native instant toggle — this is the one CSS-media-query check this
+   file does in JS rather than CSS, because WAAPI's own animate() call has no media-query gate. */
+function wireDetailsAnimation(){
+  var mq=window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)");
+  document.querySelectorAll("details.dbox").forEach(function(det){
+    var summary=det.querySelector("summary");
+    if(!summary) return;
+    var wrap=document.createElement("div");
+    wrap.className="dbox-anim-wrap";
+    Array.prototype.slice.call(det.children).filter(function(el){ return el!==summary; })
+      .forEach(function(el){ wrap.appendChild(el); });
+    det.appendChild(wrap);
+    summary.addEventListener("click",function(e){
+      if(mq && mq.matches) return; // reduced motion — let the native instant toggle happen
+      if(det.classList.contains("animating")) { e.preventDefault(); return; }
+      e.preventDefault();
+      det.classList.add("animating");
+      /* .finished (a promise) rather than .onfinish (an event handler) — the two are supposed to
+         settle together per spec, but were observed to drift apart under this project's own
+         browser-automation harness during verification; .finished.then()/.catch() is the more
+         robust, documented pattern and removes the ambiguity outright rather than trusting it
+         would resolve itself. .catch() swallows the rejection WAAPI throws when an animation is
+         cancelled (e.g. a rapid second click elsewhere), which is expected, not an error. */
+      if(det.open){
+        var h=wrap.scrollHeight;
+        wrap.animate([{height:h+"px",opacity:1},{height:"0px",opacity:0}],{duration:220,easing:"ease"})
+          .finished.then(function(){ det.open=false; wrap.style.height=""; det.classList.remove("animating"); })
+          .catch(function(){ det.classList.remove("animating"); });
+      } else {
+        det.open=true;
+        var h2=wrap.scrollHeight;
+        wrap.animate([{height:"0px",opacity:0},{height:h2+"px",opacity:1}],{duration:240,easing:"ease"})
+          .finished.then(function(){ wrap.style.height=""; det.classList.remove("animating"); })
+          .catch(function(){ det.classList.remove("animating"); });
+      }
+    });
+  });
+}
+
 var helpOpenKey=null, helpOpenAnchor=null;
 function closeHelp(){
   helpOpenKey=null;
@@ -4106,6 +4151,7 @@ document.getElementById("sCpi").value=T.cpi;
 document.getElementById("sSpi").value=T.spi;
 document.getElementById("sCont").value=PROGRAM.contingency;
 renderWhatIf();
+wireDetailsAnimation();
 
 /* expose for verification */
 window.__PCC__={rows:rows,totals:T,kpis:KPIS,program:PROGRAM,eacs:EACS,mc:MC,

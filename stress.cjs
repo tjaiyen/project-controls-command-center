@@ -1417,6 +1417,33 @@ try {
 fire(G["t-over"], "click"); // restore "over" as active for the sections below, matching D9's own convention
 
 /* =========================================================================
+   D11. INTERACTIVE MOTION (2026-08-19)
+   ========================================================================= */
+console.log("== D11. interactive motion ==");
+// Real coverage for this feature lives in live-browser verification, not here — this harness's
+// document.querySelectorAll always returns [] (see makeEl's stub), so wireDetailsAnimation()'s
+// forEach body never executes under test, and there is no DOM/CSSOM to observe a CSS keyframe
+// re-triggering or a WAAPI animation completing. Source-level checks only: confirm the mechanism
+// shipped and is wired at init, not that it behaves correctly — that was proven live (2026-08-19:
+// all 6 details.dbox panels open/close correctly, content and nested listeners survive the
+// wrap-move, a real onfinish/.finished timing bug was caught and fixed to .finished.then()).
+ok(indexSrc.includes("function wireDetailsAnimation()"), "wireDetailsAnimation is defined");
+ok(indexSrc.includes("wireDetailsAnimation();"), "wireDetailsAnimation is called at init");
+ok(indexSrc.includes('window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)")') &&
+   /wireDetailsAnimation\(\)\{[\s\S]{0,80}prefers-reduced-motion/.test(indexSrc),
+  "wireDetailsAnimation checks prefers-reduced-motion before animating");
+ok(/\.finished\.then\(/.test(indexSrc) && !/\.onfinish=/.test(indexSrc),
+  "uses the .finished promise, not .onfinish (the event-handler form was observed to drift from actual completion under live-browser verification)");
+{
+  // count only in the markup, not inside the <script> block — a JS doc-comment describing
+  // <details class="dbox"> would otherwise inflate this count (found: it did, 7 vs 6, on the
+  // first run of this exact check)
+  const markupOnly = indexSrc.slice(0, indexSrc.indexOf("<script>"));
+  const detailsCount = (markupOnly.match(/<details class="dbox"/g) || []).length;
+  ok(detailsCount === 6, "exactly 6 details.dbox panels exist for this to wire", String(detailsCount));
+}
+
+/* =========================================================================
    E. otak.html — runtime + internal consistency
    ========================================================================= */
 console.log("== E. otak.html ==");
