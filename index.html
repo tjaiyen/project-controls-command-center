@@ -191,6 +191,12 @@ h4{font-size:.86rem;margin:0 0 5px}
   border-radius:9px;color:rgb(var(--c-mut));font-size:13px}
 .banner b{color:rgb(var(--c-ink))}
 .card{background:rgb(var(--c-card));border:1px solid var(--c-line);border-radius:11px;padding:17px}
+/* executive summary stat strip — a plain number + label pair, not a KPI card (no RAG, no
+   click-to-drill); these are structural facts about the platform itself, not program metrics */
+.estats{display:flex;gap:26px;flex-wrap:wrap;margin-top:18px}
+.estat{display:flex;flex-direction:column;gap:2px}
+.estat b{font:700 23px/1 ui-monospace,monospace;color:rgb(var(--c-code))}
+.estat span{font-size:11px;color:rgb(var(--c-mut));max-width:12ch;line-height:1.3}
 .grid{display:grid;gap:15px;margin-top:15px}
 .grid>*{min-width:0}
 .g2{grid-template-columns:1fr} .g3{grid-template-columns:1fr}
@@ -536,6 +542,21 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         <span><b>Synthetic illustrative data.</b> The program, packages, risks and change log are invented
         to exercise the framework. No client, employer or agency data appears anywhere. The
         <em>method</em> is the content.</span></div>
+
+      <!-- the 30-second "what is this and why" — the tour and print brief go deep, this stays
+           short and always on screen. Same doctrine as everything else on this page: the stat
+           strip and bottom line are computed from the live arrays below, never hand-typed. -->
+      <div class="card" style="margin-top:16px" id="execSummary">
+        <div class="eyebrow">Executive summary</div>
+        <p style="margin:0;font-size:13.6px;line-height:1.7;color:rgb(var(--c-mut));max-width:74ch">
+          Capital programs run on data spread across half a dozen disconnected systems — schedule, cost,
+          risk, quality, ERP — usually reconciled by hand into a static deck that's stale before the
+          meeting starts. This dashboard is the alternative: every number below is computed live from one
+          raw ledger, audited on load, and traceable back to a formula you can click open. Nothing here is
+          decorative, and nothing is typed.</p>
+        <div class="estats" id="execStats"></div>
+        <p id="execBottomLine" style="margin:14px 0 0;font-size:13.6px;line-height:1.7;max-width:74ch"></p>
+      </div>
 
       <!-- entry point, not a second narrator (2026-08-19): the tour itself lives in the fixed
            #tourBar so it can follow the visitor across tabs; this card is just an on-page invite
@@ -2850,6 +2871,9 @@ function renderPrint(){
   document.getElementById("printBrief").innerHTML=
     '<h1>Executive brief &mdash; '+PROGRAM.name+'</h1>'+
     '<div>Data date '+PROGRAM.dataDate+' &middot; '+pct(T.pct)+' complete &middot; '+PROGRAM.corridor.replace(/&[a-z]+;/g," ")+' &middot; synthetic illustrative data</div>'+
+    '<p style="margin:10px 0 0;max-width:74ch">Capital programs run on data spread across half a dozen '+
+    'disconnected systems, reconciled by hand into a static deck that is stale before the meeting starts. '+
+    'Every figure below is computed live from one raw ledger — nothing on this page is typed.</p>'+
     '<h2>Position</h2><table><tr><th>BAC</th><th>Forecast (EAC)</th><th>VAC</th><th>CPI</th><th>SPI</th>'+
     '<th>TCPI</th><th>CPLI (driving)</th><th>Contingency left</th><th>Coverage</th></tr>'+
     '<tr><td>'+m(T.bac)+'</td><td>'+m(T.eac)+'</td><td>'+sgn(T.vac)+'</td><td>'+idx(T.cpi)+'</td><td>'+idx(T.spi)+
@@ -2864,6 +2888,31 @@ function renderPrint(){
     '<h2>Milestones</h2><p style="margin:0">'+lateM.length+' of '+MILES.length+' late; revenue service '+
     days(MILES[MILES.length-1].d)+' against the contractual date.</p>'+
     '<p class="pbn">Computed from the control-account ledger — nothing on this page is typed. Synthetic illustrative data; no client, employer or agency information is represented.</p>';
+}
+
+/* on-screen executive summary (Overview tab) — the always-visible counterpart to the print-only
+   brief above. Structural stats about the PLATFORM itself (guard count, KPI count, gate count),
+   every one read live off the same arrays the rest of the page uses, not hand-typed — an external
+   AI-generated brief pasted into this session (2026-08-19) got several of these numbers right and
+   several wrong (a fabricated -28d float vs the real -40d, a fabricated $35.0M contingency vs the
+   real $52.6M), which is exactly why nothing here is copied from that doc. */
+function renderExecSummary(){
+  var gate5Pass=GATE5_CHECKS.every(function(c){ return c.run()[0]; });
+  var stats=[
+    {v:KPIS.length, l:"live KPIs, each with a formula and a play"},
+    {v:GUARDS.length, l:"runtime integrity guards, re-run on load"},
+    {v:EACS.length, l:"independent EAC methods, shown side by side"},
+    {v:GATES.filter(function(g){ return g.gate; }).length, l:"board phase-gates, one can actually fail"},
+    {v:ACTIONS.length, l:"tracked actions, each with a named owner"}
+  ];
+  document.getElementById("execStats").innerHTML=stats.map(function(s){
+    return '<div class="estat"><b>'+s.v+'</b><span>'+s.l+'</span></div>';
+  }).join("");
+  document.getElementById("execBottomLine").innerHTML=
+    "<b>Right now:</b> the program forecasts "+m(T.eac)+" against a "+m(T.bac)+" budget ("+sgn(T.vac)+
+    "), "+pct(MC.pBust,0)+" of simulated completions still bust the budget plus remaining contingency, and "+
+    "Gate 5 "+(gate5Pass?"clears":"is <b>blocked</b>")+" at a contingency coverage of "+idx(T.contCoverage)+
+    (gate5Pass?"":" against a required 1.00")+".";
 }
 
 /* ---------- ledger ---------- */
@@ -4999,6 +5048,7 @@ document.getElementById("mcViewHist").addEventListener("click",function(){ state
 document.getElementById("mcViewCdf").addEventListener("click",function(){ state.mcView="cdf"; syncMcView(); });
 
 /* init */
+renderExecSummary();
 renderPhases(); renderStrip(); renderPortfolio(); renderAudienceFilters(); renderFilters(); renderBoard(); renderDetail();
 renderScurve(); renderScurveMath();
 document.getElementById("scurveScrub").max=String(MT);

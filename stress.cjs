@@ -899,6 +899,8 @@ try {
 
 // print brief: populated at init, escalation count derived independently
 has("printBrief", "Executive brief", "print brief populated at init");
+has("printBrief", "nothing on this page is typed",
+  "print brief opens with the thesis statement (brainstorm 2026-08-19), not just tables");
 const expectedFiring =
   (T.cpi < 0.95) + (T.cpli < 0.95) + (T.tcpi - T.cpi > 0.10) + (T.tcpi > 1.10) + (T.contCoverage < 1) +
   (Math.abs(Math.min(0, T.vac)) > T.contRemaining) + (T.negFloat.length > 0) +
@@ -1095,6 +1097,39 @@ try {
   ok(true, "first-visit cue wiring never throws on tour entry/exit with no localStorage");
 } catch (e) { ok(false, "first-visit cue (no-localStorage guard)", e.message); }
 fire(G["t-over"], "click"); // the tour block above ends back on Overview, but stay defensive
+
+/* =========================================================================
+   D4.5 EXECUTIVE SUMMARY (brainstorm 2026-08-19) — the always-on-screen
+   counterpart to the print-only brief; every stat cross-checked against an
+   independently-derived or already-verified live value, never the pasted
+   external doc's own numbers (several of which were confirmed wrong).
+   ========================================================================= */
+console.log("== D4.5. executive summary ==");
+// the card's own thesis paragraph is static HTML, never JS-rendered into innerHTML at runtime —
+// same situation as the old story card's static teaser text — so idsA (parsed from source) is
+// the right check here, not has() (which only sees runtime .innerHTML assignments)
+ok(idsA.includes("execSummary") && indexSrc.includes("decorative, and nothing is typed"),
+  "exec summary card exists and states the platform's own doctrine");
+{
+  // guard count comes from guardCountLede's own already-independently-verified live value
+  // (established precedent — see the AI & Data tab verification-gate check further down this
+  // file — rather than re-deriving GUARDS.length a third way)
+  const guardCount = G.guardCountLede.textContent;
+  const expectedStats = [P.kpis.length, guardCount, P.eacs.length,
+    P.gates.filter((g) => g.gate).length, P.actions.length];
+  expectedStats.forEach((v) => has("execStats", ">" + v + "<", "exec stat strip shows " + v));
+  ok(expectedStats[3] === 6, "6 of the program's phase gates carry a real gate number (not the null-gate Closeout phase)",
+    String(expectedStats[3]));
+}
+{
+  const gate5Pass = P.gate5Checks.every((c) => c.run()[0]);
+  has("execBottomLine", m(P.totals.eac), "bottom line quotes the live EAC");
+  has("execBottomLine", m(P.totals.bac), "bottom line quotes the live BAC");
+  has("execBottomLine", pct(P.mc.pBust, 0), "bottom line quotes the live pBust percentage");
+  has("execBottomLine", idx(P.totals.contCoverage), "bottom line quotes the live contingency coverage ratio");
+  ok(gate5Pass === false, "pre-registered: this program's data has Gate 5 failing (matches the tour/framework tab's own story)", String(gate5Pass));
+  has("execBottomLine", "blocked", "bottom line says Gate 5 is blocked, matching the pre-registered failing state");
+}
 
 /* =========================================================================
    D5. RESUME-INSIGHT MODULES — baseline bridge, change pricing, TIA, stakeholders
