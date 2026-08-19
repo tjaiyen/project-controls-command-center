@@ -376,6 +376,11 @@ tr.stagger{animation:rise .3s ease-out backwards}
    scaleY from bottom on a horizontal bar would squash it, not extend it. */
 #mcChart rect,#waterfall rect{transform-box:fill-box;transform-origin:bottom;animation:growup .6s ease-out backwards}
 #tornado rect{transform-box:fill-box;transform-origin:left;animation:growright .6s ease-out backwards}
+/* Hover lift on the visible bar marks only — scoped by container, not by .hot alone, since the
+   S-curve's own .hot rects (data-mo) are deliberately transparent hit-targets, not bars; giving
+   those the same treatment would make invisible rectangles flash visible on hover. */
+#waterfall rect.hot,#tornado rect.hot{transition:opacity .12s ease}
+#waterfall rect.hot:hover,#tornado rect.hot:hover{opacity:1}
 .story-dots i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;
   background:rgb(var(--c-mut) / .35);transition:background .2s}
 .story-dots i.on{background:rgb(var(--c-accent))}

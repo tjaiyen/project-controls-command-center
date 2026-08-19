@@ -1486,6 +1486,20 @@ ok(indexSrc.includes('var body=\'<polyline class="draw" points="'),
   ok(indexSrc.includes("tr.stagger{animation:rise"), "the stagger class reuses the existing rise keyframe, not a new one");
 }
 
+// Hover lift on chart marks (2026-08-19) — source-level check only, and stated explicitly why:
+// :hover is a browser-internal UI state, not settable from page-context JS at all (that's the
+// whole reason DevTools needs a dedicated "force element state" feature), so it can't be
+// verified here, and live-browser :hover simulation via this session's screen-coordinate-based
+// hover tool was attempted and did not reliably land on a ~58px SVG bar despite several
+// carefully recomputed coordinate passes — tooling friction, not a signal about correctness.
+// Confirmed instead: the rule text and scoping (verified below), and live that the base opacity
+// value it transitions FROM reads correctly (0.92/0.85, matching each bar's own inline value).
+ok(indexSrc.includes("#waterfall rect.hot,#tornado rect.hot{transition:opacity"),
+  "waterfall/tornado bars get a hover transition");
+ok(indexSrc.includes("#waterfall rect.hot:hover,#tornado rect.hot:hover{opacity:1}"),
+  "hover rule is scoped to waterfall/tornado containers specifically, not to .hot everywhere — the S-curve's own .hot rects are deliberately transparent hit-targets (data-mo), not bars, and must not be affected");
+ok(!/#scurve[^{]*\.hot[^{]*:hover/.test(indexSrc), "no hover rule targets the S-curve's transparent hot-zone rects");
+
 /* =========================================================================
    E. otak.html — runtime + internal consistency
    ========================================================================= */
