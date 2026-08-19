@@ -632,6 +632,10 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         <details class="dbox" style="margin-top:16px">
           <summary>How this is actually computed</summary>
           <div id="mcMathBody"></div>
+          <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--c-line)">
+            <button class="btn" id="mcRunOne" type="button">Run one simulated completion, live</button>
+            <div id="mcOneRun" style="margin-top:10px"></div>
+          </div>
         </details>
       </div>
 
@@ -2252,6 +2256,37 @@ function renderMcMath(){
     'above are simply the values at the 10th/50th/80th position once all '+MC.n+' outcomes are sorted low to '+
     'high.</p>';
 }
+
+/* One illustrative run, watched happening — every control account's draw, in order, summed to
+   one completion. A fresh seed per click (not the fixed 20260731 seed the 4,000-run distribution
+   above uses) so repeat clicks visibly land in different places, the same way any two real
+   simulated completions would. Reads rows/T/triang/lcg already in scope; writes nothing back
+   into MC or the chart above. */
+var mcRunCount=0;
+function renderMcOneRun(){
+  mcRunCount++;
+  var rnd=lcg(20260731+mcRunCount*7919), total=0;
+  var lines=rows.map(function(r){
+    var c=triang(rnd(), Math.max(0.78,r.cpi-0.08), r.cpi+0.06, r.cpi);
+    var contrib=r.ac+(r.bac-r.ev)/c;
+    total+=contrib;
+    return {id:r.id, c:c, contrib:contrib};
+  });
+  var zone = total<T.bac ? ["g","under budget"]
+    : total<(T.bac+T.contRemaining) ? ["a","over budget, inside remaining contingency"]
+    : ["r","busts budget + remaining contingency"];
+  document.getElementById("mcOneRun").innerHTML=
+    '<div class="eyebrow">Run #'+mcRunCount+' of this button, one of the '+MC.n+' behind the distribution above</div>'+
+    '<div class="tw"><table style="font-size:12px"><thead><tr><th scope="col">Control account</th>'+
+    '<th scope="col">Draw (c)</th><th scope="col">Contributes</th></tr></thead><tbody>'+
+    lines.map(function(l){ return '<tr><td class="mono">'+l.id+'</td><td class="mono tab-num">'+idx(l.c)+
+      '</td><td class="mono tab-num">'+m(l.contrib)+'</td></tr>'; }).join("")+
+    '</tbody></table></div>'+
+    '<p style="margin-top:8px;font-size:12.8px">Summed across all '+rows.length+' control accounts: '+
+    '<b style="color:rgb(var(--c-ink))">'+m(total)+'</b> &mdash; <span class="pill '+zone[0]+'">'+zone[1]+
+    '</span>. Click again for another run; the shape above is what 4,000 of these, drawn independently, look like.</p>';
+}
+document.getElementById("mcRunOne").addEventListener("click", renderMcOneRun);
 
 /* ---------- print brief ---------- */
 function firingEscalations(){

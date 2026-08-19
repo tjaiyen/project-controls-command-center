@@ -506,6 +506,54 @@ ok(indexSrc.includes('data-help="referenceclass"'), "reference-class callout car
   });
 }
 
+// D2.2 — "run one simulated completion, live" stepper (2026-08-19)
+{
+  function triangCheck2(u, a, b, mode) {
+    const fc = (mode - a) / (b - a);
+    return u < fc ? a + Math.sqrt(u * (b - a) * (mode - a)) : b - Math.sqrt((1 - u) * (b - a) * (b - mode));
+  }
+  function lcgCheck(seed) {
+    let s = seed >>> 0;
+    return () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; };
+  }
+  function m2(v) { const s = Math.abs(v).toFixed(1).split(".");
+    return (v < 0 ? "−" : "") + "$" + s[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",") + "." + s[1] + "M"; }
+
+  fire(G.mcRunOne, "click");
+  ok(G.mcOneRun._html.includes("Run #1"), "first click renders run #1");
+  // pre-registered rows.length was wrong on first pass — the actual markup has a <thead><tr> for
+  // the column headers too; count body rows specifically, not every <tr> on the page (B35: this
+  // contradicted the first prediction, so the count logic was fixed, not the app)
+  const tbodyMatch = G.mcOneRun._html.match(/<tbody>([\s\S]*)<\/tbody>/);
+  const bodyRowCount = tbodyMatch ? (tbodyMatch[1].match(/<tr>/g) || []).length : -1;
+  ok(bodyRowCount === rows.length,
+    "one-run table body has exactly one row per control account", bodyRowCount + " vs expected " + rows.length);
+
+  // independently recompute run #1 with the same per-click seed formula the app uses
+  const rnd1 = lcgCheck(20260731 + 1 * 7919);
+  let total1 = 0;
+  rows.forEach(r => {
+    const c = triangCheck2(rnd1(), Math.max(0.78, r.cpi - 0.08), r.cpi + 0.06, r.cpi);
+    total1 += r.ac + (r.bac - r.ev) / c;
+  });
+  ok(G.mcOneRun._html.includes(m2(total1)), "run #1's summed total matches independent recomputation", m2(total1));
+  const zone1 = total1 < T.bac ? "under budget"
+    : total1 < (T.bac + T.contRemaining) ? "inside remaining contingency" : "busts budget";
+  ok(G.mcOneRun._html.includes(zone1), "run #1's zone label matches its own independently-recomputed total", zone1);
+
+  // second click produces a different seed/run, not a static replay
+  fire(G.mcRunOne, "click");
+  ok(G.mcOneRun._html.includes("Run #2"), "second click renders run #2, not a repeat of run #1");
+  const rnd2 = lcgCheck(20260731 + 2 * 7919);
+  let total2 = 0;
+  rows.forEach(r => {
+    const c = triangCheck2(rnd2(), Math.max(0.78, r.cpi - 0.08), r.cpi + 0.06, r.cpi);
+    total2 += r.ac + (r.bac - r.ev) / c;
+  });
+  ok(total1 !== total2, "pre-registered: two clicks with different seeds land on different totals", total1 + " vs " + total2);
+  ok(G.mcOneRun._html.includes(m2(total2)), "run #2's summed total matches independent recomputation", m2(total2));
+}
+
 // scenarios: save two, verify table, clear
 try {
   G.sCpi.value = "1.10"; G.sSpi.value = "1.05"; G.sCont.value = "150";
