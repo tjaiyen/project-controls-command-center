@@ -190,7 +190,14 @@ h4{font-size:.86rem;margin:0 0 5px}
 .kpi .nm{margin-top:5px;font-size:12px;color:rgb(var(--c-ink));font-weight:500}
 .kpi .sub{margin-top:3px;font-size:11px;color:rgb(var(--c-mut))}
 .kpi .spark{margin-top:9px;height:24px;display:block;width:100%}
-.kpi .trend{font:600 10.5px/1 ui-monospace,monospace;margin-left:6px}
+/* the RAG word badge — was an unused rule (no markup ever referenced .trend) until this pass gave
+   it a real job: pairing the KPI card's color-only severity signal with actual text, matching the
+   dual-coding already used everywhere else in the file (pills, escalation icons). background
+   reads --rag directly (the same custom property .val already uses for its text color) so the
+   badge and the value number always agree without a second RAG->color mapping to keep in sync. */
+.kpi .trend{display:inline-block;vertical-align:middle;margin-left:8px;padding:2px 7px;
+  border-radius:999px;background:var(--rag,rgb(var(--c-mut)));color:rgb(var(--c-bg));
+  font:600 9.5px/1.7 ui-monospace,monospace;letter-spacing:.03em}
 
 /* detail drawer */
 .drawer{margin-top:14px;border:1px solid rgb(var(--c-accent) / .45);border-radius:11px;
@@ -511,7 +518,12 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
 
       <div class="sec-h" style="margin-top:34px"><h2>KPI board</h2><span class="tag" id="boardTag"></span></div>
       <p class="lede">Click any card for the formula, thresholds, data source and the play to run when it
-        breaches. Cards dim when the metric is not meaningful in the selected phase.</p>
+        breaches. Cards dim when the metric is not meaningful in the selected phase. Every candidate metric
+        was checked against a real question before it earned a spot here: who's the decision-maker, what's
+        the action when it breaches, and how fast — a metric that fails that test doesn't belong on a
+        primary screen. The audience filter below shows that discipline directly: fewer people need more
+        numbers, and the working set only grows as the audience does.</p>
+      <div class="kfilters" id="audienceFilters"></div>
       <div class="kfilters" id="kfilters"></div>
       <div class="kboard" id="kboard"></div>
       <div id="kdetail" aria-live="polite"></div>
@@ -552,7 +564,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         funding more of an efficient one). This program's thresholds are its own, stated plainly:</p>
       <ul class="t" id="fundingTierRead" style="margin-top:12px"></ul>
 
-      <div class="dbox" style="margin-top:14px;border-left-color:rgb(var(--c-ok) / .55)">
+      <div class="dbox" style="margin-top:14px;border-left-color:rgb(var(--c-info) / .55)">
         <h4>A real, verified exercise behind the framework</h4>
         <p>Modeled on the real prioritization exercise Sound Transit's board ran on the ST3 program
           in May 2026 &mdash; tiering funded, partially funded, and deferred projects under a real
@@ -694,7 +706,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         </details>
       </div>
 
-      <div class="dbox" style="margin-top:14px;border-left-color:rgb(var(--c-ok) / .55)">
+      <div class="dbox" style="margin-top:14px;border-left-color:rgb(var(--c-info) / .55)">
         <h4>A second lens on the same question <button type="button" class="help-ic" data-help="referenceclass" aria-label="What does this term mean?" aria-expanded="false">i</button></h4>
         <p>The Monte Carlo run above answers "given how <em>this program</em> has actually performed,
           what's the range of honest outcomes?" &mdash; it forward-simulates from this ledger's own
@@ -769,7 +781,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
           <div class="outbox" id="schedTriad"></div></div>
       </div>
 
-      <div class="dbox" style="margin-top:14px;border-left-color:rgb(var(--c-ok) / .55)">
+      <div class="dbox" style="margin-top:14px;border-left-color:rgb(var(--c-info) / .55)">
         <h4>A real, verified requirement behind this DCMA framing</h4>
         <p>Sound Transit's own 2023 Standard Division 01 Specifications require prime contractors to
           schedule in <b style="color:rgb(var(--c-code))">Oracle Primavera P6</b> &mdash; Section
@@ -1167,7 +1179,7 @@ join dim_control_account b using (package_id)</pre></div>
         <div class="dbox"><h4>Archived</h4><p>Immutable long-term record: as-built models,
           transaction history, audit trail &mdash; gated by final handover verification.</p></div>
       </div>
-      <div class="dbox" style="margin-top:14px;border-left-color:rgb(var(--c-ok) / .55)">
+      <div class="dbox" style="margin-top:14px;border-left-color:rgb(var(--c-info) / .55)">
         <h4>A real, verified detail &mdash; not a hypothetical</h4>
         <p>Sound Transit's own 2023 Standard Division 01 Specifications (Section 01 20 00.10,
           Appendix B, cost-reimbursable contracts) ties digital-tooling compliance directly to
@@ -1571,6 +1583,11 @@ function pct(v,d){ return (v*100).toFixed(d===undefined?1:d)+"%"; }
 function days(v){ return (v>0?"+":"")+v+"d"; }
 function num(v){ return v.toLocaleString("en-US"); }
 var RAG={g:"var(--c-pill-g)",a:"var(--c-pill-a)",r:"var(--c-pill-r)",i:"var(--c-pill-i)"};
+/* Same g/a/r words statusOf() already uses for the ledger table (line ~2758) — reused here, not
+   reinvented, so "On track"/"Watch"/"At risk" means the same thing everywhere on this dashboard.
+   KPI cards were the one severity indicator in the file that was color-only (no text/icon) —
+   every pill and escalation icon elsewhere already dual-codes; this closes that gap. */
+var RAG_WORD={g:"On track",a:"Watch",r:"At risk",i:"Info"};
 
 /* =========================================================================
    4. THE 20 KPIs
@@ -1584,7 +1601,7 @@ function band(v, good, warn, invert){
 }
 var KPIS = [
 /* ---- COST ---- */
-{id:"cpi",fam:"Cost",abbr:"CPI",name:"Cost Performance Index",
+{id:"cpi",fam:"Cost",abbr:"CPI",name:"Cost Performance Index",tier:["exec","pmo","pcm"],
  val:function(){return idx(T.cpi);}, raw:function(){return T.cpi;},
  rag:function(){return band(T.cpi,1.00,0.95);}, sub:function(){return "EV "+m(T.ev)+" ÷ AC "+m(T.ac);},
  f:"CPI = EV ÷ AC", th:"≥1.00 green · 0.95–1.00 amber · <0.95 red",
@@ -1592,7 +1609,7 @@ var KPIS = [
  why:"Every dollar spent is buying "+pct(T.cpi,0)+" of the budgeted work. CPI is the most stable EVM index — once it settles past roughly 20% complete it rarely recovers on its own.",
  act:"Below 0.95, stop forecasting and start diagnosing: is it estimate quality, productivity, scope creep, or escalation? Each has a different fix and only one of them is recoverable by working harder."},
 
-{id:"cv",fam:"Cost",abbr:"CV",name:"Cost Variance",
+{id:"cv",fam:"Cost",abbr:"CV",name:"Cost Variance",tier:["pmo","pcm"],
  val:function(){return sgn(T.cv);}, raw:function(){return T.cv;},
  rag:function(){return T.cv>=0?"g":T.cv>-0.02*T.bac?"a":"r";},
  sub:function(){return "EV − AC · "+pct(T.cv/T.ev)+" of earned";},
@@ -1601,7 +1618,7 @@ var KPIS = [
  why:"The dollar form of CPI. An index tells you the rate; the variance tells you the size. Executives act on the second one.",
  act:"Trace to control account, then to root cause. A CV concentrated in one package is a management problem; one spread evenly across all packages is an estimating problem."},
 
-{id:"eac",fam:"Cost",abbr:"EAC",name:"Estimate at Completion",
+{id:"eac",fam:"Cost",abbr:"EAC",name:"Estimate at Completion",tier:["exec","pmo","pcm"],
  val:function(){return m(T.eac);}, raw:function(){return T.eac;},
  rag:function(){return T.eac<=T.bac?"g":T.eac<=T.bac*1.03?"a":"r";},
  sub:function(){return "bottom-up · BAC÷CPI = "+m(T.eacIndep);},
@@ -1610,7 +1627,7 @@ var KPIS = [
  why:"The forecast final cost. Rolled up bottom-up so each control account carries its own efficiency; a single blended CPI hides the spread between packages, and the spread is what you manage.",
  act:"Publish the four-method spread, not one number. When methods diverge by more than about 5%, that divergence is itself the finding — it means the team disagrees about whether the overrun is systemic."},
 
-{id:"vac",fam:"Cost",abbr:"VAC",name:"Variance at Completion",
+{id:"vac",fam:"Cost",abbr:"VAC",name:"Variance at Completion",tier:["exec","pmo","pcm"],
  val:function(){return sgn(T.vac);}, raw:function(){return T.vac;},
  rag:function(){return T.vac>=0?"g":Math.abs(T.vac)<=T.contRemaining?"a":"r";},
  sub:function(){return "vs "+m(T.contRemaining)+" contingency left";},
@@ -1619,7 +1636,7 @@ var KPIS = [
  why:"Budget minus forecast. The number that decides whether this program needs more money — and the only cost metric a funding board actually asks for.",
  act:"When VAC exceeds remaining contingency, that is a reporting obligation, not a management discussion. Escalate the same reporting cycle it appears."},
 
-{id:"tcpi",fam:"Cost",abbr:"TCPI",name:"To-Complete Performance Index",
+{id:"tcpi",fam:"Cost",abbr:"TCPI",name:"To-Complete Performance Index",tier:["pmo","pcm"],
  val:function(){return idx(T.tcpi);}, raw:function(){return T.tcpi;},
  rag:function(){var d=T.tcpi-T.cpi; return d<=0?"g":d<=0.10?"a":"r";},
  sub:function(){return "need "+idx(T.tcpi)+" vs running "+idx(T.cpi);},
@@ -1628,7 +1645,7 @@ var KPIS = [
  why:"The efficiency the remaining work must achieve to still land on budget. Comparing it to actual CPI is the honesty test: this program is running at "+idx(T.cpi)+" and would need "+idx(T.tcpi)+".",
  act:"A gap above 0.10 is treated as unrecoverable in practice. Stop promising recovery and re-baseline or draw contingency — continuing to forecast BAC past this point is how programs lose credibility."},
 
-{id:"cdi",fam:"Cost",abbr:"CDI",name:"Contingency Drawdown Index",
+{id:"cdi",fam:"Cost",abbr:"CDI",name:"Contingency Drawdown Index",tier:["pmo","pcm"],
  val:function(){return idx(T.contDrawn/T.pct);}, raw:function(){return T.contDrawn/T.pct;},
  rag:function(){var r=T.contDrawn/T.pct; return r<=0.90?"g":r<=1.00?"a":"r";},
  sub:function(){return pct(T.contDrawn)+" drawn at "+pct(T.pct)+" complete";},
@@ -1637,7 +1654,7 @@ var KPIS = [
  why:"Reserve should trail progress. Above 1.00 the program is consuming its buffer faster than it is producing value — the earliest reliable signal that a re-baseline is coming.",
  act:"Rebuild the drawdown curve against remaining risk exposure, not against elapsed time. If remaining contingency no longer covers remaining exposure, say so before you are asked."},
 
-{id:"fund",fam:"Cost",abbr:"FDI",name:"Funding Drawdown Index",
+{id:"fund",fam:"Cost",abbr:"FDI",name:"Funding Drawdown Index",tier:["pcm"],
  val:function(){return idx(T.fundIdx);}, raw:function(){return T.fundIdx;},
  rag:function(){return Math.abs(T.fundIdx-1)<=0.05?"g":Math.abs(T.fundIdx-1)<=0.12?"a":"r";},
  sub:function(){return pct(PROGRAM.fundDrawn/PROGRAM.fundAuthorized)+" drawn vs "+pct(T.ac/T.bac)+" spent";},
@@ -1647,7 +1664,7 @@ var KPIS = [
  act:"Below 0.95, escalate to finance — the program is fronting cash. Above 1.05, expect a grant-administration question and have the reconciliation ready before it is asked."},
 
 /* ---- SCHEDULE ---- */
-{id:"spi",fam:"Schedule",abbr:"SPI",name:"Schedule Performance Index",
+{id:"spi",fam:"Schedule",abbr:"SPI",name:"Schedule Performance Index",tier:["exec","pmo","pcm"],
  val:function(){return idx(T.spi);}, raw:function(){return T.spi;},
  rag:function(){return band(T.spi,1.00,0.95);}, sub:function(){return "EV "+m(T.ev)+" ÷ PV "+m(T.pv);},
  f:"SPI = EV ÷ PV", th:"≥1.00 green · 0.95–1.00 amber · <0.95 red",
@@ -1655,7 +1672,7 @@ var KPIS = [
  why:"Work is arriving at "+pct(T.spi,0)+" of the planned rate. Useful, but measured in dollars rather than days — never read it alone.",
  act:"Always pair with CPLI and BEI. SPI drifts to 1.00 as any program completes, including a late one, so it is at its least reliable exactly when you need it most."},
 
-{id:"sv",fam:"Schedule",abbr:"SV",name:"Schedule Variance",
+{id:"sv",fam:"Schedule",abbr:"SV",name:"Schedule Variance",tier:["pcm"],
  val:function(){return sgn(T.sv);}, raw:function(){return T.sv;},
  rag:function(){return T.sv>=0?"g":T.sv>-0.02*T.bac?"a":"r";},
  sub:function(){return "budgeted value of work not yet done";},
@@ -1664,7 +1681,7 @@ var KPIS = [
  why:"The dollar value of work that should have been complete by now and is not. Converts a schedule problem into the unit executives fund.",
  act:"Map to the driving path before reporting. Schedule variance sitting entirely in float-rich packages is noise; the same number on the critical path is a delay claim forming."},
 
-{id:"cpli",fam:"Schedule",abbr:"CPLI",name:"Critical Path Length Index",
+{id:"cpli",fam:"Schedule",abbr:"CPLI",name:"Critical Path Length Index",tier:["pmo","pcm"],
  val:function(){return idx(T.cpli);}, raw:function(){return T.cpli;},
  rag:function(){return band(T.cpli,1.00,0.95);},
  sub:function(){var w=rows.reduce(function(a,b){return b.cpli<a.cpli?b:a;},rows[0]); return "driving path: "+w.id;},
@@ -1673,7 +1690,7 @@ var KPIS = [
  why:"Whether the driving path is still achievable. This is the schedule question SPI cannot answer, because SPI cannot tell critical work from work with 44 days of float.",
  act:"Below 0.95, the path cannot absorb further slip. Run a formal recovery analysis on that path only — acceleration anywhere else spends money without moving the completion date."},
 
-{id:"bei",fam:"Schedule",abbr:"BEI",name:"Baseline Execution Index",
+{id:"bei",fam:"Schedule",abbr:"BEI",name:"Baseline Execution Index",tier:["pcm"],
  val:function(){return idx(T.bei);}, raw:function(){return T.bei;},
  rag:function(){return band(T.bei,1.00,0.95);},
  sub:function(){return num(T.actsD)+" done of "+num(T.actsP)+" planned";},
@@ -1682,7 +1699,7 @@ var KPIS = [
  why:"Are activities actually finishing on plan? Counts activities rather than dollars, so it catches a team completing cheap work while the expensive, difficult work quietly slips.",
  act:"Below 0.95, audit for activities being re-planned rather than completed. A BEI that improves in the same period the baseline was revised is not an improvement."},
 
-{id:"float",fam:"Schedule",abbr:"TFE",name:"Total Float Erosion",
+{id:"float",fam:"Schedule",abbr:"TFE",name:"Total Float Erosion",tier:["pcm"],
  val:function(){return T.negFloat.length+" of "+rows.length;}, raw:function(){return T.negFloat.length;},
  rag:function(){return T.negFloat.length===0?"g":T.negFloat.length<=2?"a":"r";},
  sub:function(){return T.negFloat.map(function(r){return r.id;}).join(", ")||"all packages carry float";},
@@ -1691,7 +1708,7 @@ var KPIS = [
  why:"How many packages are setting the completion date. These, and only these, can move it.",
  act:"Any package at or below zero float goes on a weekly recovery cadence with a named owner. Packages with float do not — spending management attention there is the most common waste in program controls."},
 
-{id:"msv",fam:"Schedule",abbr:"MSV",name:"Milestone Slip",
+{id:"msv",fam:"Schedule",abbr:"MSV",name:"Milestone Slip",tier:["exec","pmo","pcm"],
  val:function(){return days(MILES[MILES.length-1].d);}, raw:function(){return MILES[MILES.length-1].d;},
  rag:function(){var d=MILES[MILES.length-1].d; return d<=0?"g":d<=30?"a":"r";},
  sub:function(){return "revenue service · "+MILES.filter(function(k){return k.d>0;}).length+" of "+MILES.length+" late";},
@@ -1701,7 +1718,7 @@ var KPIS = [
  act:"Report against the contractual milestone, never an internal one. Where a slip is owner-caused, document the entitlement contemporaneously — reconstructing it later is how programs lose claims."},
 
 /* ---- RISK ---- */
-{id:"expo",fam:"Risk",abbr:"EXP",name:"Risk Exposure",
+{id:"expo",fam:"Risk",abbr:"EXP",name:"Risk Exposure",tier:["exec","pmo","pcm"],
  val:function(){return m(T.riskExposure);}, raw:function(){return T.riskExposure;},
  rag:function(){return T.riskExposure<=T.contRemaining*0.5?"g":T.riskExposure<=T.contRemaining?"a":"r";},
  sub:function(){return "top risk = "+pct(RISKS.reduce(function(mx,k){var e=P_BAND[k.p]*k.cost;return e>mx?e:mx;},0)/T.riskExposure)+" of total";},
@@ -1710,7 +1727,7 @@ var KPIS = [
  why:"The only form of a risk register that can be compared to money. Unpriced registers get admired in meetings and ignored in forecasts.",
  act:"Manage concentration, not count. When one risk is more than half of total exposure, the register is really a single-risk program and should be reported that way."},
 
-{id:"ccr",fam:"Risk",abbr:"CCR",name:"Contingency Coverage Ratio",
+{id:"ccr",fam:"Risk",abbr:"CCR",name:"Contingency Coverage Ratio",tier:["pmo","pcm"],
  val:function(){return idx(T.contCoverage);}, raw:function(){return T.contCoverage;},
  rag:function(){return T.contCoverage>=1.5?"g":T.contCoverage>=1.0?"a":"r";},
  sub:function(){return m(T.contRemaining)+" vs "+m(T.overrun+T.riskExposure)+" demand";},
@@ -1720,16 +1737,16 @@ var KPIS = [
  act:"Below 1.00 there is no scenario in which the current budget holds. Trigger a funding conversation immediately — discovering this late is what turns a cost problem into a credibility problem."},
 
 /* ---- CHANGE ---- */
-{id:"cor",fam:"Change",abbr:"COR",name:"Change Order Rate",
+{id:"cor",fam:"Change",abbr:"COR",name:"Change Order Rate",tier:["pmo","pcm"],
  val:function(){return pct(T.coRate,2);}, raw:function(){return T.coRate;},
  rag:function(){return T.coRate<=0.05?"g":T.coRate<=0.10?"a":"r";},
  sub:function(){return PROGRAM.coApprovedCount+" approved · "+m(PROGRAM.coApprovedValue);},
  f:"COR = approved change value ÷ original contract value", th:"≤5% green · ≤10% amber · >10% red",
  ph:["con","close"], src:"Change management log",
- why:"The best single predictor of a troubled capital program. Heavy civil typically runs 5–10%; sustained double digits usually means the design was released before it was ready.",
+ why:"One of the strongest, most closely tracked predictors of a troubled capital program. Heavy civil typically runs 5–10%; sustained double digits usually means the design was released before it was ready.",
  act:"Segment by cause — owner-directed, differing site conditions, design error, escalation. Only the last two are preventable, and they point at different organizations."},
 
-{id:"pce",fam:"Change",abbr:"PCE",name:"Pending Change Exposure",
+{id:"pce",fam:"Change",abbr:"PCE",name:"Pending Change Exposure",tier:["pcm"],
  val:function(){return m(PROGRAM.coPendingValue);}, raw:function(){return PROGRAM.coPendingValue;},
  rag:function(){var r=PROGRAM.coPendingValue/T.contRemaining; return r<=0.25?"g":r<=0.5?"a":"r";},
  sub:function(){return PROGRAM.coPendingCount+" open · "+PROGRAM.coCycleDays+"d avg cycle (target "+PROGRAM.coCycleTarget+")";},
@@ -1739,7 +1756,7 @@ var KPIS = [
  act:"Cycle time is the controllable half. Every change open past target ages toward a claim, and a claim costs several times what the change would have."},
 
 /* ---- DELIVERY ---- */
-{id:"pf",fam:"Delivery",abbr:"PF",name:"Productivity Factor",
+{id:"pf",fam:"Delivery",abbr:"PF",name:"Productivity Factor",tier:["pcm"],
  val:function(){return idx(T.pf);}, raw:function(){return T.pf;},
  rag:function(){return band(T.pf,1.00,0.95);},
  sub:function(){return num(Math.round(T.ernH/1000))+"k earned ÷ "+num(Math.round(T.actH/1000))+"k actual hrs";},
@@ -1748,7 +1765,7 @@ var KPIS = [
  why:"A leading indicator where CPI is a lagging one. Hours move weeks before dollars do, so this turns first — and it is the metric a superintendent can act on today.",
  act:"Below 0.95, walk the work before touching the forecast. Productivity loss is usually access, sequencing or rework, and all three are fixable in the field rather than in a spreadsheet."},
 
-{id:"rfi",fam:"Delivery",abbr:"RFI",name:"RFI Aging",
+{id:"rfi",fam:"Delivery",abbr:"RFI",name:"RFI Aging",tier:["pcm"],
  val:function(){return PROGRAM.rfiAvgAge+"d";}, raw:function(){return PROGRAM.rfiAvgAge;},
  rag:function(){return band(PROGRAM.rfiAvgAge,PROGRAM.rfiTarget,PROGRAM.rfiTarget*1.5,true);},
  sub:function(){return PROGRAM.rfiOpen+" open · "+PROGRAM.rfiOver30+" past 30 days";},
@@ -1758,7 +1775,7 @@ var KPIS = [
  act:"Aged RFIs on the critical path get escalated daily, not weekly. An RFI open past 30 days on the driving path is already a schedule impact whether or not anyone has written it down."},
 
 /* ---- COMPLIANCE ---- */
-{id:"trir",fam:"Compliance",abbr:"TRIR",name:"Total Recordable Incident Rate",
+{id:"trir",fam:"Compliance",abbr:"TRIR",name:"Total Recordable Incident Rate",tier:["pcm"],
  val:function(){return PROGRAM.trir.toFixed(2);}, raw:function(){return PROGRAM.trir;},
  rag:function(){return band(PROGRAM.trir,PROGRAM.trirBenchmark,PROGRAM.trirBenchmark*1.5,true);},
  sub:function(){return PROGRAM.recordables+" recordables · "+num(PROGRAM.hoursWorked)+" hrs · bench "+PROGRAM.trirBenchmark.toFixed(2);},
@@ -1816,7 +1833,7 @@ function sparkline(series, ragColor){
 /* =========================================================================
    7. RENDERERS
    ========================================================================= */
-var state = {phase:"con", fam:"All", kpi:null, pkg:2, actFilter:"All", act:null,
+var state = {phase:"con", fam:"All", audience:"pcm", kpi:null, pkg:2, actFilter:"All", act:null,
   presenting:false, presentSet:"full", beatIdx:0, tab:"over", mcView:"hist",
   mcIncluded:rows.map(function(r){ return r.id; })};
 
@@ -1881,23 +1898,45 @@ function renderPortfolio(){
       '</b> &mdash; <span class="'+({g:"ok",a:"wa",r:"ba"}[x.ft.cls])+'">'+x.ft.tier+'</span>: '+x.ft.why+'</li>'; }).join("");
 }
 
+/* Audience-scoped KPI view (/brainstorm 2026-08-19, Design Guide triage) — each KPI's own tier[]
+   was assigned from its OWN already-written why/act text (not guessed): the 6 numbers whose own
+   copy names a board/funding-agency/executive-sponsor audience are "exec"; the 6 more whose copy
+   names a program director / controls manager decision are added for "pmo"; the remaining 8 are
+   working-level detail a Project Controls Manager needs day to day, "pcm" only. Inclusive by
+   design (exec KPIs also show at pmo/pcm) so switching to a wider audience only ever adds cards,
+   never reorders the ones already on screen. */
+var AUDIENCES=[
+ {k:"exec",n:"Executive",d:"4–6 KPIs tied to a specific board decision"},
+ {k:"pmo",n:"PMO Director",d:"adds control-account and schedule-health detail"},
+ {k:"pcm",n:"Project Controls Manager",d:"the full working set"}
+];
+function renderAudienceFilters(){
+  document.getElementById("audienceFilters").innerHTML=
+    '<span style="font-size:12px;color:rgb(var(--c-mut));margin-right:2px;align-self:center">View as:</span>'+
+    AUDIENCES.map(function(a){
+      var n=KPIS.filter(function(k){return k.tier.indexOf(a.k)>=0;}).length;
+      return '<button class="btn'+(state.audience===a.k?" on":"")+'" data-aud="'+a.k+'" aria-pressed="'+(state.audience===a.k)+'" title="'+a.d+'">'+
+        a.n+' <span class="mono" style="opacity:.6">'+n+'</span></button>';
+    }).join("");
+}
 function renderFilters(){
-  var fams=["All"].concat(KPIS.map(function(k){return k.fam;}).filter(function(v,i,a){return a.indexOf(v)===i;}));
+  var scoped=KPIS.filter(function(k){return k.tier.indexOf(state.audience)>=0;});
+  var fams=["All"].concat(scoped.map(function(k){return k.fam;}).filter(function(v,i,a){return a.indexOf(v)===i;}));
   document.getElementById("kfilters").innerHTML = fams.map(function(f){
-    var n = f==="All"? KPIS.length : KPIS.filter(function(k){return k.fam===f;}).length;
+    var n = f==="All"? scoped.length : scoped.filter(function(k){return k.fam===f;}).length;
     return '<button class="btn'+(state.fam===f?" on":"")+'" data-fam="'+f+'" aria-pressed="'+(state.fam===f)+'">'+
       f+' <span class="mono" style="opacity:.6">'+n+'</span></button>';
   }).join("") + '<span style="font-size:12px;color:rgb(var(--c-mut));margin-left:6px" id="dimNote"></span>';
 }
 
 function renderBoard(){
-  var list = KPIS.filter(function(k){ return state.fam==="All"||k.fam===state.fam; });
+  var list = KPIS.filter(function(k){ return k.tier.indexOf(state.audience)>=0 && (state.fam==="All"||k.fam===state.fam); });
   document.getElementById("kboard").innerHTML = list.map(function(k,i){
-    var rag=k.rag(), live=k.ph.indexOf(state.phase)>=0;
+    var rag=k.rag(), live=k.ph.indexOf(state.phase)>=0, ragWord=RAG_WORD[rag]||rag;
     return '<button class="kpi'+(live?"":" dim")+'" data-kpi="'+k.id+'" style="--rag:'+RAG[rag]+';animation-delay:'+(i*35)+'ms" '+
-      'aria-label="'+k.name+', '+k.val().replace(/<[^>]*>/g,"")+'">'+
+      'aria-label="'+k.name+', '+k.val().replace(/<[^>]*>/g,"")+', '+ragWord+'">'+
       '<div class="top"><span class="abbr">'+k.abbr+'</span><span class="fam">'+k.fam+'</span></div>'+
-      '<div class="val">'+k.val()+'</div>'+
+      '<div class="val">'+k.val()+'<span class="trend" aria-hidden="true">'+ragWord+'</span></div>'+
       '<div class="nm">'+k.name+'</div>'+
       '<div class="sub">'+k.sub()+'</div>'+
       sparkline(SPARK[k.id]||[0,0], RAG[rag])+
@@ -2003,7 +2042,7 @@ var SCURVE_W=980,SCURVE_H=350,SCURVE_PL=72,SCURVE_PR=18,SCURVE_PT=18,SCURVE_PB=3
 function scurveX(i){ return SCURVE_PL+(i/(MT-1))*(SCURVE_W-SCURVE_PL-SCURVE_PR); }
 function renderScurve(){
   var W=SCURVE_W,H=SCURVE_H,PL=SCURVE_PL,PR=SCURVE_PR,PT=SCURVE_PT,PB=SCURVE_PB;
-  var maxY=Math.ceil(Math.max(T.bac,T.eac)*1.03/200)*200;
+  var maxY=Math.ceil(Math.max(T.bac,T.eac,MC.p80)*1.03/200)*200;
   var X=scurveX;
   var Y=function(v){ return PT+(1-v/maxY)*(H-PT-PB); };
   function path(a,off){ return a.map(function(v,i){
@@ -2019,11 +2058,33 @@ function renderScurve(){
   var cvArea='<path d="'+path(acA)+" L"+X(lastA).toFixed(1)+" "+Y(evA[lastA]).toFixed(1)+" "+
       evA.slice().reverse().map(function(v,j){ return "L"+X(lastA-j).toFixed(1)+" "+Y(v).toFixed(1); }).join(" ")+
       ' Z" fill="'+C("bad")+'" opacity=".13"/>';
+  /* Prediction cone (Level-3 forecasting, /brainstorm 2026-08-19): a fan from today's single real
+     point out to the P10-P80 range at completion, not a full time-phased band — Monte Carlo only
+     ever produces one distribution of the FINAL completion cost, not a per-month percentile
+     series, so a fan is both the statistically correct shape and the simplest one to draw. Reads
+     canonical MC, not activeMc, on purpose: this is the headline chart, and it shouldn't silently
+     change shape if someone has gone and excluded accounts from the Monte Carlo tab's own filter
+     elsewhere on the page — same precedent renderPrint() already set for exactly this reason.
+     Drawn behind the deterministic dashed tail (z-order below it) so the one number this program
+     is actually forecasting stays the visually primary line, and the cone reads as its uncertainty,
+     not a competing claim. */
+  var coneX0=X(ME-1), coneY0=Y(T.ev), coneX1=X(MT-1), coneY10=Y(MC.p10), coneY80=Y(MC.p80);
+  var predCone='<polygon points="'+coneX0.toFixed(1)+','+coneY0.toFixed(1)+' '+
+      coneX1.toFixed(1)+','+coneY10.toFixed(1)+' '+coneX1.toFixed(1)+','+coneY80.toFixed(1)+
+      '" fill="'+C("bad")+'" opacity=".09" data-role="predcone"/>'+
+    /* the P10-P80 spread is genuinely narrow at this chart's y-scale (a converged simulation, not
+       a rendering bug — checked live: ~3px apart on an 1100+px axis) — a fill alone would be all
+       but invisible, so the range is also stated as text/tick-marks, not just shaded area. Same
+       dual-coding instinct as the KPI card fix above: don't rely on a visual signal that might not
+       actually be perceptible. */
+    '<line x1="'+(coneX1-5)+'" x2="'+(coneX1+5)+'" y1="'+coneY10.toFixed(1)+'" y2="'+coneY10.toFixed(1)+'" stroke="'+C("bad")+'" stroke-width="1.3" opacity=".55"/>'+
+    '<line x1="'+(coneX1-5)+'" x2="'+(coneX1+5)+'" y1="'+coneY80.toFixed(1)+'" y2="'+coneY80.toFixed(1)+'" stroke="'+C("bad")+'" stroke-width="1.3" opacity=".55"/>'+
+    '<text x="'+(W-PR).toFixed(1)+'" y="'+(coneY80-7).toFixed(1)+'" text-anchor="end" font-size="9.5" font-family="ui-monospace,monospace" fill="'+C("bad")+'" opacity=".8">P10&ndash;P80: '+m(MC.p10)+'&ndash;'+m(MC.p80)+'</text>';
   var hot = pvA.map(function(_,j){
     return '<rect x="'+(X(j)-6).toFixed(1)+'" y="'+PT+'" width="12" height="'+(H-PT-PB)+'" fill="transparent" '+
       'data-mo="'+j+'" class="hot"/>'; }).join("");
   document.getElementById("scurve").innerHTML = svg(W,H,
-    g+lb+cvArea+
+    g+lb+cvArea+predCone+
     '<line x1="'+dd.toFixed(1)+'" x2="'+dd.toFixed(1)+'" y1="'+PT+'" y2="'+(H-PB)+'" stroke="'+C("mut")+'" stroke-dasharray="3 3"/>'+
     '<text x="'+(dd+7).toFixed(1)+'" y="'+(PT+12)+'" font-size="10.5" font-family="ui-monospace,monospace" fill="'+C("mut")+'">data date &#183; '+PROGRAM.dataDate+'</text>'+
     '<path class="draw" d="'+path(pvA)+" "+path(pvB,ME).replace("M","L")+'" fill="none" stroke="'+C("mut")+'" stroke-width="2"/>'+
@@ -2043,11 +2104,16 @@ function renderScurve(){
     [[C("mut"),"Planned value (baseline)"],[C("ok"),"Earned value"],[C("accent"),"Actual cost"],
      [C("bad"),"Forecast to complete"]].map(function(l){
       return '<span><i style="background:'+l[0]+'"></i>'+l[1]+'</span>'; }).join("")+
-     '<span><i style="background:'+C("bad")+';opacity:.35"></i>Cost variance</span>';
+     '<span><i style="background:'+C("bad")+';opacity:.35"></i>Cost variance</span>'+
+     '<span><i style="background:'+C("bad")+';opacity:.28"></i>Monte Carlo P10&ndash;P80 range at completion</span>';
   document.getElementById("scurveRead").innerHTML =
     "Actual cost runs above earned value and the gap widens — that is the cost problem, "+m(Math.abs(T.cv))+
     " to date. Earned value runs below planned value — that is the schedule problem, "+m(Math.abs(T.sv))+
-    ". The dashed tail projects "+m(T.eac)+" at completion against a "+m(T.bac)+" budget.";
+    ". The dashed tail projects "+m(T.eac)+" at completion against a "+m(T.bac)+" budget. The shaded "+
+    "fan around it isn't a second forecast — it's the same 4,000-run Monte Carlo simulation the Cost "+
+    "tab already runs, drawn here as a range instead of a single line: "+pct(MC.pOver,0)+
+    " of simulated completions land above the "+m(T.bac)+" budget, spanning "+m(MC.p10)+" (P10) to "+
+    m(MC.p80)+" (P80).";
   // tooltips
   var host=document.getElementById("scurve"), tip=document.getElementById("tip");
   host.addEventListener("mousemove",function(e){
@@ -4618,6 +4684,11 @@ document.getElementById("kfilters").addEventListener("click",function(e){
   var b=e.target.closest("[data-fam]"); if(!b) return;
   state.fam=b.dataset.fam; renderFilters(); renderBoard();
 });
+document.getElementById("audienceFilters").addEventListener("click",function(e){
+  var b=e.target.closest("[data-aud]"); if(!b) return;
+  state.audience=b.dataset.aud; state.fam="All";
+  renderAudienceFilters(); renderFilters(); renderBoard();
+});
 document.getElementById("kboard").addEventListener("click",function(e){
   var b=e.target.closest("[data-kpi]"); if(!b) return;
   state.kpi = state.kpi===b.dataset.kpi? null : b.dataset.kpi;
@@ -4724,7 +4795,7 @@ document.getElementById("mcViewHist").addEventListener("click",function(){ state
 document.getElementById("mcViewCdf").addEventListener("click",function(){ state.mcView="cdf"; syncMcView(); });
 
 /* init */
-renderPhases(); renderStrip(); renderPortfolio(); renderFilters(); renderBoard(); renderDetail();
+renderPhases(); renderStrip(); renderPortfolio(); renderAudienceFilters(); renderFilters(); renderBoard(); renderDetail();
 renderScurve(); renderScurveMath();
 document.getElementById("scurveScrub").max=String(MT);
 document.getElementById("scurveScrub").value=String(PROGRAM.monthsElapsed);
@@ -4744,7 +4815,7 @@ wireAccountHighlight();
 renderScurveScrub(); // after renderGantt() above, so the Gantt reference marker is correct on first paint too
 
 /* expose for verification */
-window.__PCC__={rows:rows,totals:T,kpis:KPIS,program:PROGRAM,eacs:EACS,mc:MC,
+window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM,eacs:EACS,mc:MC,
   actions:ACTIONS,actionStatus:actionStatus,isStale:isStale,
   escalation:ESCALATION,kpiEscalation:KPI_ESCALATION,actionsForKpi:actionsForKpi,jumpToAction:jumpToAction,
   firingEscalations:firingEscalations,

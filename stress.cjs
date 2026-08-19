@@ -289,6 +289,37 @@ has("strip", "20 of 20", "strip: 20 of 20 KPIs live in construction");
 has("scurveRead", "$37.9M", "S-curve copy: CV $37.9M");
 has("scurveRead", "$27.3M", "S-curve copy: SV $27.3M");
 
+// S-curve prediction cone (/brainstorm 2026-08-19, Design Guide triage) — a fan from the data
+// date to the Monte Carlo P10/P80 range at completion, reading canonical MC not activeMc (same
+// precedent renderPrint() already set, so the headline chart never silently reshapes when the MC
+// tab's own per-account filter changes elsewhere on the page).
+// independent reimplementation of index.html's own m(), not a reference to it — same discipline
+// idx()/days() already use elsewhere in this file (B27: verify by independent derivation).
+function m(v) { var s = Math.abs(v).toFixed(1).split("."); return (v < 0 ? "−" : "") + "$" + s[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",") + "." + s[1] + "M"; }
+function pct(v, d) { return (v * 100).toFixed(d === undefined ? 1 : d) + "%"; }
+ok(idsA.includes("scurve"), "markup contains #scurve");
+ok((G.scurve._html.match(/data-role="predcone"/g) || []).length === 1,
+  "S-curve renders exactly one prediction-cone polygon");
+has("scurveRead", m(P.mc.p10), "S-curve narrative states the live P10 value");
+has("scurveRead", m(P.mc.p80), "S-curve narrative states the live P80 value");
+has("scurveRead", pct(P.mc.pOver, 0), "S-curve narrative states the live pOver percentage");
+has("scurveRead", m(P.totals.bac), "S-curve narrative's pOver claim is stated against budget (BAC), not EAC — the field it's actually computed from");
+{
+  // pre-registered: the cone's polygon coordinates should encode a real fan (min < max at the
+  // completion edge, degenerate to a point at the start edge), not two coincident lines
+  const m2 = G.scurve._html.match(/<polygon points="([^"]+)"[^>]*data-role="predcone"/);
+  ok(!!m2, "prediction-cone polygon has parseable points");
+  if (m2) {
+    const pts = m2[1].trim().split(/\s+/).map(p => p.split(",").map(Number));
+    ok(pts.length === 3, "prediction cone is a 3-point triangle (start, P10, P80)");
+    if (pts.length === 3) {
+      ok(pts[1][0] === pts[2][0], "the P10 and P80 points share the same x (both at the last month)");
+      ok(pts[0][0] !== pts[1][0], "the start point sits at an earlier x than the completion edge — a real fan, not a vertical line");
+      ok(pts[1][1] !== pts[2][1], "P10 and P80 map to genuinely different y positions, not a degenerate line");
+    }
+  }
+}
+
 // S-curve math explainer (2026-08-19) — same "how this is computed" pattern as Monte Carlo
 has("scurveMathBody", "PV = &Sigma;", "S-curve math panel states the PV formula");
 has("scurveMathBody", "$847.0M", "S-curve math panel states the live PV total");
@@ -403,6 +434,19 @@ has("contChart", "still trailing progress", "contingency narrative: trailing pro
 has("contChart", "$89.4M", "contingency narrative: $89.4M overrun+risk demand");
 has("libTable", "TRIR = recordable incidents", "library lists TRIR formula");
 ok((G.kboard._html.match(/data-kpi=/g) || []).length === 20, "board renders 20 KPI cards");
+// KPI RAG dual-coding (/stress-test finding: KPI cards were the one color-only severity signal
+// in the file — every pill/escalation icon elsewhere already pairs color with text). Confirm both
+// the visible badge and the aria-label carry the same word statusOf() already uses elsewhere.
+ok((G.kboard._html.match(/class="trend"/g) || []).length === 20,
+  "all 20 KPI cards render a .trend RAG-word badge, not color-only");
+["On track", "Watch", "At risk"].forEach(w =>
+  ok(G.kboard._html.includes(w), "kboard uses the same RAG vocabulary as statusOf() (\"" + w + "\")"));
+{
+  const cpiRag = P.kpis.find(k => k.id === "cpi").rag();
+  const wantWord = { g: "On track", a: "Watch", r: "At risk" }[cpiRag];
+  ok(G.kboard._html.includes('aria-label="Cost Performance Index, ' + P.kpis.find(k => k.id === "cpi").val().replace(/<[^>]*>/g, "") + ", " + wantWord + '"'),
+    "CPI card's aria-label states its live RAG word, not just the raw value", "expected word=" + wantWord);
+}
 ok((G.libTable._html.match(/<tr style/g) || []).length === 20, "library table has 20 body rows");
 // float KPI card lists the right three packages
 const floatKpi = P.kpis.find(k => k.id === "float");
@@ -568,6 +612,30 @@ try {
   fire(G.kfilters, "click", { target: { closest: () => ({ dataset: { fam: "All" } }) } });
   ok((G.kboard._html.match(/data-kpi=/g) || []).length === 20, "filter reset to All shows 20");
 } catch (e) { ok(false, "family filter", e.message); }
+// audience-scoped KPI view (/brainstorm 2026-08-19, Design Guide triage) — every KPI's tier[]
+// pre-registered against its own why/act text, not guessed here; PCM (the default) must equal
+// the unfiltered 20 so this feature can never silently narrow what a returning visitor sees.
+{
+  ok(idsA.includes("audienceFilters"), "markup contains #audienceFilters");
+  ok(P.audiences.length === 3, "3 audience tiers defined");
+  const execN = P.kpis.filter(k => k.tier.includes("exec")).length;
+  const pmoN = P.kpis.filter(k => k.tier.includes("pmo")).length;
+  const pcmN = P.kpis.filter(k => k.tier.includes("pcm")).length;
+  ok(execN >= 4 && execN <= 6, "Executive tier holds 4-6 KPIs, the guide's own constraint applied honestly", String(execN));
+  ok(pmoN >= execN && pmoN <= 12, "PMO tier is a superset of Executive and stays within the guide's 10-12 range", String(pmoN));
+  ok(pcmN === 20, "Project Controls Manager tier is the full working set (all 20)", String(pcmN));
+  // inclusion, not partition — every exec KPI must also appear at pmo and pcm
+  const execIds = P.kpis.filter(k => k.tier.includes("exec")).map(k => k.id);
+  ok(execIds.every(id => P.kpis.find(k => k.id === id).tier.includes("pmo")), "every Executive-tier KPI also appears at PMO tier (inclusive, not a partition)");
+  ok(execIds.every(id => P.kpis.find(k => k.id === id).tier.includes("pcm")), "every Executive-tier KPI also appears at PCM tier");
+}
+try {
+  fire(G.audienceFilters, "click", { target: { closest: () => ({ dataset: { aud: "exec" } }) } });
+  const execN = P.kpis.filter(k => k.tier.includes("exec")).length;
+  ok((G.kboard._html.match(/data-kpi=/g) || []).length === execN, "Executive view shows exactly the Executive-tier count", String((G.kboard._html.match(/data-kpi=/g) || []).length));
+  fire(G.audienceFilters, "click", { target: { closest: () => ({ dataset: { aud: "pcm" } }) } });
+  ok((G.kboard._html.match(/data-kpi=/g) || []).length === 20, "switching back to Project Controls Manager restores all 20");
+} catch (e) { ok(false, "audience filter", e.message); }
 // KPI drawer open/close
 try {
   fire(G.kboard, "click", { target: { closest: () => ({ dataset: { kpi: "cpi" } }) } });
