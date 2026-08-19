@@ -297,6 +297,7 @@ has("scurveRead", "$27.3M", "S-curve copy: SV $27.3M");
 // idx()/days() already use elsewhere in this file (B27: verify by independent derivation).
 function m(v) { var s = Math.abs(v).toFixed(1).split("."); return (v < 0 ? "−" : "") + "$" + s[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",") + "." + s[1] + "M"; }
 function pct(v, d) { return (v * 100).toFixed(d === undefined ? 1 : d) + "%"; }
+function sgn(v) { return (v >= 0 ? "+" : "−") + m(Math.abs(v)).replace("−", ""); }
 ok(idsA.includes("scurve"), "markup contains #scurve");
 ok((G.scurve._html.match(/data-role="predcone"/g) || []).length === 1,
   "S-curve renders exactly one prediction-cone polygon");
@@ -1130,6 +1131,157 @@ ok(idsA.includes("execSummary") && indexSrc.includes("decorative, and nothing is
   ok(gate5Pass === false, "pre-registered: this program's data has Gate 5 failing (matches the tour/framework tab's own story)", String(gate5Pass));
   has("execBottomLine", "blocked", "bottom line says Gate 5 is blocked, matching the pre-registered failing state");
 }
+
+/* =========================================================================
+   D4.6 /stress-test FIXES (2026-08-19) — regression coverage for every fix
+   driven by the full-file adversarial pass (3 independent reviewers + self).
+   ========================================================================= */
+console.log("== D4.6. stress-test fixes ==");
+
+// 1. ESCALATION magic-index -> findEsc()/ESC_PAT lookup-by-text. firingEscalations() and the KPI
+// drawer's fallback (KPI_ESCALATION) both indexed positionally; direct-test more than the two
+// triggers the print-brief test already covers indirectly.
+{
+  const firing = P.firingEscalations();
+  const cpiRow = firing.find((r) => T.cpi < 0.95 && /^CPI /.test(r[0]));
+  if (T.cpi < 0.95) ok(!!cpiRow, "firingEscalations() attaches the CPI row's own text when CPI fires, not a shifted neighbor's");
+  const covRow = firing.find((r) => /^Contingency coverage/.test(r[0]));
+  ok(T.contCoverage < 1 ? !!covRow : true, "firingEscalations() attaches the contingency-coverage row's own text when it fires");
+  // every ESC_PAT pattern still resolves to exactly one row (no drift, no collision)
+  Object.keys(P.escPat).forEach((k) => {
+    const matches = P.escalation.filter((e) => P.escPat[k].test(e[0]));
+    ok(matches.length === 1, "ESC_PAT." + k + " matches exactly one ESCALATION row", String(matches.length));
+  });
+}
+
+// 2. MILES[6] -> MILES[MILES.length-1]. Current data can't behaviorally distinguish the fix
+// (MILES.length===7, so index 6 already equals length-1) — that's the bug's own "invisible
+// today" nature, not a gap in this check. Source-confirm the fragile literal is gone.
+ok(!/MILES\[6\]/.test(indexSrc), "no remaining MILES[6] magic-index literal in the source");
+ok(P.spark.msv[P.spark.msv.length - 1] === P.milesLast.d,
+  "MSV sparkline's last point still matches the live contractual-slip figure");
+
+// 3. Hardcoded "44 days of float" removed from the CPLI KPI's why text.
+ok(!indexSrc.includes("44 days of float"), "CPLI KPI's why-text no longer cites a hardcoded, unrelated float value");
+
+// 4. TIA register footnote: was days(22)/days(40) typed by hand, now reads DELAYS live — prove
+// the footnote and the register table actually agree, which is the sentence's own claim.
+{
+  const d01 = P.delays.find((d) => d.id === "D-01").d, d02 = P.delays.find((d) => d.id === "D-02").d;
+  // matches the footnote's own specific phrasing, not just "the number appears somewhere in
+  // tiaReg" (which the register rows above it would also satisfy even if the footnote were wrong)
+  has("tiaReg", "D-01 is the " + days(d01), "TIA footnote's D-01 day count matches the live DELAYS entry, not a typed literal");
+  has("tiaReg", "D-02 is the " + days(d02), "TIA footnote's D-02 day count matches the live DELAYS entry, not a typed literal");
+}
+
+// 5. BASELINE[0]/[1]/[3] magic-index -> lookup by label in the VE/buyout glossary entries.
+{
+  const award = P.baseline.find((b) => /^Engineer/.test(b.l)).v;
+  const ve = P.baseline.find((b) => /Value engineering/.test(b.l)).v;
+  const buyout = P.baseline.find((b) => /^Buyout/.test(b.l)).v;
+  const veEntry = P.findGloss("ve"), buyoutEntry = P.findGloss("buyout");
+  ok(veEntry.e().includes(m(Math.abs(ve))) && veEntry.e().includes(m(award)),
+    "VE glossary entry cites the live BASELINE VE and award figures, found by label not position");
+  ok(buyoutEntry.e().includes(m(Math.abs(buyout))),
+    "buyout glossary entry cites the live BASELINE buyout figure, found by label not position");
+}
+
+// 6. DISCREPANCY_STEPS[0..4] -> dsStep(n) lookup by the step's own "N ·" label.
+{
+  for (let n = 1; n <= 5; n++) {
+    const step = P.dsStep(n);
+    ok(!!step && new RegExp("^" + n + "\\s").test(step.n), "dsStep(" + n + ") resolves to step " + n + "'s own row");
+  }
+  const detect = P.dsCaption({ k: "detect" });
+  ok(detect.x.includes(P.dsStep(1).w), "dsCaption('detect') still quotes step 1's own text via the new lookup");
+}
+
+// 7. Monte Carlo triangular-distribution degenerate-point bug: min===max (NaN, silently returns
+// a constant) when a control account's CPI drops to <=0.72 — pre-registered per B35: with the
+// fix, hi must stay strictly greater than lo even at that floor, and triang() must return a real
+// number, not NaN, across the full [0,1) draw range.
+{
+  const lowCpiRow = { cpi: 0.60 }; // synthetic — no real account is this low today, that's the point
+  const p = P.mcParams(lowCpiRow);
+  ok(p.hi > p.lo, "mcParams() guarantees hi > lo even for a CPI far below the 0.78 floor", "lo=" + p.lo + " hi=" + p.hi);
+  ok(p.lo <= p.mode && p.mode <= p.hi, "mcParams() still keeps lo<=mode<=hi at the same extreme");
+  let sawNaN = false;
+  for (let u = 0; u < 1; u += 0.05) { if (Number.isNaN(P.triang(u, p.lo, p.hi, p.mode))) sawNaN = true; }
+  ok(!sawNaN, "triang() with mcParams()'s output never returns NaN across a full sweep of draws, even at this extreme");
+}
+
+// 8. Tour keyboard boundary divergence: ArrowRight at the final stop now exits, matching what the
+// Next/Done button already did — pre-registered before the probe (B35).
+try {
+  fire(G.tourBtn, "click");
+  fire(G.tourBar, "click", { target: { closest: (sel) => (sel === "[data-tour]" ? { dataset: { tour: String(P.tourBeats.length - 1) } } : null) } });
+  has("tourBar", "Done", "sanity: on the final stop before the ArrowRight probe");
+  fire(R.win, "keydown", { key: "ArrowRight", target: { tagName: "BODY" } });
+  ok(G.tourBar.hidden === true, "ArrowRight at the final tour stop now exits, matching the Done button (previously it silently re-clamped and stuck)");
+  fire(G["t-over"], "click");
+} catch (e) { ok(false, "tour ArrowRight boundary fix", e.message); }
+
+// 9. Tour Back/Prev button + the i<0 clamp, previously entirely unexercised.
+try {
+  fire(G.tourBtn, "click");
+  has("tourBar", "1 / 10", "sanity: fresh tour entry starts at stop 1");
+  fire(G.tourBar, "click", { target: { closest: (sel) => (sel === "[data-t]" ? { dataset: { t: "prev" } } : null) } });
+  has("tourBar", "1 / 10", "clicking Prev at stop 1 is a no-op (goToTourStop's i<0 clamp), not a crash");
+  fire(G.tourBar, "click", { target: { closest: (sel) => (sel === "[data-t]" ? { dataset: { t: "next" } } : null) } });
+  has("tourBar", "2 / 10", "sanity: Next still advances normally after the Prev-at-floor probe");
+  fire(G.tourBar, "click", { target: { closest: (sel) => (sel === "[data-t]" ? { dataset: { t: "prev" } } : null) } });
+  has("tourBar", "1 / 10", "Prev from stop 2 correctly returns to stop 1");
+  fire(R.win, "keydown", { key: "ArrowLeft", target: { tagName: "BODY" } });
+  has("tourBar", "1 / 10", "ArrowLeft at stop 1 is also a no-op, not a crash (same i<0 clamp, keyboard path)");
+  fire(G.tourBtn, "click");
+  fire(G["t-over"], "click");
+} catch (e) { ok(false, "tour Prev/ArrowLeft boundary coverage", e.message); }
+
+// 10. Tour narration aria-live gap: #tourText now announces on stop change.
+{
+  fire(G.tourBtn, "click");
+  ok(G.tourBar._html.includes('id="tourText" aria-live="polite"'),
+    "tour narration paragraph is now a live region, matching glDetail/dsDetail/presentOnScreen");
+  fire(G.tourBtn, "click");
+  fire(G["t-over"], "click");
+}
+
+// 11. themeBtn now gets a real aria-pressed at init, matching its tourBtn/presentBtn siblings.
+ok(G.themeBtn.getAttribute("aria-pressed") === "true" || G.themeBtn.getAttribute("aria-pressed") === "false",
+  "themeBtn carries a real aria-pressed value at init, not null", G.themeBtn.getAttribute("aria-pressed"));
+
+// 12. My own self-found bug: the Actions tour stop's denominator was ACTIONS.length (17, includes
+// 1 done item) labeled "open items" — should be the actual open count (16).
+{
+  const openCount = P.actions.filter((a) => !a.done).length;
+  ok(openCount === P.actions.length - 1, "sanity: exactly one ACTIONS entry is done, confirming the bug was real", String(openCount));
+  const actionsStop = P.tourBeats.find((b) => b.tab === "act" && b.anchor === "actTable");
+  ok(new RegExp("of " + openCount + " open items").test(actionsStop.x()),
+    "Actions tour stop's denominator is the real open-item count, not the total including a closed item");
+  ok(!new RegExp("of " + P.actions.length + " open items").test(actionsStop.x()),
+    "Actions tour stop no longer uses the total ACTIONS.length (17) as if it were the open count");
+}
+
+// 13. Dual-coding / touch-target / focus-visible CSS fixes — source-inspection (no
+// getComputedStyle in this stub, same documented limitation as the rest of this file).
+ok(indexSrc.includes('" severity: "+n+" risk"'),
+  "risk heat-map cells now state their severity band in words in the label, not color alone");
+ok(indexSrc.includes('band==="high"?"2px solid'),
+  "risk heat-map high-severity cells also get a visible border, a shape cue beyond just the label word");
+ok(indexSrc.includes(".help-pop-close::before{content:\"\";position:absolute"),
+  "help-pop-close now carries the same 44px hit-slop pattern as help-ic");
+ok(indexSrc.includes(".flow-node:focus-visible rect,.flow-node:focus-visible polygon"),
+  "index.html's Gate Line / CDE flow nodes use :focus-visible, not :focus, for the keyboard-only ring");
+
+// 14. renderTable()'s own output (#pkgBody/#pkgFoot, the Cost tab's primary financial table) had
+// zero content assertions — every prior test only used it as a synthetic fire() target. Cheap,
+// targeted backfill, not exhaustive per-row coverage (logged as a follow-up below).
+has("pkgFoot", "Program · " + rows.length + " control accounts", "totals row labels the right control-account count");
+has("pkgFoot", m(T.bac), "totals row's BAC matches the live portfolio total");
+has("pkgFoot", m(T.eac), "totals row's EAC matches the live portfolio total");
+has("pkgFoot", sgn(T.vac), "totals row's VAC matches the live portfolio total");
+ok((G.pkgBody._html.match(/data-i="/g) || []).length === rows.length,
+  "one clickable row per control account in the ledger table");
 
 /* =========================================================================
    D5. RESUME-INSIGHT MODULES — baseline bridge, change pricing, TIA, stakeholders

@@ -59,21 +59,37 @@ const pkgs = P.rows;
 const sum = k => pkgs.reduce((a, r) => a + r[k], 0);
 const bac = sum("bac"), pv = sum("pv"), ev = sum("ev"), ac = sum("ac");
 const eacBottomUp = pkgs.reduce((a, r) => a + r.bac / (r.ev / r.ac), 0);
+const vac = bac - eacBottomUp;
+const overrun = Math.abs(Math.min(0, vac));
+// riskExposure/contRemaining/cpli/contCoverage were added to T after this harness's own
+// docstring claim ("re-derives every portfolio total") was last true — a /stress-test pass
+// (2026-08-19) found them read and displayed (including as Gate 5's literal pass/fail number)
+// but never independently re-checked here. Same re-derivation discipline as everything above:
+// recomputed from the raw per-package/per-risk fields, not copied from T itself.
+const riskExposure = P.risks.reduce((s, k) => s + P.pBand[k.p] * k.cost, 0);
+const contRemaining = P.program.contingency - P.program.contingencyDrawn;
+const contCoverage = contRemaining / (overrun + riskExposure);
+const cpli = pkgs.reduce((min, r) => {
+  const c = r.cpRem > 0 ? (r.cpRem + r.float) / r.cpRem : 1;
+  return c < min ? c : min;
+}, Infinity);
 const exp = {
   bac, pv, ev, ac,
   spi: ev / pv, cpi: ev / ac,
   eac: eacBottomUp, eacIndep: bac / (ev / ac),
-  vac: bac - eacBottomUp,
-  tcpi: (bac - ev) / (bac - ac),
+  vac, tcpi: (bac - ev) / (bac - ac),
   pct: ev / bac,
   bei: sum("actsD") / sum("actsP"),
   pf: sum("ernH") / sum("actH"),
+  riskExposure, contRemaining, contCoverage, cpli,
 };
 const got = P.totals;
 const checks = [
   ["bac", "bac"], ["pv", "pv"], ["ev", "ev"], ["ac", "ac"],
   ["spi", "spi"], ["cpi", "cpi"], ["eac", "eac"], ["eacIndep", "eacIndep"],
   ["vac", "vac"], ["tcpi", "tcpi"], ["pct", "pct"], ["bei", "bei"], ["pf", "pf"],
+  ["riskExposure", "riskExposure"], ["contRemaining", "contRemaining"],
+  ["contCoverage", "contCoverage"], ["cpli", "cpli"],
 ];
 for (const [k, g] of checks) {
   const ok = Math.abs(exp[k] - got[g]) < 1e-6;

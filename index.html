@@ -350,8 +350,13 @@ tfoot td{font-weight:600;border-top:1px solid rgb(var(--c-accent) / .40);border-
 #helpPop p{margin:0 0 10px;color:rgb(var(--c-mut));line-height:1.5}
 #helpPop .help-actions{display:flex;justify-content:space-between;align-items:center;gap:8px}
 #helpPop .btn{padding:5px 10px;font-size:11.5px}
+/* invisible hit-area expander — same 44px touch-target fix as .help-ic::before (/stress-test
+   finding, 2026-08-19: this close button's real box was ~17x20px, smaller than every other
+   touch target in the file); the visible glyph stays small so the compact popover doesn't grow. */
 .help-pop-close{background:none;border:none;color:rgb(var(--c-mut));cursor:pointer;font-size:16px;
-  line-height:1;padding:2px 4px}
+  line-height:1;padding:2px 4px;position:relative}
+.help-pop-close::before{content:"";position:absolute;top:50%;left:50%;width:44px;height:44px;
+  transform:translate(-50%,-50%)}
 .help-pop-close:hover{color:rgb(var(--c-ink))}
 @keyframes helpPopIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
 #helpPop{animation:helpPopIn .16s ease-out}
@@ -397,7 +402,7 @@ ul.t li b{color:rgb(var(--c-ink))}
 .flow-node{cursor:pointer}
 .flow-node:hover rect,.flow-node:hover polygon{stroke-width:2.4}
 .flow-node:focus{outline:none}
-.flow-node:focus rect,.flow-node:focus polygon{stroke:rgb(var(--c-accent));stroke-width:2.6}
+.flow-node:focus-visible rect,.flow-node:focus-visible polygon{stroke:rgb(var(--c-accent));stroke-width:2.6}
 .flow-node.on rect,.flow-node.on polygon{stroke:rgb(var(--c-accent));stroke-width:2.6}
 dl.gl{display:grid;grid-template-columns:1fr;gap:11px;margin:14px 0 0}
 @media(min-width:780px){dl.gl{grid-template-columns:1fr 1fr;gap:11px 26px}}
@@ -561,7 +566,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
       <!-- entry point, not a second narrator (2026-08-19): the tour itself lives in the fixed
            #tourBar so it can follow the visitor across tabs; this card is just an on-page invite
            with the same job as the header's "Take the tour" button, not its own prev/next widget -->
-      <div class="card" style="margin-top:16px" id="storyCard">
+      <div class="card" style="margin-top:16px" id="tourTeaserCard">
         <div class="eyebrow">Start here</div>
         <h3 style="margin:0 0 7px">Ten stops, the whole dashboard, in plain language</h3>
         <p style="margin:0;font-size:13.6px;line-height:1.7;color:rgb(var(--c-mut));max-width:74ch">
@@ -1747,7 +1752,7 @@ var KPIS = [
  sub:function(){var w=rows.reduce(function(a,b){return b.cpli<a.cpli?b:a;},rows[0]); return "driving path: "+w.id;},
  f:"CPLI = (remaining duration + total float) ÷ remaining duration", th:"≥1.00 green · ≥0.95 amber · <0.95 red (DCMA)",
  ph:["con","close"], src:"CPM schedule — longest path",
- why:"Whether the driving path is still achievable. This is the schedule question SPI cannot answer, because SPI cannot tell critical work from work with 44 days of float.",
+ why:"Whether the driving path is still achievable. This is the schedule question SPI cannot answer, because SPI cannot tell critical work from work with generous float.",
  act:"Below 0.95, the path cannot absorb further slip. Run a formal recovery analysis on that path only — acceleration anywhere else spends money without moving the completion date."},
 
 {id:"bei",fam:"Schedule",abbr:"BEI",name:"Baseline Execution Index",tier:["pcm"],
@@ -1863,7 +1868,7 @@ var SPARK = {
   cpi:history(T.cpi,1.012,12), spi:history(T.spi,1.006,12), tcpi:history(T.tcpi,0.998,12),
   eac:history(T.eac,T.bac*0.995,12), vac:history(T.vac,4.0,12), cv:history(T.cv,3.1,12),
   sv:history(T.sv,2.2,12), cdi:history(T.contDrawn/T.pct,0.42,12), cpli:history(T.cpli,1.06,12),
-  bei:history(T.bei,1.01,12), float:history(T.negFloat.length,0,12), msv:history(MILES[6].d,0,12),
+  bei:history(T.bei,1.01,12), float:history(T.negFloat.length,0,12), msv:history(MILES[MILES.length-1].d,0,12),
   expo:history(T.riskExposure,11.2,12), ccr:history(T.contCoverage,3.4,12),
   cor:history(T.coRate,0.004,12), pce:history(PROGRAM.coPendingValue,2.1,12),
   pf:history(T.pf,1.004,12), rfi:history(PROGRAM.rfiAvgAge,9,12),
@@ -2064,7 +2069,7 @@ function renderRootCause(k,rag){
       '<p style="margin:8px 0 0;font-size:11.3px;color:rgb(var(--c-mut))">Click an item to open it on the Actions tab.</p>'+
       '</div>';
   }
-  var esc=(KPI_ESCALATION[k.id]||[]).map(function(i){ return ESCALATION[i]; });
+  var esc=(KPI_ESCALATION[k.id]||[]).map(findEsc);
   if(esc.length){
     return '<div class="dbox" style="border-left-color:rgb(var(--c-warn) / .55);margin-top:13px">'+
       '<h4>Root cause &amp; who owns it right now</h4>'+
@@ -2552,6 +2557,20 @@ function renderScen(){
 function lcg(seed){ var s=seed>>>0; return function(){ s=(Math.imul(s,1664525)+1013904223)>>>0; return s/4294967296; }; }
 function triang(u,a,b,c){ var fc=(c-a)/(b-a);
   return u<fc? a+Math.sqrt(u*(b-a)*(c-a)) : b-Math.sqrt((1-u)*(b-a)*(b-c)); }
+/* Shared min/mode/max for the future-efficiency draw — extracted (/stress-test finding,
+   2026-08-19) after the reproducibility guard below was found reimplementing this inline without
+   the same clamp, a second independent copy that could silently drift from the canonical one.
+   Also closes a real edge case the old clamp missed: it guaranteed min<=mode<=max but never
+   min<max — a control account whose own CPI drops to <=0.72 collapsed hi===lo, making triang()'s
+   fc=(c-a)/(b-a) a 0/0 NaN that silently fell through to a constant instead of a real draw. The
+   +0.02 floor on hi guarantees a real spread always exists; harmless with today's data (min
+   observed CPI ~0.865, nowhere near either threshold) but a real landmine for any future account
+   whose efficiency erodes further, which this dashboard's own narrative repeatedly frames as
+   plausible. */
+function mcParams(r){
+  var lo=Math.max(0.78,r.cpi-0.08), hi=Math.max(lo+0.02,r.cpi+0.06), mode=Math.max(lo,Math.min(hi,r.cpi));
+  return {lo:lo,hi:hi,mode:mode};
+}
 /* Extracted so the same math can run with a subset of control accounts treated as uncertain,
    for the per-account toggle below, without duplicating it. uncertainIds lists which accounts
    still draw a future efficiency; anything not in that list is priced at its own OBSERVED CPI —
@@ -2571,12 +2590,10 @@ function computeMc(uncertainIds){
         /* Future efficiency drawn around the package's OBSERVED CPI, asymmetric:
            0.08 of downside vs 0.06 of upside — recovery is capped because cost
            efficiency on capital work rarely improves far past its settled rate.
-           The 0.78 floor only clamps the low end; for any account whose own CPI
-           already sits below ~0.78 the unclamped triple would invert (min>max,
-           triang() silently returns nonsense) — clamp mode/max together with it
-           so min<=mode<=max always holds, whatever the account's real CPI is. */
-        var mcLo=Math.max(0.78,r.cpi-0.08), mcHi=Math.max(mcLo,r.cpi+0.06), mcMode=Math.max(mcLo,Math.min(mcHi,r.cpi));
-        c=triang(rnd(), mcLo, mcHi, mcMode);
+           mcParams() clamps min/mode/max together (see its own comment) so
+           min<=mode<max always holds, whatever the account's real CPI is. */
+        var p=mcParams(r);
+        c=triang(rnd(), p.lo, p.hi, p.mode);
       } else {
         c=r.cpi; // locked to its current, observed efficiency — no draw, no uncertainty modeled
       }
@@ -2849,16 +2866,16 @@ document.getElementById("mcFilter").addEventListener("click",function(e){
 /* ---------- print brief ---------- */
 function firingEscalations(){
   var f=[];
-  if(T.cpi<0.95) f.push(ESCALATION[0]);
-  if(T.cpli<0.95) f.push(ESCALATION[1]);
-  if(T.tcpi-T.cpi>0.10) f.push(ESCALATION[2]);
-  if(T.tcpi>1.10) f.push(ESCALATION[3]);
-  if(T.contCoverage<1) f.push(ESCALATION[4]);
-  if(Math.abs(Math.min(0,T.vac))>T.contRemaining) f.push(ESCALATION[5]);
-  if(T.negFloat.length) f.push(ESCALATION[6]);
-  if(PROGRAM.coCycleDays>PROGRAM.coCycleTarget) f.push(ESCALATION[7]);
-  if(PROGRAM.rfiOver30>0) f.push(ESCALATION[8]);
-  if(PROGRAM.trir>PROGRAM.trirBenchmark) f.push(ESCALATION[9]);
+  if(T.cpi<0.95) f.push(findEsc(ESC_PAT.cpi));
+  if(T.cpli<0.95) f.push(findEsc(ESC_PAT.cpli));
+  if(T.tcpi-T.cpi>0.10) f.push(findEsc(ESC_PAT.tcpiGap));
+  if(T.tcpi>1.10) f.push(findEsc(ESC_PAT.tcpiBac));
+  if(T.contCoverage<1) f.push(findEsc(ESC_PAT.contCoverage));
+  if(Math.abs(Math.min(0,T.vac))>T.contRemaining) f.push(findEsc(ESC_PAT.vacContingency));
+  if(T.negFloat.length) f.push(findEsc(ESC_PAT.negFloat));
+  if(PROGRAM.coCycleDays>PROGRAM.coCycleTarget) f.push(findEsc(ESC_PAT.coAging));
+  if(PROGRAM.rfiOver30>0) f.push(findEsc(ESC_PAT.rfiAging));
+  if(PROGRAM.trir>PROGRAM.trirBenchmark) f.push(findEsc(ESC_PAT.trir));
   return f;
 }
 function renderPrint(){
@@ -3106,8 +3123,10 @@ function renderSchedule(){
       '<div style="margin-top:3px;font-size:11.5px;color:rgb(var(--c-mut))">&rarr; '+d.st+'</div></div>';
   }).join("")+
   '<p style="margin:12px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">The register and the float table '+
-    'agree because they share one model: D-01 is the '+days(22)+' behind CP-601&rsquo;s negative float; '+
-    'D-02 is the '+days(40)+' driving revenue service '+days(MILES[MILES.length-1].d)+
+    'agree because they share one model: D-01 is the '+days(DELAYS.filter(function(d){return d.id==="D-01";})[0].d)+
+    ' behind CP-601&rsquo;s negative float; '+
+    'D-02 is the '+days(DELAYS.filter(function(d){return d.id==="D-02";})[0].d)+' driving revenue service '+
+    days(MILES[MILES.length-1].d)+
     ' late. An event with no fragnet is an opinion; an event with one is arithmetic.</p>';
   renderSchedDrift();
 }
@@ -3211,9 +3230,16 @@ function renderRisk(){
   for(im=1;im<=5;im++) html+='<div class="ax">I'+im+'</div>';
   for(p=5;p>=1;p--){ html+='<div class="ax">P'+p+'</div>';
     for(im=1;im<=5;im++){ var sc=p*im,n=grid[p+"-"+im]||0;
-      var bg=sc>=15?"#FCA5A5":sc>=8?"#FCD34D":"#A7F3D0";
-      var lab="Probability "+p+", impact "+im+": "+n+" risk"+(n===1?"":"s");
-      html+='<div class="hc" role="img" aria-label="'+lab+'" title="'+lab+'" style="background:'+bg+';opacity:'+(n?1:.34)+'">'+n+'</div>'; } }
+      // dual-coding (/stress-test finding, 2026-08-19): the severity band was color-only — a
+      // grayscale view or a colorblind reader couldn't tell a red cell from a green one, the
+      // exact violation this file's own RAG_WORD/.trend fix elsewhere exists to prevent. The
+      // word now goes in the label; high-severity cells also get a visibly thicker border, a
+      // shape cue that survives grayscale, not just a hue.
+      var band=sc>=15?"high":sc>=8?"medium":"low";
+      var bg=band==="high"?"#FCA5A5":band==="medium"?"#FCD34D":"#A7F3D0";
+      var bd=band==="high"?"2px solid #7F1D1D":"1px solid transparent";
+      var lab="Probability "+p+", impact "+im+" — "+band+" severity: "+n+" risk"+(n===1?"":"s");
+      html+='<div class="hc" role="img" aria-label="'+lab+'" title="'+lab+'" style="background:'+bg+';border:'+bd+';opacity:'+(n?1:.34)+'">'+n+'</div>'; } }
   document.getElementById("heat").innerHTML=html;
   document.getElementById("contCover").innerHTML=
    [["Exposure",m(T.riskExposure),""],["Contingency left",m(T.contRemaining),""],
@@ -3492,10 +3518,20 @@ var ESCALATION=[
  ["RFI aged &gt; 30d on the critical path","Design manager","Daily escalation until closed","Daily"],
  ["TRIR above benchmark","Safety manager","Incident-pattern review; check clustering against negative-float packages","Same week"]
 ];
-/* KPI -> ESCALATION row index, for KPIs whose rule has no ACTIONS item logged yet (indices into
-   ESCALATION above). Used only as a fallback in the KPI drawer when actionsForKpi() finds nothing —
-   an honest "here is the rule, no item tracks it yet" rather than a silent gap. */
-var KPI_ESCALATION={tcpi:[2,3],vac:[5]};
+/* ESCALATION rows have no stable key field (unlike GATE5_CHECKS) — look them up by anchored
+   trigger text, not a raw index. renderInversion() already did this for one row (below); a
+   /stress-test pass (2026-08-19) found firingEscalations() and KPI_ESCALATION still indexed
+   ESCALATION positionally — the exact fragility the comment there warns about, unfixed in the
+   two callers that actually decide which rules are firing. Every pattern is anchored with ^ so
+   "CPI" can't accidentally match inside "TCPI" or "CPLI". */
+function findEsc(pattern){ return ESCALATION.filter(function(e){ return pattern.test(e[0]); })[0]; }
+var ESC_PAT={cpi:/^CPI /, cpli:/^CPLI /, tcpiGap:/^TCPI −/, tcpiBac:/^TCPI\(BAC\)/,
+  contCoverage:/^Contingency coverage/, vacContingency:/^VAC exceeds/, negFloat:/^Any package/,
+  coAging:/^Change order aging/, rfiAging:/^RFI aged/, trir:/^TRIR/};
+/* KPI -> ESCALATION rows, for KPIs whose rule has no ACTIONS item logged yet. Used only as a
+   fallback in the KPI drawer when actionsForKpi() finds nothing — an honest "here is the rule,
+   no item tracks it yet" rather than a silent gap. Patterns, not indices — same fix as above. */
+var KPI_ESCALATION={tcpi:[ESC_PAT.tcpiGap,ESC_PAT.tcpiBac], vac:[ESC_PAT.vacContingency]};
 /* Status-column icons for the escalation matrix — the one Tier-2 table that hadn't gotten one
    yet (/stress-test finding, 2026-08-19). Same 1.3/1.1 stroke convention as the guardrail icons:
    a bell for a rule actually firing, a checkmark for one currently dormant. */
@@ -3563,10 +3599,12 @@ function renderGates(){
 function renderInversion(gate5Res){
   var cov=gate5Res.filter(function(r){ return r.key==="contCoverage"; })[0];
   var covPass=gate5Res.filter(function(r){ return r.pass; }).length;
-  /* ESCALATION rows have no stable key field (unlike GATE5_CHECKS) — look this one up by its
-     trigger text, not a raw index, so the exact fragility the comment above warns about can't
-     recur here even though ESCALATION itself wasn't restructured this pass. */
-  var esc=ESCALATION.filter(function(e){ return /Contingency coverage/.test(e[0]); })[0];
+  /* ESCALATION rows have no stable key field (unlike GATE5_CHECKS) — findEsc()/ESC_PAT (defined
+     alongside ESCALATION) look this one up by its trigger text, not a raw index, so the exact
+     fragility the comment above warns about can't recur here. A later /stress-test pass
+     (2026-08-19) found firingEscalations() and KPI_ESCALATION still doing it positionally —
+     fixed there too, using this same helper, not a second one-off. */
+  var esc=findEsc(ESC_PAT.contCoverage);
   var lead=actionsForKpi("ccr").filter(function(a){ return a.owner===esc[1]; })[0];
   var steps=[
    ["1 &middot; Define the end state","Gate 5 clears &mdash; the Board can lock the lifetime baseline; "+
@@ -4063,8 +4101,8 @@ var GUARDS=[
  {n:"Monte Carlo reproducible: fresh run with the fixed seed lands on the same P50", run:function(){
    var rnd=lcg(20260731), sims=[],i,j;
    for(i=0;i<4000;i++){ var e=0;
-     for(j=0;j<rows.length;j++){ var r=rows[j];
-       e+=r.ac+(r.bac-r.ev)/triang(rnd(),Math.max(0.78,r.cpi-0.08),r.cpi+0.06,r.cpi); }
+     for(j=0;j<rows.length;j++){ var r=rows[j], p2=mcParams(r);
+       e+=r.ac+(r.bac-r.ev)/triang(rnd(),p2.lo,p2.hi,p2.mode); }
      sims.push(e); }
    sims.sort(function(a,b){return a-b;});
    var p50=sims[Math.floor(0.5*sims.length)];
@@ -4261,9 +4299,9 @@ var TOUR_BEATS=[
     "any narrative summary this dashboard generates gets re-derived from the ledger and blocked from publishing if the two "+
     "disagree — a machine's sentence doesn't get to be the source of truth."; }},
  {t:"The clock doesn't stop for a status update", tab:"act", anchor:"actTable",
-  x:function(){ var stale=ACTIONS.filter(function(a){ return isStale(a); }).length;
+  x:function(){ var open=ACTIONS.filter(function(a){ return !a.done; }), stale=open.filter(isStale).length;
     return "An open action with no recent movement is the same as no action at all, so this dashboard tracks the silence, not "+
-    "just the list: "+stale+" of "+ACTIONS.length+" open items haven't been touched in 10 days or more, and each one escalates "+
+    "just the list: "+stale+" of "+open.length+" open items haven't been touched in 10 days or more, and each one escalates "+
     "on its own clock to a named owner, not a shared inbox. A due date with no owner is a wish; an owner with no clock is a "+
     "suggestion."; }},
  {t:"Monday morning", tab:"fw",
@@ -4329,9 +4367,12 @@ var GLOSS=[
     return "The tunnel liner crew's standard is "+usd(c.baseline)+"/hr; "+last.w+" ran "+usd(last.actual)+
     "/hr. Of the "+usd(c.totalOverrun)+" six-week overrun, "+usd(c.totalIdle)+" is idle time specifically — the part a staging fix recovers, not an engineering one."; }},
  {k:"ve", t:"Value engineering (VE)", p:"A structured review that asks one question: can the same function be delivered for less money? Done before award it shapes the baseline; done during construction it becomes a shared-savings change.",
-  e:function(){ return "This program's baseline carries "+m(Math.abs(BASELINE[1].v))+" of accepted VE — part of how the engineer's estimate of "+m(BASELINE[0].v)+" came down to a "+m(T.bac)+" baseline before construction started."; }},
+  e:function(){ var award=BASELINE.filter(function(b){return /^Engineer/.test(b.l);})[0];
+    var ve=BASELINE.filter(function(b){return /Value engineering/.test(b.l);})[0];
+    return "This program's baseline carries "+m(Math.abs(ve.v))+" of accepted VE — part of how the engineer's estimate of "+m(award.v)+" came down to a "+m(T.bac)+" baseline before construction started."; }},
  {k:"buyout", t:"Buyout", p:"Letting the subcontracts and major purchases after the contract is won. When the market prices below the estimate, the difference is buyout savings — margin captured at the source, before any risk can touch it.",
-  e:function(){ return m(Math.abs(BASELINE[3].v))+" of buyout savings is baked into this baseline. The opposite — buyout above estimate — is an overrun that arrives on day one."; }},
+  e:function(){ var buyout=BASELINE.filter(function(b){return /^Buyout/.test(b.l);})[0];
+    return m(Math.abs(buyout.v))+" of buyout savings is baked into this baseline. The opposite — buyout above estimate — is an overrun that arrives on day one."; }},
  {k:"tia", t:"Time Impact Analysis (TIA)", p:"The disciplined way to answer \"how many days did that event cost?\": insert the delay into the schedule model as a small sub-network (a fragnet), re-run the dates, and read the difference. It turns an argument into arithmetic — and sets whether the event buys time, money, both, or neither.",
   e:function(){ var d02=DELAYS.filter(function(x){return x.id==="D-02";})[0];
     return "D-02's fragnet measures "+days(d02.d)+" of impact on the tunnel — exactly the "+(-G_TUN.float)+" days of negative float CP-201 carries, and the driver of revenue service landing "+days(MILES[MILES.length-1].d)+"."; }},
@@ -4370,6 +4411,11 @@ var DISCREPANCY_STEPS=[
  {n:"4 &middot; Decide source-of-truth per domain, in advance",w:"When cost and schedule genuinely conflict, which wins, and why? Decided before the disagreement happens, not improvised live."},
  {n:"5 &middot; Log every override, and promote recurring fixes",w:"An override with no audit trail is indistinguishable from an unexplained edit later. A discrepancy that recurs gets promoted into a new auto-resolve rule &mdash; the loop that actually reduces escalation volume over time."}
 ];
+/* dsCaption() below read this array by literal position (DISCREPANCY_STEPS[0..4]) — the same
+   magic-index class fixed in ESCALATION above, applied here too (/stress-test, 2026-08-19) even
+   though each step's own "N ·" label already makes its ordinal explicit; look up by that label's
+   number, not a raw array index. */
+function dsStep(n){ return DISCREPANCY_STEPS.filter(function(s){ return new RegExp("^"+n+"\\s").test(s.n); })[0]; }
 var ROLLOUT=[
  {ph:"Phase 1",n:"Assess",w:"Inventory the real source systems, owners, and cadences. Build the canonical crosswalk for the two or three highest-value, highest-risk data domains first — not all of them at once."},
  {ph:"Phase 2",n:"Guard the highest-risk domains",w:"Stand up staging, validation, and all four guardrail types for those domains specifically. Run the discrepancy-resolution process on real disagreements — even manually at first, to learn the actual recurring patterns before automating them."},
@@ -4399,10 +4445,10 @@ function dsCaption(node){
     case "wip": return {t:"Work in Progress",x:"Individual discipline teams develop models and documents here. Unverified, visible only to the originating team &mdash; nothing downstream reads this directly."};
     case "g1": return {t:"Gate &middot; technical verification / model audit",x:"Nothing advances into Shared without passing this. This dashboard's own "+GUARDS.length+"-check integrity gate (AI &amp; Data tab) is a small, working version of exactly this kind of gate."};
     case "shared": return {t:"Shared",x:"Validated information exchanged across disciplines for coordination and clash detection. This is also where cross-system disagreement first surfaces &mdash; follow the branch below."};
-    case "detect": return {t:"Discrepancy detected",x:"A verification check inside the Shared gate finds two systems disagreeing on the same record &mdash; step 1 of the real process: "+DISCREPANCY_STEPS[0].w};
-    case "known": return {t:"Known pattern?",x:"Most discrepancies aren't novel &mdash; the same three or four root causes recur. "+DISCREPANCY_STEPS[1].w};
-    case "escalate": return {t:"No &mdash; escalate to a named owner",x:DISCREPANCY_STEPS[2].w};
-    case "promote": return {t:"Resolved, logged &amp; promoted",x:DISCREPANCY_STEPS[3].w+" "+DISCREPANCY_STEPS[4].w+" That's the loop arrow back to “Known pattern?” &mdash; the same discrepancy type resolves itself next time."};
+    case "detect": return {t:"Discrepancy detected",x:"A verification check inside the Shared gate finds two systems disagreeing on the same record &mdash; step 1 of the real process: "+dsStep(1).w};
+    case "known": return {t:"Known pattern?",x:"Most discrepancies aren't novel &mdash; the same three or four root causes recur. "+dsStep(2).w};
+    case "escalate": return {t:"No &mdash; escalate to a named owner",x:dsStep(3).w};
+    case "promote": return {t:"Resolved, logged &amp; promoted",x:dsStep(4).w+" "+dsStep(5).w+" That's the loop arrow back to “Known pattern?” &mdash; the same discrepancy type resolves itself next time."};
     case "auto": return {t:"Yes &mdash; auto-resolve",x:"A known pattern resolves itself automatically and the record continues straight through &mdash; no person in the loop for something already understood."};
     case "g2": return {t:"Gate &middot; client / agency formal authorization",x:"The deliverable becomes the contractual baseline for procurement and construction &mdash; gated, not assumed."};
     case "published": return {t:"Published",x:"Fully authorized deliverables. Design, budget and schedule commitments downstream all read from here, never from an unverified draft."};
@@ -4761,8 +4807,8 @@ function renderTourBar(){
     '<div class="tour-bar-in">'+
     '<div class="thead"><span class="tnum">'+(state.tourIdx+1)+' / '+TOUR_BEATS.length+'</span>'+
     '<div class="pdots" role="group" aria-label="Jump to tour stop">'+dots+'</div>'+
-    '<h4>'+b.t+'</h4></div>'+
-    '<p id="tourText">'+b.x()+'</p>'+
+    '<h4 id="tourTitle">'+b.t+'</h4></div>'+
+    '<p id="tourText" aria-live="polite">'+b.x()+'</p>'+
     '<div class="tctl">'+
       '<button class="btn" data-t="prev" type="button" '+(state.tourIdx===0?"disabled":"")+'>&larr; Back</button>'+
       '<button class="btn on" data-t="next" type="button">'+
@@ -4807,6 +4853,10 @@ function exitTour(){
    ========================================================================= */
 var root=document.documentElement, themeBtn=document.getElementById("themeBtn");
 var mq=window.matchMedia("(prefers-color-scheme: dark)");
+// themeBtn's sibling toggles (tourBtn/presentBtn) both declare aria-pressed="false" in markup so
+// they're announced as toggle buttons from first render — themeBtn had no aria-pressed at all
+// until the first click (/stress-test finding, 2026-08-19); set it once at init to match.
+themeBtn.setAttribute("aria-pressed",String((root.dataset.theme||(mq.matches?"dark":"light"))==="dark"));
 themeBtn.addEventListener("click",function(){
   var cur=root.dataset.theme||(mq.matches?"dark":"light");
   root.dataset.theme=cur==="dark"?"light":"dark";
@@ -4861,7 +4911,12 @@ window.addEventListener("keydown",function(e){
   if(!state.touring) return;
   var tag=(e.target&&e.target.tagName||"").toLowerCase();
   if(tag==="input"||tag==="textarea") return;
-  if(e.key==="ArrowRight") goToTourStop(state.tourIdx+1);
+  if(e.key==="ArrowRight"){
+    // match the Next/Done button's own behavior (index.html goToTourStop wiring below) — without
+    // this, ArrowRight at the final stop just re-clamped to the same stop and the tour never
+    // exited via keyboard, while the mouse/touch "Done" button did (/stress-test, 2026-08-19)
+    if(state.tourIdx===TOUR_BEATS.length-1) exitTour(); else goToTourStop(state.tourIdx+1);
+  }
   else if(e.key==="ArrowLeft") goToTourStop(state.tourIdx-1);
   else if(e.key==="Escape") exitTour();
 });
@@ -5082,7 +5137,9 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   revSvcDriftSeries:revSvcDriftSeries,pvA:pvA,acA:acA,evA:evA,pvB:pvB,milesLast:MILES[MILES.length-1],
   presentBeatsFull:PRESENT_BEATS_FULL,presentBeatsQuick:PRESENT_BEATS_QUICK,tourBeats:TOUR_BEATS,state:state,
   guardrails:GUARDRAILS,discrepancySteps:DISCREPANCY_STEPS,rollout:ROLLOUT,dsNodes:DS_NODES,dsCaption:dsCaption,
-  gloss:GLOSS,findGloss:findGloss};
+  gloss:GLOSS,findGloss:findGloss,
+  miles:MILES,delays:DELAYS,spark:SPARK,baseline:BASELINE,guards:GUARDS,escPat:ESC_PAT,
+  mcParams:mcParams,triang:triang,dsStep:dsStep};
 })();
 </script>
 </body>
