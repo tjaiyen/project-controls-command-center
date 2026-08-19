@@ -823,8 +823,8 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
       <p class="lede" id="contractFoot" style="margin-top:9px;font-size:12.5px"></p>
 
       <div class="sec-h" style="margin-top:34px"><h2>Change &amp; claims</h2><span class="tag">commercial</span></div>
-      <p class="lede">Change order rate against original contract value is the single best predictor of a
-        troubled program. Cycle time is the one you can actually control.</p>
+      <p class="lede">Change order rate against original contract value is one of the strongest, most
+        closely tracked predictors of a troubled program. Cycle time is the one you can actually control.</p>
       <div class="grid g2">
         <div class="card"><h3>Change pipeline</h3><div id="changePipe"></div></div>
         <div class="card"><h3>Change order rate in context</h3><div id="coContext"></div></div>
@@ -1468,8 +1468,12 @@ var GATE5_CHECKS=[
    ========================================================================= */
 function derive(p){
   var spi=p.ev/p.pv, cpi=p.ev/p.ac, eac=p.bac/cpi;
+  /* cpRem===0 means the driving path has no remaining duration left to erode — treat that
+     as CPLI=1 (neutral/on-track) rather than dividing by zero; the raw ratio is undefined
+     the instant there's nothing left to divide by, not "infinitely healthy" or NaN. */
+  var cpli = p.cpRem>0 ? (p.cpRem+p.float)/p.cpRem : 1;
   return {spi:spi, cpi:cpi, eac:eac, vac:p.bac-eac, sv:p.ev-p.pv, cv:p.ev-p.ac,
-          pct:p.ev/p.bac, cpli:(p.cpRem+p.float)/p.cpRem, bei:p.actsD/p.actsP,
+          pct:p.ev/p.bac, cpli:cpli, bei:p.actsD/p.actsP,
           pf:p.ernH/p.actH, commitRatio:p.commit/p.bac};
 }
 var rows = PKGS.map(function(p){ var d=derive(p); return Object.assign({},p,d); });
@@ -1483,8 +1487,11 @@ T.vac=T.bac-T.eac; T.eacIndep=T.bac/T.cpi; T.pct=T.ev/T.bac;
 T.tcpi=(T.bac-T.ev)/(T.bac-T.ac);
 T.bei=T.actsD/T.actsP; T.pf=T.ernH/T.actH; T.commitRatio=T.commit/T.bac;
 /* Program CPLI is the DRIVING path's, not an average — an average would let float-rich
-   packages mask the one path that actually sets the completion date. */
-T.cpli = rows.reduce(function(m,r){ return r.cpli<m.cpli?r:m; }, rows[0]).cpli;
+   packages mask the one path that actually sets the completion date. isFinite guards
+   against a single non-finite cpli (shouldn't happen post-derive(), but a NaN/Infinity
+   in the seed row would otherwise make every subsequent "<" comparison false and the
+   min silently never move off it) making the whole program figure permanently stuck. */
+T.cpli = rows.reduce(function(m,r){ return (isFinite(r.cpli)&&r.cpli<m.cpli)?r:m; }, rows[0]).cpli;
 T.contDrawn = PROGRAM.contingencyDrawn/PROGRAM.contingency;
 T.contRemaining = PROGRAM.contingency-PROGRAM.contingencyDrawn;
 T.riskExposure = RISKS.reduce(function(s,k){ return s+P_BAND[k.p]*k.cost; },0);
@@ -2388,8 +2395,13 @@ function computeMc(uncertainIds){
       if(uncertainIds.indexOf(r.id)>=0){
         /* Future efficiency drawn around the package's OBSERVED CPI, asymmetric:
            0.08 of downside vs 0.06 of upside — recovery is capped because cost
-           efficiency on capital work rarely improves far past its settled rate. */
-        c=triang(rnd(), Math.max(0.78,r.cpi-0.08), r.cpi+0.06, r.cpi);
+           efficiency on capital work rarely improves far past its settled rate.
+           The 0.78 floor only clamps the low end; for any account whose own CPI
+           already sits below ~0.78 the unclamped triple would invert (min>max,
+           triang() silently returns nonsense) — clamp mode/max together with it
+           so min<=mode<=max always holds, whatever the account's real CPI is. */
+        var mcLo=Math.max(0.78,r.cpi-0.08), mcHi=Math.max(mcLo,r.cpi+0.06), mcMode=Math.max(mcLo,Math.min(mcHi,r.cpi));
+        c=triang(rnd(), mcLo, mcHi, mcMode);
       } else {
         c=r.cpi; // locked to its current, observed efficiency — no draw, no uncertainty modeled
       }
@@ -3337,7 +3349,10 @@ function renderGates(){
 function renderInversion(gate5Res){
   var cov=gate5Res.filter(function(r){ return r.key==="contCoverage"; })[0];
   var covPass=gate5Res.filter(function(r){ return r.pass; }).length;
-  var esc=ESCALATION[4];
+  /* ESCALATION rows have no stable key field (unlike GATE5_CHECKS) — look this one up by its
+     trigger text, not a raw index, so the exact fragility the comment above warns about can't
+     recur here even though ESCALATION itself wasn't restructured this pass. */
+  var esc=ESCALATION.filter(function(e){ return /Contingency coverage/.test(e[0]); })[0];
   var lead=actionsForKpi("ccr").filter(function(a){ return a.owner===esc[1]; })[0];
   var steps=[
    ["1 &middot; Define the end state","Gate 5 clears &mdash; the Board can lock the lifetime baseline; "+
