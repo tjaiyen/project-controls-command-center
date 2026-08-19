@@ -453,6 +453,59 @@ ok(indexSrc.includes("Reference class forecasting") && indexSrc.includes("45%") 
   "Cost tab names reference class forecasting with Flyvbjerg's real base rates (rail/fixed-link/road)");
 ok(indexSrc.includes('data-help="referenceclass"'), "reference-class callout carries its own inline help icon");
 
+// D2.1 — interactive view toggle, zoned histogram, live math explainer (2026-08-19)
+{
+  ok(G.mcViewHist.getAttribute("aria-pressed") === "true", "distribution view active on load");
+  ok(G.mcViewCdf.getAttribute("aria-pressed") === "false", "cumulative view inactive on load");
+  ok((G.mcChart._html.match(/<rect/g) || []).length === 26, "initial view is the 26-bin histogram");
+  ok(!G.mcChart._html.includes("<polyline"), "initial view has no CDF polyline");
+
+  // Color-zoning is a static-source check, not a runtime color comparison — this harness's
+  // getComputedStyle stub returns the same value for every custom property, so C("ok")/C("warn")/
+  // C("bad") are indistinguishable strings at runtime here even though they render distinctly in
+  // a real browser. Pre-registered awareness of that trap, not a color-distinctness assertion
+  // that would silently always pass (or always fail) regardless of the actual zoning logic.
+  ok(indexSrc.includes('mid<T.bac?C("ok"):mid<(T.bac+T.contRemaining)?C("warn"):C("bad")'),
+    "histogram bars are zone-colored in source (ok below BAC / warn to BAC+contingency / bad beyond)");
+
+  fire(G.mcViewCdf, "click");
+  ok(G.mcViewCdf.getAttribute("aria-pressed") === "true", "cumulative view active after click");
+  ok(G.mcViewHist.getAttribute("aria-pressed") === "false", "distribution view inactive after click");
+  ok(G.mcChart._html.includes("<polyline"), "cumulative view renders a polyline");
+  ok(!G.mcChart._html.includes("<rect"), "cumulative view has no histogram bars");
+  has("mcStats", "P50 (median)", "stats box still populated in cumulative view");
+  has("mcRead", "funding", "narrative still populated in cumulative view");
+
+  fire(G.mcViewHist, "click");
+  ok(G.mcViewHist.getAttribute("aria-pressed") === "true", "distribution view active again after toggling back");
+  ok((G.mcChart._html.match(/<rect/g) || []).length === 26, "toggling back restores the 26-bin histogram");
+
+  // Math explainer — recompute the worked CP-201 example independently rather than trusting the
+  // app's own math, matching this file's section-4 doctrine.
+  const mcR = rows.find(x => x.id === "CP-201");
+  ok(!!mcR, "CP-201 present for the worked example");
+  function triangCheck(u, a, b, mode) {
+    const fc = (mode - a) / (b - a);
+    return u < fc ? a + Math.sqrt(u * (b - a) * (mode - a)) : b - Math.sqrt((1 - u) * (b - a) * (b - mode));
+  }
+  function m_(v) { const s = Math.abs(v).toFixed(1).split(".");
+    return (v < 0 ? "−" : "") + "$" + s[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",") + "." + s[1] + "M"; }
+  const aLow = Math.max(0.78, mcR.cpi - 0.08), bHigh = mcR.cpi + 0.06, mode = mcR.cpi;
+  has("mcMathBody", "AC + (BAC", "math panel states the per-run formula");
+  has("mcMathBody", "4000 runs", "math panel names the actual run count, not a stale number");
+  has("mcMathBody", mcR.id, "math panel names the worked control account by id");
+  ok(G.mcMathBody._html.includes(mcR.cpi.toFixed(3)), "math panel shows CP-201's actual live CPI");
+  [0.10, 0.50, 0.90].forEach(u => {
+    const c = triangCheck(u, aLow, bHigh, mode);
+    const contrib = mcR.ac + (mcR.bac - mcR.ev) / c;
+    has("mcMathBody", "u = " + u.toFixed(2), "math panel shows the u=" + u.toFixed(2) + " draw");
+    ok(G.mcMathBody._html.includes("c = " + c.toFixed(3)),
+      "u=" + u.toFixed(2) + " draw's c matches independent recomputation", c.toFixed(3));
+    ok(G.mcMathBody._html.includes(m_(contrib)),
+      "u=" + u.toFixed(2) + " draw's dollar contribution matches independent recomputation", m_(contrib));
+  });
+}
+
 // scenarios: save two, verify table, clear
 try {
   G.sCpi.value = "1.10"; G.sSpi.value = "1.05"; G.sCont.value = "150";

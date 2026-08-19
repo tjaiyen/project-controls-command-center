@@ -203,6 +203,12 @@ h4{font-size:.86rem;margin:0 0 5px}
 .dbox{border-left:2px solid rgb(var(--c-accent) / .55);padding-left:12px}
 .dbox h4{color:rgb(var(--c-code));font:600 10px/1.4 ui-monospace,monospace;letter-spacing:.1em;text-transform:uppercase}
 .dbox p{margin:5px 0 0;font-size:12.8px;color:rgb(var(--c-mut))}
+.dbox summary{cursor:pointer;color:rgb(var(--c-code));font:600 10px/1.4 ui-monospace,monospace;
+  letter-spacing:.1em;text-transform:uppercase}
+.dbox summary:hover{text-decoration:underline}
+.dbox[open] summary{margin-bottom:6px}
+.dbox code{font:12px/1.5 ui-monospace,monospace;color:rgb(var(--c-code));background:rgb(var(--c-accent) / .10);
+  padding:1px 5px;border-radius:4px}
 
 /* pills / status */
 .pill{display:inline-block;padding:2px 9px;border-radius:999px;font:600 10.5px/1.6 ui-monospace,monospace}
@@ -613,9 +619,21 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         simulated completions: each control account&rsquo;s remaining work is priced at a future efficiency
         drawn around its observed CPI &mdash; downside wider than upside, because cost efficiency on capital
         work recovers slowly and degrades fast. Fixed seed, so the distribution is reproducible and testable.</p>
-      <div class="card" style="margin-top:15px"><div class="chart" id="mcChart"></div>
+      <div class="card" style="margin-top:15px">
+        <div style="display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap">
+          <div role="group" aria-label="Chart view" style="display:flex;gap:6px">
+            <button class="btn" id="mcViewHist" type="button" aria-pressed="true">Distribution</button>
+            <button class="btn" id="mcViewCdf" type="button" aria-pressed="false">Cumulative</button>
+          </div>
+        </div>
+        <div class="chart" id="mcChart" style="margin-top:10px"></div>
         <div class="outbox" id="mcStats"></div>
-        <p class="lede" id="mcRead" style="margin-top:12px;font-size:12.8px"></p></div>
+        <p class="lede" id="mcRead" style="margin-top:12px;font-size:12.8px"></p>
+        <details class="dbox" style="margin-top:16px">
+          <summary>How this is actually computed</summary>
+          <div id="mcMathBody"></div>
+        </details>
+      </div>
 
       <div class="dbox" style="margin-top:14px;border-left-color:rgb(var(--c-ok) / .55)">
         <h4>A second lens on the same question <button type="button" class="help-ic" data-help="referenceclass" aria-label="What does this term mean?" aria-expanded="false">i</button></h4>
@@ -1673,7 +1691,7 @@ function sparkline(series, ragColor){
    7. RENDERERS
    ========================================================================= */
 var state = {phase:"con", fam:"All", kpi:null, pkg:2, actFilter:"All", act:null,
-  presenting:false, presentSet:"full", beatIdx:0, tab:"over"};
+  presenting:false, presentSet:"full", beatIdx:0, tab:"over", mcView:"hist"};
 
 function renderPhases(){
   document.getElementById("phases").innerHTML = PHASES.map(function(p,i){
@@ -2126,10 +2144,15 @@ function renderMc(){
     counts[Math.min(bins-1,Math.floor((v-lo)/bw))]++; });
   var mx=Math.max.apply(null,counts);
   var X=function(v){ return PL+((Math.min(hi,Math.max(lo,v))-lo)/(hi-lo))*(W-PL-PR); };
+  /* Color the bar by which side of the budget / budget+contingency line its own range
+     falls on — the same thresholds mcStats already reports, just visible per-bin instead
+     of only in the aggregate P(overrun)/P(bust) numbers. */
   var body=counts.map(function(c,i){
     var x=PL+(i/bins)*(W-PL-PR), w=(W-PL-PR)/bins-2, h=c/mx*(H-PT-PB);
+    var mid=lo+(i+0.5)*bw;
+    var col=mid<T.bac?C("ok"):mid<(T.bac+T.contRemaining)?C("warn"):C("bad");
     return '<rect x="'+x.toFixed(1)+'" y="'+(H-PB-h).toFixed(1)+'" width="'+w.toFixed(1)+'" height="'+Math.max(1,h).toFixed(1)+
-      '" rx="1.5" fill="'+C("accent")+'" opacity=".72"><title>'+m(lo+i*bw)+' – '+m(lo+(i+1)*bw)+': '+c+' runs</title></rect>';
+      '" rx="1.5" fill="'+col+'" opacity=".78"><title>'+m(lo+i*bw)+' – '+m(lo+(i+1)*bw)+': '+c+' runs</title></rect>';
   }).join("");
   function marker(v,color,label){
     return '<line x1="'+X(v)+'" x2="'+X(v)+'" y1="'+PT+'" y2="'+(H-PB)+'" stroke="'+color+'" stroke-width="1.8" stroke-dasharray="4 3"/>'+
@@ -2140,6 +2163,37 @@ function renderMc(){
     marker(MC.p50,C("warn"),"P50 "+m(MC.p50))+
     marker(T.bac+T.contRemaining,C("bad"),"BAC+cont "+m(T.bac+T.contRemaining)),
     "Monte Carlo distribution of the forecast at completion across 4,000 simulated completions, marked with budget, median, and budget plus remaining contingency.");
+  renderMcStatsRead();
+}
+
+/* Cumulative view — same 4,000 outcomes, plotted as P(finish at or under $x) instead of a
+   histogram. Reads MC.sims directly; no new simulation, no new randomness. */
+function renderMcCdf(){
+  var W=980,H=260,PL=64,PR=18,PT=18,PB=40;
+  var lo=MC.sims[Math.floor(0.02*MC.sims.length)], hi=MC.sims[Math.floor(0.98*MC.sims.length)];
+  var n=MC.sims.length;
+  var X=function(v){ return PL+((Math.min(hi,Math.max(lo,v))-lo)/(hi-lo))*(W-PL-PR); };
+  var Y=function(p){ return (H-PB)-p*(H-PT-PB); };
+  var step=Math.max(1,Math.floor(n/220)), pts=[], i;
+  for(i=0;i<n;i+=step){
+    if(MC.sims[i]<lo||MC.sims[i]>hi) continue;
+    pts.push(X(MC.sims[i]).toFixed(1)+","+Y(i/n).toFixed(1));
+  }
+  pts.push(X(hi).toFixed(1)+","+Y(1).toFixed(1));
+  var body='<polyline points="'+pts.join(" ")+'" fill="none" stroke="'+C("accent")+'" stroke-width="2"/>';
+  function marker(v,color,label){
+    return '<line x1="'+X(v)+'" x2="'+X(v)+'" y1="'+PT+'" y2="'+(H-PB)+'" stroke="'+color+'" stroke-width="1.8" stroke-dasharray="4 3"/>'+
+      '<text x="'+X(v)+'" y="'+(H-24)+'" text-anchor="middle" font-size="10" font-family="ui-monospace,monospace" fill="'+color+'">'+label+'</text>';
+  }
+  document.getElementById("mcChart").innerHTML=svg(W,H,body+
+    marker(T.bac,C("ok"),"BAC "+m(T.bac))+
+    marker(MC.p50,C("warn"),"P50 "+m(MC.p50))+
+    marker(T.bac+T.contRemaining,C("bad"),"BAC+cont "+m(T.bac+T.contRemaining)),
+    "Cumulative probability of the forecast at completion across 4,000 simulated completions — the probability of finishing at or under a given cost — marked with budget, median, and budget plus remaining contingency.");
+  renderMcStatsRead();
+}
+
+function renderMcStatsRead(){
   document.getElementById("mcStats").innerHTML=
    [["P10",m(MC.p10),""],["P50 (median)",m(MC.p50),MC.p50>T.bac?"ba":"ok"],
     ["P80",m(MC.p80),"ba"],
@@ -2152,6 +2206,51 @@ function renderMc(){
     "<em>plus</em> the remaining "+m(T.contRemaining)+" of contingency. The honest sentence for the board is not "+
     "&ldquo;we land at "+m(T.eac)+"&rdquo; but &ldquo;there is a "+pct(MC.pBust,0)+" chance the current funding "+
     "line does not hold&rdquo; — and that sentence is what triggers the contingency conversation early rather than late.";
+}
+
+function syncMcView(){
+  document.getElementById("mcViewHist").setAttribute("aria-pressed", String(state.mcView==="hist"));
+  document.getElementById("mcViewCdf").setAttribute("aria-pressed", String(state.mcView==="cdf"));
+  if(state.mcView==="cdf") renderMcCdf(); else renderMc();
+}
+
+/* The math explainer — a live worked example against CP-201 (the tunnel package, the same
+   thread the rest of the presentation follows), not a hypothetical. Every number here is read
+   off `rows` / `triang()` at render time. */
+function renderMcMath(){
+  var r=rows.filter(function(x){ return x.id==="CP-201"; })[0];
+  var aLow=Math.max(0.78,r.cpi-0.08), bHigh=r.cpi+0.06, mode=r.cpi;
+  var draws=[0.10,0.50,0.90].map(function(u){
+    var c=triang(u,aLow,bHigh,mode);
+    return {u:u, c:c, contrib:r.ac+(r.bac-r.ev)/c};
+  });
+  document.getElementById("mcMathBody").innerHTML=
+    '<p>Each of the '+MC.n+' runs prices every control account’s <em>remaining</em> work at a future '+
+    'efficiency drawn from a triangular distribution around that account’s own observed CPI &mdash; the '+
+    'downside is wider than the upside (&minus;0.08 vs +0.06), because cost efficiency on capital work '+
+    'recovers slowly and degrades fast. For one run, each account contributes '+
+    '<code>AC + (BAC&minus;EV) / c</code>, where <code>c</code> is that run’s draw &mdash; the same shape '+
+    'as the Cost tab’s &ldquo;cost-and-schedule-pressure&rdquo; EAC method, just re-run '+MC.n+' times with '+
+    'a fresh draw each time and summed across all '+rows.length+' control accounts into one simulated program '+
+    'completion.</p>'+
+    '<p style="margin-top:8px">Worked against <b style="color:rgb(var(--c-ink))">'+r.n.replace(/&amp;/g,"&")+
+    ' ('+r.id+')</b>, right now: CPI reads <b style="color:rgb(var(--c-ink))">'+idx(r.cpi)+'</b>, so each run '+
+    'draws a future efficiency between <b style="color:rgb(var(--c-ink))">'+idx(aLow)+'</b> and '+
+    '<b style="color:rgb(var(--c-ink))">'+idx(bHigh)+'</b>, most likely near '+idx(mode)+'. Three illustrative '+
+    'draws (<code>u</code> is the random 0&ndash;1 draw that picks the point inside that range):</p>'+
+    '<div class="outbox" style="margin-top:6px">'+
+    draws.map(function(d){ return '<div><div class="k">u = '+d.u.toFixed(2)+'</div>'+
+      '<div class="v">c = '+idx(d.c)+' &rarr; '+m(d.contrib)+'</div></div>'; }).join("")+
+    '</div>'+
+    '<p style="margin-top:8px">The low draw lands the future efficiency near the pessimistic bound; the high '+
+    'draw lands it near the mode, not the optimistic edge &mdash; the triangle is asymmetric on purpose, so '+
+    'recovery is possible but capped, never assumed. Do this for all '+rows.length+' control accounts and sum, '+
+    MC.n+' times, and the distribution above is what falls out &mdash; not assumed, computed.</p>'+
+    '<p style="margin-top:8px">The run itself is reproducible: a fixed-seed generator (not '+
+    '<code>Math.random()</code>) means the same '+MC.n+' draws happen in the same order every time this page '+
+    'loads &mdash; a forecast a board can ask you to re-run and get the same answer back from. P10/P50/P80 '+
+    'above are simply the values at the 10th/50th/80th position once all '+MC.n+' outcomes are sorted low to '+
+    'high.</p>';
 }
 
 /* ---------- print brief ---------- */
@@ -3672,7 +3771,9 @@ document.getElementById("storyGo").addEventListener("click",function(){ activate
 document.getElementById("glossQ").addEventListener("input",function(){ renderGlossary(this.value); });
 window.addEventListener("scroll",function(){ document.getElementById("tip").classList.remove("on"); },{passive:true});
 
-function redrawCharts(){ renderScurve(); renderWaterfall(); renderCont(); renderRisk(); renderMc(); }
+function redrawCharts(){ renderScurve(); renderWaterfall(); renderCont(); renderRisk(); syncMcView(); }
+document.getElementById("mcViewHist").addEventListener("click",function(){ state.mcView="hist"; syncMcView(); });
+document.getElementById("mcViewCdf").addEventListener("click",function(){ state.mcView="cdf"; syncMcView(); });
 
 /* init */
 renderPhases(); renderStrip(); renderPortfolio(); renderFilters(); renderBoard(); renderDetail();
@@ -3680,7 +3781,7 @@ renderScurve(); renderWaterfall(); renderBaseline(); renderEac(); renderCont(); 
 renderEacTrend(); renderFcastTable(); renderCashflow();
 renderSchedule(); renderRisk(); renderContracts(); renderDelivery(); renderFramework(); renderActions();
 renderDataStrategy();
-renderMc(); renderScen(); renderPrint();
+syncMcView(); renderMcMath(); renderScen(); renderPrint();
 renderArch(); renderGuards();
 renderStory(0); renderGlossary("");
 document.getElementById("sCpi").value=T.cpi;
