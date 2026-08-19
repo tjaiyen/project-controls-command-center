@@ -138,6 +138,25 @@ ok(/\.tab-num,td\.mono\{white-space:nowrap\}/.test(indexSrc),
 ok(/td \.pill\{white-space:normal;max-width:96px;text-align:center;line-height:1\.3\}/.test(indexSrc),
   "pills inside table cells wrap when genuinely tight instead of forcing the table wider — the single biggest cause found (a 3-word status label was as wide as 5 numeric columns combined)");
 
+// Follow-up sweep (2026-08-19, user: "check all the layout... make sure no layout gets cut off"):
+// a systematic pass across all 11 tabs + otak.html at 375/768/1050/1400px, walking every element
+// for real scrollWidth>clientWidth overflow (excluding deliberately self-scrolling containers:
+// .tw tables, pre.code blocks, .phases — all three already had their own overflow-x:auto by
+// design before this session). Found and fixed 3 more root causes of the same class as above.
+ok(!/\.chart svg\{display:block;min-width:640px;width:100%\}/.test(indexSrc),
+  "chart SVGs no longer carry a 640px min-width floor — was overflowing any chart placed in a squeezed grid column (found: risk tab's tornado chart, 107px over)");
+["eacTable", "cashflow", "scenTable", "coDefense", "fcastTable"].forEach(id =>
+  ok(!new RegExp('id="' + id + '"[^>]*style="min-width:\\d+px"').test(indexSrc),
+    "#" + id + " no longer carries a fixed min-width (second wave of the same table fix)"));
+ok(/<h3>EAC trend[\s\S]{0,600}<div id="eacTrend">/.test(indexSrc) && !/<div class="grid g2">\s*<div class="card"><h3>EAC trend/.test(indexSrc),
+  "EAC-trend / 1-month-forecast-accuracy pair no longer squeezed into a 2-column grid (same fix as the earlier EAC-methods/contingency pair)");
+ok(/#pkgTable th,#pkgTable td\{padding:9px 6px\}/.test(indexSrc),
+  "pkgTable (11 columns, the densest standalone table) gets the same scoped padding lever as portTable");
+ok(/#escTable td\.mono\{white-space:normal\}/.test(indexSrc),
+  "escTable's Trigger column no longer force-nowrapped — a REAL bug this sweep caught: td.mono was added " +
+  "to protect short atomic values (dates/ids) from ugly breaks, but escTable reuses .mono for full rule-" +
+  "condition sentences (\"Contingency coverage < 1.00\") that should wrap like any other prose");
+
 // Tier 3 nav rail: same class of guard as above — a jsdom-less stub can't run real CSS Grid/
 // media-query layout, so these are static tripwires (browser-verified live at 1400px desktop
 // and 390px mobile 2026-08-18: rail renders and switches tabs correctly at desktop width;
