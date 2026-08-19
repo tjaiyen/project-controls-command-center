@@ -598,6 +598,18 @@ has("gateTable", "Baseline Establishment", "gate table names the baseline-establ
   has("gate5Card", "FAIL", "Gate 5 card shows the failing check");
 }
 has("escTable", "TCPI(BAC)", "escalation matrix carries the explicit TCPI &gt; 1.10 rule");
+// Tier 2: escalation matrix's new live-status column — never hardcode the firing count, derive
+// it from firingEscalations() itself so a future ledger edit can't silently desync the assertion
+{
+  const firing = P.firingEscalations();
+  ok(firing.length > 0 && firing.length < P.escalation.length,
+    "at least one but not all escalation rules are firing right now (a meaningful status column)", String(firing.length));
+  ok((G.escTable._html.match(/Firing now/g) || []).length === firing.length,
+    "escTable shows exactly as many 'Firing now' pills as firingEscalations() returns");
+  ok((G.escTable._html.match(/>Dormant</g) || []).length === P.escalation.length - firing.length,
+    "escTable shows 'Dormant' for every non-firing rule");
+  has("escTable", "Contingency coverage &lt; 1.00", "the firing set includes the contingency-coverage rule (pre-registered: it's the one Gate 5 fails on)");
+}
 
 /* =========================================================================
    D5.7. WORKING BACKWARD / INVERSION — Gate 5 -> CCR -> the ledger -> A-09
@@ -678,6 +690,13 @@ ok(P.actions.length === 17, "exactly 17 action items", String(P.actions.length))
   Object.keys(expected).forEach(k =>
     ok(counts[k] === expected[k], "status count " + k + " = " + expected[k], String(counts[k])));
   ok(rows.filter(r => r.status !== "verified" && r.status !== "closed").length === 16, "16 of 17 open");
+  // Tier 2: type-icon badges on the register table — one distinct icon per Type value
+  const typeCounts = {};
+  rows.forEach(r => { typeCounts[r.type] = (typeCounts[r.type] || 0) + 1; });
+  ok(typeCounts.Issue === 6 && typeCounts.Task === 10 && typeCounts.Decision === 1,
+    "action type mix is 6 Issue / 10 Task / 1 Decision", JSON.stringify(typeCounts));
+  ["ticon a", "ticon i", "ticon g"].forEach(cls =>
+    ok(G.actTable._html.includes('class="' + cls + '"'), "actTable renders a '" + cls + "' type icon badge"));
   const stale = rows.filter(r => r.stale);
   ok(stale.length === 2, "exactly 2 stale flags", String(stale.length));
   ok(stale.map(r => r.id).sort().join(",") === "A-09,A-11", "stale flags land on A-09 and A-11",
@@ -886,6 +905,10 @@ ok(P.rollout.length === 3, "3-phase rollout defined", String(P.rollout.length));
 has("guardrailTable", "Entity / schema check", "guardrail table renders the entity/schema check");
 has("guardrailTable", "Cross-system reconciliation", "guardrail table renders cross-system reconciliation check");
 has("guardrailTable", "IDS", "guardrail table ties checks back to the real IDS standard");
+// Tier 2: one icon badge per guardrail row (4 categories, all "info" tint — a parallel
+// taxonomy, not a severity ladder)
+ok((G.guardrailTable._html.match(/class="ticon i"/g) || []).length === 4,
+  "guardrail table renders exactly 4 category icon badges", String((G.guardrailTable._html.match(/class="ticon i"/g) || []).length));
 // these three are static HTML baked into the page, never JS-rendered into #p-data's innerHTML —
 // check the raw source directly (same pattern as the other static-content checks in this file),
 // not has(), which only sees content actually assigned via .innerHTML at runtime.

@@ -192,6 +192,15 @@ h4{font-size:.86rem;margin:0 0 5px}
 .pill.a{background:rgb(var(--c-warn) / .16);color:var(--c-pill-a)}
 .pill.r{background:rgb(var(--c-bad) / .15);color:var(--c-pill-r)}
 .pill.i{background:rgb(var(--c-info) / .15);color:var(--c-pill-i)}
+/* category icons — a small tinted glyph badge in front of a table cell, distinguishing a fixed
+   taxonomy (action type, guardrail check type) at a glance instead of plain text alone */
+.ticon{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;
+  border-radius:50%;margin-right:6px;vertical-align:-5px;flex:0 0 auto}
+.ticon svg{width:12px;height:12px;display:block}
+.ticon.g{background:rgb(var(--c-ok) / .15);color:var(--c-pill-g)}
+.ticon.a{background:rgb(var(--c-warn) / .16);color:var(--c-pill-a)}
+.ticon.r{background:rgb(var(--c-bad) / .15);color:var(--c-pill-r)}
+.ticon.i{background:rgb(var(--c-info) / .15);color:var(--c-pill-i)}
 .rcItem{display:block;width:100%;text-align:left;background:none;border:1px solid var(--c-line);
   border-radius:8px;padding:8px 10px;margin-top:8px;cursor:pointer;font:inherit;color:inherit}
 .rcItem:hover,.rcItem:focus-visible{border-color:rgb(var(--c-accent) / .55);background:rgb(var(--c-accent) / .06)}
@@ -2550,9 +2559,12 @@ function renderFramework(){
       '<li><b>Gate decision:</b> '+pb.dec+'</li>'+
       '<li><b>KPIs live ('+live.length+'):</b> '+live.map(function(k){return k.abbr;}).join(", ")+'</li></ul></div>';
   }).join("");
+  var escFiring=firingEscalations();
   document.getElementById("escTable").innerHTML=
-    '<thead><tr><th scope="col">Trigger</th><th scope="col">Owner</th><th scope="col">Action</th><th scope="col">Clock</th></tr></thead><tbody>'+
-    ESCALATION.map(function(r){ return '<tr style="cursor:default"><td class="mono" style="font-size:12px">'+r[0]+
+    '<thead><tr><th scope="col">Status</th><th scope="col">Trigger</th><th scope="col">Owner</th><th scope="col">Action</th><th scope="col">Clock</th></tr></thead><tbody>'+
+    ESCALATION.map(function(r){ var firing=escFiring.indexOf(r)!==-1;
+      return '<tr style="cursor:default"><td><span class="pill '+(firing?"r":"g")+'">'+(firing?"Firing now":"Dormant")+'</span></td>'+
+      '<td class="mono" style="font-size:12px">'+r[0]+
       '</td><td>'+r[1]+'</td><td style="white-space:normal">'+r[2]+'</td><td>'+r[3]+'</td></tr>'; }).join("")+'</tbody>';
   document.getElementById("cadence").innerHTML=CADENCE.map(function(c){
     return '<div class="card"><div class="eyebrow">'+c.t+'</div><p style="margin:0;font-size:13px;color:rgb(var(--c-mut))">'+
@@ -2578,6 +2590,18 @@ function renderFramework(){
    same as-of date the rest of the dashboard uses. Nothing here is hand-set. */
 var ACT_ASOF = new Date(Date.UTC(2026,6,31));
 function actDays(iso){ return Math.round((ACT_ASOF - new Date(iso+"T00:00:00Z"))/86400000); }
+
+/* small category-icon glyphs for the Type column — currentColor so each inherits its tinted
+   badge's own color; plain primitive shapes (circle/line/rect/polygon), not decoration */
+var ACT_TYPE_ICON={
+ Issue:{cls:"a", svg:'<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.4"/><line x1="8" y1="4.6" x2="8" y2="8.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="11.2" r="0.9" fill="currentColor"/></svg>'},
+ Task:{cls:"i", svg:'<svg viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><polyline points="5,8.3 7.2,10.5 11,6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'},
+ Decision:{cls:"g", svg:'<svg viewBox="0 0 16 16"><polygon points="8,2 14,8 8,14 2,8" fill="none" stroke="currentColor" stroke-width="1.4"/><line x1="8" y1="5.6" x2="8" y2="10.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>'}
+};
+function typeIcon(t){
+  var d=ACT_TYPE_ICON[t]; if(!d) return "";
+  return '<span class="ticon '+d.cls+'" aria-hidden="true">'+d.svg+'</span>';
+}
 
 var ACTIONS=[
  {id:"A-01",type:"Issue",title:"CP-201 cost performance index below threshold",
@@ -2772,7 +2796,7 @@ function renderActions(){
    list.map(function(r){ var sm=STATUS_META[r.status];
      return '<tr data-act="'+r.id+'" tabindex="0" role="button" aria-controls="actDrill" aria-pressed="'+(state.act===r.id)+'" style="cursor:pointer'+(state.act===r.id?';background:rgb(var(--c-accent) / .08)':'')+'">'+
      '<td class="mono" style="font-size:11.5px">'+r.id+'</td>'+
-     '<td style="font-size:11.5px">'+r.type+'</td>'+
+     '<td style="font-size:11.5px;white-space:nowrap">'+typeIcon(r.type)+r.type+'</td>'+
      '<td style="white-space:normal">'+r.title+(r.stale?' <span class="pill a" style="margin-left:5px">stale</span>':'')+'</td>'+
      '<td style="font-size:12px">'+r.owner+'</td>'+
      '<td class="mono" style="font-size:11.5px">'+r.due+'</td>'+
@@ -3150,6 +3174,15 @@ var GUARDRAILS=[
  {t:"Cross-system reconciliation",c:"Do two systems' numbers for the same thing actually agree?",e:"Does earned progress in the schedule tool roughly track earned value in the cost system?"},
  {t:"Freshness check",c:"Is this data as current as its expected cadence?",e:"Data older than expected is flagged stale and excluded from live figures — the same idea as this dashboard's own Actions-tab stale flag."}
 ];
+/* one icon per guardrail category — all tinted "info" (a parallel taxonomy, not a severity
+   ladder like the pill colors elsewhere), distinguished only by shape */
+var GUARD_ICON={
+ "Entity / schema check":'<svg viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><line x1="4.5" y1="6" x2="11.5" y2="6" stroke="currentColor" stroke-width="1.1"/><line x1="4.5" y1="8.5" x2="11.5" y2="8.5" stroke="currentColor" stroke-width="1.1"/><line x1="4.5" y1="11" x2="9" y2="11" stroke="currentColor" stroke-width="1.1"/></svg>',
+ "Range / restriction check":'<svg viewBox="0 0 16 16"><line x1="2.5" y1="8" x2="13.5" y2="8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="3.5" y1="4.5" x2="3.5" y2="11.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="12.5" y1="4.5" x2="12.5" y2="11.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="8" r="1.4" fill="currentColor"/></svg>',
+ "Cross-system reconciliation":'<svg viewBox="0 0 16 16"><path d="M2.5 6h9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" fill="none"/><path d="M9 3.3 11.7 6 9 8.7" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.5 10h-9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" fill="none"/><path d="M7 12.7 4.3 10 7 7.3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+ "Freshness check":'<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.3"/><line x1="8" y1="8" x2="8" y2="4.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="8" y1="8" x2="10.4" y2="9.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>'
+};
+function guardIcon(t){ return '<span class="ticon i" aria-hidden="true">'+(GUARD_ICON[t]||"")+'</span>'; }
 var DISCREPANCY_STEPS=[
  {n:"1 &middot; Classify severity first",w:"A rounding difference and a material variance aren&rsquo;t the same problem. Set the materiality threshold before the argument happens, not during it."},
  {n:"2 &middot; Auto-resolve known patterns",w:"Most discrepancies aren&rsquo;t novel &mdash; the same three or four root causes recur. Encode the known ones as deterministic rules so they resolve themselves."},
@@ -3165,7 +3198,7 @@ var ROLLOUT=[
 function renderDataStrategy(){
   document.getElementById("guardrailTable").innerHTML=
     '<thead><tr><th scope="col">Check type</th><th scope="col">What it catches</th><th scope="col">Example</th></tr></thead><tbody>'+
-    GUARDRAILS.map(function(g){ return '<tr style="cursor:default"><td style="white-space:normal;font-weight:600">'+g.t+
+    GUARDRAILS.map(function(g){ return '<tr style="cursor:default"><td style="white-space:normal;font-weight:600">'+guardIcon(g.t)+g.t+
       '</td><td style="white-space:normal;font-size:12.5px">'+g.c+'</td>'+
       '<td style="white-space:normal;font-size:12px;color:rgb(var(--c-mut))">'+g.e+'</td></tr>'; }).join("")+
     '</tbody>';
@@ -3477,6 +3510,7 @@ renderWhatIf();
 window.__PCC__={rows:rows,totals:T,kpis:KPIS,program:PROGRAM,eacs:EACS,mc:MC,
   actions:ACTIONS,actionStatus:actionStatus,isStale:isStale,
   escalation:ESCALATION,kpiEscalation:KPI_ESCALATION,actionsForKpi:actionsForKpi,jumpToAction:jumpToAction,
+  firingEscalations:firingEscalations,
   wbs:WBS,gates:GATES,gate5Checks:GATE5_CHECKS,
   contracts:CONTRACTS,deriveContract:deriveContract,
   portfolioRows:portfolioRows,
