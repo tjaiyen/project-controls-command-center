@@ -95,15 +95,33 @@ a{color:rgb(var(--c-accent))}
 .tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--c-line);
   margin:0 -20px;padding:0 20px;scrollbar-width:none}
 .tabs::-webkit-scrollbar{display:none}
-.tabs button{flex:none;background:none;border:none;border-bottom:2px solid transparent;
-  padding:13px 14px;color:rgb(var(--c-mut));font:600 12.5px/1 inherit;cursor:pointer;
-  letter-spacing:.02em;transition:color .15s,border-color .15s}
+.tabs button{flex:none;display:inline-flex;align-items:center;gap:7px;background:none;border:none;
+  border-bottom:2px solid transparent;padding:13px 14px;color:rgb(var(--c-mut));font:600 12.5px/1 inherit;
+  cursor:pointer;letter-spacing:.02em;transition:color .15s,border-color .15s,background .15s}
 .tabs button:hover{color:rgb(var(--c-ink))}
 .tabs button[aria-selected="true"]{color:rgb(var(--c-ink));border-bottom-color:rgb(var(--c-accent))}
 .tabs .cnt{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:999px;
   font:600 10px/1.6 ui-monospace,monospace;background:rgb(var(--c-mut) / .18);color:rgb(var(--c-mut))}
 .tabs button[aria-selected="true"] .cnt{background:rgb(var(--c-accent) / .18);color:rgb(var(--c-code))}
+.nav-ic{width:15px;height:15px;flex:0 0 auto}
 [role="tabpanel"][hidden]{display:none}
+
+/* Tier 3 — left nav rail on wide viewports. Same DOM, same TABS array, same activateTab() logic
+   as the horizontal bar below 1050px; only the container's layout changes. A currently-hidden
+   [role=tabpanel] is display:none, so it drops out of the grid entirely — only .tabs and the one
+   visible panel actually occupy the two columns at any moment, no markup restructuring needed. */
+@media(min-width:1050px){
+  #main.wrap{max-width:1320px;display:grid;grid-template-columns:222px 1fr;gap:0 36px;align-items:start}
+  .tabs{grid-column:1;flex-direction:column;overflow-x:visible;border-bottom:none;
+    border-right:1px solid var(--c-line);margin:0;padding:6px 20px 40px 0;gap:1px;
+    position:sticky;top:64px;align-self:start;max-height:calc(100vh - 84px);overflow-y:auto}
+  .tabs button{flex:none;width:100%;text-align:left;padding:10px 12px;border-bottom:none;
+    border-left:2px solid transparent;border-radius:0 8px 8px 0}
+  .tabs button[aria-selected="true"]{border-left-color:rgb(var(--c-accent));
+    background:rgb(var(--c-accent) / .09)}
+  .tabs .cnt{margin-left:auto}
+  [role="tabpanel"]{grid-column:2;min-width:0}
+}
 
 /* phase spine */
 .phases{display:flex;gap:0;overflow-x:auto;margin-top:20px;border:1px solid var(--c-line);
@@ -192,6 +210,15 @@ h4{font-size:.86rem;margin:0 0 5px}
 .pill.a{background:rgb(var(--c-warn) / .16);color:var(--c-pill-a)}
 .pill.r{background:rgb(var(--c-bad) / .15);color:var(--c-pill-r)}
 .pill.i{background:rgb(var(--c-info) / .15);color:var(--c-pill-i)}
+/* category icons — a small tinted glyph badge in front of a table cell, distinguishing a fixed
+   taxonomy (action type, guardrail check type) at a glance instead of plain text alone */
+.ticon{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;
+  border-radius:50%;margin-right:6px;vertical-align:-5px;flex:0 0 auto}
+.ticon svg{width:12px;height:12px;display:block}
+.ticon.g{background:rgb(var(--c-ok) / .15);color:var(--c-pill-g)}
+.ticon.a{background:rgb(var(--c-warn) / .16);color:var(--c-pill-a)}
+.ticon.r{background:rgb(var(--c-bad) / .15);color:var(--c-pill-r)}
+.ticon.i{background:rgb(var(--c-info) / .15);color:var(--c-pill-i)}
 .rcItem{display:block;width:100%;text-align:left;background:none;border:1px solid var(--c-line);
   border-radius:8px;padding:8px 10px;margin-top:8px;cursor:pointer;font:inherit;color:inherit}
 .rcItem:hover,.rcItem:focus-visible{border-color:rgb(var(--c-accent) / .55);background:rgb(var(--c-accent) / .06)}
@@ -227,6 +254,26 @@ tfoot td{font-weight:600;border-top:1px solid rgb(var(--c-accent) / .40);border-
 .tip.on{display:block}
 .tip b{display:block;margin-bottom:3px;color:rgb(var(--c-code))}
 
+/* inline term help — click-driven (not hover-only, so it works on touch), unlike .tip above */
+.help-ic{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;
+  margin-left:4px;border-radius:50%;border:1px solid rgb(var(--c-accent) / .55);background:transparent;
+  color:rgb(var(--c-code));font:600 10px/1 ui-monospace,monospace;cursor:pointer;vertical-align:2px;
+  padding:0}
+.help-ic:hover,.help-ic:focus-visible{background:rgb(var(--c-accent) / .14)}
+#helpPop{position:fixed;z-index:80;max-width:280px;background:rgb(var(--c-card));
+  border:1px solid rgb(var(--c-accent) / .55);border-radius:10px;box-shadow:var(--c-elev);
+  padding:13px 14px;font-size:12.5px}
+#helpPop b{display:block;margin-bottom:5px;color:rgb(var(--c-code));font-size:12.5px}
+#helpPop p{margin:0 0 10px;color:rgb(var(--c-mut));line-height:1.5}
+#helpPop .help-actions{display:flex;justify-content:space-between;align-items:center;gap:8px}
+#helpPop .btn{padding:5px 10px;font-size:11.5px}
+.help-pop-close{background:none;border:none;color:rgb(var(--c-mut));cursor:pointer;font-size:16px;
+  line-height:1;padding:2px 4px}
+.help-pop-close:hover{color:rgb(var(--c-ink))}
+@keyframes helpPopIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+#helpPop{animation:helpPopIn .16s ease-out}
+@media(prefers-reduced-motion:reduce){#helpPop{animation:none}}
+
 /* bars */
 .rowbar{display:grid;grid-template-columns:106px 1fr 72px;gap:10px;align-items:center;
   padding:7px 0;border-bottom:1px solid var(--c-line);font-size:12.3px}
@@ -250,6 +297,9 @@ input[type=range]{width:100%;accent-color:rgb(var(--c-accent))}
 .outbox>div{background:rgb(var(--c-bg));padding:12px 13px}
 .outbox .k{font:600 9.5px/1.3 ui-monospace,monospace;letter-spacing:.1em;text-transform:uppercase;color:rgb(var(--c-mut))}
 .outbox .v{margin-top:5px;font:600 1.14rem/1.1 ui-monospace,monospace;font-variant-numeric:tabular-nums}
+/* flashes on a slider-driven value that just changed — signals "this moved" while you drag */
+.wi-flash{animation:wiFlash .5s ease-out}
+@keyframes wiFlash{0%{color:rgb(var(--c-accent));transform:scale(1.06)}100%{color:inherit;transform:none}}
 
 /* framework */
 .pcard{border:1px solid var(--c-line);border-radius:11px;padding:15px 16px;background:rgb(var(--c-card));
@@ -286,6 +336,14 @@ pre.code b{color:rgb(var(--c-code));font-weight:600}
   background:rgb(var(--c-mut) / .35);transition:background .2s}
 .story-dots i.on{background:rgb(var(--c-accent))}
 #storyText{transition:opacity .18s}
+/* first-visit-only cue on the story card — invites a new visitor into the walkthrough without
+   nagging a returning one; the badge and ring both clear permanently on first interaction */
+#storyCard.first-visit{position:relative;animation:fvRing 1.8s ease-in-out 3}
+@keyframes fvRing{0%,100%{box-shadow:0 0 0 0 rgb(var(--c-accent) / 0)}50%{box-shadow:0 0 0 5px rgb(var(--c-accent) / .16)}}
+.fv-badge{display:none;align-items:center;gap:5px;margin-left:9px;padding:2px 8px;border-radius:99px;
+  background:rgb(var(--c-accent) / .14);color:rgb(var(--c-code));font:600 10px/1.6 ui-monospace,monospace;
+  letter-spacing:.03em;vertical-align:2px}
+#storyCard.first-visit .fv-badge{display:inline-flex}
 /* ---------- glossary ---------- */
 .gcard{background:rgb(var(--c-card));border:1px solid var(--c-line);border-radius:11px;padding:15px 16px;
   animation:rise .4s ease-out backwards}
@@ -336,17 +394,17 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
 <div class="wrap" id="main">
 
   <div class="tabs" role="tablist" aria-label="Command center sections">
-    <button role="tab" id="t-over"  aria-controls="p-over"  aria-selected="true">Overview<span class="cnt" id="cntOver">20</span></button>
-    <button role="tab" id="t-port"  aria-controls="p-port"  aria-selected="false">Portfolio</button>
-    <button role="tab" id="t-cost"  aria-controls="p-cost"  aria-selected="false">Cost</button>
-    <button role="tab" id="t-sched" aria-controls="p-sched" aria-selected="false">Schedule</button>
-    <button role="tab" id="t-risk"  aria-controls="p-risk"  aria-selected="false">Risk &amp; Change</button>
-    <button role="tab" id="t-del"   aria-controls="p-del"   aria-selected="false">Delivery</button>
-    <button role="tab" id="t-ai"    aria-controls="p-ai"    aria-selected="false">AI &amp; Data</button>
-    <button role="tab" id="t-fw"    aria-controls="p-fw"    aria-selected="false">Operating Framework</button>
-    <button role="tab" id="t-act"   aria-controls="p-act"   aria-selected="false">Actions<span class="cnt" id="cntAct"></span></button>
-    <button role="tab" id="t-gloss" aria-controls="p-gloss" aria-selected="false">Glossary</button>
-    <button role="tab" id="t-data"  aria-controls="p-data"  aria-selected="false">Data Strategy</button>
+    <button role="tab" id="t-over"  aria-controls="p-over"  aria-selected="true"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><rect x="2" y="2" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="2" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="2" y="9" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="9" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>Overview<span class="cnt" id="cntOver">20</span></button>
+    <button role="tab" id="t-port"  aria-controls="p-port"  aria-selected="false"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><path d="M2 5.5a1 1 0 0 1 1-1h3l1.2 1.6H13a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Portfolio</button>
+    <button role="tab" id="t-cost"  aria-controls="p-cost"  aria-selected="false"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><line x1="3" y1="13" x2="3" y2="9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><line x1="7" y1="13" x2="7" y2="5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><line x1="11" y1="13" x2="11" y2="7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><line x1="13.5" y1="13" x2="13.5" y2="3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Cost</button>
+    <button role="tab" id="t-sched" aria-controls="p-sched" aria-selected="false"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><rect x="2.3" y="3.3" width="11.4" height="10.4" rx="1.3" fill="none" stroke="currentColor" stroke-width="1.3"/><line x1="2.3" y1="6.3" x2="13.7" y2="6.3" stroke="currentColor" stroke-width="1.3"/><line x1="5.3" y1="2" x2="5.3" y2="4.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="10.7" y1="2" x2="10.7" y2="4.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>Schedule</button>
+    <button role="tab" id="t-risk"  aria-controls="p-risk"  aria-selected="false"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><path d="M8 2.6 14.2 13H1.8Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><line x1="8" y1="6.5" x2="8" y2="9.8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="11.6" r="0.8" fill="currentColor"/></svg>Risk &amp; Change</button>
+    <button role="tab" id="t-del"   aria-controls="p-del"   aria-selected="false"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><path d="M8 2.3 13.6 5.5v6L8 14.7 2.4 11.5v-6Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M2.4 5.5 8 8.7l5.6-3.2M8 8.7v6" stroke="currentColor" stroke-width="1.1" fill="none"/></svg>Delivery</button>
+    <button role="tab" id="t-ai"    aria-controls="p-ai"    aria-selected="false"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><circle cx="8" cy="8" r="1.6" fill="currentColor"/><circle cx="3" cy="4" r="1.3" fill="none" stroke="currentColor" stroke-width="1.1"/><circle cx="13" cy="4" r="1.3" fill="none" stroke="currentColor" stroke-width="1.1"/><circle cx="3" cy="12" r="1.3" fill="none" stroke="currentColor" stroke-width="1.1"/><circle cx="13" cy="12" r="1.3" fill="none" stroke="currentColor" stroke-width="1.1"/><line x1="4.1" y1="4.8" x2="7" y2="7" stroke="currentColor" stroke-width="1"/><line x1="11.9" y1="4.8" x2="9" y2="7" stroke="currentColor" stroke-width="1"/><line x1="4.1" y1="11.2" x2="7" y2="9" stroke="currentColor" stroke-width="1"/><line x1="11.9" y1="11.2" x2="9" y2="9" stroke="currentColor" stroke-width="1"/></svg>AI &amp; Data</button>
+    <button role="tab" id="t-fw"    aria-controls="p-fw"    aria-selected="false"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><circle cx="3" cy="8" r="1.6" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="1.6" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="13" cy="8" r="1.6" fill="none" stroke="currentColor" stroke-width="1.3"/><line x1="4.6" y1="8" x2="6.4" y2="8" stroke="currentColor" stroke-width="1.3"/><line x1="9.6" y1="8" x2="11.4" y2="8" stroke="currentColor" stroke-width="1.3"/></svg>Operating Framework</button>
+    <button role="tab" id="t-act"   aria-controls="p-act"   aria-selected="false"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.3"/><polyline points="5,8.3 7.2,10.3 11,6.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Actions<span class="cnt" id="cntAct"></span></button>
+    <button role="tab" id="t-gloss" aria-controls="p-gloss" aria-selected="false"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><path d="M2.5 3.3c1.6-.6 3.4-.6 5.5.4v9c-2.1-1-3.9-1-5.5-.4Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M13.5 3.3c-1.6-.6-3.4-.6-5.5.4v9c2.1-1 3.9-1 5.5-.4Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>Glossary</button>
+    <button role="tab" id="t-data"  aria-controls="p-data"  aria-selected="false"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><ellipse cx="8" cy="3.6" rx="5.3" ry="1.7" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M2.7 3.6v8.8c0 .9 2.4 1.7 5.3 1.7s5.3-.8 5.3-1.7V3.6" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M2.7 8c0 .9 2.4 1.7 5.3 1.7s5.3-.8 5.3-1.7" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>Data Strategy</button>
   </div>
 
   <!-- ============================ OVERVIEW ============================ -->
@@ -365,7 +423,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         <em>method</em> is the content.</span></div>
 
       <div class="card" style="margin-top:16px" id="storyCard">
-        <div class="eyebrow">Start here &middot; the story</div>
+        <div class="eyebrow">Start here &middot; the story <span class="fv-badge" id="fvBadge">&#10148; new here? start here</span></div>
         <h3 id="storyTitle" style="margin:0 0 7px"></h3>
         <p id="storyText" style="margin:0;font-size:13.6px;line-height:1.7;color:rgb(var(--c-mut));max-width:74ch"></p>
         <div style="display:flex;gap:8px;align-items:center;margin-top:14px;flex-wrap:wrap">
@@ -528,7 +586,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
       <div class="grid g2">
         <div class="card"><h3>Total float by package <span style="font-weight:400;color:rgb(var(--c-mut))">(working days)</span></h3>
           <div id="floats"></div></div>
-        <div class="card"><h3>Critical Path Length Index</h3>
+        <div class="card"><h3>Critical Path Length Index<button type="button" class="help-ic" data-help="cpli" aria-label="What does this term mean?">i</button></h3>
           <p class="lede" style="font-size:12.5px;margin-top:5px">CPLI = (remaining duration + total float) &divide;
             remaining duration. Below 1.00 the path cannot absorb any more slip; DCMA flags below 0.95.</p>
           <div id="cpli"></div></div>
@@ -860,8 +918,10 @@ join dim_control_account b using (package_id)</pre></div>
 
       <div class="sec-h" style="margin-top:30px"><h3>The problem, stated plainly</h3></div>
       <p class="lede">There's a specific, well-documented version of this: the Work Breakdown
-        Structure (WBS) contractors use for project controls, and the Asset Breakdown Structure
-        (ABS) transit agencies use for operations and maintenance, are organized around
+        Structure (WBS)<button type="button" class="help-ic" data-help="wbs" aria-label="What does this term mean?">i</button>
+        contractors use for project controls, and the Asset Breakdown Structure
+        (ABS)<button type="button" class="help-ic" data-help="abs" aria-label="What does this term mean?">i</button>
+        transit agencies use for operations and maintenance, are organized around
         fundamentally different logic &mdash; work packages and spatial boundaries versus
         functional system topology. That mismatch is a documented, recurring cause of data loss at
         handover, not a one-off integration bug. The failure mode is rarely one dramatic error.
@@ -872,7 +932,8 @@ join dim_control_account b using (package_id)</pre></div>
 
       <div class="sec-h" style="margin-top:30px"><h3>Architecture &mdash; a governed staging pipeline, not a direct feed</h3></div>
       <p class="lede">The AEC industry's own real, named version of "stage before trust" is the
-        <b>Common Data Environment (CDE)</b> under <b>ISO 19650</b> &mdash; four defined states,
+        <b>Common Data Environment (CDE)</b><button type="button" class="help-ic" data-help="cde" aria-label="What does this term mean?">i</button>
+        under <b>ISO 19650</b> &mdash; four defined states,
         each requiring a specific approval gate before information can advance. The rule that
         matters most isn't the four states themselves &mdash; it's that nothing downstream ever
         reads a raw source directly, and nothing advances without its gate.</p>
@@ -899,7 +960,8 @@ join dim_control_account b using (package_id)</pre></div>
 
       <div class="sec-h" style="margin-top:30px"><h3>Automated guardrails &mdash; machine-readable, not just described</h3></div>
       <p class="lede">A real, small-scale version of buildingSMART's <b>Information Delivery
-        Specification (IDS)</b> &mdash; an XML standard pairing <i>applicability</i> (which
+        Specification (IDS)</b><button type="button" class="help-ic" data-help="ids" aria-label="What does this term mean?">i</button>
+        &mdash; an XML standard pairing <i>applicability</i> (which
         records a rule governs) with <i>requirements</i> (what those records must have) so a
         submittal that fails gets rejected with a specific, itemized reason. This dashboard's own
         27-check integrity gate is a working small-scale version of the same pattern.</p>
@@ -949,6 +1011,7 @@ join dim_control_account b using (package_id)</pre></div>
   </footer>
 </div>
 <div class="tip" id="tip" role="tooltip"></div>
+<div id="helpPop" role="dialog" aria-label="Term definition" hidden></div>
 
 <script>
 (function(){
@@ -1868,6 +1931,7 @@ function computeWhatIf(cpi,spi,cont){
     cover:(cont-PROGRAM.contingencyDrawn)/(Math.abs(Math.min(0,vac))+T.riskExposure),
     slip:(1/spi-1)*(MT-ME)};
 }
+var whatIfPrev=null;
 function renderWhatIf(){
   var cpi=+document.getElementById("sCpi").value, spi=+document.getElementById("sSpi").value,
       cont=+document.getElementById("sCont").value;
@@ -1875,14 +1939,18 @@ function renderWhatIf(){
   document.getElementById("vSpi").textContent=idx(spi);
   document.getElementById("vCont").textContent="$"+cont+"M";
   var w=computeWhatIf(cpi,spi,cont);
-  document.getElementById("whatIfOut").innerHTML=
-   [["EAC (BAC÷CPI)",m(w.eac),w.eac>T.bac?"ba":"ok"],
+  var rows=[["EAC (BAC÷CPI)",m(w.eac),w.eac>T.bac?"ba":"ok"],
     ["EAC (cost+schedule)",m(w.eacBoth),w.eacBoth>T.bac?"ba":"ok"],
     ["VAC",sgn(w.vac),w.vac<0?"ba":"ok"],
     ["Contingency cover",idx(w.cover),w.cover<1?"ba":w.cover<1.5?"wa":"ok"],
     ["Forecast slip",(w.slip>0?"+":"")+w.slip.toFixed(1)+" mo",w.slip>0?"ba":"ok"],
-    ["TCPI to BAC",idx(w.tcpi),w.tcpi-cpi>0.10?"ba":w.tcpi>cpi?"wa":"ok"]
-   ].map(function(r){ return '<div><div class="k">'+r[0]+'</div><div class="v '+r[2]+'">'+r[1]+'</div></div>'; }).join("");
+    ["TCPI to BAC",idx(w.tcpi),w.tcpi-cpi>0.10?"ba":w.tcpi>cpi?"wa":"ok"]];
+  // flash only the values that actually moved since the last render — a slider drag fires many
+  // renders a second, and flashing every cell every time would just read as constant flicker.
+  document.getElementById("whatIfOut").innerHTML=
+   rows.map(function(r,i){ var changed=whatIfPrev&&whatIfPrev[i]!==r[1];
+     return '<div><div class="k">'+r[0]+'</div><div class="v '+r[2]+(changed?" wi-flash":"")+'">'+r[1]+'</div></div>'; }).join("");
+  whatIfPrev=rows.map(function(r){ return r[1]; });
   var gap=w.tcpi-cpi;
   document.getElementById("whatIfRead").innerHTML =
     "At a cost index of <b style='color:rgb(var(--c-ink))'>"+idx(cpi)+"</b> the program lands at <b style='color:rgb(var(--c-ink))'>"+
@@ -2509,9 +2577,12 @@ function renderFramework(){
       '<li><b>Gate decision:</b> '+pb.dec+'</li>'+
       '<li><b>KPIs live ('+live.length+'):</b> '+live.map(function(k){return k.abbr;}).join(", ")+'</li></ul></div>';
   }).join("");
+  var escFiring=firingEscalations();
   document.getElementById("escTable").innerHTML=
-    '<thead><tr><th scope="col">Trigger</th><th scope="col">Owner</th><th scope="col">Action</th><th scope="col">Clock</th></tr></thead><tbody>'+
-    ESCALATION.map(function(r){ return '<tr style="cursor:default"><td class="mono" style="font-size:12px">'+r[0]+
+    '<thead><tr><th scope="col">Status</th><th scope="col">Trigger</th><th scope="col">Owner</th><th scope="col">Action</th><th scope="col">Clock</th></tr></thead><tbody>'+
+    ESCALATION.map(function(r){ var firing=escFiring.indexOf(r)!==-1;
+      return '<tr style="cursor:default"><td><span class="pill '+(firing?"r":"g")+'">'+(firing?"Firing now":"Dormant")+'</span></td>'+
+      '<td class="mono" style="font-size:12px">'+r[0]+
       '</td><td>'+r[1]+'</td><td style="white-space:normal">'+r[2]+'</td><td>'+r[3]+'</td></tr>'; }).join("")+'</tbody>';
   document.getElementById("cadence").innerHTML=CADENCE.map(function(c){
     return '<div class="card"><div class="eyebrow">'+c.t+'</div><p style="margin:0;font-size:13px;color:rgb(var(--c-mut))">'+
@@ -2537,6 +2608,18 @@ function renderFramework(){
    same as-of date the rest of the dashboard uses. Nothing here is hand-set. */
 var ACT_ASOF = new Date(Date.UTC(2026,6,31));
 function actDays(iso){ return Math.round((ACT_ASOF - new Date(iso+"T00:00:00Z"))/86400000); }
+
+/* small category-icon glyphs for the Type column — currentColor so each inherits its tinted
+   badge's own color; plain primitive shapes (circle/line/rect/polygon), not decoration */
+var ACT_TYPE_ICON={
+ Issue:{cls:"a", svg:'<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.4"/><line x1="8" y1="4.6" x2="8" y2="8.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="11.2" r="0.9" fill="currentColor"/></svg>'},
+ Task:{cls:"i", svg:'<svg viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><polyline points="5,8.3 7.2,10.5 11,6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'},
+ Decision:{cls:"g", svg:'<svg viewBox="0 0 16 16"><polygon points="8,2 14,8 8,14 2,8" fill="none" stroke="currentColor" stroke-width="1.4"/><line x1="8" y1="5.6" x2="8" y2="10.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>'}
+};
+function typeIcon(t){
+  var d=ACT_TYPE_ICON[t]; if(!d) return "";
+  return '<span class="ticon '+d.cls+'" aria-hidden="true">'+d.svg+'</span>';
+}
 
 var ACTIONS=[
  {id:"A-01",type:"Issue",title:"CP-201 cost performance index below threshold",
@@ -2731,7 +2814,7 @@ function renderActions(){
    list.map(function(r){ var sm=STATUS_META[r.status];
      return '<tr data-act="'+r.id+'" tabindex="0" role="button" aria-controls="actDrill" aria-pressed="'+(state.act===r.id)+'" style="cursor:pointer'+(state.act===r.id?';background:rgb(var(--c-accent) / .08)':'')+'">'+
      '<td class="mono" style="font-size:11.5px">'+r.id+'</td>'+
-     '<td style="font-size:11.5px">'+r.type+'</td>'+
+     '<td style="font-size:11.5px;white-space:nowrap">'+typeIcon(r.type)+r.type+'</td>'+
      '<td style="white-space:normal">'+r.title+(r.stale?' <span class="pill a" style="margin-left:5px">stale</span>':'')+'</td>'+
      '<td style="font-size:12px">'+r.owner+'</td>'+
      '<td class="mono" style="font-size:11.5px">'+r.due+'</td>'+
@@ -3038,58 +3121,66 @@ function renderStory(i){
 var G_TUN=rows.filter(function(r){return r.id==="CP-201";})[0];
 var G_UT=rows.filter(function(r){return r.id==="CP-601";})[0];
 var GLOSS=[
- {t:"Control account", p:"A slice of the project with its own budget and its own scoreboard. Instead of tracking one giant number, the program is broken into pieces small enough that one person can be accountable for each.",
+ {k:"controlaccount", t:"Control account", p:"A slice of the project with its own budget and its own scoreboard. Instead of tracking one giant number, the program is broken into pieces small enough that one person can be accountable for each.",
   e:function(){ return "This program has "+rows.length+" control accounts. The tunnel ("+G_TUN.id+") is one: its own budget of "+m(G_TUN.bac)+", its own progress, its own forecast. When it drifts, you can see it without the other seven hiding it."; }},
- {t:"BAC — Budget at Completion", p:"The total approved budget for the work — the number everyone promised at the start. It only changes when a formal change order changes it.",
+ {k:"bac", t:"BAC — Budget at Completion", p:"The total approved budget for the work — the number everyone promised at the start. It only changes when a formal change order changes it.",
   e:function(){ return m(T.bac)+" across all "+rows.length+" control accounts. The biggest single slice is the tunnel at "+m(G_TUN.bac)+"."; }},
- {t:"PV — Planned Value", p:"What the schedule said should be finished by today, expressed in dollars. It is the yardstick, not an achievement.",
+ {k:"pv", t:"PV — Planned Value", p:"What the schedule said should be finished by today, expressed in dollars. It is the yardstick, not an achievement.",
   e:function(){ return "By the data date the plan called for "+m(T.pv)+" of work to be complete. Everything on this dashboard is measured against that yardstick."; }},
- {t:"EV — Earned Value", p:"What the work that is actually finished is worth, priced at budget rates. If a task budgeted at $10M is half done, it has earned $5M — no matter what it cost.",
+ {k:"ev", t:"EV — Earned Value", p:"What the work that is actually finished is worth, priced at budget rates. If a task budgeted at $10M is half done, it has earned $5M — no matter what it cost.",
   e:function(){ return m(T.ev)+" earned against "+m(T.pv)+" planned. The program has produced "+pct(T.ev/T.pv)+" of the value it planned to have by now."; }},
- {t:"AC — Actual Cost", p:"What the finished work really cost — every invoice, timesheet and commitment that has landed.",
+ {k:"ac", t:"AC — Actual Cost", p:"What the finished work really cost — every invoice, timesheet and commitment that has landed.",
   e:function(){ return m(T.ac)+" spent to earn "+m(T.ev)+" of value. Spending more than you earned is the definition of an overrun, and the gap here is "+m(Math.abs(T.cv))+"."; }},
- {t:"CPI — Cost Performance Index", p:"Value earned per dollar spent. 1.00 means on budget; below 1.00 means every dollar buys less than a dollar of work. Earned value divided by actual cost.",
+ {k:"cpi", t:"CPI — Cost Performance Index", p:"Value earned per dollar spent. 1.00 means on budget; below 1.00 means every dollar buys less than a dollar of work. Earned value divided by actual cost.",
   e:function(){ return idx(T.cpi)+" — each dollar spent has bought about "+(T.cpi*100).toFixed(1)+" cents of value. Small-looking, but on a "+m(T.bac)+" program that shortfall compounds into a "+m(Math.abs(T.vac))+" forecast overrun."; }},
- {t:"SPI — Schedule Performance Index", p:"Earned value divided by planned value — a pace reading measured in dollars, not days. Useful, but it drifts back toward 1.00 as a program finishes even when it finishes late, which is why it is never read alone.",
+ {k:"spi", t:"SPI — Schedule Performance Index", p:"Earned value divided by planned value — a pace reading measured in dollars, not days. Useful, but it drifts back toward 1.00 as a program finishes even when it finishes late, which is why it is never read alone.",
   e:function(){ return idx(T.spi)+" today. Read it together with float and BEI below — those two measure time directly, which SPI cannot do."; }},
- {t:"EAC — Estimate at Completion", p:"The honest forecast of the final bill: what we have spent plus what the rest will really cost at current efficiency.",
+ {k:"eac", t:"EAC — Estimate at Completion", p:"The honest forecast of the final bill: what we have spent plus what the rest will really cost at current efficiency.",
   e:function(){ return "The bottom-up forecast is "+m(T.eac)+" (each package projected at its own efficiency). The quick portfolio version — budget divided by CPI — says "+m(T.eacIndep)+". A controls manager shows the spread, not one number."; }},
- {t:"VAC — Variance at Completion", p:"Budget minus forecast. Negative means the program expects to finish over budget.",
+ {k:"vac", t:"VAC — Variance at Completion", p:"Budget minus forecast. Negative means the program expects to finish over budget.",
   e:function(){ return sgn(T.vac)+". That is the number the board conversation is actually about."; }},
- {t:"TCPI — To-Complete Performance Index", p:"The cost efficiency the remaining work must hit to land exactly on a target — usually the original budget. It is the honesty test: compare it to the CPI actually being achieved.",
+ {k:"tcpi", t:"TCPI — To-Complete Performance Index", p:"The cost efficiency the remaining work must hit to land exactly on a target — usually the original budget. It is the honesty test: compare it to the CPI actually being achieved.",
   e:function(){ return "Required: "+idx(T.tcpi)+". Demonstrated so far: "+idx(T.cpi)+". The remaining work would have to outperform everything done to date — that gap is why this program escalates rather than hopes."; }},
- {t:"Contingency", p:"Money set aside up front for the risks you can name. It is not profit and it is not slack — it is insurance with a drawdown rate you should watch like a fuel gauge.",
+ {k:"contingency", t:"Contingency", p:"Money set aside up front for the risks you can name. It is not profit and it is not slack — it is insurance with a drawdown rate you should watch like a fuel gauge.",
   e:function(){ return m(PROGRAM.contingency)+" set aside, "+m(PROGRAM.contingencyDrawn)+" spent ("+pct(T.contDrawn,0)+"), "+m(T.contRemaining)+" left — while the program is "+pct(T.pct,0)+" complete. Here the reserve is being consumed slower than value is earned, which is the healthy direction; the forecast overrun of "+m(Math.abs(T.vac))+" against "+m(T.contRemaining)+" left is not."; }},
- {t:"Total float", p:"How many days a piece of work can slip before it starts moving the final completion date. Positive float is breathing room. Zero means you are on the edge. Negative means the plan no longer fits in the time left.",
+ {k:"float", t:"Total float", p:"How many days a piece of work can slip before it starts moving the final completion date. Positive float is breathing room. Zero means you are on the edge. Negative means the plan no longer fits in the time left.",
   e:function(){ return "The tunnel sits at "+days(G_TUN.float)+", utilities at "+days(G_UT.float)+". Those two packages are not just late — they are now setting the completion date themselves."; }},
- {t:"Critical path & CPLI", p:"The critical path is the chain of work that sets the finish date — delay any link and the whole program moves. CPLI (Critical Path Length Index) asks whether the remaining plan on that chain still fits: (days left + float) divided by days left. Under 1.00, the plan is arithmetically impossible without recovery.",
+ {k:"cpli", t:"Critical path & CPLI", p:"The critical path is the chain of work that sets the finish date — delay any link and the whole program moves. CPLI (Critical Path Length Index) asks whether the remaining plan on that chain still fits: (days left + float) divided by days left. Under 1.00, the plan is arithmetically impossible without recovery.",
   e:function(){ return "The driving path runs through "+G_UT.id+": "+G_UT.cpRem+" days of critical work remain with "+days(G_UT.float)+" of float — CPLI "+idx(G_UT.cpli)+", meaning the plan must run faster than scheduled from tomorrow onward."; }},
- {t:"BEI — Baseline Execution Index", p:"A simple honesty counter: of the activities the plan said would be finished by now, how many actually are? Counts, not dollars — so big expensive tasks cannot hide small missed ones.",
+ {k:"bei", t:"BEI — Baseline Execution Index", p:"A simple honesty counter: of the activities the plan said would be finished by now, how many actually are? Counts, not dollars — so big expensive tasks cannot hide small missed ones.",
   e:function(){ return T.actsD.toLocaleString("en-US")+" of "+T.actsP.toLocaleString("en-US")+" planned activities are complete — BEI "+idx(T.bei)+". Below 0.95 the misses start piling up faster than they can be worked off."; }},
- {t:"Change order", p:"A formal amendment to the contract — scope, price or time — signed by both sides. The rate of change against the original contract value is one of the best predictors of a troubled program; the cycle time to process each one is the part you can actually control.",
+ {k:"changeorder", t:"Change order", p:"A formal amendment to the contract — scope, price or time — signed by both sides. The rate of change against the original contract value is one of the best predictors of a troubled program; the cycle time to process each one is the part you can actually control.",
   e:function(){ return PROGRAM.coApprovedCount+" approved changes worth "+m(PROGRAM.coApprovedValue)+" — "+pct(T.coRate,2)+" of the original "+m(PROGRAM.origContract)+" contract — with "+PROGRAM.coPendingCount+" more pending. Processing is running "+(PROGRAM.coCycleDays-PROGRAM.coCycleTarget)+" days past the "+PROGRAM.coCycleTarget+"-day target."; }},
- {t:"RFI — Request for Information", p:"A formal question to the designer when the drawings do not answer something. Work stops or guesses until it is answered — so aging RFIs are tomorrow's claims.",
+ {k:"rfi", t:"RFI — Request for Information", p:"A formal question to the designer when the drawings do not answer something. Work stops or guesses until it is answered — so aging RFIs are tomorrow's claims.",
   e:function(){ return PROGRAM.rfiOpen+" open, "+PROGRAM.rfiOver30+" older than 30 days, averaging "+PROGRAM.rfiAvgAge+" days against a "+PROGRAM.rfiTarget+"-day target. The oldest ones are where the next change orders are born."; }},
- {t:"Submittal", p:"A document the contractor must send for approval before work — shop drawings, materials, mix designs. Slow submittal turnaround quietly delays procurement months before it shows up in the schedule.",
+ {k:"submittal", t:"Submittal", p:"A document the contractor must send for approval before work — shop drawings, materials, mix designs. Slow submittal turnaround quietly delays procurement months before it shows up in the schedule.",
   e:function(){ return PROGRAM.subOpen+" in the queue, turning around in "+PROGRAM.subTurnaround+" days against a "+PROGRAM.subTarget+"-day target."; }},
- {t:"Risk exposure", p:"The risk register priced: each risk's cost multiplied by its probability, added up. It turns a list of worries into a dollar figure you can compare directly against contingency.",
+ {k:"riskexposure", t:"Risk exposure", p:"The risk register priced: each risk's cost multiplied by its probability, added up. It turns a list of worries into a dollar figure you can compare directly against contingency.",
   e:function(){ return m(T.riskExposure)+" across "+RISKS.length+" risks, and "+pct(0.7*18.5/T.riskExposure,0)+" of it is one risk — tunnel ground conditions ("+m(0.7*18.5)+"). Concentration, not count, is what leadership needs to see."; }},
- {t:"Monte Carlo simulation", p:"Instead of one forecast, run the finish thousands of times, each time letting each package's remaining efficiency vary around what it has actually achieved. The result is a distribution: not \"the answer\" but the honest odds.",
+ {k:"montecarlo", t:"Monte Carlo simulation", p:"Instead of one forecast, run the finish thousands of times, each time letting each package's remaining efficiency vary around what it has actually achieved. The result is a distribution: not \"the answer\" but the honest odds.",
   e:function(){ return "4,000 runs here, fixed seed so it is reproducible. Median finish "+m(MC.p50)+"; "+pct(MC.pOver,0)+" of runs finish over budget; "+pct(MC.pBust,0)+" bust through budget plus all remaining contingency."; }},
- {t:"TRIR — Total Recordable Incident Rate", p:"The standard safety yardstick: recordable injuries per 200,000 hours worked — roughly 100 people working full time for a year. The one metric that can stop a job regardless of cost or schedule.",
+ {k:"trir", t:"TRIR — Total Recordable Incident Rate", p:"The standard safety yardstick: recordable injuries per 200,000 hours worked — roughly 100 people working full time for a year. The one metric that can stop a job regardless of cost or schedule.",
   e:function(){ return PROGRAM.recordables+" recordable incidents across "+PROGRAM.hoursWorked.toLocaleString("en-US")+" work hours: "+(PROGRAM.recordables*200000/PROGRAM.hoursWorked).toFixed(2)+" versus an industry benchmark of "+PROGRAM.trirBenchmark.toFixed(2)+" — about "+pct(1-PROGRAM.trir/PROGRAM.trirBenchmark,0)+" better."; }},
- {t:"Productivity factor", p:"Earned hours divided by actual hours. Below 1.00 the crews are burning more hours than the estimate carried — and because hours are booked weekly, this moves weeks before the same problem reaches the cost index.",
+ {k:"pf", t:"Productivity factor", p:"Earned hours divided by actual hours. Below 1.00 the crews are burning more hours than the estimate carried — and because hours are booked weekly, this moves weeks before the same problem reaches the cost index.",
   e:function(){ return idx(T.pf)+" program-wide — crews are running about "+((1/T.pf-1)*100).toFixed(1)+"% over the estimated hours. The tunnel is the drag at "+idx(G_TUN.pf)+"."; }},
- {t:"CPH — Cost Per Hour", p:"Labor, equipment and overhead for one crew or cell, translated into a burn rate and checked weekly against a standard. It is a manufacturing-floor discipline applied to a field crew — the same idea as productivity factor, but it prices the hours in dollars and runs weekly instead of monthly, so it isolates why the rate moved, not just that it did.",
+ {k:"cph", t:"CPH — Cost Per Hour", p:"Labor, equipment and overhead for one crew or cell, translated into a burn rate and checked weekly against a standard. It is a manufacturing-floor discipline applied to a field crew — the same idea as productivity factor, but it prices the hours in dollars and runs weekly instead of monthly, so it isolates why the rate moved, not just that it did.",
   e:function(){ var c=CPH_CELLS.map(deriveCph)[0], last=c.weeks[c.weeks.length-1];
     return "The tunnel liner crew's standard is "+usd(c.baseline)+"/hr; "+last.w+" ran "+usd(last.actual)+
     "/hr. Of the "+usd(c.totalOverrun)+" six-week overrun, "+usd(c.totalIdle)+" is idle time specifically — the part a staging fix recovers, not an engineering one."; }},
- {t:"Value engineering (VE)", p:"A structured review that asks one question: can the same function be delivered for less money? Done before award it shapes the baseline; done during construction it becomes a shared-savings change.",
+ {k:"ve", t:"Value engineering (VE)", p:"A structured review that asks one question: can the same function be delivered for less money? Done before award it shapes the baseline; done during construction it becomes a shared-savings change.",
   e:function(){ return "This program's baseline carries "+m(Math.abs(BASELINE[1].v))+" of accepted VE — part of how the engineer's estimate of "+m(BASELINE[0].v)+" came down to a "+m(T.bac)+" baseline before construction started."; }},
- {t:"Buyout", p:"Letting the subcontracts and major purchases after the contract is won. When the market prices below the estimate, the difference is buyout savings — margin captured at the source, before any risk can touch it.",
+ {k:"buyout", t:"Buyout", p:"Letting the subcontracts and major purchases after the contract is won. When the market prices below the estimate, the difference is buyout savings — margin captured at the source, before any risk can touch it.",
   e:function(){ return m(Math.abs(BASELINE[3].v))+" of buyout savings is baked into this baseline. The opposite — buyout above estimate — is an overrun that arrives on day one."; }},
- {t:"Time Impact Analysis (TIA)", p:"The disciplined way to answer \"how many days did that event cost?\": insert the delay into the schedule model as a small sub-network (a fragnet), re-run the dates, and read the difference. It turns an argument into arithmetic — and sets whether the event buys time, money, both, or neither.",
-  e:function(){ return "D-02's fragnet measures "+days(40)+" of impact on the tunnel — exactly the "+(-G_TUN.float)+" days of negative float CP-201 carries, and the driver of revenue service landing "+days(MILES[MILES.length-1].d)+"."; }}
+ {k:"tia", t:"Time Impact Analysis (TIA)", p:"The disciplined way to answer \"how many days did that event cost?\": insert the delay into the schedule model as a small sub-network (a fragnet), re-run the dates, and read the difference. It turns an argument into arithmetic — and sets whether the event buys time, money, both, or neither.",
+  e:function(){ return "D-02's fragnet measures "+days(40)+" of impact on the tunnel — exactly the "+(-G_TUN.float)+" days of negative float CP-201 carries, and the driver of revenue service landing "+days(MILES[MILES.length-1].d)+"."; }},
+ {k:"cde", t:"CDE — Common Data Environment", p:"A governed workspace for project information under ISO 19650, the international standard for managing data across a built asset's lifecycle. Not a file share — four defined states (Work in Progress, Shared, Published, Archived), each requiring a specific approval before information can advance to the next.",
+  e:function(){ return "The Data Strategy tab's four cards — Work in Progress, Shared, Published, Archived — are exactly these four states, each with the real gate that moves information from one to the next."; }},
+ {k:"ids", t:"IDS — Information Delivery Specification", p:"An XML-based, machine-readable standard from buildingSMART defining exactly what information a submittal must carry before it can pass a gate. Pairs an applicability rule (which records this governs) with a requirement (what those records must have) — a failed submittal gets rejected with a specific, itemized reason, not a vague quality flag.",
+  e:function(){ return "This dashboard's own 27-check integrity gate is a small-scale version of the same pattern — each check names exactly what it's verifying, not just pass or fail."; }},
+ {k:"wbs", t:"WBS — Work Breakdown Structure", p:"How a contractor organizes project scope for controls — around contractual work packages and spatial boundaries. The Asset Breakdown Structure (ABS) an owner uses for operations is organized around functional system topology instead — a structural mismatch, not a data-entry error, and a documented cause of data loss at handover.",
+  e:function(){ return "This program's own WBS maps 100% of its "+m(T.bac)+" budget to a named scope element and owner — see the Operating Framework tab's control-account mapping."; }},
+ {k:"abs", t:"ABS — Asset Breakdown Structure", p:"How an owner organizes an asset for operations and maintenance — by functional system, not by the contractor's work packages. Reconciling a WBS-built program into an ABS-run facility is exactly where handover data tends to get lost.",
+  e:function(){ return "See the Data Strategy tab's rebaselining workflow — the real four-phase process for bringing legacy, mixed-vintage assets into a clean digital record."; }}
 ];
 /* Data Strategy tab — not about this program's data, about the real problem a synthetic single-
    ledger dashboard can't demonstrate: connecting scattered, unclean, multi-system data. Static
@@ -3101,6 +3192,15 @@ var GUARDRAILS=[
  {t:"Cross-system reconciliation",c:"Do two systems' numbers for the same thing actually agree?",e:"Does earned progress in the schedule tool roughly track earned value in the cost system?"},
  {t:"Freshness check",c:"Is this data as current as its expected cadence?",e:"Data older than expected is flagged stale and excluded from live figures — the same idea as this dashboard's own Actions-tab stale flag."}
 ];
+/* one icon per guardrail category — all tinted "info" (a parallel taxonomy, not a severity
+   ladder like the pill colors elsewhere), distinguished only by shape */
+var GUARD_ICON={
+ "Entity / schema check":'<svg viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><line x1="4.5" y1="6" x2="11.5" y2="6" stroke="currentColor" stroke-width="1.1"/><line x1="4.5" y1="8.5" x2="11.5" y2="8.5" stroke="currentColor" stroke-width="1.1"/><line x1="4.5" y1="11" x2="9" y2="11" stroke="currentColor" stroke-width="1.1"/></svg>',
+ "Range / restriction check":'<svg viewBox="0 0 16 16"><line x1="2.5" y1="8" x2="13.5" y2="8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="3.5" y1="4.5" x2="3.5" y2="11.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="12.5" y1="4.5" x2="12.5" y2="11.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="8" r="1.4" fill="currentColor"/></svg>',
+ "Cross-system reconciliation":'<svg viewBox="0 0 16 16"><path d="M2.5 6h9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" fill="none"/><path d="M9 3.3 11.7 6 9 8.7" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.5 10h-9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" fill="none"/><path d="M7 12.7 4.3 10 7 7.3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+ "Freshness check":'<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.3"/><line x1="8" y1="8" x2="8" y2="4.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="8" y1="8" x2="10.4" y2="9.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>'
+};
+function guardIcon(t){ return '<span class="ticon i" aria-hidden="true">'+(GUARD_ICON[t]||"")+'</span>'; }
 var DISCREPANCY_STEPS=[
  {n:"1 &middot; Classify severity first",w:"A rounding difference and a material variance aren&rsquo;t the same problem. Set the materiality threshold before the argument happens, not during it."},
  {n:"2 &middot; Auto-resolve known patterns",w:"Most discrepancies aren&rsquo;t novel &mdash; the same three or four root causes recur. Encode the known ones as deterministic rules so they resolve themselves."},
@@ -3116,7 +3216,7 @@ var ROLLOUT=[
 function renderDataStrategy(){
   document.getElementById("guardrailTable").innerHTML=
     '<thead><tr><th scope="col">Check type</th><th scope="col">What it catches</th><th scope="col">Example</th></tr></thead><tbody>'+
-    GUARDRAILS.map(function(g){ return '<tr style="cursor:default"><td style="white-space:normal;font-weight:600">'+g.t+
+    GUARDRAILS.map(function(g){ return '<tr style="cursor:default"><td style="white-space:normal;font-weight:600">'+guardIcon(g.t)+g.t+
       '</td><td style="white-space:normal;font-size:12.5px">'+g.c+'</td>'+
       '<td style="white-space:normal;font-size:12px;color:rgb(var(--c-mut))">'+g.e+'</td></tr>'; }).join("")+
     '</tbody>';
@@ -3129,6 +3229,29 @@ function renderDataStrategy(){
     return '<div class="pcard"><div class="ph-n">'+r.ph+'</div><h3>'+r.n+'</h3>'+
       '<p style="margin:0;font-size:13px;color:rgb(var(--c-mut))">'+r.w+'</p></div>';
   }).join("");
+}
+
+/* Inline term help — a small clickable "i" next to jargon, anywhere on the page, showing the
+   same GLOSS entry the full Glossary tab uses (no separate content to maintain or let drift).
+   Click-driven, not hover-only, so it works the same on touch as on a mouse. */
+function helpIcon(key){
+  return '<button type="button" class="help-ic" data-help="'+key+'" aria-label="What does this term mean?">i</button>';
+}
+function findGloss(key){ return GLOSS.filter(function(g){ return g.k===key; })[0]; }
+var helpOpenKey=null;
+function closeHelp(){ helpOpenKey=null; var el=document.getElementById("helpPop"); el.hidden=true; el.innerHTML=""; }
+function openHelp(key, anchorEl){
+  var g=findGloss(key);
+  if(!g){ closeHelp(); return; }
+  helpOpenKey=key;
+  var el=document.getElementById("helpPop");
+  el.hidden=false;
+  el.innerHTML='<b>'+g.t+'</b><p>'+g.p+'</p><div class="help-actions">'+
+    '<button type="button" class="btn" data-explore="'+g.t.replace(/"/g,"&quot;")+'">Explore in Glossary &rarr;</button>'+
+    '<button type="button" class="help-pop-close" id="helpPopClose" aria-label="Close">&times;</button></div>';
+  var r=anchorEl.getBoundingClientRect();
+  var top=r.bottom+8, left=Math.min(r.left,(window.innerWidth||1200)-296);
+  el.style.top=Math.max(8,top)+"px"; el.style.left=Math.max(8,left)+"px";
 }
 
 function renderGlossary(q){
@@ -3259,6 +3382,31 @@ window.addEventListener("keydown",function(e){
   else if(e.key==="Escape") exitPresent();
 });
 
+/* Inline term-help delegation — one listener for every "i" icon on the page, present or future,
+   since they're added dynamically across render functions rather than wired one by one. */
+window.addEventListener("click",function(e){
+  var h=e.target.closest("[data-help]");
+  if(h){
+    if(helpOpenKey===h.dataset.help) closeHelp(); else openHelp(h.dataset.help,h);
+    return;
+  }
+  var x=e.target.closest("[data-explore]");
+  if(x){
+    closeHelp();
+    activateTab("gloss");
+    var q=document.getElementById("glossQ");
+    q.value=x.dataset.explore.replace(/\s*&mdash;.*$/,"").replace(/\s*—.*$/,"");
+    renderGlossary(q.value);
+    q.focus();
+    return;
+  }
+  if(e.target.closest("#helpPopClose")){ closeHelp(); return; }
+  if(helpOpenKey && !e.target.closest("#helpPop")) closeHelp();
+});
+window.addEventListener("keydown",function(e){
+  if(e.key==="Escape"&&helpOpenKey) closeHelp();
+});
+
 var TABS=["over","port","cost","sched","risk","del","ai","fw","act","gloss","data"];
 function activateTab(id){
   TABS.forEach(function(o){
@@ -3341,9 +3489,22 @@ document.getElementById("saveScen").addEventListener("click",function(){
 document.getElementById("clearScen").addEventListener("click",function(){ SCEN=[]; renderScen(); });
 document.getElementById("printBtn").addEventListener("click",function(){ renderPrint(); window.print(); });
 document.getElementById("aiNarrBtn").addEventListener("click",renderNarr);
-document.getElementById("storyPrev").addEventListener("click",function(){ renderStory(storyIdx-1); });
-document.getElementById("storyNext").addEventListener("click",function(){ renderStory(storyIdx+1); });
-document.getElementById("storyGo").addEventListener("click",function(){ activateTab(STORY[storyIdx].tab); });
+/* first-visit cue — try/catch guards localStorage since it's absent in the stress.cjs DOM stub
+   and can throw in a locked-down/private-browsing context; either failure just means "always show
+   the walkthrough as new," never a crash. */
+function fvVisited(){ try{ return window.localStorage && window.localStorage.getItem("pccVisited"); }catch(e){ return "1"; } }
+function fvClear(){
+  var el=document.getElementById("storyCard");
+  if(el) el.classList.remove("first-visit");
+  try{ if(window.localStorage) window.localStorage.setItem("pccVisited","1"); }catch(e){}
+}
+if(!fvVisited()){
+  var storyCardEl=document.getElementById("storyCard");
+  if(storyCardEl) storyCardEl.classList.add("first-visit");
+}
+document.getElementById("storyPrev").addEventListener("click",function(){ renderStory(storyIdx-1); fvClear(); });
+document.getElementById("storyNext").addEventListener("click",function(){ renderStory(storyIdx+1); fvClear(); });
+document.getElementById("storyGo").addEventListener("click",function(){ activateTab(STORY[storyIdx].tab); fvClear(); });
 document.getElementById("glossQ").addEventListener("input",function(){ renderGlossary(this.value); });
 window.addEventListener("scroll",function(){ document.getElementById("tip").classList.remove("on"); },{passive:true});
 
@@ -3367,6 +3528,7 @@ renderWhatIf();
 window.__PCC__={rows:rows,totals:T,kpis:KPIS,program:PROGRAM,eacs:EACS,mc:MC,
   actions:ACTIONS,actionStatus:actionStatus,isStale:isStale,
   escalation:ESCALATION,kpiEscalation:KPI_ESCALATION,actionsForKpi:actionsForKpi,jumpToAction:jumpToAction,
+  firingEscalations:firingEscalations,
   wbs:WBS,gates:GATES,gate5Checks:GATE5_CHECKS,
   contracts:CONTRACTS,deriveContract:deriveContract,
   portfolioRows:portfolioRows,
@@ -3374,7 +3536,8 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,program:PROGRAM,eacs:EACS,mc:MC,
   eacTrendSeries:eacTrendSeries,acHistorySeries:acHistorySeries,forecastAccuracy:forecastAccuracy,
   revSvcDriftSeries:revSvcDriftSeries,pvA:pvA,acA:acA,milesLast:MILES[MILES.length-1],
   presentBeatsFull:PRESENT_BEATS_FULL,presentBeatsQuick:PRESENT_BEATS_QUICK,
-  guardrails:GUARDRAILS,discrepancySteps:DISCREPANCY_STEPS,rollout:ROLLOUT};
+  guardrails:GUARDRAILS,discrepancySteps:DISCREPANCY_STEPS,rollout:ROLLOUT,
+  gloss:GLOSS,findGloss:findGloss};
 })();
 </script>
 </body>

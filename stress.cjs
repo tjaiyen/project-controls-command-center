@@ -108,6 +108,21 @@ ok(indexSrc.includes('aria-controls="p-over"'), "tab aria-controls present");
 ok(/\.grid>\*\{min-width:0\}/.test(indexSrc), "index.html: grid items have min-width:0 (mobile overflow guard)");
 ok(/\.grid2>\*\{min-width:0\}/.test(otakSrc), "otak.html: grid items have min-width:0 (mobile overflow guard)");
 
+// Tier 3 nav rail: same class of guard as above — a jsdom-less stub can't run real CSS Grid/
+// media-query layout, so these are static tripwires (browser-verified live at 1400px desktop
+// and 390px mobile 2026-08-18: rail renders and switches tabs correctly at desktop width;
+// .tabs stays flex-direction:row and #main stays display:block below the breakpoint, 0 overflow).
+ok(/@media\(min-width:1050px\)\{/.test(indexSrc), "desktop nav-rail media query is present");
+ok(/#main\.wrap\{max-width:1320px;display:grid/.test(indexSrc), "nav-rail breakpoint switches #main to a two-column grid");
+ok(/\[role="tabpanel"\]\{grid-column:2;min-width:0\}/.test(indexSrc),
+  "tabpanel grid items carry min-width:0 (same overflow-guard class as the mobile grid check above)");
+ok((indexSrc.match(/class="nav-ic"/g) || []).length === 11, "all 11 nav-rail tabs carry an icon");
+// the rail is presentation-only: TABS, activateTab(), and the tab click wiring are untouched —
+// confirmed here by re-checking the tab count/order the D9 TABS_CHECK already asserts elsewhere,
+// as a direct probe that this CSS/markup-only change didn't silently touch the tab logic
+ok(idsA.filter(id => /^t-(over|port|cost|sched|risk|del|ai|fw|act|gloss|data)$/.test(id)).length === 11,
+  "all 11 tab buttons still present with their original ids after the rail markup change");
+
 /* =========================================================================
    B. RUNTIME — index.html
    ========================================================================= */
@@ -273,8 +288,12 @@ try {
   G.sCpi.value = "1.10";
   fire(G.sCpi, "input");
   has("whatIfOut", "$1,127.3M", "what-if at CPI 1.10 gives EAC $1,127.3M");
+  ok(G.whatIfOut._html.includes("wi-flash"), "what-if values that changed carry the flash animation class");
+  fire(G.sCpi, "input"); // same value again — nothing actually changed this time
+  ok(!G.whatIfOut._html.includes("wi-flash"), "re-firing with an unchanged value carries no flash class");
   fire(G.resetWhatIf, "click");
   has("whatIfOut", "$1,297.3M", "what-if reset returns to actuals ($1,297.3M)");
+  ok(G.whatIfOut._html.includes("wi-flash"), "reset (a real value change back) re-triggers the flash class");
 } catch (e) { ok(false, "what-if model", e.message); }
 
 /* =========================================================================
@@ -434,6 +453,20 @@ ok((G.kboard._html.match(/animation-delay:/g) || []).length === 20,
   "all 20 KPI cards carry staggered entrance delays");
 ok(indexSrc.includes("@keyframes drawin") && indexSrc.includes("prefers-reduced-motion"),
   "motion CSS present with reduced-motion guard");
+// first-visit cue on the story card: this DOM stub has no window.localStorage (same gap that
+// broke document.addEventListener earlier this project), so fvVisited()/fvClear() must be
+// try/catch-guarded rather than assume localStorage exists — confirm that guard by source
+// (classList is a stub no-op here, so "does the class actually toggle" can't be observed live)
+// and confirm the guarded functions don't crash the page or any walkthrough interaction.
+ok(/try\{\s*return window\.localStorage/.test(indexSrc), "fvVisited() try/catches the localStorage read");
+ok(/try\{\s*if\(window\.localStorage\)/.test(indexSrc), "fvClear() try/catches the localStorage write");
+try {
+  fire(G.storyPrev, "click");
+  fire(G.storyNext, "click");
+  ok(true, "first-visit cue wiring never throws on walkthrough navigation with no localStorage");
+} catch (e) { ok(false, "first-visit cue (no-localStorage guard)", e.message); }
+// storyGo is exercised separately further up this section (it also calls activateTab, which
+// would leave a non-"over" tab active for every test after this one if fired here)
 
 /* =========================================================================
    D5. RESUME-INSIGHT MODULES — baseline bridge, change pricing, TIA, stakeholders
@@ -580,6 +613,18 @@ has("gateTable", "Baseline Establishment", "gate table names the baseline-establ
   has("gate5Card", "FAIL", "Gate 5 card shows the failing check");
 }
 has("escTable", "TCPI(BAC)", "escalation matrix carries the explicit TCPI &gt; 1.10 rule");
+// Tier 2: escalation matrix's new live-status column — never hardcode the firing count, derive
+// it from firingEscalations() itself so a future ledger edit can't silently desync the assertion
+{
+  const firing = P.firingEscalations();
+  ok(firing.length > 0 && firing.length < P.escalation.length,
+    "at least one but not all escalation rules are firing right now (a meaningful status column)", String(firing.length));
+  ok((G.escTable._html.match(/Firing now/g) || []).length === firing.length,
+    "escTable shows exactly as many 'Firing now' pills as firingEscalations() returns");
+  ok((G.escTable._html.match(/>Dormant</g) || []).length === P.escalation.length - firing.length,
+    "escTable shows 'Dormant' for every non-firing rule");
+  has("escTable", "Contingency coverage &lt; 1.00", "the firing set includes the contingency-coverage rule (pre-registered: it's the one Gate 5 fails on)");
+}
 
 /* =========================================================================
    D5.7. WORKING BACKWARD / INVERSION — Gate 5 -> CCR -> the ledger -> A-09
@@ -660,6 +705,13 @@ ok(P.actions.length === 17, "exactly 17 action items", String(P.actions.length))
   Object.keys(expected).forEach(k =>
     ok(counts[k] === expected[k], "status count " + k + " = " + expected[k], String(counts[k])));
   ok(rows.filter(r => r.status !== "verified" && r.status !== "closed").length === 16, "16 of 17 open");
+  // Tier 2: type-icon badges on the register table — one distinct icon per Type value
+  const typeCounts = {};
+  rows.forEach(r => { typeCounts[r.type] = (typeCounts[r.type] || 0) + 1; });
+  ok(typeCounts.Issue === 6 && typeCounts.Task === 10 && typeCounts.Decision === 1,
+    "action type mix is 6 Issue / 10 Task / 1 Decision", JSON.stringify(typeCounts));
+  ["ticon a", "ticon i", "ticon g"].forEach(cls =>
+    ok(G.actTable._html.includes('class="' + cls + '"'), "actTable renders a '" + cls + "' type icon badge"));
   const stale = rows.filter(r => r.stale);
   ok(stale.length === 2, "exactly 2 stale flags", String(stale.length));
   ok(stale.map(r => r.id).sort().join(",") === "A-09,A-11", "stale flags land on A-09 and A-11",
@@ -868,6 +920,10 @@ ok(P.rollout.length === 3, "3-phase rollout defined", String(P.rollout.length));
 has("guardrailTable", "Entity / schema check", "guardrail table renders the entity/schema check");
 has("guardrailTable", "Cross-system reconciliation", "guardrail table renders cross-system reconciliation check");
 has("guardrailTable", "IDS", "guardrail table ties checks back to the real IDS standard");
+// Tier 2: one icon badge per guardrail row (4 categories, all "info" tint — a parallel
+// taxonomy, not a severity ladder)
+ok((G.guardrailTable._html.match(/class="ticon i"/g) || []).length === 4,
+  "guardrail table renders exactly 4 category icon badges", String((G.guardrailTable._html.match(/class="ticon i"/g) || []).length));
 // these three are static HTML baked into the page, never JS-rendered into #p-data's innerHTML —
 // check the raw source directly (same pattern as the other static-content checks in this file),
 // not has(), which only sees content actually assigned via .innerHTML at runtime.
@@ -885,6 +941,47 @@ try {
   ok(G["p-data"].hidden === false, "clicking the Data Strategy tab shows its panel");
   ok(G["p-over"].hidden === true, "clicking the Data Strategy tab hides Overview");
 } catch (e) { ok(false, "data strategy tab activation", e.message); }
+
+/* =========================================================================
+   D10. INLINE TERM HELP — click-driven popover reusing GLOSS as its only source
+   (returns the active tab to "over" at the end, since D9 above left "data" active)
+   ========================================================================= */
+console.log("== D10. inline term help ==");
+ok(P.gloss.length === 29, "GLOSS grew to 29 entries (25 original + cde/ids/wbs/abs)", String(P.gloss.length));
+["cde", "ids", "wbs", "abs"].forEach(k => {
+  const g = P.findGloss(k);
+  ok(!!g && typeof g.p === "string" && g.p.length > 0, "findGloss resolves new term '" + k + "'");
+  ok(typeof g.e() === "string" && g.e().length > 0, "'" + k + "' example function returns text");
+});
+ok(P.findGloss("does-not-exist") === undefined, "findGloss returns undefined for an unknown key");
+["wbs", "abs", "cde", "ids", "cpli"].forEach(k =>
+  ok(indexSrc.includes('data-help="' + k + '"'), "help icon markup present for '" + k + "'"));
+try {
+  // getBoundingClientRect: openHelp() positions the popover from it; every real DOM element has
+  // one, but this stub's makeEl() never needed it before this feature, so the mock supplies it.
+  const wbsIconEl = { dataset: { help: "wbs" }, getBoundingClientRect: () => ({ bottom: 40, left: 20 }) };
+  const wbsIcon = { closest: sel => (sel === "[data-help]" ? wbsIconEl : null) };
+  fire(R.win, "click", { target: wbsIcon });
+  ok(G.helpPop.hidden === false, "help popover opens on icon click");
+  has("helpPop", "WBS", "help popover shows the WBS term title");
+  has("helpPop", "Explore in Glossary", "help popover offers the Explore-in-Glossary action");
+  fire(R.win, "click", { target: wbsIcon }); // same icon again -> toggle-close
+  ok(G.helpPop.hidden === true, "help popover toggle-closes on a second click of the same icon");
+  fire(R.win, "click", { target: wbsIcon });
+  ok(G.helpPop.hidden === false, "help popover re-opens");
+  fire(R.win, "click", { target: { closest: () => null } }); // click elsewhere on the page
+  ok(G.helpPop.hidden === true, "help popover closes on a click outside it");
+  fire(R.win, "click", { target: wbsIcon });
+  fire(R.win, "keydown", { key: "Escape" });
+  ok(G.helpPop.hidden === true, "help popover closes on Escape");
+  fire(R.win, "click", { target: wbsIcon });
+  const exploreLink = { closest: sel => (sel === "[data-explore]" ? { dataset: { explore: "WBS — Work Breakdown Structure" } } : null) };
+  fire(R.win, "click", { target: exploreLink });
+  ok(G.helpPop.hidden === true, "'Explore in Glossary' also closes the popover");
+  ok(G["p-gloss"].hidden === false, "'Explore in Glossary' switches to the Glossary tab");
+  ok(G.glossQ.value === "WBS", "'Explore in Glossary' pre-fills the search box with the term name (dash stripped)", G.glossQ.value);
+} catch (e) { ok(false, "inline help popover interaction", e.message); }
+fire(G["t-over"], "click"); // restore "over" as active for the sections below, matching D9's own convention
 
 /* =========================================================================
    E. otak.html — runtime + internal consistency
