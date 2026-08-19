@@ -381,6 +381,13 @@ pre.code b{color:rgb(var(--c-code));font-weight:600}
    those the same treatment would make invisible rectangles flash visible on hover. */
 #waterfall rect.hot,#tornado rect.hot,#gantt rect.hot{transition:opacity .12s ease}
 #waterfall rect.hot:hover,#tornado rect.hot:hover,#gantt rect.hot:hover{opacity:1}
+/* Cross-chart account highlight — the same control account can show up as a .rowbar (float/CPLI/
+   productivity bars), a table row (the ledger), or an SVG rect (waterfall/Gantt), all on the same
+   tab at once; one delegated listener (wireAccountHighlight) toggles this class on every element
+   sharing a data-acc value, wherever it lives. */
+.rowbar.acc-hover{background:rgb(var(--c-accent) / .10);border-radius:4px}
+tr.acc-hover{background:rgb(var(--c-accent) / .08) !important}
+rect.acc-hover{stroke:rgb(var(--c-accent));stroke-width:2px}
 .story-dots i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;
   background:rgb(var(--c-mut) / .35);transition:background .2s}
 .story-dots i.on{background:rgb(var(--c-accent))}
@@ -2044,7 +2051,8 @@ function renderWaterfall(){
     var fill=b.type==="total"?C("accent"):b.type==="neg"?C("bad"):C("ok");
     var lbl=b.type==="total"?m(b.y1):sgn(b.r.vac);
     return '<rect x="'+x.toFixed(1)+'" y="'+top.toFixed(1)+'" width="'+w.toFixed(1)+'" height="'+Math.max(2,bot-top).toFixed(1)+
-      '" fill="'+fill+'" opacity="'+(b.type==="total"?".92":".82")+'" rx="2" data-bar="'+j+'" class="hot"><title>'+b.l+" "+lbl+'</title></rect>'+
+      '" fill="'+fill+'" opacity="'+(b.type==="total"?".92":".82")+'" rx="2" data-bar="'+j+'"'+
+      (b.type!=="total"?' data-acc="'+b.r.id+'"':"")+' class="hot"><title>'+b.l+" "+lbl+'</title></rect>'+
       '<text x="'+(x+w/2).toFixed(1)+'" y="'+(H-30)+'" text-anchor="middle" font-size="10" font-family="ui-monospace,monospace" fill="'+C("mut")+'">'+b.l+'</text>'+
       '<text x="'+(x+w/2).toFixed(1)+'" y="'+(H-16)+'" text-anchor="middle" font-size="9.5" font-family="ui-monospace,monospace" fill="'+(b.type==="neg"?C("bad"):b.type==="pos"?C("ok"):C("mut"))+'">'+lbl+'</text>';
   }).join("");
@@ -2600,7 +2608,7 @@ function statusOf(r){
 function renderTable(){
   document.getElementById("pkgBody").innerHTML=rows.map(function(r,i){
     var st=statusOf(r);
-    return '<tr tabindex="0" role="button" aria-controls="drill" data-i="'+i+'" aria-pressed="'+(i===state.pkg)+'">'+
+    return '<tr tabindex="0" role="button" aria-controls="drill" data-i="'+i+'" data-acc="'+r.id+'" aria-pressed="'+(i===state.pkg)+'">'+
       '<td><span class="mono" style="color:rgb(var(--c-code))">'+r.id+'</span> &nbsp;'+r.n+'</td>'+
       '<td class="tab-num">'+m(r.bac)+'</td><td class="tab-num">'+m(r.ev)+'</td><td class="tab-num">'+m(r.ac)+'</td>'+
       '<td class="tab-num '+(r.spi<0.95?"ba":r.spi<0.99?"wa":"ok")+'">'+idx(r.spi)+'</td>'+
@@ -2647,7 +2655,11 @@ function bars(el,items,fmt){
   var maxAbs=Math.max.apply(null,items.map(function(o){return Math.abs(o.v);}))||1;
   document.getElementById(el).innerHTML=items.map(function(o){
     var w=Math.abs(o.v)/maxAbs*(o.center?50:100), neg=o.v<0;
-    return '<div class="rowbar"><span class="mono" style="font-size:11.5px;color:rgb(var(--c-code))">'+o.id+'</span>'+
+    /* data-acc carries o.id unconditionally — for float/cpli/prod that id genuinely IS a
+       control-account id and becomes cross-chart-highlightable for free; for callers whose id is
+       a month/week label instead (eacTrend, schedDriftBars, cphBars) it's a harmless no-op, since
+       nothing else on the page shares that same label as its own data-acc. */
+    return '<div class="rowbar" data-acc="'+o.id+'"><span class="mono" style="font-size:11.5px;color:rgb(var(--c-code))">'+o.id+'</span>'+
       '<span class="track">'+(o.center?'<span class="zero" style="left:50%"></span>':'')+
       '<i style="'+(o.center?(neg?"right:50%":"left:50%"):"left:0")+';width:'+w.toFixed(1)+'%;background:'+o.c+'"></i></span>'+
       '<span class="tab-num" style="text-align:right;color:'+o.c+'">'+fmt(o.v)+'</span></div>';
@@ -2689,9 +2701,9 @@ function renderGantt(){
     var behind=e.r.float<0;
     return '<text x="'+(PL-10)+'" y="'+(y+rowH/2+4).toFixed(1)+'" text-anchor="end" font-size="11" font-family="ui-monospace,monospace" fill="'+C("mut")+'">'+e.r.id+'</text>'+
       '<rect x="'+todayX.toFixed(1)+'" y="'+barY+'" width="'+Math.max(0,baseX-todayX).toFixed(1)+'" height="'+barH+
-        '" rx="3" fill="'+C("mut")+'" opacity=".3" data-gantt="'+i+'" data-part="base" class="hot"/>'+
+        '" rx="3" fill="'+C("mut")+'" opacity=".3" data-gantt="'+i+'" data-part="base" data-acc="'+e.r.id+'" class="hot"/>'+
       '<rect x="'+todayX.toFixed(1)+'" y="'+(barY+3)+'" width="'+Math.max(0,fcstX-todayX).toFixed(1)+'" height="'+(barH-6)+
-        '" rx="2.5" fill="'+(behind?C("bad"):C("ok"))+'" opacity=".88" data-gantt="'+i+'" data-part="fcst" class="hot"/>'+
+        '" rx="2.5" fill="'+(behind?C("bad"):C("ok"))+'" opacity=".88" data-gantt="'+i+'" data-part="fcst" data-acc="'+e.r.id+'" class="hot"/>'+
       '<text x="'+(W-PR+10)+'" y="'+(y+rowH/2+4).toFixed(1)+'" font-size="10.5" font-family="ui-monospace,monospace" fill="'+
         (behind?C("bad"):C("ok"))+'">'+pct(e.r.pct,0)+' complete &middot; '+days(e.r.float)+'</text>';
   }).join("");
@@ -3926,6 +3938,36 @@ function renderDataStrategy(){
    same GLOSS entry the full Glossary tab uses (no separate content to maintain or let drift).
    Click-driven, not hover-only, so it works the same on touch as on a mouse. */
 function findGloss(key){ return GLOSS.filter(function(g){ return g.k===key; })[0]; }
+/* Cross-chart account highlight — one delegated listener at the document level, not one per
+   chart. Any element anywhere on the page carrying data-acc="<control-account id>" (a .rowbar in
+   the float/CPLI/productivity bars, a <tr> in the ledger table, an SVG <rect> in the waterfall or
+   Gantt chart) highlights every OTHER element sharing that same id the moment the pointer enters
+   it — deliberately cheap: mouseover/mouseout bubble, so this is one pair of listeners for the
+   whole page, not one per chart. Highlighting something on a hidden tab would be pointless (the
+   user can't see it), so this naturally only ever lights up whatever's actually rendered — no tab-
+   awareness needed, closest() simply won't find anything inside a display:none panel's subtree. */
+function wireAccountHighlight(){
+  var current=null;
+  function clear(){
+    if(!current) return;
+    Array.prototype.forEach.call(document.querySelectorAll(".acc-hover"),function(x){ x.classList.remove("acc-hover"); });
+    current=null;
+  }
+  document.addEventListener("mouseover",function(e){
+    var el=e.target.closest && e.target.closest("[data-acc]");
+    if(!el || el.dataset.acc===current) return;
+    clear();
+    current=el.dataset.acc;
+    Array.prototype.forEach.call(document.querySelectorAll('[data-acc="'+current+'"]'),function(x){ x.classList.add("acc-hover"); });
+  });
+  document.addEventListener("mouseout",function(e){
+    var el=e.target.closest && e.target.closest("[data-acc]");
+    if(!el) return;
+    var to=e.relatedTarget && e.relatedTarget.closest ? e.relatedTarget.closest("[data-acc]") : null;
+    if(to && to.dataset.acc===current) return; // moved within the same highlighted group
+    clear();
+  });
+}
 /* Animated open/close for every <details class="dbox"> "how this is actually computed" panel,
    site-wide — one shared wiring, not five copies. Moves each panel's post-summary children into
    a single measurable wrapper (once, at init) so the animation only ever has to track one
@@ -4295,6 +4337,7 @@ document.getElementById("sSpi").value=T.spi;
 document.getElementById("sCont").value=PROGRAM.contingency;
 renderWhatIf();
 wireDetailsAnimation();
+wireAccountHighlight();
 
 /* expose for verification */
 window.__PCC__={rows:rows,totals:T,kpis:KPIS,program:PROGRAM,eacs:EACS,mc:MC,

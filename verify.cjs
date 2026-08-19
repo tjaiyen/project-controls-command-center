@@ -29,6 +29,7 @@ const documentStub = {
   getElementById(id){ return registry[id] || (registry[id] = makeEl(id)); },
   querySelector(){ return makeEl(); },
   querySelectorAll(){ return []; },
+  addEventListener(){}, removeEventListener(){},
 };
 const windowStub = {
   matchMedia(){ return { matches: true }; },

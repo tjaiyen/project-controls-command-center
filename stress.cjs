@@ -56,6 +56,13 @@ function runPage(src) {
     getElementById(id){ return registry[id] || (registry[id] = makeEl(id)); },
     querySelector(){ return makeEl(); },
     querySelectorAll(){ return []; },
+    // document-level delegated listeners (wireAccountHighlight, 2026-08-19) — stored, not
+    // dispatched; this stub's querySelectorAll always returning [] already means the actual
+    // cross-chart highlight logic can't be exercised here regardless (same limitation as
+    // wireDetailsAnimation before it), so this only needs to exist, not behave.
+    _listeners: {},
+    addEventListener(t, fn){ (this._listeners[t] = this._listeners[t] || []).push(fn); },
+    removeEventListener(){},
   };
   global.document = documentStub;
   global.window = { matchMedia(){ return { matches: true }; }, scrollTo(){}, innerWidth: 1400,
@@ -1555,6 +1562,20 @@ ok(indexSrc.includes("#waterfall rect.hot,#tornado rect.hot,#gantt rect.hot{tran
 ok(indexSrc.includes("#waterfall rect.hot:hover,#tornado rect.hot:hover,#gantt rect.hot:hover{opacity:1}"),
   "hover rule is scoped to waterfall/tornado/gantt containers specifically, not to .hot everywhere — the S-curve's own .hot rects are deliberately transparent hit-targets (data-mo), not bars, and must not be affected");
 ok(!/#scurve[^{]*\.hot[^{]*:hover/.test(indexSrc), "no hover rule targets the S-curve's transparent hot-zone rects");
+
+// Cross-chart account highlight (2026-08-19) — source-level only, same stub limitation as
+// wireDetailsAnimation: querySelectorAll always returns [] here, so the actual highlight-toggle
+// logic can't be exercised under test. Real coverage is live-browser verified instead: hovering a
+// waterfall bar (data-acc="CP-201") was confirmed to simultaneously add .acc-hover to that exact
+// bar AND the matching ledger-table row; hovering a Gantt bar (data-acc="CP-601") was confirmed
+// to simultaneously highlight the matching Float bar and CPLI bar on the same tab; mouseout was
+// confirmed to clear every highlighted element back to zero.
+ok(indexSrc.includes("function wireAccountHighlight()"), "wireAccountHighlight is defined");
+ok(indexSrc.includes("wireAccountHighlight();"), "wireAccountHighlight is called at init");
+["data-acc=\"'+o.id+'\"", "data-acc=\"'+r.id+'\"", "data-acc=\"'+e.r.id+'\"", "data-acc=\"'+b.r.id+'\""].forEach(needle =>
+  ok(indexSrc.includes(needle), "source contains a data-acc binding: " + needle));
+ok(indexSrc.includes(".rowbar.acc-hover") && indexSrc.includes("tr.acc-hover") && indexSrc.includes("rect.acc-hover"),
+  "acc-hover is styled for all three element shapes it can land on (rowbar div, table row, SVG rect)");
 
 /* =========================================================================
    E. otak.html — runtime + internal consistency
