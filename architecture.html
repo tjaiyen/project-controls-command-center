@@ -58,8 +58,17 @@ h1{font-size:clamp(26px,4vw,38px);font-weight:800;letter-spacing:-.01em;margin:1
 h2{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgb(var(--c-mut));margin:48px 0 6px;padding-bottom:8px;border-bottom:1px solid var(--c-line)}
 .section-lede{color:rgb(var(--c-mut));max-width:76ch;margin:0 0 20px;font-size:14.5px}
 
-.diagram-scroll{overflow-x:auto;border:1px solid var(--c-line);border-radius:12px;background:rgb(var(--c-card))}
-.diagram-scroll svg{display:block;width:1520px;height:auto}
+/* Responsive by default — the viewBox does the scaling, so this fits any viewport without a
+   forced horizontal scrollbar. overflow-x stays as a defensive fallback only (this project's
+   standing rule: never rely on scroll as the primary way to see content that should just fit),
+   not the mechanism this diagram is meant to be read through. */
+.diagram-scroll{overflow-x:auto;border:1px solid var(--c-line);border-radius:12px;background:rgb(var(--c-card));padding:4px}
+/* Fits any normal desktop/laptop window without a scrollbar (min-width:1100px is comfortably
+   under this page's own 1180px .wrap, which is the actual complaint this fixes) while never
+   shrinking labels past a legible floor — below 1100px of real container width (tablet portrait,
+   phone) the diagram holds that floor and overflow-x becomes the fallback, matching how every
+   dense table on the live dashboard already behaves, not a new pattern. */
+.diagram-scroll svg{display:block;width:100%;min-width:1100px;max-width:1520px;height:auto;margin:0 auto}
 figure{margin:0}
 figcaption{margin-top:12px;font-size:13.5px;color:rgb(var(--c-mut));max-width:80ch}
 
@@ -125,7 +134,7 @@ footer{margin-top:60px;padding-top:18px;border-top:1px solid var(--c-line);font-
 
   <figure>
     <div class="diagram-scroll">
-<svg viewBox="0 0 1520 800" role="img" aria-label="Data flow diagram: six upstream source systems feed a single eleven-input ledger across eight control accounts; the ledger computes a twenty-metric KPI board; the KPI board drives phase gates, an escalation matrix, and an actions register, all displayed on the live dashboard; a parallel twenty-seven plus fifty-four check integrity gate independently re-derives and cross-checks the ledger and KPI board before anything is allowed to publish to the executive brief or the AI narrative draft.">
+<svg viewBox="0 0 1520 670" role="img" aria-label="Data flow diagram: six upstream source systems feed a single eleven-input ledger across eight control accounts; the ledger computes a twenty-metric KPI board; the KPI board drives phase gates, an escalation matrix, and an actions register, all displayed on the live dashboard; a parallel twenty-seven plus fifty-four check integrity gate independently re-derives and cross-checks the ledger and KPI board before anything is allowed to publish to the executive brief or the AI narrative draft.">
   <defs>
     <marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
