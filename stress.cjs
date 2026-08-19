@@ -599,7 +599,10 @@ ok(indexSrc.includes('data-help="referenceclass"'), "reference-class callout car
   // the column headers too; count body rows specifically, not every <tr> on the page (B35: this
   // contradicted the first prediction, so the count logic was fixed, not the app)
   const tbodyMatch = G.mcOneRun._html.match(/<tbody>([\s\S]*)<\/tbody>/);
-  const bodyRowCount = tbodyMatch ? (tbodyMatch[1].match(/<tr>/g) || []).length : -1;
+  // matches <tr> or <tr class="..."> — the staggered-reveal motion pass (2026-08-19) added a
+  // class+animation-delay to each row, which broke this exact-literal-<tr> match; found by
+  // running the suite after that change, not assumed safe
+  const bodyRowCount = tbodyMatch ? (tbodyMatch[1].match(/<tr[ >]/g) || []).length : -1;
   ok(bodyRowCount === rows.length,
     "one-run table body has exactly one row per control account", bodyRowCount + " vs expected " + rows.length);
 
@@ -1472,6 +1475,16 @@ ok(indexSrc.includes('#scurve path.draw,#mcChart polyline.draw{stroke-dasharray:
   "the Monte Carlo CDF polyline reuses the S-curve's draw-in technique");
 ok(indexSrc.includes('var body=\'<polyline class="draw" points="'),
   "the CDF polyline actually carries the draw class in its markup, not just the CSS selector existing unused");
+
+// Staggered one-run stepper table (2026-08-19) — this one IS runtime-testable, since the D2.2
+// stub already exercises renderMcOneRun() and can read the actual generated markup.
+{
+  fire(G.mcRunOne, "click");
+  const rowDelays = (G.mcOneRun._html.match(/animation-delay:(\d+)ms/g) || []).map(s => parseInt(s.match(/\d+/)[0], 10));
+  ok(rowDelays.length === rows.length, "every row in the one-run table carries its own animation-delay", String(rowDelays.length));
+  ok(rowDelays.every((d, i) => d === i * 45), "delays are strictly 0, 45, 90... in row order, not shuffled", rowDelays.join(","));
+  ok(indexSrc.includes("tr.stagger{animation:rise"), "the stagger class reuses the existing rise keyframe, not a new one");
+}
 
 /* =========================================================================
    E. otak.html — runtime + internal consistency
