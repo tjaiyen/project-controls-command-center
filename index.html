@@ -654,6 +654,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
           first can still be optimistic in a way an entire asset class already tells you to expect.
           (Bent Flyvbjerg's published megaproject research, via PMI's research summary, verified
           19&nbsp;Aug&nbsp;2026 &mdash; a real, external citation, not this program's own data.)</p>
+        <p class="lede" id="mcRcfRead" style="margin-top:8px;font-size:12.8px"></p>
       </div>
 
       <div class="sec-h" style="margin-top:34px"><h2>Control account ledger</h2><span class="tag">drill-down</span></div>
@@ -2139,6 +2140,20 @@ var MC=(function(){
     pOver:sims.filter(function(v){return v>T.bac;}).length/N,
     pBust:sims.filter(function(v){return v>T.bac+T.contRemaining;}).length/N};
 })();
+/* Reference-class marker — Flyvbjerg's real, cited rail-project average overrun (+45%) applied
+   to this program's own BAC, drawn on the same axis as the Monte Carlo run so the two lenses are
+   visibly compared, not just asserted in prose. It almost always lands past the chart's own
+   98th-percentile display window — that is the actual finding here, not a rendering bug, so it
+   is drawn clamped to the right edge with an explicit "off scale" label instead of being quietly
+   mis-positioned as if it were inside the shown range. Shared by both chart views so the
+   off-scale logic exists once, not twice. */
+function rcfMarkerSvg(W,H,PL,PR,PT,PB,hi,X){
+  var rcfVal=T.bac*1.45, offScale=rcfVal>hi;
+  var x=offScale?(W-PR):X(rcfVal);
+  var label=(offScale?"▸ ":"")+"RCF (rail, +45%) "+m(rcfVal)+(offScale?" — off scale":"");
+  return '<line x1="'+x+'" x2="'+x+'" y1="'+PT+'" y2="'+(H-PB)+'" stroke="'+C("info")+'" stroke-width="1.8" stroke-dasharray="2 2"/>'+
+    '<text x="'+x+'" y="'+(PT+11)+'" text-anchor="'+(offScale?"end":"middle")+'" font-size="10" font-family="ui-monospace,monospace" fill="'+C("info")+'">'+label+'</text>';
+}
 function renderMc(){
   var W=980,H=260,PL=64,PR=18,PT=18,PB=40;
   var lo=MC.sims[Math.floor(0.02*MC.sims.length)], hi=MC.sims[Math.floor(0.98*MC.sims.length)];
@@ -2165,8 +2180,9 @@ function renderMc(){
   document.getElementById("mcChart").innerHTML=svg(W,H,body+
     marker(T.bac,C("ok"),"BAC "+m(T.bac))+
     marker(MC.p50,C("warn"),"P50 "+m(MC.p50))+
-    marker(T.bac+T.contRemaining,C("bad"),"BAC+cont "+m(T.bac+T.contRemaining)),
-    "Monte Carlo distribution of the forecast at completion across 4,000 simulated completions, marked with budget, median, and budget plus remaining contingency.");
+    marker(T.bac+T.contRemaining,C("bad"),"BAC+cont "+m(T.bac+T.contRemaining))+
+    rcfMarkerSvg(W,H,PL,PR,PT,PB,hi,X),
+    "Monte Carlo distribution of the forecast at completion across 4,000 simulated completions, marked with budget, median, budget plus remaining contingency, and the rail reference-class estimate.");
   renderMcStatsRead();
 }
 
@@ -2192,8 +2208,9 @@ function renderMcCdf(){
   document.getElementById("mcChart").innerHTML=svg(W,H,body+
     marker(T.bac,C("ok"),"BAC "+m(T.bac))+
     marker(MC.p50,C("warn"),"P50 "+m(MC.p50))+
-    marker(T.bac+T.contRemaining,C("bad"),"BAC+cont "+m(T.bac+T.contRemaining)),
-    "Cumulative probability of the forecast at completion across 4,000 simulated completions — the probability of finishing at or under a given cost — marked with budget, median, and budget plus remaining contingency.");
+    marker(T.bac+T.contRemaining,C("bad"),"BAC+cont "+m(T.bac+T.contRemaining))+
+    rcfMarkerSvg(W,H,PL,PR,PT,PB,hi,X),
+    "Cumulative probability of the forecast at completion across 4,000 simulated completions — the probability of finishing at or under a given cost — marked with budget, median, budget plus remaining contingency, and the rail reference-class estimate.");
   renderMcStatsRead();
 }
 
@@ -2216,6 +2233,22 @@ function syncMcView(){
   document.getElementById("mcViewHist").setAttribute("aria-pressed", String(state.mcView==="hist"));
   document.getElementById("mcViewCdf").setAttribute("aria-pressed", String(state.mcView==="cdf"));
   if(state.mcView==="cdf") renderMcCdf(); else renderMc();
+}
+
+/* Live comparison sentence for the reference-class marker on the chart above — computed
+   against MC.sims' true max (not the chart's own 98th-percentile display window), so the claim
+   doesn't quietly ride on the same clipping that positions the marker itself. */
+function renderMcRcf(){
+  var rcfVal=T.bac*1.45, trueMax=MC.sims[MC.sims.length-1];
+  var beyondWorst=rcfVal>trueMax;
+  document.getElementById("mcRcfRead").innerHTML=
+    "Applied to this program's own budget, that rail base rate implies <b style='color:rgb(var(--c-ink))'>"+m(rcfVal)+
+    "</b> &mdash; "+(beyondWorst
+      ? "beyond even the single worst outcome across all "+MC.n+" of this program's own simulated completions ("+m(trueMax)+
+        "). If Flyvbjerg's base rate applies here, this program's own forward-looking model may itself still be optimistic."
+      : "inside the range this program's own model already simulates, at roughly the "+
+        pct(MC.sims.filter(function(v){return v<=rcfVal;}).length/MC.n,0)+" percentile of its own "+MC.n+" outcomes.")+
+    " Marked on the chart above as a separate, dashed reference line.";
 }
 
 /* The math explainer — a live worked example against CP-201 (the tunnel package, the same
@@ -3816,7 +3849,7 @@ renderScurve(); renderWaterfall(); renderBaseline(); renderEac(); renderCont(); 
 renderEacTrend(); renderFcastTable(); renderCashflow();
 renderSchedule(); renderRisk(); renderContracts(); renderDelivery(); renderFramework(); renderActions();
 renderDataStrategy();
-syncMcView(); renderMcMath(); renderScen(); renderPrint();
+syncMcView(); renderMcMath(); renderMcRcf(); renderScen(); renderPrint();
 renderArch(); renderGuards();
 renderStory(0); renderGlossary("");
 document.getElementById("sCpi").value=T.cpi;

@@ -554,6 +554,30 @@ ok(indexSrc.includes('data-help="referenceclass"'), "reference-class callout car
   ok(G.mcOneRun._html.includes(m2(total2)), "run #2's summed total matches independent recomputation", m2(total2));
 }
 
+// D2.3 — reference-class-forecasting marker overlaid on the same chart (2026-08-19)
+{
+  function m3(v) { const s = Math.abs(v).toFixed(1).split(".");
+    return (v < 0 ? "−" : "") + "$" + s[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",") + "." + s[1] + "M"; }
+  const rcfVal = T.bac * 1.45;
+  const trueMax = MC.sims[MC.sims.length - 1];
+  // pre-registered against the live-checked numbers (T.bac=1240 -> rcfVal=1798.0, true worst
+  // simulated run ~1330.8): the rail reference-class estimate sits past even this program's own
+  // worst outcome, so the off-scale branch must be the one that actually fires — not assumed,
+  // checked directly against MC's real sorted array.
+  ok(rcfVal > trueMax, "pre-registered: RCF estimate exceeds this program's own worst simulated run",
+    m3(rcfVal) + " vs " + m3(trueMax));
+
+  has("mcChart", "RCF (rail, +45%)", "histogram view carries the reference-class marker");
+  has("mcChart", "off scale", "histogram view's RCF marker is honestly labeled off-scale, not silently mispositioned");
+  fire(G.mcViewCdf, "click");
+  has("mcChart", "RCF (rail, +45%)", "cumulative view also carries the reference-class marker");
+  fire(G.mcViewHist, "click");
+
+  has("mcRcfRead", m3(rcfVal), "RCF read-out states the actual computed rail-adjusted figure");
+  has("mcRcfRead", m3(trueMax), "RCF read-out states this program's own true worst simulated run, not the chart's clipped 98th percentile");
+  has("mcRcfRead", "beyond even the single worst outcome", "RCF read-out takes the off-scale branch, matching the pre-registered check above");
+}
+
 // scenarios: save two, verify table, clear
 try {
   G.sCpi.value = "1.10"; G.sSpi.value = "1.05"; G.sCont.value = "150";
