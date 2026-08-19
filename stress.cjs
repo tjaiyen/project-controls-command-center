@@ -373,6 +373,18 @@ ok(floatKpi.sub().includes("CP-201") && floatKpi.sub().includes("CP-601") && flo
 const cpliKpi = P.kpis.find(k => k.id === "cpli");
 const trueMin = rows.reduce((a, b) => (b.cpli < a.cpli ? b : a), rows[0]);
 ok(cpliKpi.sub().includes(trueMin.id), "CPLI KPI names true driving path " + trueMin.id);
+
+// CPLI math explainer (2026-08-19) — worked example against the actual driving path
+function idx(v) { return v.toFixed(3); }
+function days(v) { return (v > 0 ? "+" : "") + v + "d"; }
+has("cpliMathBody", "CPLI = (remaining duration", "CPLI math panel states the formula");
+has("cpliMathBody", trueMin.id, "CPLI math panel's worked example names the true driving path, not a hardcoded one");
+has("cpliMathBody", String(trueMin.cpRem), "CPLI math panel states the driving path's live remaining duration");
+has("cpliMathBody", days(trueMin.float), "CPLI math panel states the driving path's live total float");
+has("cpliMathBody", idx(trueMin.cpli), "CPLI math panel's computed result matches independent recomputation");
+ok(Math.abs(trueMin.cpli - T.cpli) < 1e-9,
+  "pre-registered: the driving path's own cpli is bit-identical to T.cpli (program CPLI), not merely close");
+
 // waterfall arithmetic: BAC + sum(-vac) == EAC
 const wfSum = 1240 + rows.reduce((s, r) => s + (-(r.bac - r.eac)), 0);
 ok(Math.abs(wfSum - T.eac) < 0.01, "waterfall closes: BAC + steps = EAC", wfSum.toFixed(2) + " vs " + T.eac.toFixed(2));

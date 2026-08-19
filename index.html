@@ -698,6 +698,10 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
             remaining duration. Below 1.00 the path cannot absorb any more slip; DCMA flags below 0.95.</p>
           <div id="cpli"></div></div>
       </div>
+      <details class="dbox" style="margin-top:14px">
+        <summary>How this is actually computed</summary>
+        <div id="cpliMathBody"></div>
+      </details>
       <div class="grid g2">
         <div class="card"><h3>Milestone variance</h3><div id="miles"></div></div>
         <div class="card"><h3>Why SPI alone will mislead you</h3>
@@ -2595,6 +2599,7 @@ function renderSchedule(){
     '<p style="margin:12px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">Program CPLI is reported as the '+
     '<b style="color:rgb(var(--c-ink))">driving path’s</b>, not an average — averaging would let '+
     'float-rich packages mask the one path that actually sets the date.</p>');
+  renderCpliMath();
   document.getElementById("miles").innerHTML='<div style="display:grid;gap:2px">'+MILES.map(function(k){
     var late=k.d>0, c=late?(k.d>30?"var(--c-pill-r)":"var(--c-pill-a)"):"var(--c-pill-g)";
     return '<div style="padding:7px 0;border-bottom:1px solid var(--c-line)">'+
@@ -2627,6 +2632,28 @@ function renderSchedule(){
     ' late. An event with no fragnet is an opinion; an event with one is arithmetic.</p>';
   renderSchedDrift();
 }
+
+/* The math explainer — CPLI's formula is already stated as prose above the bars; this panel
+   walks it against the actual driving path (the package T.cpli itself is read from, not a
+   hypothetical one), so "arithmetically impossible without recovery" is shown as arithmetic. */
+function renderCpliMath(){
+  var driving=rows.reduce(function(min,r){ return r.cpli<min.cpli?r:min; },rows[0]);
+  document.getElementById("cpliMathBody").innerHTML=
+    "<p><code>CPLI = (remaining duration + total float) &divide; remaining duration</code>. Total float is "+
+    "how many days a path can slip before it delays the finish date; remaining duration is how many days of "+
+    "work are still ahead of it on that path. A path with zero float left has nothing to give back — CPLI "+
+    "reads exactly 1.00 at zero float, below 1.00 once float goes negative, meaning the path is already "+
+    "behind before accounting for anything still to go wrong.</p>"+
+    "<p style='margin-top:8px'>Program CPLI is reported as the <b style='color:rgb(var(--c-ink))'>driving "+
+    "path's</b> value, never an average across all "+rows.length+" packages — an average would let float-rich "+
+    "packages mask the one path that actually sets the completion date. Right now that's "+
+    "<b style='color:rgb(var(--c-ink))'>"+driving.id+"</b> ("+driving.n.replace(/&amp;/g,"&")+"): "+
+    driving.cpRem+" days of remaining duration, "+days(driving.float)+" of total float &rarr; "+
+    "<code>("+driving.cpRem+" + ("+driving.float+")) &divide; "+driving.cpRem+" = "+idx(driving.cpli)+"</code>, "+
+    "matching the program CPLI shown on the Schedule triad above &mdash; because this IS that number, not a "+
+    "separate one that happens to agree.</p>";
+}
+
 function renderSchedDrift(){
   var s=revSvcDriftSeries(), deltas=[], i;
   for(i=1;i<s.length;i++) deltas.push({m:s[i].m,delta:s[i].slip-s[i-1].slip});
