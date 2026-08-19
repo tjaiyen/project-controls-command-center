@@ -4231,8 +4231,8 @@ var GLOSS=[
    reference content by design (same convention as this tab's CADENCE/stakeholder-map neighbors) —
    there is no live "real ERP feed" for this synthetic build to compute a guardrail count from. */
 var GUARDRAILS=[
- {t:"Entity / schema check",c:"Does this record have the fields and type it's supposed to have? (IDS: an applicability filter)",e:"Reject or quarantine anything that doesn't — never coerce and hope."},
- {t:"Range / restriction check",c:"Is this value within a plausible, defined bound? (IDS: a requirement facet)",e:"A productivity factor that jumps 300% in a week gets flagged, not trusted and plotted."},
+ {t:"Entity / schema check",c:"Does this record have the fields and type it's supposed to have? (IDS: an applicability filter)",e:"Reject or quarantine anything that doesn't — never coerce and hope. A cost transaction posted against a control-account code with no match in the baseline (an orphan-activity violation) fails here, caught by a pattern as simple as a charge code matching ^[A-Z]{2}-\\d{3}-\\d{4}$ and nothing else."},
+ {t:"Range / restriction check",c:"Is this value within a plausible, defined bound? (IDS: a requirement facet)",e:"A productivity factor that jumps 300% in a week gets flagged, not trusted and plotted. Same for a negative actual cost or earned value in a period, or a committed cost that's fallen below what's already been spent — a commitment-floor violation. All three are impossible states, not just unusual ones."},
  {t:"Cross-system reconciliation",c:"Do two systems' numbers for the same thing actually agree?",e:"Does earned progress in the schedule tool roughly track earned value in the cost system?"},
  {t:"Freshness check",c:"Is this data as current as its expected cadence?",e:"Data older than expected is flagged stale and excluded from live figures — the same idea as this dashboard's own Actions-tab stale flag."}
 ];

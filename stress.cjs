@@ -1629,6 +1629,11 @@ ok(P.rollout.length === 3, "3-phase rollout defined", String(P.rollout.length));
 has("guardrailTable", "Entity / schema check", "guardrail table renders the entity/schema check");
 has("guardrailTable", "Cross-system reconciliation", "guardrail table renders cross-system reconciliation check");
 has("guardrailTable", "IDS", "guardrail table ties checks back to the real IDS standard");
+// concrete circuit-breaker examples enriching the entity/schema and range/restriction rows
+// (harvested from the "Operating Architecture" doc triage — named violation types, not new logic)
+has("guardrailTable", "orphan-activity violation", "entity/schema example names the orphan-activity violation");
+has("guardrailTable", "commitment-floor violation", "range/restriction example names the commitment-floor violation");
+has("guardrailTable", "negative actual cost", "range/restriction example covers negative-actuals as an impossible state");
 // Tier 2: one icon badge per guardrail row (4 categories, all "info" tint — a parallel
 // taxonomy, not a severity ladder)
 ok((G.guardrailTable._html.match(/class="ticon i"/g) || []).length === 4,
