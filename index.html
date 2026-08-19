@@ -565,6 +565,23 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         <div class="outbox" id="mcStats"></div>
         <p class="lede" id="mcRead" style="margin-top:12px;font-size:12.8px"></p></div>
 
+      <div class="dbox" style="margin-top:16px;border-left-color:rgb(var(--c-ok) / .55)">
+        <h4>A second lens on the same question <button type="button" class="help-ic" data-help="referenceclass" aria-label="What does this term mean?" aria-expanded="false">i</button></h4>
+        <p>The Monte Carlo run above answers "given how <em>this program</em> has actually performed,
+          what's the range of honest outcomes?" &mdash; it forward-simulates from this ledger's own
+          observed efficiency. <b style="color:rgb(var(--c-code))">Reference class forecasting</b> asks a
+          different question: "how have <em>similar completed programs</em>, elsewhere, actually turned
+          out?" Bent Flyvbjerg's database of 16,000+ megaprojects found rail projects run
+          <b style="color:rgb(var(--c-code))">45%</b> over budget on average, fixed-link (bridge/tunnel)
+          projects <b style="color:rgb(var(--c-code))">34%</b>, and roads <b style="color:rgb(var(--c-code))">20%</b>
+          &mdash; overruns that are prevalent and predictable, not random noise. The two techniques are
+          complementary, not competing: one grounds a forecast in this program's own track record, the
+          other checks it against the base rate for programs of this type. A forecast that only does the
+          first can still be optimistic in a way an entire asset class already tells you to expect.
+          (Bent Flyvbjerg's published megaproject research, via PMI's research summary, verified
+          19&nbsp;Aug&nbsp;2026 &mdash; a real, external citation, not this program's own data.)</p>
+      </div>
+
       <div class="sec-h" style="margin-top:34px"><h2>Control account ledger</h2><span class="tag">drill-down</span></div>
       <p class="lede">A portfolio number is an average of things that are not average. Select any row.</p>
       <div class="tw"><table id="pkgTable">
@@ -3165,6 +3182,8 @@ var GLOSS=[
     return m(T.riskExposure)+" across "+RISKS.length+" risks, and "+pct(r01exp/T.riskExposure,0)+" of it is one risk — tunnel ground conditions ("+m(r01exp)+"). Concentration, not count, is what leadership needs to see."; }},
  {k:"montecarlo", t:"Monte Carlo simulation", p:"Instead of one forecast, run the finish thousands of times, each time letting each package's remaining efficiency vary around what it has actually achieved. The result is a distribution: not \"the answer\" but the honest odds.",
   e:function(){ return "4,000 runs here, fixed seed so it is reproducible. Median finish "+m(MC.p50)+"; "+pct(MC.pOver,0)+" of runs finish over budget; "+pct(MC.pBust,0)+" bust through budget plus all remaining contingency."; }},
+ {k:"referenceclass", t:"Reference class forecasting", p:"A different question from Monte Carlo above: not \"what does this program's own track record imply,\" but \"how have similar completed programs, elsewhere, actually turned out?\" Bent Flyvbjerg's database of 16,000+ megaprojects found rail projects average 45% real cost overrun, fixed-link (bridge/tunnel) 34%, road 20% — prevalent and predictable, not random. The fix is basing an estimate on that outcome distribution instead of a bottom-up build that quietly assumes this time is different.",
+  e:function(){ return "This program's own Monte Carlo puts the median finish at "+m(MC.p50)+" ("+pct(MC.pOver,0)+" of runs over budget) — grounded in this ledger's own efficiency. Reference class forecasting is the complementary check: does that number also look plausible against the base rate for rail programs generally, not just this one's own history?"; }},
  {k:"trir", t:"TRIR — Total Recordable Incident Rate", p:"The standard safety yardstick: recordable injuries per 200,000 hours worked — roughly 100 people working full time for a year. The one metric that can stop a job regardless of cost or schedule.",
   e:function(){ return PROGRAM.recordables+" recordable incidents across "+PROGRAM.hoursWorked.toLocaleString("en-US")+" work hours: "+(PROGRAM.recordables*200000/PROGRAM.hoursWorked).toFixed(2)+" versus an industry benchmark of "+PROGRAM.trirBenchmark.toFixed(2)+" — about "+pct(1-PROGRAM.trir/PROGRAM.trirBenchmark,0)+" better."; }},
  {k:"pf", t:"Productivity factor", p:"Earned hours divided by actual hours. Below 1.00 the crews are burning more hours than the estimate carried — and because hours are booked weekly, this moves weeks before the same problem reaches the cost index.",

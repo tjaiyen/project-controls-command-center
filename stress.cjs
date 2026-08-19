@@ -360,6 +360,11 @@ has("mcStats", "P50 (median)", "MC stats render P50");
 has("mcRead", "funding", "MC narrative renders");
 // histogram renders 26 bins
 ok((G.mcChart._html.match(/<rect/g) || []).length === 26, "MC histogram renders 26 bins");
+// reference-class forecasting callout (2026-08-19): static content, not JS-rendered — check the
+// raw source directly, same pattern as the other static-content checks in this file
+ok(indexSrc.includes("Reference class forecasting") && indexSrc.includes("45%") && indexSrc.includes("34%") && indexSrc.includes("20%"),
+  "Cost tab names reference class forecasting with Flyvbjerg's real base rates (rail/fixed-link/road)");
+ok(indexSrc.includes('data-help="referenceclass"'), "reference-class callout carries its own inline help icon");
 
 // scenarios: save two, verify table, clear
 try {
@@ -992,7 +997,7 @@ try {
    (returns the active tab to "over" at the end, since D9 above left "data" active)
    ========================================================================= */
 console.log("== D10. inline term help ==");
-ok(P.gloss.length === 29, "GLOSS grew to 29 entries (25 original + cde/ids/wbs/abs)", String(P.gloss.length));
+ok(P.gloss.length === 30, "GLOSS grew to 30 entries (25 original + cde/ids/wbs/abs + referenceclass)", String(P.gloss.length));
 ["cde", "ids", "wbs", "abs"].forEach(k => {
   const g = P.findGloss(k);
   ok(!!g && typeof g.p === "string" && g.p.length > 0, "findGloss resolves new term '" + k + "'");
