@@ -375,12 +375,12 @@ pre.code b{color:rgb(var(--c-code));font-weight:600}
    (tornado — width is the varying dimension, not height) grow from their own left edge instead —
    scaleY from bottom on a horizontal bar would squash it, not extend it. */
 #mcChart rect,#waterfall rect{transform-box:fill-box;transform-origin:bottom;animation:growup .6s ease-out backwards}
-#tornado rect{transform-box:fill-box;transform-origin:left;animation:growright .6s ease-out backwards}
+#tornado rect,#gantt rect{transform-box:fill-box;transform-origin:left;animation:growright .6s ease-out backwards}
 /* Hover lift on the visible bar marks only — scoped by container, not by .hot alone, since the
    S-curve's own .hot rects (data-mo) are deliberately transparent hit-targets, not bars; giving
    those the same treatment would make invisible rectangles flash visible on hover. */
-#waterfall rect.hot,#tornado rect.hot{transition:opacity .12s ease}
-#waterfall rect.hot:hover,#tornado rect.hot:hover{opacity:1}
+#waterfall rect.hot,#tornado rect.hot,#gantt rect.hot{transition:opacity .12s ease}
+#waterfall rect.hot:hover,#tornado rect.hot:hover,#gantt rect.hot:hover{opacity:1}
 .story-dots i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;
   background:rgb(var(--c-mut) / .35);transition:background .2s}
 .story-dots i.on{background:rgb(var(--c-accent))}
@@ -698,7 +698,20 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
   <!-- ============================ SCHEDULE ============================ -->
   <section role="tabpanel" id="p-sched" aria-labelledby="t-sched" tabindex="0" hidden>
     <div class="sec">
-      <div class="sec-h"><h2>Float is the early-warning system</h2><span class="tag">DCMA</span></div>
+      <div class="sec-h"><h2>Tracking Gantt &mdash; remaining schedule runway</h2><span class="tag">baseline vs. forecast</span></div>
+      <p class="lede">The ledger has no calendar start dates per account &mdash; only remaining duration and
+        total float, both real, both already driving CPLI above. Rather than invent a start date this data
+        doesn&rsquo;t have, every bar below runs forward from today&rsquo;s data date only: a ghosted bar to
+        where the baseline implies the account should finish, a solid bar to where it&rsquo;s actually
+        forecast to finish. The gap between them <em>is</em> the float number, just drawn on a calendar
+        instead of stated as a day count.</p>
+      <div class="card" style="margin-top:15px"><div class="chart" id="gantt"></div></div>
+      <details class="dbox" style="margin-top:14px">
+        <summary>How this is actually computed</summary>
+        <div id="ganttMathBody"></div>
+      </details>
+
+      <div class="sec-h" style="margin-top:34px"><h2>Float is the early-warning system</h2><span class="tag">DCMA</span></div>
       <p class="lede">Cost variance tells you what already happened; total float tells you what is about to.
         Negative float means the package is driving the program completion date &mdash; recovery anywhere
         else does not move it.</p>
@@ -2633,6 +2646,87 @@ function bars(el,items,fmt){
       '<span class="tab-num" style="text-align:right;color:'+o.c+'">'+fmt(o.v)+'</span></div>';
   }).join("");
 }
+/* ---------- tracking gantt ---------- */
+/* Every date below is derived from two fields already real and already driving CPLI elsewhere
+   on this page (r.cpRem, r.float) plus the one real anchor date (ACT_ASOF, already used by
+   actDays()) — no calendar start date is invented, because none exists in the ledger. Forecast
+   end = data date + remaining duration; baseline-implied end = data date + (remaining duration +
+   float) — literally the CPLI numerator/denominator, just walked forward on a calendar instead
+   of stated as a ratio. */
+function addDays(base,n){ return new Date(base.getTime()+n*86400000); }
+function fmtDate(d){
+  var mo=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  return d.getUTCDate()+" "+mo[d.getUTCMonth()]+" "+d.getUTCFullYear();
+}
+function ganttEnds(){
+  return rows.map(function(r){
+    return {r:r, base:addDays(ACT_ASOF,r.cpRem+r.float), fcst:addDays(ACT_ASOF,r.cpRem)};
+  });
+}
+function renderGantt(){
+  var ends=ganttEnds();
+  var W=980,PL=64,PR=170,PT=26,rowH=34,rowGap=6;
+  var H=PT+ends.length*(rowH+rowGap)+30;
+  var minStart=ACT_ASOF.getTime();
+  var maxEnd=Math.max.apply(null,ends.map(function(e){ return Math.max(e.base.getTime(),e.fcst.getTime()); }));
+  var totalDays=Math.max(1,(maxEnd-minStart)/86400000);
+  var X=function(t){ return PL+((t-minStart)/86400000/totalDays)*(W-PL-PR); };
+  var todayX=X(minStart);
+  var g="",ticks=4,k;
+  for(k=0;k<=ticks;k++){ var t=minStart+(maxEnd-minStart)*(k/ticks), x=X(t);
+    g+='<line x1="'+x.toFixed(1)+'" x2="'+x.toFixed(1)+'" y1="'+PT+'" y2="'+(H-24).toFixed(1)+'" stroke="var(--c-grid)"/>'+
+       '<text x="'+x.toFixed(1)+'" y="'+(PT-9)+'" text-anchor="middle" font-size="10" font-family="ui-monospace,monospace" fill="'+C("mut")+'">'+fmtDate(new Date(t))+'</text>'; }
+  var body=ends.map(function(e,i){
+    var y=PT+i*(rowH+rowGap), barY=y+6, barH=14;
+    var baseX=X(e.base.getTime()), fcstX=X(e.fcst.getTime());
+    var behind=e.r.float<0;
+    return '<text x="'+(PL-10)+'" y="'+(y+rowH/2+4).toFixed(1)+'" text-anchor="end" font-size="11" font-family="ui-monospace,monospace" fill="'+C("mut")+'">'+e.r.id+'</text>'+
+      '<rect x="'+todayX.toFixed(1)+'" y="'+barY+'" width="'+Math.max(0,baseX-todayX).toFixed(1)+'" height="'+barH+
+        '" rx="3" fill="'+C("mut")+'" opacity=".3" data-gantt="'+i+'" data-part="base" class="hot"/>'+
+      '<rect x="'+todayX.toFixed(1)+'" y="'+(barY+3)+'" width="'+Math.max(0,fcstX-todayX).toFixed(1)+'" height="'+(barH-6)+
+        '" rx="2.5" fill="'+(behind?C("bad"):C("ok"))+'" opacity=".88" data-gantt="'+i+'" data-part="fcst" class="hot"/>'+
+      '<text x="'+(W-PR+10)+'" y="'+(y+rowH/2+4).toFixed(1)+'" font-size="10.5" font-family="ui-monospace,monospace" fill="'+
+        (behind?C("bad"):C("ok"))+'">'+pct(e.r.pct,0)+' complete &middot; '+days(e.r.float)+'</text>';
+  }).join("");
+  body+='<line x1="'+todayX.toFixed(1)+'" x2="'+todayX.toFixed(1)+'" y1="'+PT+'" y2="'+(H-24)+'" stroke="'+C("accent")+'" stroke-width="1.5"/>'+
+    '<text x="'+todayX.toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" font-size="10.5" font-family="ui-monospace,monospace" fill="'+C("accent")+'">data date &middot; '+PROGRAM.dataDate+'</text>';
+  document.getElementById("gantt").innerHTML=svg(W,H,g+body,
+    "Tracking Gantt: remaining schedule runway per control account from the data date — a ghosted bar to the baseline-implied finish, a solid bar to the actual forecast finish, colored red where the account is behind.");
+  var host=document.getElementById("gantt"), tip=document.getElementById("tip");
+  host.addEventListener("mousemove",function(e){
+    var t=e.target; if(!t.classList||!t.classList.contains("hot")){ tip.classList.remove("on"); return; }
+    var d=ends[+t.dataset.gantt];
+    tip.innerHTML="<b>"+d.r.id+"</b>"+d.r.n.replace(/&amp;/g,"&")+"<br>Baseline-implied finish "+fmtDate(d.base)+
+      "<br>Forecast finish "+fmtDate(d.fcst)+"<br>"+pct(d.r.pct,0)+" complete &middot; "+days(d.r.float)+" float";
+    tip.classList.add("on");
+    tip.style.left=Math.min(e.clientX+14,window.innerWidth-262)+"px";
+    tip.style.top=Math.min(e.clientY+14,window.innerHeight-130)+"px";
+  });
+  host.addEventListener("mouseleave",function(){ tip.classList.remove("on"); });
+  renderGanttMath(ends);
+}
+function renderGanttMath(ends){
+  var behindRow=ends.reduce(function(worst,e){ return e.r.float<worst.r.float?e:worst; },ends[0]);
+  document.getElementById("ganttMathBody").innerHTML=
+    "<p>Two dates per account, both derived from fields already real elsewhere on this page: "+
+    "<code>forecast finish = data date + remaining duration</code> and "+
+    "<code>baseline-implied finish = data date + remaining duration + total float</code>. "+
+    "The second is exactly CPLI's own numerator, walked forward on a calendar instead of stated "+
+    "as a ratio &mdash; when float is negative, the baseline-implied finish sits BEFORE the "+
+    "forecast finish, and the bar is drawn red.</p>"+
+    "<p style='margin-top:8px'>Worked against the account currently furthest behind its own "+
+    "baseline, <b style='color:rgb(var(--c-ink))'>"+behindRow.r.id+"</b> ("+behindRow.r.n.replace(/&amp;/g,"&")+
+    "): data date <b style='color:rgb(var(--c-ink))'>"+PROGRAM.dataDate+"</b> plus "+behindRow.r.cpRem+
+    " remaining days lands the forecast finish on <b style='color:rgb(var(--c-ink))'>"+fmtDate(behindRow.fcst)+
+    "</b>. Data date plus "+behindRow.r.cpRem+" days remaining and "+days(behindRow.r.float)+
+    " of total float (cpRem+float = "+(behindRow.r.cpRem+behindRow.r.float)+" days) lands the "+
+    "baseline-implied finish on <b style='color:rgb(var(--c-ink))'>"+fmtDate(behindRow.base)+"</b> &mdash; "+
+    Math.abs(behindRow.r.float)+" days earlier. Hover any bar for the same two dates on any other account.</p>"+
+    "<p style='margin-top:8px'><b style='color:rgb(var(--c-code))'>What this deliberately does not show:</b> "+
+    "a historical start date or the portion of the schedule already behind it. The ledger doesn't carry a "+
+    "per-account calendar start, so every bar runs forward from today only &mdash; a real, honest reading "+
+    "of remaining schedule risk, not a reconstructed full project history.</p>";
+}
 function renderSchedule(){
   bars("floats",rows.map(function(r){ return {id:r.id,v:r.float,center:true,
     c:r.float<0?"var(--c-pill-r)":r.float<10?"var(--c-pill-a)":"var(--c-pill-g)"}; }),days);
@@ -4184,7 +4278,7 @@ document.getElementById("mcViewCdf").addEventListener("click",function(){ state.
 renderPhases(); renderStrip(); renderPortfolio(); renderFilters(); renderBoard(); renderDetail();
 renderScurve(); renderScurveMath(); renderWaterfall(); renderWaterfallMath(); renderBaseline(); renderEac(); renderCont(); renderTable();
 renderEacTrend(); renderFcastTable(); renderCashflow();
-renderSchedule(); renderRisk(); renderContracts(); renderDelivery(); renderFramework(); renderActions();
+renderGantt(); renderSchedule(); renderRisk(); renderContracts(); renderDelivery(); renderFramework(); renderActions();
 renderDataStrategy();
 renderMcFilter(); syncMcView(); renderMcMath(); renderScen(); renderPrint();
 renderArch(); renderGuards();

@@ -385,6 +385,41 @@ has("cpliMathBody", idx(trueMin.cpli), "CPLI math panel's computed result matche
 ok(Math.abs(trueMin.cpli - T.cpli) < 1e-9,
   "pre-registered: the driving path's own cpli is bit-identical to T.cpli (program CPLI), not merely close");
 
+// Tracking Gantt (2026-08-19) — every date independently recomputed from the same two real
+// fields (cpRem, float) and the same anchor date already used by actDays()/isStale() elsewhere.
+{
+  const ACT_ASOF = new Date(Date.UTC(2026, 6, 31)); // 31 Jul 2026 — matches PROGRAM.dataDate
+  function addDays(base, n) { return new Date(base.getTime() + n * 86400000); }
+  function fmtDate(d) {
+    const mo = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    return d.getUTCDate() + " " + mo[d.getUTCMonth()] + " " + d.getUTCFullYear();
+  }
+  ok(idsA.includes("gantt") && idsA.includes("ganttMathBody"), "markup contains #gantt and #ganttMathBody");
+  ok((G.gantt._html.match(/data-part="fcst"/g) || []).length === rows.length,
+    "one forecast bar per control account", String((G.gantt._html.match(/data-part="fcst"/g) || []).length));
+  ok((G.gantt._html.match(/data-part="base"/g) || []).length === rows.length,
+    "one baseline-implied bar per control account");
+  has("gantt", P.program.dataDate, "chart labels the real data date, not a placeholder");
+
+  const worst = rows.reduce((w, r) => (r.float < w.float ? r : w), rows[0]);
+  const worstFcst = addDays(ACT_ASOF, worst.cpRem);
+  const worstBase = addDays(ACT_ASOF, worst.cpRem + worst.float);
+  has("ganttMathBody", worst.id, "math panel's worked example names the account with the worst (most negative) absolute float — a real, independently-recomputed minimum, not assumed to be the CPLI driving path (a different metric, computed and shown separately on this same tab)");
+  has("ganttMathBody", fmtDate(worstFcst), "math panel's forecast-finish date matches independent recomputation");
+  has("ganttMathBody", fmtDate(worstBase), "math panel's baseline-implied-finish date matches independent recomputation");
+
+  // pre-registered: for an account with negative float, baseline-implied finish must be EARLIER
+  // than forecast finish (less time than the plan implied) — the exact inverse for positive float
+  ok(worst.float < 0 && worstBase.getTime() < worstFcst.getTime(),
+    "pre-registered: this account's negative float means its baseline-implied finish sits before its forecast finish");
+  const aheadRow = rows.find(r => r.float > 0);
+  if (aheadRow) {
+    const aheadFcst = addDays(ACT_ASOF, aheadRow.cpRem), aheadBase = addDays(ACT_ASOF, aheadRow.cpRem + aheadRow.float);
+    ok(aheadBase.getTime() > aheadFcst.getTime(),
+      "pre-registered: a positive-float account's baseline-implied finish sits after its forecast finish (inverse of the negative-float case)");
+  }
+}
+
 // waterfall arithmetic: BAC + sum(-vac) == EAC
 const wfSum = 1240 + rows.reduce((s, r) => s + (-(r.bac - r.eac)), 0);
 ok(Math.abs(wfSum - T.eac) < 0.01, "waterfall closes: BAC + steps = EAC", wfSum.toFixed(2) + " vs " + T.eac.toFixed(2));
@@ -1471,7 +1506,10 @@ ok(/\.finished\.then\(/.test(indexSrc) && !/\.onfinish=/.test(indexSrc),
   // first run of this exact check)
   const markupOnly = indexSrc.slice(0, indexSrc.indexOf("<script>"));
   const detailsCount = (markupOnly.match(/<details class="dbox"/g) || []).length;
-  ok(detailsCount === 6, "exactly 6 details.dbox panels exist for this to wire", String(detailsCount));
+  // 7 as of the tracking-Gantt build (2026-08-19), up from 6 — updated here, not just to make
+  // the count pass, since a stale expectation is exactly the kind of thing this check exists to
+  // catch on the NEXT panel added after this one.
+  ok(detailsCount === 7, "exactly 7 details.dbox panels exist for this to wire", String(detailsCount));
 }
 
 // Extended growup/draw-in (2026-08-19) — source-level only, same stub limitation as above;
@@ -1481,8 +1519,8 @@ ok(/\.finished\.then\(/.test(indexSrc) && !/\.onfinish=/.test(indexSrc),
 // correct: settles at transform:none, not stuck).
 ok(indexSrc.includes("#mcChart rect,#waterfall rect{transform-box:fill-box;transform-origin:bottom;animation:growup"),
   "waterfall bars (vertical) reuse growup, same as the Monte Carlo histogram");
-ok(indexSrc.includes('#tornado rect{transform-box:fill-box;transform-origin:left;animation:growright'),
-  "tornado bars (horizontal — width is the varying dimension) get a distinct growright, not growup, which would squash them");
+ok(indexSrc.includes('#tornado rect,#gantt rect{transform-box:fill-box;transform-origin:left;animation:growright'),
+  "tornado + tracking-Gantt bars (horizontal — width is the varying dimension) share the distinct growright, not growup, which would squash them");
 ok(indexSrc.includes('#scurve path.draw,#mcChart polyline.draw{stroke-dasharray:2400'),
   "the Monte Carlo CDF polyline reuses the S-curve's draw-in technique");
 ok(indexSrc.includes('var body=\'<polyline class="draw" points="'),
@@ -1506,10 +1544,10 @@ ok(indexSrc.includes('var body=\'<polyline class="draw" points="'),
 // carefully recomputed coordinate passes — tooling friction, not a signal about correctness.
 // Confirmed instead: the rule text and scoping (verified below), and live that the base opacity
 // value it transitions FROM reads correctly (0.92/0.85, matching each bar's own inline value).
-ok(indexSrc.includes("#waterfall rect.hot,#tornado rect.hot{transition:opacity"),
-  "waterfall/tornado bars get a hover transition");
-ok(indexSrc.includes("#waterfall rect.hot:hover,#tornado rect.hot:hover{opacity:1}"),
-  "hover rule is scoped to waterfall/tornado containers specifically, not to .hot everywhere — the S-curve's own .hot rects are deliberately transparent hit-targets (data-mo), not bars, and must not be affected");
+ok(indexSrc.includes("#waterfall rect.hot,#tornado rect.hot,#gantt rect.hot{transition:opacity"),
+  "waterfall/tornado/gantt bars get a hover transition");
+ok(indexSrc.includes("#waterfall rect.hot:hover,#tornado rect.hot:hover,#gantt rect.hot:hover{opacity:1}"),
+  "hover rule is scoped to waterfall/tornado/gantt containers specifically, not to .hot everywhere — the S-curve's own .hot rects are deliberately transparent hit-targets (data-mo), not bars, and must not be affected");
 ok(!/#scurve[^{]*\.hot[^{]*:hover/.test(indexSrc), "no hover rule targets the S-curve's transparent hot-zone rects");
 
 /* =========================================================================
