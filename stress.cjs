@@ -1011,6 +1011,18 @@ has("gateTable", "Baseline Establishment", "gate table names the baseline-establ
   ok(T.contCoverage < 1.0, "contingency coverage is genuinely under 1.00 in this ledger", T.contCoverage.toFixed(3));
   has("gate5Card", "BLOCKED", "Gate 5 card renders BLOCKED verdict");
   has("gate5Card", "FAIL", "Gate 5 card shows the failing check");
+
+  // staggered reveal (2026-08-19): each check row carries its own animation-delay, 0/140/280ms
+  // in check order — pre-registered that the failing check (contingency coverage, the 3rd of
+  // GATE5_CHECKS) lands last, landing the presentation script's own "let the silence sit after
+  // BLOCKED" beat naturally rather than needing to special-case which check is highlighted.
+  const delayMatches = G.gate5Card._html.match(/animation-delay:(\d+)ms/g) || [];
+  const delays = delayMatches.map(s => parseInt(s.match(/\d+/)[0], 10));
+  ok(delays.length === 3, "all 3 Gate 5 checks carry their own animation-delay", String(delays.length));
+  ok(delays[0] === 0 && delays[1] === 140 && delays[2] === 280,
+    "delays are strictly 0/140/280 in check order", delays.join(","));
+  ok(G.gate5Card._html.indexOf("FAIL") > G.gate5Card._html.lastIndexOf("PASS"),
+    "the failing check is the last one in the markup, so the stagger lands it last — not a coincidence of this ledger, a property of GATE5_CHECKS' own declared order");
 }
 has("escTable", "TCPI(BAC)", "escalation matrix carries the explicit TCPI &gt; 1.10 rule");
 // Tier 2: escalation matrix's new live-status column — never hardcode the firing count, derive
@@ -1483,7 +1495,7 @@ ok(indexSrc.includes('var body=\'<polyline class="draw" points="'),
   const rowDelays = (G.mcOneRun._html.match(/animation-delay:(\d+)ms/g) || []).map(s => parseInt(s.match(/\d+/)[0], 10));
   ok(rowDelays.length === rows.length, "every row in the one-run table carries its own animation-delay", String(rowDelays.length));
   ok(rowDelays.every((d, i) => d === i * 45), "delays are strictly 0, 45, 90... in row order, not shuffled", rowDelays.join(","));
-  ok(indexSrc.includes("tr.stagger{animation:rise"), "the stagger class reuses the existing rise keyframe, not a new one");
+  ok(indexSrc.includes(".stagger{animation:rise"), "the stagger class reuses the existing rise keyframe, not a new one");
 }
 
 // Hover lift on chart marks (2026-08-19) — source-level check only, and stated explicitly why:
