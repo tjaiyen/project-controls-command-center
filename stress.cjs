@@ -297,6 +297,31 @@ has("scurveMathBody", "bell-shaped interpolation",
   const share = Math.round((cp201row.pv / T.pv) * 100) + "%";
   has("scurveMathBody", share, "S-curve worked example's share-of-total matches independent recomputation");
 }
+
+// Variance bridge — narrative, math explainer, and hover interactivity (2026-08-19)
+{
+  function m(v) { const s = Math.abs(v).toFixed(1).split(".");
+    return (v < 0 ? "−" : "") + "$" + s[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",") + "." + s[1] + "M"; }
+  function pct(v, d) { return (v * 100).toFixed(d === undefined ? 1 : d) + "%"; }
+  const sortedByVac = rows.slice().sort((a, b) => a.vac - b.vac);
+  const worstRow = sortedByVac[0];
+  const shareStr = pct(Math.abs(worstRow.vac) / T.grossOver, 1);
+  has("waterfallRead", worstRow.id, "waterfall narrative names the actual worst-VAC account, not a hardcoded one");
+  has("waterfallRead", shareStr, "waterfall narrative's share-of-gross-overrun matches independent recomputation");
+  has("waterfallRead", m(T.grossOver), "waterfall narrative states the live gross-overrun total");
+  has("waterfallMathBody", "EAC = BAC", "math panel states the bridge formula");
+  has("waterfallMathBody", m(T.bac), "math panel states the live BAC");
+  has("waterfallMathBody", m(T.eac), "math panel states the live EAC");
+  has("waterfallMathBody", worstRow.id, "math panel names the same worked-example account as the narrative");
+  has("waterfallMathBody", shareStr, "math panel's share-of-gross-overrun matches independent recomputation");
+
+  // hover: bars[0] is the BAC total, bars[1] is sortedByVac[0] (the worst step) — pre-registered
+  // from the sort order above, not assumed from bar position on screen
+  fire(G.waterfall, "mousemove", { target: { classList: { contains: () => true }, dataset: { bar: "1" } }, clientX: 100, clientY: 100 });
+  ok(G.tip._html.includes(worstRow.id), "hovering bars[1] (the worst VAC step) shows that account's id in the shared tooltip");
+  ok(G.tip._html.includes(shareStr), "hover tooltip's share matches the same independently-recomputed figure");
+}
+
 has("eacTable", "$1,303.7M", "EAC table: bottom-up $1,303.7M");
 has("eacTable", "$1,297.3M", "EAC table: BAC/CPI $1,297.3M");
 // user-reported layout finding (2026-08-19): "Estimate at completion" + "Contingency vs. progress"

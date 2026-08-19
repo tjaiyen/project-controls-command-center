@@ -548,7 +548,13 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
       <div class="sec-h" style="margin-top:34px"><h2>Where the overrun comes from</h2><span class="tag">variance bridge</span></div>
       <p class="lede">Budget at completion bridged to forecast at completion, package by package. Bars
         below the axis are packages forecasting an overrun; bars above are the underruns offsetting them.</p>
-      <div class="card" style="margin-top:15px"><div class="chart" id="waterfall"></div></div>
+      <div class="card" style="margin-top:15px"><div class="chart" id="waterfall"></div>
+        <p class="lede" id="waterfallRead" style="margin-top:11px;font-size:12.8px"></p>
+        <details class="dbox" style="margin-top:16px">
+          <summary>How this is actually computed</summary>
+          <div id="waterfallMathBody"></div>
+        </details>
+      </div>
 
       <div class="sec-h" style="margin-top:34px"><h2>How the baseline was built</h2><span class="tag">estimate &rarr; budget</span></div>
       <p class="lede">A baseline is only as good as the estimate behind it. This bridge walks the
@@ -1994,12 +2000,61 @@ function renderWaterfall(){
     var fill=b.type==="total"?C("accent"):b.type==="neg"?C("bad"):C("ok");
     var lbl=b.type==="total"?m(b.y1):sgn(b.r.vac);
     return '<rect x="'+x.toFixed(1)+'" y="'+top.toFixed(1)+'" width="'+w.toFixed(1)+'" height="'+Math.max(2,bot-top).toFixed(1)+
-      '" fill="'+fill+'" opacity="'+(b.type==="total"?".92":".82")+'" rx="2"><title>'+b.l+" "+lbl+'</title></rect>'+
+      '" fill="'+fill+'" opacity="'+(b.type==="total"?".92":".82")+'" rx="2" data-bar="'+j+'" class="hot"><title>'+b.l+" "+lbl+'</title></rect>'+
       '<text x="'+(x+w/2).toFixed(1)+'" y="'+(H-30)+'" text-anchor="middle" font-size="10" font-family="ui-monospace,monospace" fill="'+C("mut")+'">'+b.l+'</text>'+
       '<text x="'+(x+w/2).toFixed(1)+'" y="'+(H-16)+'" text-anchor="middle" font-size="9.5" font-family="ui-monospace,monospace" fill="'+(b.type==="neg"?C("bad"):b.type==="pos"?C("ok"):C("mut"))+'">'+lbl+'</text>';
   }).join("");
   document.getElementById("waterfall").innerHTML=svg(W,H,g+body,
     "Variance bridge from budget at completion to forecast at completion, decomposed by control account.");
+  // hover — same shared #tip element the S-curve uses, not a new tooltip mechanism
+  var host=document.getElementById("waterfall"), tip=document.getElementById("tip");
+  host.addEventListener("mousemove",function(e){
+    var t=e.target; if(!t.classList||!t.classList.contains("hot")){ tip.classList.remove("on"); return; }
+    var b=bars[+t.dataset.bar];
+    if(b.type==="total"){ tip.innerHTML="<b>"+b.l+"</b>"+m(b.y1); }
+    else {
+      var share=b.r.vac<0? pct(Math.abs(b.r.vac)/T.grossOver,1)+" of the gross overrun" : "offsets the overrun above";
+      tip.innerHTML="<b>"+b.r.id+"</b>"+b.r.n.replace(/&amp;/g,"&")+"<br>VAC "+sgn(b.r.vac)+"<br>"+share;
+    }
+    tip.classList.add("on");
+    tip.style.left=Math.min(e.clientX+14,window.innerWidth-262)+"px";
+    tip.style.top=Math.min(e.clientY+14,window.innerHeight-130)+"px";
+  });
+  host.addEventListener("mouseleave",function(){ tip.classList.remove("on"); });
+  renderWaterfallRead(sorted);
+}
+
+function renderWaterfallRead(sorted){
+  var worst=sorted[0], offsetting=sorted.filter(function(r){ return r.vac>0; }).length;
+  document.getElementById("waterfallRead").innerHTML=
+    "<b style='color:rgb(var(--c-ink))'>"+worst.id+"</b> ("+worst.n.replace(/&amp;/g,"&")+
+    ") is the single largest step in this bridge — its own "+sgn(worst.vac)+" VAC is "+
+    pct(Math.abs(worst.vac)/T.grossOver,1)+" of the "+m(T.grossOver)+" gross overrun across every "+
+    "account forecasting one. "+offsetting+" of "+rows.length+" accounts are forecasting an underrun, "+
+    "partially offsetting it — net, BAC of "+m(T.bac)+" bridges to EAC of "+m(T.eac)+", a "+m(Math.abs(T.vac))+
+    " gap. Hover any bar for that account's own share.";
+}
+
+/* The math explainer — every bar's height is a real account's own VAC (BAC minus EAC, already
+   computed per control account), summed in sorted order to walk from the program's BAC to its
+   EAC. Nothing here is a separate calculation from what's already on the ledger; the bridge just
+   sequences it visually. */
+function renderWaterfallMath(){
+  var worst=rows.slice().sort(function(a,b){ return a.vac-b.vac; })[0];
+  document.getElementById("waterfallMathBody").innerHTML=
+    "<p>Each control account already carries its own <code>VAC = BAC &minus; EAC</code> "+
+    "(computed once, on the ledger tab, not recalculated here). The bridge sorts every account from "+
+    "worst VAC to best and walks the running total: <code>EAC = BAC &minus; &Sigma; VAC<sub>i</sub></code> "+
+    "&mdash; an account with negative VAC (forecasting over its own budget) pushes the running total up "+
+    "toward a higher EAC; an account with positive VAC (forecasting under) pulls it back down.</p>"+
+    "<p style='margin-top:8px'>Right now: BAC <b style='color:rgb(var(--c-ink))'>"+m(T.bac)+
+    "</b> minus a running &Sigma;VAC of <b style='color:rgb(var(--c-ink))'>"+sgn(T.vac)+
+    "</b> lands on EAC <b style='color:rgb(var(--c-ink))'>"+m(T.eac)+"</b>. Worked against the single "+
+    "worst step, <b style='color:rgb(var(--c-ink))'>"+worst.id+"</b> ("+worst.n.replace(/&amp;/g,"&")+
+    "): its own VAC of "+sgn(worst.vac)+" is <b style='color:rgb(var(--c-ink))'>"+
+    pct(Math.abs(worst.vac)/T.grossOver,1)+"</b> of "+m(T.grossOver)+", the gross total across only the "+
+    "accounts forecasting an overrun — the same &ldquo;share of gross overrun&rdquo; figure this "+
+    "program cites everywhere else it names this account.</p>";
 }
 
 /* ---------- estimate-to-budget bridge ---------- */
@@ -3944,7 +3999,7 @@ document.getElementById("mcViewCdf").addEventListener("click",function(){ state.
 
 /* init */
 renderPhases(); renderStrip(); renderPortfolio(); renderFilters(); renderBoard(); renderDetail();
-renderScurve(); renderScurveMath(); renderWaterfall(); renderBaseline(); renderEac(); renderCont(); renderTable();
+renderScurve(); renderScurveMath(); renderWaterfall(); renderWaterfallMath(); renderBaseline(); renderEac(); renderCont(); renderTable();
 renderEacTrend(); renderFcastTable(); renderCashflow();
 renderSchedule(); renderRisk(); renderContracts(); renderDelivery(); renderFramework(); renderActions();
 renderDataStrategy();
