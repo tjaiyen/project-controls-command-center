@@ -392,6 +392,27 @@ ok(Math.abs(wfSum - T.eac) < 0.01, "waterfall closes: BAC + steps = EAC", wfSum.
 const heatNums = (G.heat._html.match(/role="img"/g) || []).length;
 ok(heatNums === 25, "heat map renders 25 cells", String(heatNums));
 
+// Risk exposure math explainer + tornado hover (2026-08-19)
+{
+  function m(v) { const s = Math.abs(v).toFixed(1).split(".");
+    return (v < 0 ? "−" : "") + "$" + s[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",") + "." + s[1] + "M"; }
+  const rankedRisks = P.risks.map(k => Object.assign({}, k, { exp: P.pBand[k.p] * k.cost }))
+    .sort((a, b) => b.exp - a.exp);
+  const top = rankedRisks[0];
+  has("riskMathBody", "P_BAND[probability] &times; cost", "risk math panel states the formula");
+  has("riskMathBody", "P1=10%, P2=30%, P3=50%, P4=70%, P5=90%", "risk math panel states the full probability-band table");
+  has("riskMathBody", top.id, "risk math panel's worked example names the actual top-ranked risk, not a hardcoded one");
+  has("riskMathBody", "P" + top.p, "risk math panel states the worked risk's live probability score");
+  has("riskMathBody", Math.round(P.pBand[top.p] * 100) + "%", "risk math panel's live percentage matches independent recomputation");
+  has("riskMathBody", m(top.cost), "risk math panel states the worked risk's live cost impact");
+  has("riskMathBody", m(top.exp), "risk math panel's computed exposure matches independent recomputation");
+
+  // tornado hover: bar index 0 is rankedRisks[0] (the top risk), by construction of the sort above
+  fire(G.tornado, "mousemove", { target: { classList: { contains: () => true }, dataset: { risk: "0" } }, clientX: 50, clientY: 50 });
+  ok(G.tip._html.includes(top.id), "hovering tornado bar 0 (the top risk) shows its id in the shared tooltip");
+  ok(G.tip._html.includes(m(top.exp)), "hover tooltip's exposure matches independent recomputation");
+}
+
 /* =========================================================================
    D. INTERACTION SIMULATION
    ========================================================================= */

@@ -764,6 +764,10 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
           <div class="outbox" id="contCover" style="margin-top:14px"></div></div>
       </div>
       <div class="card" style="margin-top:15px"><h3>Register</h3><div id="risks"></div></div>
+      <details class="dbox" style="margin-top:14px">
+        <summary>How this is actually computed</summary>
+        <div id="riskMathBody"></div>
+      </details>
 
       <div class="sec-h" style="margin-top:34px"><h2>Commercial &mdash; contract register</h2><span class="tag">a third axis</span></div>
       <p class="lede">Control accounts measure performance; contracts carry commercial exposure &mdash;
@@ -2707,10 +2711,23 @@ function renderRisk(){
   document.getElementById("tornado").innerHTML=svg(W,H,ranked.map(function(k,i){
     var w=(k.exp/mx)*(W-PL-PR), y=PT+i*bh+bh*0.18, h=bh*0.64;
     return '<rect x="'+PL+'" y="'+y.toFixed(1)+'" width="'+w.toFixed(1)+'" height="'+h.toFixed(1)+
-      '" rx="3" fill="'+(k.exp>8?C("bad"):k.exp>4?C("warn"):C("ok"))+'" opacity=".85"><title>'+k.id+' '+m(k.exp)+'</title></rect>'+
+      '" rx="3" fill="'+(k.exp>8?C("bad"):k.exp>4?C("warn"):C("ok"))+'" opacity=".85" data-risk="'+i+'" class="hot"><title>'+k.id+' '+m(k.exp)+'</title></rect>'+
       '<text x="'+(PL-8)+'" y="'+(y+h/2+3.5).toFixed(1)+'" text-anchor="end" font-size="10.5" font-family="ui-monospace,monospace" fill="'+C("mut")+'">'+k.id+'</text>'+
       '<text x="'+(PL+w+7).toFixed(1)+'" y="'+(y+h/2+3.5).toFixed(1)+'" font-size="10.5" font-family="ui-monospace,monospace" fill="'+C("ink")+'">'+m(k.exp)+'</text>';
   }).join(""),"Risk exposure ranked by probability-weighted cost.");
+  // hover — same shared #tip element the S-curve and variance bridge already use
+  var tornHost=document.getElementById("tornado"), tornTip=document.getElementById("tip");
+  tornHost.addEventListener("mousemove",function(e){
+    var t=e.target; if(!t.classList||!t.classList.contains("hot")){ tornTip.classList.remove("on"); return; }
+    var k=ranked[+t.dataset.risk];
+    tornTip.innerHTML="<b>"+k.id+"</b>"+k.n+"<br>P"+k.p+" ("+Math.round(P_BAND[k.p]*100)+"%) &times; "+m(k.cost)+
+      "<br>= "+m(k.exp)+" exposure";
+    tornTip.classList.add("on");
+    tornTip.style.left=Math.min(e.clientX+14,window.innerWidth-262)+"px";
+    tornTip.style.top=Math.min(e.clientY+14,window.innerHeight-130)+"px";
+  });
+  tornHost.addEventListener("mouseleave",function(){ tornTip.classList.remove("on"); });
+  renderRiskMath(ranked);
   var grid={}; RISKS.forEach(function(k){ grid[k.p+"-"+k.i]=(grid[k.p+"-"+k.i]||0)+1; });
   var html='<div class="ax"></div>',p,im;
   for(im=1;im<=5;im++) html+='<div class="ax">I'+im+'</div>';
@@ -2777,6 +2794,27 @@ function renderRisk(){
       '<td class="tab-num">'+m(PROGRAM.coProposedPending)+'</td>'+
       '<td class="tab-num">'+m(PROGRAM.coPendingValue)+' <span class="mono" style="font-size:10.5px;color:rgb(var(--c-mut))">at estimate</span></td>'+
       '<td class="tab-num wa">'+sgn(-pdSave)+' held out of the forecast</td></tr></tbody>';
+}
+
+/* The math explainer — exposure = P_BAND[p] x cost, where P_BAND maps the register's 1-5
+   qualitative probability score to a percentage. Named deliberately NOT p/5: mapping P5 to
+   100% would price the single most-likely risk as a certainty — an issue already booked, not
+   a risk still being tracked. Live worked example against the top-ranked (highest-exposure)
+   risk, not a hypothetical one. */
+function renderRiskMath(ranked){
+  var top=ranked[0];
+  document.getElementById("riskMathBody").innerHTML=
+    "<p>Each risk's exposure is <code>P_BAND[probability] &times; cost</code>. The probability score "+
+    "(1&ndash;5) maps to a percentage through a fixed table, not a straight p&divide;5: "+
+    "<code>P1=10%, P2=30%, P3=50%, P4=70%, P5=90%</code>. A naive p&divide;5 would price a P5 risk at "+
+    "100% &mdash; certainty, which makes it an issue already booked, not a risk still being tracked and "+
+    "mitigated. Capping at 90% keeps every register line an actual risk.</p>"+
+    "<p style='margin-top:8px'>Worked against the top-ranked risk, <b style='color:rgb(var(--c-ink))'>"+top.id+
+    "</b> (“"+top.n+"”): probability score <b style='color:rgb(var(--c-ink))'>P"+top.p+"</b> maps to "+
+    "<b style='color:rgb(var(--c-ink))'>"+Math.round(P_BAND[top.p]*100)+"%</b>, against a cost impact of "+
+    "<b style='color:rgb(var(--c-ink))'>"+m(top.cost)+"</b>: <code>"+Math.round(P_BAND[top.p]*100)+"% &times; "+
+    m(top.cost)+" = "+m(top.exp)+"</code>, matching the exposure figure shown against it in the register and "+
+    "the tornado chart above. Hover any tornado bar for the same breakdown on any other risk.</p>";
 }
 
 /* ---------- delivery tab ---------- */
@@ -4078,6 +4116,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,program:PROGRAM,eacs:EACS,mc:MC,
   contracts:CONTRACTS,deriveContract:deriveContract,
   portfolioRows:portfolioRows,fundingTier:fundingTier,
   cphCells:CPH_CELLS,deriveCph:deriveCph,
+  risks:RISKS,pBand:P_BAND,
   eacTrendSeries:eacTrendSeries,acHistorySeries:acHistorySeries,forecastAccuracy:forecastAccuracy,
   revSvcDriftSeries:revSvcDriftSeries,pvA:pvA,acA:acA,milesLast:MILES[MILES.length-1],
   presentBeatsFull:PRESENT_BEATS_FULL,presentBeatsQuick:PRESENT_BEATS_QUICK,
