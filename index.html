@@ -393,6 +393,13 @@ pre.code b{color:rgb(var(--c-code));font-weight:600}
   background:rgb(var(--c-accent) / .14);color:rgb(var(--c-code));font:600 10px/1.6 ui-monospace,monospace;
   letter-spacing:.03em;vertical-align:2px}
 #storyCard.first-visit .fv-badge{display:inline-flex}
+/* SLA-aging glow on stale action rows — reuses the .dbox left-accent-stripe convention (an
+   inset stripe, not a full-perimeter halo) so it reads as "flagged" rather than "alarm", and
+   pulses gently rather than continuously at full contrast — a dashboard with several stale
+   items at once should feel notable, not noisy. Unlike fvRing (3 iterations, a one-time cue),
+   this one runs for as long as the item stays stale — genuinely ongoing, not a first-visit nudge. */
+tr.stale-glow{animation:staleGlow 2.4s ease-in-out infinite}
+@keyframes staleGlow{0%,100%{box-shadow:inset 3px 0 0 rgb(var(--c-warn) / .35)}50%{box-shadow:inset 3px 0 0 rgb(var(--c-warn) / .85)}}
 /* ---------- glossary ---------- */
 .gcard{background:rgb(var(--c-card));border:1px solid var(--c-line);border-radius:11px;padding:15px 16px;
   animation:rise .4s ease-out backwards}
@@ -3490,7 +3497,7 @@ function renderActions(){
    '<thead><tr><th scope="col">ID</th><th scope="col">Type</th><th scope="col">Item</th>'+
    '<th scope="col">Owner</th><th scope="col">Due</th><th scope="col">Status</th></tr></thead><tbody>'+
    list.map(function(r){ var sm=STATUS_META[r.status];
-     return '<tr data-act="'+r.id+'" tabindex="0" role="button" aria-controls="actDrill" aria-pressed="'+(state.act===r.id)+'" style="cursor:pointer'+(state.act===r.id?';background:rgb(var(--c-accent) / .08)':'')+'">'+
+     return '<tr data-act="'+r.id+'" tabindex="0" role="button" aria-controls="actDrill" aria-pressed="'+(state.act===r.id)+'" class="'+(r.stale?"stale-glow":"")+'" style="cursor:pointer'+(state.act===r.id?';background:rgb(var(--c-accent) / .08)':'')+'">'+
      '<td class="mono" style="font-size:11.5px">'+r.id+'</td>'+
      '<td style="font-size:11.5px;white-space:nowrap">'+typeIcon(r.type)+r.type+'</td>'+
      '<td style="white-space:normal">'+r.title+(r.stale?' <span class="pill a" style="margin-left:5px">stale</span>':'')+'</td>'+

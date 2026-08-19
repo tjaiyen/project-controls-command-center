@@ -1169,6 +1169,12 @@ ok(P.actions.length === 17, "exactly 17 action items", String(P.actions.length))
   ok(stale.length === 2, "exactly 2 stale flags", String(stale.length));
   ok(stale.map(r => r.id).sort().join(",") === "A-09,A-11", "stale flags land on A-09 and A-11",
     stale.map(r => r.id).join(","));
+  // SLA-aging glow (2026-08-19): reuses the same 2 stale flags above — the glow class must land
+  // on exactly those rows and no others, not a separate/desynced computation
+  const glowRowIds = [...G.actTable._html.matchAll(/data-act="([^"]+)"[^>]*class="stale-glow"/g)].map(m => m[1]);
+  ok(glowRowIds.sort().join(",") === "A-09,A-11", "stale-glow class lands on exactly A-09 and A-11", glowRowIds.join(","));
+  ok(!G.actTable._html.includes('class="stale-glow"') || glowRowIds.length === stale.length,
+    "no non-stale row accidentally carries the glow class");
   const ncr = rows.filter(r => r.id.startsWith("NCR"));
   ok(ncr.length === 2 && ncr.every(r => r.type === "Issue" && r.owner === "Quality Manager"),
     "both NCR items are Quality Manager Issues", JSON.stringify(ncr.map(r => [r.id, r.status])));
