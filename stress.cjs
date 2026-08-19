@@ -491,11 +491,30 @@ ok(heatNums === 25, "heat map renders 25 cells", String(heatNums));
    D. INTERACTION SIMULATION
    ========================================================================= */
 console.log("== D. interactions ==");
-// theme toggle
-try {
-  fire(G.themeBtn, "click");
-  ok(R.win && true, "theme toggle runs without error");
-} catch (e) { ok(false, "theme toggle", e.message); }
+// theme toggle (2026-08-19: this assertion was a tautology — ok(R.win && true, ...) is
+// unfalsifiable short of fire() throwing, and verified nothing about which render functions
+// actually re-ran. That gap is exactly how redrawCharts() shipped missing renderGantt() and
+// renderScurveScrub(): a real, reproduced bug (theme toggle left the Gantt's C("ok")/C("bad")-
+// baked bar colors stale; a tab switch — which also calls redrawCharts(), a pre-existing pattern
+// — silently reset the scrubber's cursor to hidden while its slider/HUD still showed whatever
+// was scrubbed). Found live via getComputedStyle before/after a real toggle, not caught by this
+// suite. Fixed the app; fixing the test now too, per this project's own "close the gate hole,
+// same session" rule — a color-value comparison here would still be meaningless (this stub's
+// getComputedStyle returns the same value for every property regardless of theme, same
+// limitation as every other color-token check in this file), so the honest test is the contract
+// itself: every render function whose output bakes a C(...) color literal must be listed here.)
+{
+  const redrawBody = indexSrc.match(/function redrawCharts\(\)\{([^}]*)\}/);
+  ok(!!redrawBody, "redrawCharts() found in source");
+  const themedRenderFns = ["renderScurve", "renderWaterfall", "renderCont", "renderRisk", "syncMcView", "renderGantt", "renderScurveScrub"];
+  themedRenderFns.forEach(fn =>
+    ok(redrawBody && redrawBody[1].includes(fn + "()"),
+      "redrawCharts() calls " + fn + "() — omitting a themed chart here is exactly the bug this check exists to catch"));
+  try {
+    fire(G.themeBtn, "click");
+    ok(true, "theme toggle runs without throwing");
+  } catch (e) { ok(false, "theme toggle", e.message); }
+}
 // tab switch to cost and back
 try {
   fire(G["t-cost"], "click");
@@ -837,6 +856,19 @@ has("aiGuards", "GREEN", "gate shows GREEN");
     "integrity gate header count matches actual rendered checks (no array hole)",
     headerCount ? headerCount[1] : "no match");
 }
+// /stress-test finding (2026-08-19): the "N-check integrity gate" lede paragraph hardcoded the
+// literal "27" in static markup — correct today, but a magic number that would silently drift
+// from GUARDS.length on the next edit. renderGuards() now fills a <span id="guardCountLede">
+// with the live count; check it actually landed, not just that the span exists.
+// String(...) on both sides — this stub's textContent setter doesn't coerce a number to a string
+// the way a real DOM does (assigning GUARDS.length, a number, leaves .textContent as a number
+// here, not "27"); found via a real contradicted assertion, not assumed. The existing G.cntAct
+// check a few hundred lines down already carries the identical String(...) wrap for the same
+// reason — matching that established workaround rather than patching the shared stub itself.
+ok(String(G.guardCountLede.textContent) === String(guardPasses + guardFails),
+  "guardCountLede span reflects the live GUARDS.length (same count already verified above via " +
+  "actual rendered PASS/FAIL rows), not the original hardcoded 27",
+  String(G.guardCountLede.textContent));
 ok(G.arch._html.includes("fct_control_account") && G.arch._html.includes("integrity gate"),
    "architecture diagram renders pipeline stages");
 // narrative: generate, verify every figure, check the contract panel

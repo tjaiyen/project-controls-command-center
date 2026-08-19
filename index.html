@@ -1146,7 +1146,7 @@ join dim_control_account b using (package_id)</pre></div>
         &mdash; an XML standard pairing <i>applicability</i> (which
         records a rule governs) with <i>requirements</i> (what those records must have) so a
         submittal that fails gets rejected with a specific, itemized reason. This dashboard's own
-        27-check integrity gate is a working small-scale version of the same pattern.</p>
+        <span id="guardCountLede">27</span>-check integrity gate is a working small-scale version of the same pattern.</p>
       <div class="tw"><table id="guardrailTable"></table></div>
 
       <div class="sec-h" style="margin-top:30px"><h3>When systems disagree</h3></div>
@@ -3798,6 +3798,10 @@ var GUARDS=[
 function renderGuards(){
   var res=GUARDS.map(function(g){ var r=g.run(); return {n:g.n,pass:r[0],detail:r[1]}; });
   var fails=res.filter(function(r){return !r.pass;}).length;
+  var ledeCount=document.getElementById("guardCountLede");
+  if(ledeCount) ledeCount.textContent=GUARDS.length; // was a hardcoded "27" in static prose — a
+    // /stress-test finding (2026-08-19): correct today (GUARDS.length is genuinely 27), but a
+    // magic number that would silently drift from the real count on the next edit to GUARDS.
   document.getElementById("aiGuards").innerHTML=
    '<div class="gate"><b>Integrity gate &middot; '+GUARDS.length+' checks</b>'+
    '<span class="pill '+(fails?"r":"g")+'">'+(fails? fails+" FAILING":"GREEN — all "+GUARDS.length+" passing")+'</span></div>'+
@@ -3980,7 +3984,7 @@ var GLOSS=[
  {k:"cde", t:"CDE — Common Data Environment", p:"A governed workspace for project information under ISO 19650, the international standard for managing data across a built asset's lifecycle. Not a file share — four defined states (Work in Progress, Shared, Published, Archived), each requiring a specific approval before information can advance to the next.",
   e:function(){ return "The Data Strategy tab's four cards — Work in Progress, Shared, Published, Archived — are exactly these four states, each with the real gate that moves information from one to the next."; }},
  {k:"ids", t:"IDS — Information Delivery Specification", p:"An XML-based, machine-readable standard from buildingSMART defining exactly what information a submittal must carry before it can pass a gate. Pairs an applicability rule (which records this governs) with a requirement (what those records must have) — a failed submittal gets rejected with a specific, itemized reason, not a vague quality flag.",
-  e:function(){ return "This dashboard's own 27-check integrity gate is a small-scale version of the same pattern — each check names exactly what it's verifying, not just pass or fail."; }},
+  e:function(){ return "This dashboard's own "+GUARDS.length+"-check integrity gate is a small-scale version of the same pattern — each check names exactly what it's verifying, not just pass or fail."; }},
  {k:"wbs", t:"WBS — Work Breakdown Structure", p:"How a contractor organizes project scope for controls — around contractual work packages and spatial boundaries. The Asset Breakdown Structure (ABS) an owner uses for operations is organized around functional system topology instead — a structural mismatch, not a data-entry error, and a documented cause of data loss at handover.",
   e:function(){ return "This program's own WBS maps 100% of its "+m(T.bac)+" budget to a named scope element and owner — see the Operating Framework tab's control-account mapping."; }},
  {k:"abs", t:"ABS — Asset Breakdown Structure", p:"How an owner organizes an asset for operations and maintenance — by functional system, not by the contractor's work packages. Reconciling a WBS-built program into an ABS-run facility is exactly where handover data tends to get lost.",
@@ -4420,7 +4424,16 @@ document.getElementById("storyGo").addEventListener("click",function(){ activate
 document.getElementById("glossQ").addEventListener("input",function(){ renderGlossary(this.value); });
 window.addEventListener("scroll",function(){ document.getElementById("tip").classList.remove("on"); },{passive:true});
 
-function redrawCharts(){ renderScurve(); renderWaterfall(); renderCont(); renderRisk(); syncMcView(); }
+/* renderGantt() must run AFTER renderScurve() and BEFORE renderScurveScrub(): the scrubber's
+   Gantt marker (inside renderScurveScrub -> renderGanttScrubMarker) looks up #gantt's live SVG,
+   and renderScurve() is what recreates the #scurveScrubCursor placeholder renderScurveScrub then
+   repositions. Found by direct reproduction, not inspection: neither call was in this list before
+   — theme toggle left the Gantt's colors stale (its own C("ok")/C("bad") fills baked in at the
+   OLD theme), and switching tabs (activateTab() already calls redrawCharts() on every switch, a
+   pre-existing pattern) silently reset the scrubber's cursor to hidden while the slider value and
+   HUD text stayed on whatever month was last scrubbed — the display and the control disagreeing
+   with each other, silently, on the single most ordinary action in the app. */
+function redrawCharts(){ renderScurve(); renderWaterfall(); renderCont(); renderRisk(); syncMcView(); renderGantt(); renderScurveScrub(); }
 document.getElementById("mcViewHist").addEventListener("click",function(){ state.mcView="hist"; syncMcView(); });
 document.getElementById("mcViewCdf").addEventListener("click",function(){ state.mcView="cdf"; syncMcView(); });
 
