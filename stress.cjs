@@ -1475,6 +1475,59 @@ try {
   ok(G.presentBar._html === beforeKey, "N key does nothing when not presenting");
 } catch (e) { ok(false, "presentation mode interaction", e.message); }
 
+// Presentation Mode interactivity upgrade (/brainstorm 2026-08-19)
+try {
+  fire(G.presentBtn, "click"); // enter fresh
+  // the earlier D7 block above left state.presentSet on "quick" (it switches sets but never
+  // switches back before its own block ends) — force back to "full" explicitly rather than
+  // assume a default, the exact assumption that broke this block the first time it was written.
+  fire(G.presentBar, "click", { target: { closest: (sel) => sel === "[data-pset]" ? { dataset: { pset: "full" } } : null } });
+  ok((G.presentBar._html.match(/data-beat="/g) || []).length === 9,
+    "presentBar renders one clickable dot per beat (full/team set)");
+
+  // Part 3: clicking a dot jumps straight to that beat, non-linearly
+  const gate5Idx = P.presentBeatsFull.findIndex(b => b.anchor === "gate5Card");
+  ok(gate5Idx >= 0, "a beat in the full set anchors to gate5Card", String(gate5Idx));
+  fire(G.presentBar, "click", { target: { closest: (sel) => sel === "[data-beat]" ? { dataset: { beat: String(gate5Idx) } } : null } });
+  has("presentBar", (gate5Idx + 1) + " / 9", "clicking a beat dot jumps straight to that beat, skipping the ones between");
+
+  // Part 1+2: landing on the Gate 5 beat replays the reveal and syncs the Gate Line diagram —
+  // verified via the Gate Line's own story title, since the stub's querySelectorAll always
+  // returns [] (documented harness limitation) so the .flow-node.on class toggle itself can't be
+  // observed here; the live-browser pass is what actually proves the visual reveal replays.
+  has("glStoryTitle", "Gate 5", "landing on the Gate 5 beat syncs the Gate Line diagram to its own Gate 5 node");
+
+  // Part 2: the tunnel-story beat force-selects CP-201 even if a different package was already
+  // selected — mutate state.pkg directly (state is a live object reference, not a copy) to prove
+  // the beat corrects it rather than merely happening to already be right.
+  const cp201Idx = P.rows.findIndex(r => r.id === "CP-201");
+  P.state.pkg = 0;
+  ok(P.state.pkg !== cp201Idx, "sanity: pkg was actually forced away from CP-201 before the beat runs");
+  const tunnelIdx = P.presentBeatsFull.findIndex(b => b.label === "The tunnel story (Cost)");
+  ok(tunnelIdx >= 0, "a beat in the full set is the tunnel story", String(tunnelIdx));
+  fire(G.presentBar, "click", { target: { closest: (sel) => sel === "[data-beat]" ? { dataset: { beat: String(tunnelIdx) } } : null } });
+  ok(P.state.pkg === cp201Idx, "landing on the tunnel-story beat force-selects CP-201 regardless of prior selection",
+    "state.pkg=" + P.state.pkg + " expected=" + cp201Idx);
+
+  // Part 4: the on-screen callout appears only on the closing beat, and is computed FROM notes
+  const closeIdx = P.presentBeatsFull.length - 1;
+  const closeBeat = P.presentBeatsFull[closeIdx];
+  ok(typeof closeBeat.onScreen === "function", "the closing beat carries an onScreen() method");
+  ok(closeBeat.onScreen() === closeBeat.notes[1] + " " + closeBeat.notes[2],
+    "onScreen() is composed from the SAME notes array entries, not a separately authored duplicate that could drift");
+  fire(G.presentBar, "click", { target: { closest: (sel) => sel === "[data-beat]" ? { dataset: { beat: String(closeIdx) } } : null } });
+  has("presentOnScreen", "change pricing and schedule integration", "the closing beat shows the on-screen ask-the-room callout");
+  fire(G.presentBar, "click", { target: { closest: (sel) => sel === "[data-beat]" ? { dataset: { beat: "0" } } : null } });
+  ok(G.presentOnScreen._html === "", "the on-screen callout clears on beats that don't set onScreen");
+
+  // dots re-render to match the quick-chat set's 4 beats
+  fire(G.presentBar, "click", { target: { closest: (sel) => sel === "[data-pset]" ? { dataset: { pset: "quick" } } : null } });
+  ok((G.presentBar._html.match(/data-beat="/g) || []).length === 4, "beat dots re-render to 4 for the quick-chat set");
+
+  fire(G.presentBar, "click", { target: { closest: (sel) => sel === "[data-p]" ? { dataset: { p: "exit" } } : null } });
+  ok(G.presentBar.hidden === true, "exit still works after the interactivity upgrade");
+} catch (e) { ok(false, "presentation mode interactivity upgrade", e.message); }
+
 /* =========================================================================
    D8. KPI root-cause drill-down — Overview cards -> live open items -> Actions tab
    ========================================================================= */

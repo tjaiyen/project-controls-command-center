@@ -80,6 +80,19 @@ a{color:rgb(var(--c-accent))}
 .present-bar .plabel{font-weight:600;flex:1 1 auto;min-width:120px}
 .present-bar .pset{display:flex;gap:4px}
 .present-bar .pset button{font-size:11px;padding:4px 9px;min-height:0}
+/* clickable beat dots — same visual language as .story-dots (Overview narrator, Gate Line, CDE
+   flow) but individually focusable/clickable here rather than decorative, so jumping non-linearly
+   to answer a real question mid-room doesn't need a new pattern invented for it. */
+.present-bar .pdots{display:flex;gap:5px;flex:none}
+.present-bar .pdots button{width:9px;height:9px;padding:0;border:none;border-radius:50%;
+  background:rgb(var(--c-mut) / .4);cursor:pointer;min-height:0}
+.present-bar .pdots button.on{background:rgb(var(--c-accent))}
+.present-bar .pdots button:focus-visible{outline:2px solid rgb(var(--c-accent));outline-offset:2px}
+/* the audience-facing "ask the room" callout — a shared visual moment, not the presenter's
+   private notes. Empty/hidden on every beat except the one that sets onScreen. */
+.present-onscreen{max-width:1180px;margin:10px auto 0;padding:14px 20px;background:rgb(var(--c-accent) / .10);
+  border:1px solid rgb(var(--c-accent) / .35);border-radius:10px;animation:rise .4s ease-out}
+.present-onscreen p{margin:6px 0 0;font-size:16px;font-weight:600;color:rgb(var(--c-ink))}
 .brand{display:flex;gap:9px;align-items:center;font-weight:600;text-decoration:none;color:inherit}
 .brand small{display:block;font:400 11px/1.3 ui-monospace,Menlo,monospace;color:rgb(var(--c-mut))}
 .dot{width:9px;height:9px;border-radius:50%;background:rgb(var(--c-accent));flex:none;
@@ -468,6 +481,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
   </div>
   <div id="presentBar" class="present-bar" hidden></div>
 </div>
+<div id="presentOnScreen" aria-live="polite"></div>
 
 <div class="wrap" id="main">
 
@@ -3348,7 +3362,12 @@ var PRESENT_BEATS_FULL=[
  {label:"Close — ask them something back",tab:"over",notes:[
    "“I didn't tell you I could do this. I built the instrument.”",
    "End with a real question for them, not just “any questions for me” — e.g. how are you currently",
-   "handling change pricing and schedule integration across your active programs?"]}
+   "handling change pricing and schedule integration across your active programs?"],
+  /* the on-screen callout reads THIS, not a second hand-typed copy — notes[1]/[2] are one sentence
+     split only for source-code line width (they already render as two separate <li> bullets in the
+     Notes popup, an existing minor quirk, not something this fix needs to touch), so joining them
+     with a space is the real sentence, not a paraphrase that could quietly drift from it. */
+  onScreen:function(){ return this.notes[1]+" "+this.notes[2]; }}
 ];
 
 var PLAYBOOK=[
@@ -4500,9 +4519,18 @@ var presentPopup=null;
 function currentBeats(){ return state.presentSet==="quick"?PRESENT_BEATS_QUICK:PRESENT_BEATS_FULL; }
 function renderPresentBar(){
   var beats=currentBeats(), b=beats[state.beatIdx];
+  /* clickable, non-linear beat dots — same .story-dots visual language already used three other
+     places (Overview narrator, Gate Line, CDE flow), individually focusable/clickable here so a
+     real audience question can be answered by jumping straight to the beat that covers it, not
+     just stepped through Prev/Next in order. */
+  var dots=beats.map(function(beat,j){
+    return '<button type="button" class="'+(j===state.beatIdx?"on":"")+'" data-beat="'+j+'" '+
+      'aria-label="Jump to beat '+(j+1)+': '+beat.label+'" aria-pressed="'+(j===state.beatIdx)+'"></button>';
+  }).join("");
   document.getElementById("presentBar").innerHTML=
     '<div class="present-bar-in">'+
     '<span class="pnum">'+(state.beatIdx+1)+' / '+beats.length+'</span>'+
+    '<div class="pdots" role="group" aria-label="Jump to beat">'+dots+'</div>'+
     '<span class="plabel">'+b.label+'</span>'+
     '<div class="pset">'+
       '<button class="btn" data-pset="quick" aria-pressed="'+(state.presentSet==="quick")+'" type="button">Quick chat</button>'+
@@ -4523,6 +4551,29 @@ function goToBeat(i){
   activateTab(b.tab);
   renderPresentBar();
   updatePresentNotes();
+  if(b.anchor==="gate5Card"){
+    /* Gate 5 is the dashboard's own documented "climax" — a check that can fail, live. Landing on
+       this beat used to just scroll to whatever the card looked like at page load, which could be
+       minutes or hours stale by the time a presenter actually reaches it. Re-running the same
+       render calls renderFramework() already makes at init replays the .stagger reveal fresh,
+       every time, and re-syncs the new Gate Line diagram to the same node — looked up by its real
+       property (gate number 5), not a hardcoded array index, the same discipline this project
+       already applied once this session to this exact escalation-lookup class of bug. */
+    renderInversion(renderGates());
+    renderGateLine();
+    var g5=GL_NODES.findIndex(function(n){ return n.type==="gate" && GATES[n.i].gate===5; });
+    if(g5>=0) selectGL(g5);
+  }
+  if(b.tab==="cost" && b.label==="The tunnel story (Cost)"){
+    /* state.pkg defaults to 2 (CP-201) at page load, which is *why* this beat currently "just
+       happens" to tell the right story — a coincidence of default state, not a guarantee. If a
+       presenter clicked a different package earlier in the same session, this beat would silently
+       show the wrong one. Make the dependency explicit instead of relying on it staying untouched. */
+    var cp201=rows.findIndex(function(r){ return r.id==="CP-201"; });
+    if(cp201>=0) select(cp201);
+  }
+  document.getElementById("presentOnScreen").innerHTML = b.onScreen?
+    '<div class="present-onscreen"><div class="eyebrow">Ask the room</div><p>'+b.onScreen()+'</p></div>' : "";
   if(b.anchor){
     setTimeout(function(){ var el=document.getElementById(b.anchor);
       if(el) el.scrollIntoView({block:"center",behavior:"smooth"}); },260);
@@ -4599,7 +4650,9 @@ document.getElementById("presentBar").addEventListener("click",function(e){
     return;
   }
   var s=e.target.closest("[data-pset]");
-  if(s) switchPresentSet(s.dataset.pset);
+  if(s){ switchPresentSet(s.dataset.pset); return; }
+  var d=e.target.closest("[data-beat]");
+  if(d) goToBeat(+d.dataset.beat);
 });
 window.addEventListener("keydown",function(e){
   if(!state.presenting) return;
@@ -4826,7 +4879,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   risks:RISKS,pBand:P_BAND,tweenNum:tweenNum,
   eacTrendSeries:eacTrendSeries,acHistorySeries:acHistorySeries,forecastAccuracy:forecastAccuracy,
   revSvcDriftSeries:revSvcDriftSeries,pvA:pvA,acA:acA,evA:evA,pvB:pvB,milesLast:MILES[MILES.length-1],
-  presentBeatsFull:PRESENT_BEATS_FULL,presentBeatsQuick:PRESENT_BEATS_QUICK,
+  presentBeatsFull:PRESENT_BEATS_FULL,presentBeatsQuick:PRESENT_BEATS_QUICK,state:state,
   guardrails:GUARDRAILS,discrepancySteps:DISCREPANCY_STEPS,rollout:ROLLOUT,dsNodes:DS_NODES,dsCaption:dsCaption,
   gloss:GLOSS,findGloss:findGloss};
 })();
