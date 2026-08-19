@@ -578,6 +578,54 @@ ok(indexSrc.includes('data-help="referenceclass"'), "reference-class callout car
   has("mcRcfRead", "beyond even the single worst outcome", "RCF read-out takes the off-scale branch, matching the pre-registered check above");
 }
 
+// D2.4 — per-account uncertainty toggle: narrowed run stays additive, canonical MC untouched (2026-08-19)
+{
+  function m(v) { const s = Math.abs(v).toFixed(1).split(".");
+    return (v < 0 ? "−" : "") + "$" + s[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",") + "." + s[1] + "M"; }
+  const canonicalP50Before = P.mc.p50, canonicalPBustBefore = P.mc.pBust;
+  const printBriefBefore = G.printBrief._html;
+  const clickPkg = id => fire(G.mcFilter, "click", { target: { closest: () => ({ dataset: { pkg: id } }) } });
+
+  // initial render: one button per control account, all pressed (all uncertain, matching the
+  // canonical run's own default)
+  ok((G.mcFilter._html.match(/<button/g) || []).length === rows.length,
+    "one filter button per control account", String(rows.length));
+  ok((G.mcFilter._html.match(/aria-pressed="true"/g) || []).length === rows.length,
+    "all control accounts start included (uncertain) by default");
+  ok(!G.mcRead._html.includes("Showing a narrowed run"), "no narrowed-run flag before any toggle");
+
+  // lock CP-201 (the tunnel package) — chart/stats/RCF should visibly change, canonical MC must not
+  clickPkg("CP-201");
+  ok(G.mcRead._html.includes("Showing a narrowed run"), "narrowed-run flag appears once a package is locked");
+  ok(P.mc.p50 === canonicalP50Before && P.mc.pBust === canonicalPBustBefore,
+    "canonical MC (__PCC__.mc) is byte-unchanged after locking a package — recomputeActiveMc never mutates it");
+  ok(G.printBrief._html === printBriefBefore,
+    "print brief is byte-unchanged after locking a package — it deliberately never reads activeMc");
+
+  // unlock it again — must land back on the exact canonical numbers, not just "similar" ones
+  clickPkg("CP-201");
+  ok(!G.mcRead._html.includes("Showing a narrowed run"), "narrowed-run flag clears once every account is back on");
+  has("mcStats", m(canonicalP50Before), "re-checking the last box restores the exact canonical P50, not an approximation");
+
+  // degenerate case: lock every account. Every run collapses to the same deterministic total
+  // (each account priced at its own observed CPI, no draw) — pre-registered: that deterministic
+  // total is exactly T.eac, the program's own point forecast, since zero modeled variance means
+  // the "simulation" just reproduces the point estimate every single time.
+  rows.forEach(r => clickPkg(r.id));
+  ok((G.mcFilter._html.match(/aria-pressed="false"/g) || []).length === rows.length,
+    "all control accounts can be locked simultaneously without erroring");
+  ok(!G.mcChart._html.includes("NaN"), "degenerate all-locked chart has no NaN (lo===hi axis-padding guard fires)");
+  ok((G.mcChart._html.match(/<rect/g) || []).length === 26, "degenerate case still renders a full 26-bin histogram, just a single spike");
+  const eacStr = m(T.eac);
+  ok(G.mcStats._html.includes(eacStr), "pre-registered: with every account locked, P10/P50/P80 all collapse to T.eac exactly", eacStr);
+  const p10Count = (G.mcStats._html.match(new RegExp(eacStr.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g")) || []).length;
+  ok(p10Count === 3, "P10, P50, and P80 are all that same single value (3 occurrences), not just one of them", String(p10Count));
+
+  // restore to the default all-uncertain state for any later assertions in this file
+  rows.forEach(r => clickPkg(r.id));
+  ok(P.mc.p50 === canonicalP50Before, "canonical MC still byte-identical after a full lock/unlock round trip");
+}
+
 // scenarios: save two, verify table, clear
 try {
   G.sCpi.value = "1.10"; G.sSpi.value = "1.05"; G.sCont.value = "150";

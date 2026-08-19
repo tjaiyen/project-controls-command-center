@@ -620,7 +620,11 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         drawn around its observed CPI &mdash; downside wider than upside, because cost efficiency on capital
         work recovers slowly and degrades fast. Fixed seed, so the distribution is reproducible and testable.</p>
       <div class="card" style="margin-top:15px">
-        <div style="display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap">
+        <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+            <span class="eyebrow" style="margin:0">Include</span>
+            <div id="mcFilter" role="group" aria-label="Control accounts included in the simulation" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+          </div>
           <div role="group" aria-label="Chart view" style="display:flex;gap:6px">
             <button class="btn" id="mcViewHist" type="button" aria-pressed="true">Distribution</button>
             <button class="btn" id="mcViewCdf" type="button" aria-pressed="false">Cumulative</button>
@@ -1696,7 +1700,8 @@ function sparkline(series, ragColor){
    7. RENDERERS
    ========================================================================= */
 var state = {phase:"con", fam:"All", kpi:null, pkg:2, actFilter:"All", act:null,
-  presenting:false, presentSet:"full", beatIdx:0, tab:"over", mcView:"hist"};
+  presenting:false, presentSet:"full", beatIdx:0, tab:"over", mcView:"hist",
+  mcIncluded:rows.map(function(r){ return r.id; })};
 
 function renderPhases(){
   document.getElementById("phases").innerHTML = PHASES.map(function(p,i){
@@ -2121,15 +2126,29 @@ function renderScen(){
 function lcg(seed){ var s=seed>>>0; return function(){ s=(Math.imul(s,1664525)+1013904223)>>>0; return s/4294967296; }; }
 function triang(u,a,b,c){ var fc=(c-a)/(b-a);
   return u<fc? a+Math.sqrt(u*(b-a)*(c-a)) : b-Math.sqrt((1-u)*(b-a)*(b-c)); }
-var MC=(function(){
+/* Extracted so the same math can run with a subset of control accounts treated as uncertain,
+   for the per-account toggle below, without duplicating it. uncertainIds lists which accounts
+   still draw a future efficiency; anything not in that list is priced at its own OBSERVED CPI —
+   held constant, not removed from the total. That keeps every run a full-program total, directly
+   comparable to BAC/EAC/contingency the way the canonical run always has been — unchecking a
+   package answers "how much of the program's own uncertainty is THIS account contributing,"
+   not "what if this account didn't exist." Always the same fixed seed — a filtered run is a
+   genuinely different simulation (fewer draws per run shifts the whole subsequent sequence),
+   not a slice of the canonical one, but just as reproducible for whatever set is passed in. */
+function computeMc(uncertainIds){
   var rnd=lcg(20260731), N=4000, sims=[], i, j;
   for(i=0;i<N;i++){
     var e=0;
     for(j=0;j<rows.length;j++){ var r=rows[j];
-      /* Future efficiency drawn around the package's OBSERVED CPI, asymmetric:
-         0.08 of downside vs 0.06 of upside — recovery is capped because cost
-         efficiency on capital work rarely improves far past its settled rate. */
-      var c=triang(rnd(), Math.max(0.78,r.cpi-0.08), r.cpi+0.06, r.cpi);
+      var c;
+      if(uncertainIds.indexOf(r.id)>=0){
+        /* Future efficiency drawn around the package's OBSERVED CPI, asymmetric:
+           0.08 of downside vs 0.06 of upside — recovery is capped because cost
+           efficiency on capital work rarely improves far past its settled rate. */
+        c=triang(rnd(), Math.max(0.78,r.cpi-0.08), r.cpi+0.06, r.cpi);
+      } else {
+        c=r.cpi; // locked to its current, observed efficiency — no draw, no uncertainty modeled
+      }
       e+=r.ac+(r.bac-r.ev)/c;
     }
     sims.push(e);
@@ -2139,7 +2158,21 @@ var MC=(function(){
   return {n:N, sims:sims, p10:q(0.10), p50:q(0.50), p80:q(0.80),
     pOver:sims.filter(function(v){return v>T.bac;}).length/N,
     pBust:sims.filter(function(v){return v>T.bac+T.contRemaining;}).length/N};
-})();
+}
+/* The canonical, full-uncertainty run — what the print brief, board figure, and every reference
+   to "MC" elsewhere on this page mean unless the per-account toggle is explicitly showing
+   something narrower. Computed once, never mutated, never reassigned. */
+var MC=computeMc(rows.map(function(r){ return r.id; }));
+/* The currently-displayed run — identical to MC (same object) until the per-account toggle
+   below locks at least one control account to its observed CPI, at which point it's a freshly
+   computed, separate simulation. Only the chart, its stats/read-out, the RCF comparison, and the
+   one-run stepper read this one; the print brief deliberately keeps reading MC directly, so a
+   board-facing number never silently changes because someone was mid-exploration with boxes
+   unchecked. */
+var activeMc=MC;
+function recomputeActiveMc(){
+  activeMc = state.mcIncluded.length===rows.length ? MC : computeMc(state.mcIncluded);
+}
 /* Reference-class marker — Flyvbjerg's real, cited rail-project average overrun (+45%) applied
    to this program's own BAC, drawn on the same axis as the Monte Carlo run so the two lenses are
    visibly compared, not just asserted in prose. It almost always lands past the chart's own
@@ -2156,10 +2189,14 @@ function rcfMarkerSvg(W,H,PL,PR,PT,PB,hi,X){
 }
 function renderMc(){
   var W=980,H=260,PL=64,PR=18,PT=18,PB=40;
-  var lo=MC.sims[Math.floor(0.02*MC.sims.length)], hi=MC.sims[Math.floor(0.98*MC.sims.length)];
+  var lo=activeMc.sims[Math.floor(0.02*activeMc.sims.length)], hi=activeMc.sims[Math.floor(0.98*activeMc.sims.length)];
+  /* Degenerate case: every account locked to its observed CPI collapses the run to one repeated
+     value (lo===hi) — pad the axis rather than divide by zero. A genuine, if rare, honest state
+     (zero modeled uncertainty), not an error to hide. */
+  if(hi<=lo) hi=lo+Math.max(1,Math.abs(lo)*0.001);
   var bins=26, bw=(hi-lo)/bins, counts=[], i;
   for(i=0;i<bins;i++) counts.push(0);
-  MC.sims.forEach(function(v){ if(v<lo||v>hi) return;
+  activeMc.sims.forEach(function(v){ if(v<lo||v>hi) return;
     counts[Math.min(bins-1,Math.floor((v-lo)/bw))]++; });
   var mx=Math.max.apply(null,counts);
   var X=function(v){ return PL+((Math.min(hi,Math.max(lo,v))-lo)/(hi-lo))*(W-PL-PR); };
@@ -2179,25 +2216,29 @@ function renderMc(){
   }
   document.getElementById("mcChart").innerHTML=svg(W,H,body+
     marker(T.bac,C("ok"),"BAC "+m(T.bac))+
-    marker(MC.p50,C("warn"),"P50 "+m(MC.p50))+
+    marker(activeMc.p50,C("warn"),"P50 "+m(activeMc.p50))+
     marker(T.bac+T.contRemaining,C("bad"),"BAC+cont "+m(T.bac+T.contRemaining))+
     rcfMarkerSvg(W,H,PL,PR,PT,PB,hi,X),
-    "Monte Carlo distribution of the forecast at completion across 4,000 simulated completions, marked with budget, median, budget plus remaining contingency, and the rail reference-class estimate.");
+    "Monte Carlo distribution of the forecast at completion across "+activeMc.n+" simulated completions, marked with budget, median, budget plus remaining contingency, and the rail reference-class estimate.");
   renderMcStatsRead();
 }
 
-/* Cumulative view — same 4,000 outcomes, plotted as P(finish at or under $x) instead of a
-   histogram. Reads MC.sims directly; no new simulation, no new randomness. */
+/* Cumulative view — same activeMc.sims outcomes, plotted as P(finish at or under $x) instead of
+   a histogram. No new simulation, no new randomness. */
 function renderMcCdf(){
   var W=980,H=260,PL=64,PR=18,PT=18,PB=40;
-  var lo=MC.sims[Math.floor(0.02*MC.sims.length)], hi=MC.sims[Math.floor(0.98*MC.sims.length)];
-  var n=MC.sims.length;
+  var lo=activeMc.sims[Math.floor(0.02*activeMc.sims.length)], hi=activeMc.sims[Math.floor(0.98*activeMc.sims.length)];
+  /* Degenerate case: every account locked to its observed CPI collapses the run to one repeated
+     value (lo===hi) — pad the axis rather than divide by zero. A genuine, if rare, honest state
+     (zero modeled uncertainty), not an error to hide. */
+  if(hi<=lo) hi=lo+Math.max(1,Math.abs(lo)*0.001);
+  var n=activeMc.sims.length;
   var X=function(v){ return PL+((Math.min(hi,Math.max(lo,v))-lo)/(hi-lo))*(W-PL-PR); };
   var Y=function(p){ return (H-PB)-p*(H-PT-PB); };
   var step=Math.max(1,Math.floor(n/220)), pts=[], i;
   for(i=0;i<n;i+=step){
-    if(MC.sims[i]<lo||MC.sims[i]>hi) continue;
-    pts.push(X(MC.sims[i]).toFixed(1)+","+Y(i/n).toFixed(1));
+    if(activeMc.sims[i]<lo||activeMc.sims[i]>hi) continue;
+    pts.push(X(activeMc.sims[i]).toFixed(1)+","+Y(i/n).toFixed(1));
   }
   pts.push(X(hi).toFixed(1)+","+Y(1).toFixed(1));
   var body='<polyline points="'+pts.join(" ")+'" fill="none" stroke="'+C("accent")+'" stroke-width="2"/>';
@@ -2207,25 +2248,26 @@ function renderMcCdf(){
   }
   document.getElementById("mcChart").innerHTML=svg(W,H,body+
     marker(T.bac,C("ok"),"BAC "+m(T.bac))+
-    marker(MC.p50,C("warn"),"P50 "+m(MC.p50))+
+    marker(activeMc.p50,C("warn"),"P50 "+m(activeMc.p50))+
     marker(T.bac+T.contRemaining,C("bad"),"BAC+cont "+m(T.bac+T.contRemaining))+
     rcfMarkerSvg(W,H,PL,PR,PT,PB,hi,X),
-    "Cumulative probability of the forecast at completion across 4,000 simulated completions — the probability of finishing at or under a given cost — marked with budget, median, budget plus remaining contingency, and the rail reference-class estimate.");
+    "Cumulative probability of the forecast at completion across "+activeMc.n+" simulated completions — the probability of finishing at or under a given cost — marked with budget, median, budget plus remaining contingency, and the rail reference-class estimate.");
   renderMcStatsRead();
 }
 
 function renderMcStatsRead(){
   document.getElementById("mcStats").innerHTML=
-   [["P10",m(MC.p10),""],["P50 (median)",m(MC.p50),MC.p50>T.bac?"ba":"ok"],
-    ["P80",m(MC.p80),"ba"],
-    ["P(overrun)",pct(MC.pOver,0),MC.pOver>0.5?"ba":"ok"],
-    ["P(bust: budget + contingency)",pct(MC.pBust,0),MC.pBust>0.5?"ba":"wa"]
+   [["P10",m(activeMc.p10),""],["P50 (median)",m(activeMc.p50),activeMc.p50>T.bac?"ba":"ok"],
+    ["P80",m(activeMc.p80),"ba"],
+    ["P(overrun)",pct(activeMc.pOver,0),activeMc.pOver>0.5?"ba":"ok"],
+    ["P(bust: budget + contingency)",pct(activeMc.pBust,0),activeMc.pBust>0.5?"ba":"wa"]
    ].map(function(r){ return '<div><div class="k">'+r[0]+'</div><div class="v '+r[2]+'">'+r[1]+'</div></div>'; }).join("");
   document.getElementById("mcRead").innerHTML=
+    (activeMc!==MC? "<b style='color:rgb(var(--c-code))'>Showing a narrowed run — some accounts locked to their observed CPI below.</b> " : "")+
     "The point forecast of <b style='color:rgb(var(--c-ink))'>"+m(T.eac)+"</b> sits inside the distribution — "+
-    "but <b style='color:rgb(var(--c-ink))'>"+pct(MC.pBust,0)+"</b> of simulated completions bust through budget "+
+    "but <b style='color:rgb(var(--c-ink))'>"+pct(activeMc.pBust,0)+"</b> of simulated completions bust through budget "+
     "<em>plus</em> the remaining "+m(T.contRemaining)+" of contingency. The honest sentence for the board is not "+
-    "&ldquo;we land at "+m(T.eac)+"&rdquo; but &ldquo;there is a "+pct(MC.pBust,0)+" chance the current funding "+
+    "&ldquo;we land at "+m(T.eac)+"&rdquo; but &ldquo;there is a "+pct(activeMc.pBust,0)+" chance the current funding "+
     "line does not hold&rdquo; — and that sentence is what triggers the contingency conversation early rather than late.";
 }
 
@@ -2233,21 +2275,23 @@ function syncMcView(){
   document.getElementById("mcViewHist").setAttribute("aria-pressed", String(state.mcView==="hist"));
   document.getElementById("mcViewCdf").setAttribute("aria-pressed", String(state.mcView==="cdf"));
   if(state.mcView==="cdf") renderMcCdf(); else renderMc();
+  renderMcRcf();
 }
 
 /* Live comparison sentence for the reference-class marker on the chart above — computed
-   against MC.sims' true max (not the chart's own 98th-percentile display window), so the claim
-   doesn't quietly ride on the same clipping that positions the marker itself. */
+   against activeMc.sims' true max (not the chart's own 98th-percentile display window), so the
+   claim doesn't quietly ride on the same clipping that positions the marker itself. Tracks
+   whichever run is currently displayed, matching the marker drawn on the same chart. */
 function renderMcRcf(){
-  var rcfVal=T.bac*1.45, trueMax=MC.sims[MC.sims.length-1];
+  var rcfVal=T.bac*1.45, trueMax=activeMc.sims[activeMc.sims.length-1];
   var beyondWorst=rcfVal>trueMax;
   document.getElementById("mcRcfRead").innerHTML=
     "Applied to this program's own budget, that rail base rate implies <b style='color:rgb(var(--c-ink))'>"+m(rcfVal)+
     "</b> &mdash; "+(beyondWorst
-      ? "beyond even the single worst outcome across all "+MC.n+" of this program's own simulated completions ("+m(trueMax)+
+      ? "beyond even the single worst outcome across all "+activeMc.n+" of this program's own simulated completions ("+m(trueMax)+
         "). If Flyvbjerg's base rate applies here, this program's own forward-looking model may itself still be optimistic."
       : "inside the range this program's own model already simulates, at roughly the "+
-        pct(MC.sims.filter(function(v){return v<=rcfVal;}).length/MC.n,0)+" percentile of its own "+MC.n+" outcomes.")+
+        pct(activeMc.sims.filter(function(v){return v<=rcfVal;}).length/activeMc.n,0)+" percentile of its own "+activeMc.n+" outcomes.")+
     " Marked on the chart above as a separate, dashed reference line.";
 }
 
@@ -2300,26 +2344,45 @@ function renderMcOneRun(){
   mcRunCount++;
   var rnd=lcg(20260731+mcRunCount*7919), total=0;
   var lines=rows.map(function(r){
-    var c=triang(rnd(), Math.max(0.78,r.cpi-0.08), r.cpi+0.06, r.cpi);
+    var uncertain=state.mcIncluded.indexOf(r.id)>=0;
+    var c=uncertain? triang(rnd(), Math.max(0.78,r.cpi-0.08), r.cpi+0.06, r.cpi) : r.cpi;
     var contrib=r.ac+(r.bac-r.ev)/c;
     total+=contrib;
-    return {id:r.id, c:c, contrib:contrib};
+    return {id:r.id, c:c, contrib:contrib, uncertain:uncertain};
   });
   var zone = total<T.bac ? ["g","under budget"]
     : total<(T.bac+T.contRemaining) ? ["a","over budget, inside remaining contingency"]
     : ["r","busts budget + remaining contingency"];
   document.getElementById("mcOneRun").innerHTML=
-    '<div class="eyebrow">Run #'+mcRunCount+' of this button, one of the '+MC.n+' behind the distribution above</div>'+
+    '<div class="eyebrow">Run #'+mcRunCount+' of this button, one of the '+activeMc.n+' behind the distribution above</div>'+
     '<div class="tw"><table style="font-size:12px"><thead><tr><th scope="col">Control account</th>'+
     '<th scope="col">Draw (c)</th><th scope="col">Contributes</th></tr></thead><tbody>'+
-    lines.map(function(l){ return '<tr><td class="mono">'+l.id+'</td><td class="mono tab-num">'+idx(l.c)+
-      '</td><td class="mono tab-num">'+m(l.contrib)+'</td></tr>'; }).join("")+
+    lines.map(function(l){ return '<tr><td class="mono">'+l.id+(l.uncertain?"":' <span class="mono" style="opacity:.6">(locked)</span>')+
+      '</td><td class="mono tab-num">'+idx(l.c)+'</td><td class="mono tab-num">'+m(l.contrib)+'</td></tr>'; }).join("")+
     '</tbody></table></div>'+
     '<p style="margin-top:8px;font-size:12.8px">Summed across all '+rows.length+' control accounts: '+
     '<b style="color:rgb(var(--c-ink))">'+m(total)+'</b> &mdash; <span class="pill '+zone[0]+'">'+zone[1]+
-    '</span>. Click again for another run; the shape above is what 4,000 of these, drawn independently, look like.</p>';
+    '</span>. Click again for another run; the shape above is what '+activeMc.n+' of these, drawn independently, look like.</p>';
 }
 document.getElementById("mcRunOne").addEventListener("click", renderMcOneRun);
+
+/* Per-account uncertainty toggle — "Include" = drawn with the same triangular uncertainty every
+   other account gets; unchecked = locked to that account's own observed CPI, no draw. Reuses the
+   same .btn/.on/aria-pressed pattern as the KPI family filter above (renderFilters), not a new
+   control style. */
+function renderMcFilter(){
+  document.getElementById("mcFilter").innerHTML=rows.map(function(r){
+    var on=state.mcIncluded.indexOf(r.id)>=0;
+    return '<button class="btn'+(on?" on":"")+'" data-pkg="'+r.id+'" aria-pressed="'+on+'">'+r.id+'</button>';
+  }).join("");
+}
+document.getElementById("mcFilter").addEventListener("click",function(e){
+  var b=e.target.closest("[data-pkg]"); if(!b) return;
+  var id=b.dataset.pkg, idx2=state.mcIncluded.indexOf(id);
+  if(idx2>=0) state.mcIncluded.splice(idx2,1); else state.mcIncluded.push(id);
+  renderMcFilter(); recomputeActiveMc(); syncMcView();
+  document.getElementById("mcOneRun").innerHTML=""; mcRunCount=0;
+});
 
 /* ---------- print brief ---------- */
 function firingEscalations(){
@@ -3849,7 +3912,7 @@ renderScurve(); renderWaterfall(); renderBaseline(); renderEac(); renderCont(); 
 renderEacTrend(); renderFcastTable(); renderCashflow();
 renderSchedule(); renderRisk(); renderContracts(); renderDelivery(); renderFramework(); renderActions();
 renderDataStrategy();
-syncMcView(); renderMcMath(); renderMcRcf(); renderScen(); renderPrint();
+renderMcFilter(); syncMcView(); renderMcMath(); renderScen(); renderPrint();
 renderArch(); renderGuards();
 renderStory(0); renderGlossary("");
 document.getElementById("sCpi").value=T.cpi;
