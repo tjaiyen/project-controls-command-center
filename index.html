@@ -564,6 +564,12 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         Actual cost is what it took. The gaps &mdash; not any single line &mdash; are the story.</p>
       <div class="card" style="margin-top:15px"><div class="chart" id="scurve"></div>
         <div class="legend" id="scurveLegend"></div>
+        <div style="display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap">
+          <label for="scurveScrub" style="font-size:11.5px;color:rgb(var(--c-mut));white-space:nowrap">Scrub timeline</label>
+          <input type="range" id="scurveScrub" min="1" step="1" style="flex:1;min-width:140px">
+          <span class="mono tab-num" id="scurveScrubLabel" style="font-size:11.5px;min-width:80px;text-align:right"></span>
+        </div>
+        <div class="outbox" id="scurveScrubHud" style="margin-top:10px"></div>
         <p class="lede" id="scurveRead" style="margin-top:11px;font-size:12.8px"></p>
         <details class="dbox" style="margin-top:16px">
           <summary>How this is actually computed</summary>
@@ -1941,10 +1947,15 @@ var acA=evA.map(function(v,i){ return v/ramp(i,T.cpi); });
 var pvB=cum(wB,T.bac-T.pv).map(function(v){ return v+T.pv; });
 var eacTail=[T.ev].concat(cum(wB,T.eac-T.ev).map(function(v){ return v+T.ev; }));
 
+/* Geometry constants hoisted out of renderScurve() so the timeline scrubber (below) can position
+   its cursor at exactly the same X a given month renders at, instead of re-deriving — and
+   necessarily staying in sync — a second copy of this formula. */
+var SCURVE_W=980,SCURVE_H=350,SCURVE_PL=72,SCURVE_PR=18,SCURVE_PT=18,SCURVE_PB=38;
+function scurveX(i){ return SCURVE_PL+(i/(MT-1))*(SCURVE_W-SCURVE_PL-SCURVE_PR); }
 function renderScurve(){
-  var W=980,H=350,PL=72,PR=18,PT=18,PB=38;
+  var W=SCURVE_W,H=SCURVE_H,PL=SCURVE_PL,PR=SCURVE_PR,PT=SCURVE_PT,PB=SCURVE_PB;
   var maxY=Math.ceil(Math.max(T.bac,T.eac)*1.03/200)*200;
-  var X=function(i){ return PL+(i/(MT-1))*(W-PL-PR); };
+  var X=scurveX;
   var Y=function(v){ return PT+(1-v/maxY)*(H-PT-PB); };
   function path(a,off){ return a.map(function(v,i){
     return (i?"L":"M")+X(i+(off||0)).toFixed(1)+" "+Y(v).toFixed(1); }).join(" "); }
@@ -1969,7 +1980,15 @@ function renderScurve(){
     '<path class="draw" d="'+path(pvA)+" "+path(pvB,ME).replace("M","L")+'" fill="none" stroke="'+C("mut")+'" stroke-width="2"/>'+
     '<path d="'+path(eacTail,ME-1)+'" fill="none" stroke="'+C("bad")+'" stroke-width="2" stroke-dasharray="5 4"/>'+
     '<path class="draw" style="animation-delay:.2s" d="'+path(evA)+'" fill="none" stroke="'+C("ok")+'" stroke-width="2.6"/>'+
-    '<path class="draw" style="animation-delay:.4s" d="'+path(acA)+'" fill="none" stroke="'+C("accent")+'" stroke-width="2.6"/>'+hot,
+    '<path class="draw" style="animation-delay:.4s" d="'+path(acA)+'" fill="none" stroke="'+C("accent")+'" stroke-width="2.6"/>'+hot+
+    /* Scrubber cursor — an empty, hidden placeholder group. The scrubber updates its line/text
+       attributes directly (setAttribute) on every input event rather than re-rendering this whole
+       SVG, which would be expensive on a drag and would restart every .draw entrance animation
+       above on every tick. */
+    '<g id="scurveScrubCursor" style="opacity:0" aria-hidden="true">'+
+      '<line x1="0" x2="0" y1="'+PT+'" y2="'+(H-PB)+'" stroke="'+C("accent")+'" stroke-width="1.5" stroke-dasharray="2 2"/>'+
+      '<text x="0" y="'+(PT-6)+'" text-anchor="middle" font-size="10" font-family="ui-monospace,monospace" fill="'+C("accent")+'"></text>'+
+    '</g>',
     "Earned value S-curve: planned value, earned value and actual cost over "+MT+" months, with the forecast diverging above budget after the data date.");
   document.getElementById("scurveLegend").innerHTML =
     [[C("mut"),"Planned value (baseline)"],[C("ok"),"Earned value"],[C("accent"),"Actual cost"],
@@ -2024,6 +2043,88 @@ function renderScurveMath(){
     "see that month's interpolated PV/EV/AC/CPI/SPI &mdash; useful for reading the shape of the trend, not a "+
     "substitute for a real monthly-actuals feed.</p>";
 }
+
+/* ---------- timeline scrubber ---------- */
+/* One control, two charts: the S-curve's own hover tooltip already reads PV/EV/AC/CPI/SPI at a
+   given month (mousemove on the hot zones) — this is the same read, just explicit and draggable,
+   for a presenter who wants to hold a position and talk instead of holding a mouse position
+   still. The Gantt reference marker below is the second half: an APPROXIMATE calendar position
+   for whatever month is scrubbed, shown only when that month is still ahead of the data date
+   (the Gantt is forward-looking only, same honesty rule as the rest of that chart) — average
+   30.44-day months, stated as an approximation, not pretending to a precision this program's own
+   month-indexed data doesn't carry. */
+function renderScurveScrub(){
+  var mo=+document.getElementById("scurveScrub").value;
+  document.getElementById("scurveScrubLabel").textContent="Month "+mo+" of "+MT;
+  var j=Math.min(MT-1,Math.max(0,mo-1));
+  var x=scurveX(j);
+  var cursor=document.getElementById("scurveScrubCursor");
+  if(cursor){
+    cursor.style.opacity="1";
+    var line=cursor.querySelector("line"), label=cursor.querySelector("text");
+    line.setAttribute("x1",x.toFixed(1)); line.setAttribute("x2",x.toFixed(1));
+    label.setAttribute("x",x.toFixed(1)); label.textContent="M"+mo;
+  }
+  var hud=document.getElementById("scurveScrubHud");
+  if(mo<=ME){
+    /* historical/current month: pvA/evA/acA are real per-month arrays, indices 0..ME-1 */
+    hud.innerHTML=
+     [["PV",m(pvA[j]),""],["EV",m(evA[j]),""],["AC",m(acA[j]),""],
+      ["CPI",idx(evA[j]/acA[j]),evA[j]/acA[j]<0.95?"ba":"ok"],
+      ["SPI",idx(evA[j]/pvA[j]),evA[j]/pvA[j]<0.95?"ba":"ok"]
+     ].map(function(r){ return '<div><div class="k">'+r[0]+'</div><div class="v '+r[2]+'">'+r[1]+'</div></div>'; }).join("");
+  } else {
+    /* future month: only the planned-value curve (pvB) exists — EV/AC/CPI/SPI all measure work
+       actually done, and a future month hasn't happened yet. Showing a computed "forecast" number
+       here would need a second, fuzzier interpolation (the eacTail curve is anchored for visual
+       continuity with the last actual EV, not indexed cleanly per future month) — rather than
+       show a number whose precision this chart can't back up, this states the honest limit
+       instead, the same instinct as the S-curve's own math-panel disclosure about the curve shape. */
+    hud.innerHTML=
+      '<div style="grid-column:1/-1"><div class="k">Planned value (baseline)</div>'+
+      '<div class="v">'+m(pvB[mo-ME-1])+'</div></div>'+
+      '<div style="grid-column:1/-1;margin-top:6px;font-size:11.5px;color:rgb(var(--c-mut))">'+
+      'No actual earned value or cost exists for a future month &mdash; EV and AC measure work '+
+      'actually done, and this month hasn&rsquo;t happened yet. Only the baseline plan is known '+
+      'this far out.</div>';
+  }
+  renderGanttScrubMarker(mo);
+}
+/* Called from the S-curve scrubber above; a no-op until the Gantt has rendered at least once
+   (guards the element lookup rather than assuming render order) and a no-op for any scrubbed
+   month behind the data date, since the Gantt draws nothing there either. */
+function renderGanttScrubMarker(mo){
+  var svgEl=document.querySelector("#gantt svg");
+  if(!svgEl) return;
+  var marker=document.getElementById("ganttScrubMarker");
+  var monthsAhead=mo-PROGRAM.monthsElapsed;
+  if(monthsAhead<0){ if(marker) marker.style.opacity="0"; return; }
+  var ends=ganttEnds();
+  var maxEnd=Math.max.apply(null,ends.map(function(e){ return Math.max(e.base.getTime(),e.fcst.getTime()); }));
+  var minStart=ACT_ASOF.getTime();
+  var totalDays=Math.max(1,(maxEnd-minStart)/86400000);
+  var W=980,PL=64,PR=170;
+  var X=function(t){ return PL+((t-minStart)/86400000/totalDays)*(W-PL-PR); };
+  var approxDate=addDays(ACT_ASOF,Math.round(monthsAhead*30.44));
+  var x=X(approxDate.getTime());
+  if(x<PL||x>W-PR){ if(marker) marker.style.opacity="0"; return; }
+  if(!marker){
+    marker=document.createElementNS("http://www.w3.org/2000/svg","g");
+    marker.id="ganttScrubMarker"; marker.setAttribute("aria-hidden","true");
+    marker.innerHTML='<line x1="0" x2="0" y1="0" y2="0" stroke="'+C("accent")+'" stroke-width="1.5" stroke-dasharray="2 2"/>'+
+      '<text x="0" y="0" text-anchor="middle" font-size="10" font-family="ui-monospace,monospace" fill="'+C("accent")+'"></text>';
+    svgEl.appendChild(marker);
+  }
+  var viewBox=svgEl.getAttribute("viewBox");
+  var svgH=viewBox?+viewBox.split(" ")[3]:390; // defensive fallback — matches the Gantt's own typical rendered height, never trusted over a real viewBox when one exists
+  marker.style.opacity="1";
+  var line=marker.querySelector("line"), label=marker.querySelector("text");
+  line.setAttribute("x1",x.toFixed(1)); line.setAttribute("x2",x.toFixed(1));
+  line.setAttribute("y1",26); line.setAttribute("y2",svgH-24);
+  label.setAttribute("x",x.toFixed(1)); label.setAttribute("y",18);
+  label.textContent="M"+mo+" (approx.)";
+}
+document.getElementById("scurveScrub").addEventListener("input",renderScurveScrub);
 
 /* ---------- variance waterfall ---------- */
 function renderWaterfall(){
@@ -4325,7 +4426,10 @@ document.getElementById("mcViewCdf").addEventListener("click",function(){ state.
 
 /* init */
 renderPhases(); renderStrip(); renderPortfolio(); renderFilters(); renderBoard(); renderDetail();
-renderScurve(); renderScurveMath(); renderWaterfall(); renderWaterfallMath(); renderBaseline(); renderEac(); renderCont(); renderTable();
+renderScurve(); renderScurveMath();
+document.getElementById("scurveScrub").max=String(MT);
+document.getElementById("scurveScrub").value=String(PROGRAM.monthsElapsed);
+renderWaterfall(); renderWaterfallMath(); renderBaseline(); renderEac(); renderCont(); renderTable();
 renderEacTrend(); renderFcastTable(); renderCashflow();
 renderGantt(); renderSchedule(); renderRisk(); renderContracts(); renderDelivery(); renderFramework(); renderActions();
 renderDataStrategy();
@@ -4338,6 +4442,7 @@ document.getElementById("sCont").value=PROGRAM.contingency;
 renderWhatIf();
 wireDetailsAnimation();
 wireAccountHighlight();
+renderScurveScrub(); // after renderGantt() above, so the Gantt reference marker is correct on first paint too
 
 /* expose for verification */
 window.__PCC__={rows:rows,totals:T,kpis:KPIS,program:PROGRAM,eacs:EACS,mc:MC,
@@ -4350,7 +4455,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,program:PROGRAM,eacs:EACS,mc:MC,
   cphCells:CPH_CELLS,deriveCph:deriveCph,
   risks:RISKS,pBand:P_BAND,tweenNum:tweenNum,
   eacTrendSeries:eacTrendSeries,acHistorySeries:acHistorySeries,forecastAccuracy:forecastAccuracy,
-  revSvcDriftSeries:revSvcDriftSeries,pvA:pvA,acA:acA,milesLast:MILES[MILES.length-1],
+  revSvcDriftSeries:revSvcDriftSeries,pvA:pvA,acA:acA,evA:evA,pvB:pvB,milesLast:MILES[MILES.length-1],
   presentBeatsFull:PRESENT_BEATS_FULL,presentBeatsQuick:PRESENT_BEATS_QUICK,
   guardrails:GUARDRAILS,discrepancySteps:DISCREPANCY_STEPS,rollout:ROLLOUT,
   gloss:GLOSS,findGloss:findGloss};

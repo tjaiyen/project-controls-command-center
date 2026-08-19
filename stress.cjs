@@ -305,6 +305,38 @@ has("scurveMathBody", "bell-shaped interpolation",
   has("scurveMathBody", share, "S-curve worked example's share-of-total matches independent recomputation");
 }
 
+// Timeline scrubber (2026-08-19) — this one IS meaningfully runtime-testable for its historical-
+// month branch: pvA/evA/acA are real per-month arrays, exposed via __PCC__, and the scrubber
+// reads them directly rather than through a DOM query the stub would silently defeat. The future-
+// month branch and the Gantt cross-tab marker are source-checked only (creating a real SVG
+// element via createElementNS and appending it isn't meaningfully exercisable under this stub).
+{
+  function m(v) { const s = Math.abs(v).toFixed(1).split(".");
+    return (v < 0 ? "−" : "") + "$" + s[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",") + "." + s[1] + "M"; }
+  function idx(v) { return v.toFixed(3); }
+  ok(idsA.includes("scurveScrub") && idsA.includes("scurveScrubHud") && idsA.includes("scurveScrubCursor"),
+    "markup contains the scrubber input, its HUD, and the SVG cursor placeholder");
+
+  // historical month (10 <= monthsElapsed 22): real PV/EV/AC/CPI/SPI, independently recomputed
+  G.scurveScrub.value = "10";
+  fire(G.scurveScrub, "input");
+  const jHist = 9; // month 10, 0-indexed
+  has("scurveScrubHud", m(P.pvA[jHist]), "historical-month HUD states the real PV for that month");
+  has("scurveScrubHud", m(P.evA[jHist]), "historical-month HUD states the real EV for that month");
+  has("scurveScrubHud", m(P.acA[jHist]), "historical-month HUD states the real AC for that month");
+  has("scurveScrubHud", idx(P.evA[jHist] / P.acA[jHist]), "historical-month HUD's CPI matches independent recomputation");
+  has("scurveScrubHud", idx(P.evA[jHist] / P.pvA[jHist]), "historical-month HUD's SPI matches independent recomputation");
+
+  // future month (30 > monthsElapsed 22): pre-registered — no EV/AC exists for a month that
+  // hasn't happened, so the HUD must say so honestly rather than compute a fabricated ratio
+  // (an earlier draft of this feature did exactly that: showed $NaN.undefinedM, caught live)
+  G.scurveScrub.value = "30";
+  fire(G.scurveScrub, "input");
+  has("scurveScrubHud", m(P.pvB[30 - P.program.monthsElapsed - 1]), "future-month HUD states the real planned-value baseline for that month");
+  has("scurveScrubHud", "hasn", "future-month HUD states plainly that EV/AC don't exist yet, not a fabricated ratio");
+  ok(!G.scurveScrubHud._html.includes("NaN"), "pre-registered: future-month HUD never renders NaN — the bug this exact check would have caught");
+}
+
 // Variance bridge — narrative, math explainer, and hover interactivity (2026-08-19)
 {
   function m(v) { const s = Math.abs(v).toFixed(1).split(".");
