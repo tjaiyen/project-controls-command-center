@@ -469,6 +469,19 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         gap concept large transit agencies track (Sound Transit's own is a genuine, independently
         verified $34.5B) &mdash; not an attempt to reproduce that number. Three of these four lines are
         synthetic and carry no real-world figure at all.</div>
+
+      <div class="sec-h" style="margin-top:30px"><h3>Funding tier &mdash; if the program had to absorb a cut<button type="button" class="help-ic" data-help="fundingtier" aria-label="What does this term mean?" aria-expanded="false">i</button></h3></div>
+      <p class="lede">Status above asks whether a line is on budget right now. This asks a different,
+        board-level question: if the total program had to absorb a real funding constraint, which
+        lines would be protected first, and which would be exposed? Two axes, not one &mdash; how far
+        along a line is (sunk cost and momentum make an early cut expensive to reverse) crossed with
+        whether it is spending efficiently (funding more of an inefficient line is a worse bet than
+        funding more of an efficient one). <b>Modeled on the real prioritization exercise Sound
+        Transit's board ran on the ST3 program in May 2026</b> &mdash; tiering funded, partially
+        funded, and deferred projects under a real affordability gap &mdash; not a reproduction of
+        their actual criteria or figures, which are far more complex than two ratios. This program's
+        thresholds are its own, stated plainly:</p>
+      <ul class="t" id="fundingTierRead" style="margin-top:12px"></ul>
     </div>
   </section>
 
@@ -1189,6 +1202,25 @@ function portfolioRows(){
   ];
 }
 
+/* Funding-tier prioritization — a genuinely different question from the status column above.
+   Status asks "is this line on budget right now." This asks "if the total program had to absorb
+   a funding cut, which lines would be protected and which would be exposed first" — two axes,
+   not one: how far along a line is (sunk cost + momentum makes an early cut expensive to reverse)
+   crossed with whether it's spending efficiently (throwing more money at an inefficient line is a
+   worse bet). Thresholds are this program's own, illustrative — not a reproduction of any real
+   agency's actual prioritization criteria, which are far more complex than two ratios. */
+function fundingTier(l){
+  var pct=l.ev/l.bac, farAlong=pct>=0.35, healthy=l.cpi>=0.97;
+  if(farAlong&&healthy) return {tier:"Fully funded",cls:"g",
+    why:"far along and performing to plan — the strongest case to protect"};
+  if(farAlong&&!healthy) return {tier:"Partially funded",cls:"a",
+    why:"too far along to defer cleanly, but spending faster than plan — needs a supplemental ask, not a cut"};
+  if(!farAlong&&healthy) return {tier:"Partially funded",cls:"a",
+    why:"performing well but still early — real priority, just a lower one than a far-along line under a genuine constraint"};
+  return {tier:"Pursuing added funding",cls:"r",
+    why:"early and underperforming at once — the most exposed line if the program had to absorb a cut today"};
+}
+
 /* How the baseline was built — the estimate-to-budget bridge. The deltas sum
    exactly to the sum of the eight control-account BACs; a baseline that cannot
    be walked back to its estimate cannot be defended. */
@@ -1634,16 +1666,22 @@ function renderPortfolio(){
    ].map(function(r){ return '<div><div class="k">'+r[0]+'</div><div class="v">'+r[1]+'</div></div>'; }).join("");
   document.getElementById("portTable").innerHTML=
     '<thead><tr><th scope="col">Line of business</th><th scope="col">BAC</th><th scope="col">AC</th>'+
-    '<th scope="col">EV</th><th scope="col">CPI</th><th scope="col">P50 EAC</th><th scope="col">Status</th></tr></thead><tbody>'+
-    lines.map(function(l){ return '<tr style="cursor:default"><td>'+l.name+
+    '<th scope="col">EV</th><th scope="col">CPI</th><th scope="col">P50 EAC</th><th scope="col">Status</th>'+
+    '<th scope="col">Funding tier</th></tr></thead><tbody>'+
+    lines.map(function(l){ var ft=fundingTier(l); return '<tr style="cursor:default"><td>'+l.name+
       (l.detail?' <span class="pill i" style="margin-left:5px">full detail &rarr; other tabs</span>':
         ' <span class="mono" style="font-size:10.5px;color:rgb(var(--c-mut))">summary only</span>')+'</td>'+
       '<td class="tab-num">'+m(l.bac)+'</td><td class="tab-num">'+m(l.ac)+'</td><td class="tab-num">'+m(l.ev)+'</td>'+
       '<td class="tab-num">'+idx(l.cpi)+'</td><td class="tab-num">'+m(l.eac)+'</td>'+
-      '<td><span class="pill '+l.statusCls+'">'+l.statusLabel+'</span></td></tr>'; }).join("")+
+      '<td><span class="pill '+l.statusCls+'">'+l.statusLabel+'</span></td>'+
+      '<td><span class="pill '+ft.cls+'" title="'+ft.why+'">'+ft.tier+'</span></td></tr>'; }).join("")+
     '</tbody><tfoot><tr style="cursor:default;font-weight:600"><td>Total capital program</td>'+
     '<td class="tab-num">'+m(bacSum)+'</td><td class="tab-num">'+m(acSum)+'</td><td class="tab-num">'+m(evSum)+'</td>'+
-    '<td class="tab-num">'+idx(evSum/acSum)+'</td><td class="tab-num">'+m(bacSum-vacSum)+'</td><td></td></tr></tfoot>';
+    '<td class="tab-num">'+idx(evSum/acSum)+'</td><td class="tab-num">'+m(bacSum-vacSum)+'</td><td></td><td></td></tr></tfoot>';
+  var tiered=lines.map(function(l){ return {l:l,ft:fundingTier(l)}; });
+  document.getElementById("fundingTierRead").innerHTML=
+    tiered.map(function(x){ return '<li><b style="color:rgb(var(--c-ink))">'+x.l.name.replace(/&mdash;.*/,'')+
+      '</b> &mdash; <span class="'+({g:"ok",a:"wa",r:"ba"}[x.ft.cls])+'">'+x.ft.tier+'</span>: '+x.ft.why+'</li>'; }).join("");
 }
 
 function renderFilters(){
@@ -3184,6 +3222,8 @@ var GLOSS=[
   e:function(){ return "4,000 runs here, fixed seed so it is reproducible. Median finish "+m(MC.p50)+"; "+pct(MC.pOver,0)+" of runs finish over budget; "+pct(MC.pBust,0)+" bust through budget plus all remaining contingency."; }},
  {k:"referenceclass", t:"Reference class forecasting", p:"A different question from Monte Carlo above: not \"what does this program's own track record imply,\" but \"how have similar completed programs, elsewhere, actually turned out?\" Bent Flyvbjerg's database of 16,000+ megaprojects found rail projects average 45% real cost overrun, fixed-link (bridge/tunnel) 34%, road 20% — prevalent and predictable, not random. The fix is basing an estimate on that outcome distribution instead of a bottom-up build that quietly assumes this time is different.",
   e:function(){ return "This program's own Monte Carlo puts the median finish at "+m(MC.p50)+" ("+pct(MC.pOver,0)+" of runs over budget) — grounded in this ledger's own efficiency. Reference class forecasting is the complementary check: does that number also look plausible against the base rate for rail programs generally, not just this one's own history?"; }},
+ {k:"fundingtier", t:"Funding tier", p:"A portfolio-level question, distinct from whether a single line is on budget: if the total program had to absorb a real funding constraint, which lines get protected first and which are most exposed? Crosses two axes — how far along a line is (sunk cost and momentum make an early cut expensive to reverse) against whether it's spending efficiently — rather than reading off a single cost index.",
+  e:function(){ var lines=portfolioRows(); return lines.map(function(l){ return l.name.replace(/&mdash;.*/,"").trim()+": "+fundingTier(l).tier; }).join(" · "); }},
  {k:"trir", t:"TRIR — Total Recordable Incident Rate", p:"The standard safety yardstick: recordable injuries per 200,000 hours worked — roughly 100 people working full time for a year. The one metric that can stop a job regardless of cost or schedule.",
   e:function(){ return PROGRAM.recordables+" recordable incidents across "+PROGRAM.hoursWorked.toLocaleString("en-US")+" work hours: "+(PROGRAM.recordables*200000/PROGRAM.hoursWorked).toFixed(2)+" versus an industry benchmark of "+PROGRAM.trirBenchmark.toFixed(2)+" — about "+pct(1-PROGRAM.trir/PROGRAM.trirBenchmark,0)+" better."; }},
  {k:"pf", t:"Productivity factor", p:"Earned hours divided by actual hours. Below 1.00 the crews are burning more hours than the estimate carried — and because hours are booked weekly, this moves weeks before the same problem reaches the cost index.",
@@ -3591,7 +3631,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,program:PROGRAM,eacs:EACS,mc:MC,
   firingEscalations:firingEscalations,
   wbs:WBS,gates:GATES,gate5Checks:GATE5_CHECKS,
   contracts:CONTRACTS,deriveContract:deriveContract,
-  portfolioRows:portfolioRows,
+  portfolioRows:portfolioRows,fundingTier:fundingTier,
   cphCells:CPH_CELLS,deriveCph:deriveCph,
   eacTrendSeries:eacTrendSeries,acHistorySeries:acHistorySeries,forecastAccuracy:forecastAccuracy,
   revSvcDriftSeries:revSvcDriftSeries,pvA:pvA,acA:acA,milesLast:MILES[MILES.length-1],

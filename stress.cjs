@@ -187,10 +187,41 @@ ok(idsA.includes("t-port") && idsA.includes("p-port"), "portfolio tab/panel wire
   const vacSum = lines.reduce((s, l) => s + l.vac, 0);
   ok(Math.abs(bacSum - 2680.0) < 1e-6, "portfolio BAC totals $2,680.0M", bacSum.toFixed(1));
   ok(vacSum < 0, "portfolio net variance is genuinely a gap (negative), not decorative", vacSum.toFixed(1));
+  // funding-tier prioritization (2026-08-19): a genuinely different axis from status above —
+  // pre-registered by hand against pct=ev/bac and cpi for each line before running
+  const expectedTier = { "link-lrt": "Partially funded", sounder: "Fully funded",
+    stride: "Pursuing added funding", fleet: "Fully funded" };
+  lines.forEach(l => {
+    const ft = P.fundingTier(l);
+    ok(ft.tier === expectedTier[l.id], "funding tier for " + l.id + " = " + expectedTier[l.id], ft.tier);
+    ok(typeof ft.why === "string" && ft.why.length > 0, l.id + "'s funding tier carries a reason, not just a label");
+  });
+  // the rule genuinely has two independent inputs, not one axis wearing a new label — this
+  // dataset's 4 real lines don't happen to expose that (progress and health move together here),
+  // so probe the function directly with constructed inputs instead of relying on live data to
+  // demonstrate it. Four cases, one per (farAlong, healthy) combination:
+  // fundingTier(l) reads l.cpi as a precomputed field (matching what portfolioLine() actually
+  // produces), not derived from ac/ev itself — cpi must be passed explicitly, not implied
+  const farAlongHealthy = P.fundingTier({ bac: 100, ev: 60, cpi: 1.00 }); // pct .60, cpi 1.00
+  const farAlongSick    = P.fundingTier({ bac: 100, ev: 60, cpi: 0.923 }); // pct .60, cpi .923
+  const earlyHealthy    = P.fundingTier({ bac: 100, ev: 20, cpi: 1.053 }); // pct .20, cpi 1.053
+  const earlySick       = P.fundingTier({ bac: 100, ev: 20, cpi: 0.80 }); // pct .20, cpi .80
+  ok(farAlongHealthy.tier === "Fully funded", "unit: far-along + healthy = Fully funded", farAlongHealthy.tier);
+  ok(farAlongSick.tier === "Partially funded" && farAlongSick.why.includes("too far along"),
+    "unit: far-along + sick = Partially funded, sunk-cost reason", farAlongSick.tier);
+  ok(earlyHealthy.tier === "Partially funded" && earlyHealthy.why.includes("still early"),
+    "unit: early + healthy = Partially funded, but a DIFFERENT reason than the far-along case", earlyHealthy.tier);
+  ok(earlySick.tier === "Pursuing added funding", "unit: early + sick = the most exposed tier", earlySick.tier);
+  ok(farAlongSick.why !== earlyHealthy.why,
+    "same tier name (Partially funded) but genuinely different reasoning per axis — proves it's not a relabel");
 }
 has("portTable", "Cascade Transit Extension", "portfolio table names the flagship line");
 has("portTable", "full detail", "portfolio table marks the flagship line's drill-down");
 has("portTable", "summary only", "portfolio table marks the synthetic sibling lines");
+has("portTable", "Funding tier", "portfolio table carries the new funding-tier column");
+has("fundingTierRead", "Pursuing added funding", "funding-tier readout names the most exposed line");
+ok(indexSrc.includes("Transit's board ran on the ST3 program in May 2026"),
+  "funding-tier framework is explicitly cited as modeled on the real ST3 exercise, not a reproduction");
 has("portStrip", "1 of 4", "strip states exactly 1 of 4 lines has full drill-down");
 has("aiGuards", "flagship line reads live from this program", "integrity gate covers the portfolio tie-out");
 
@@ -997,14 +1028,14 @@ try {
    (returns the active tab to "over" at the end, since D9 above left "data" active)
    ========================================================================= */
 console.log("== D10. inline term help ==");
-ok(P.gloss.length === 30, "GLOSS grew to 30 entries (25 original + cde/ids/wbs/abs + referenceclass)", String(P.gloss.length));
+ok(P.gloss.length === 31, "GLOSS grew to 31 entries (25 original + cde/ids/wbs/abs + referenceclass + fundingtier)", String(P.gloss.length));
 ["cde", "ids", "wbs", "abs"].forEach(k => {
   const g = P.findGloss(k);
   ok(!!g && typeof g.p === "string" && g.p.length > 0, "findGloss resolves new term '" + k + "'");
   ok(typeof g.e() === "string" && g.e().length > 0, "'" + k + "' example function returns text");
 });
 ok(P.findGloss("does-not-exist") === undefined, "findGloss returns undefined for an unknown key");
-["wbs", "abs", "cde", "ids", "cpli"].forEach(k =>
+["wbs", "abs", "cde", "ids", "cpli", "fundingtier"].forEach(k =>
   ok(indexSrc.includes('data-help="' + k + '"'), "help icon markup present for '" + k + "'"));
 try {
   // getBoundingClientRect: openHelp() positions the popover from it; every real DOM element has
