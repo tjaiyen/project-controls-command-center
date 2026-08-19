@@ -2359,13 +2359,43 @@ function renderMcCdf(){
   renderMcStatsRead();
 }
 
+/* Tween a displayed number from its last value to a new one over ~380ms, rather than snapping —
+   makes a recomputation visibly read as a recomputation instead of a silent swap. Reduced-motion
+   aware (jumps straight to the end value); guards a missing element (this file's own test
+   harness can't produce real DOM nodes to tween, so this must degrade safely, not throw). */
+function tweenNum(el,from,to,formatFn,duration){
+  if(!el) return;
+  var reduce=window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if(reduce || from===to || !isFinite(from) || !isFinite(to)){ el.textContent=formatFn(to); return; }
+  var start=null;
+  function step(ts){
+    if(start===null) start=ts;
+    var p=Math.min(1,(ts-start)/duration);
+    var eased=1-Math.pow(1-p,3); // ease-out cubic
+    el.textContent=formatFn(from+(to-from)*eased);
+    if(p<1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+var mcStatsPrev=null;
 function renderMcStatsRead(){
+  var cur={p10:activeMc.p10,p50:activeMc.p50,p80:activeMc.p80,pOver:activeMc.pOver,pBust:activeMc.pBust};
   document.getElementById("mcStats").innerHTML=
    [["P10",m(activeMc.p10),""],["P50 (median)",m(activeMc.p50),activeMc.p50>T.bac?"ba":"ok"],
     ["P80",m(activeMc.p80),"ba"],
     ["P(overrun)",pct(activeMc.pOver,0),activeMc.pOver>0.5?"ba":"ok"],
     ["P(bust: budget + contingency)",pct(activeMc.pBust,0),activeMc.pBust>0.5?"ba":"wa"]
    ].map(function(r){ return '<div><div class="k">'+r[0]+'</div><div class="v '+r[2]+'">'+r[1]+'</div></div>'; }).join("");
+  // tween only the values that actually changed since the last render (the hist/cdf view toggle
+  // re-renders this too, but activeMc's own numbers don't change on that toggle — no tween needed)
+  if(mcStatsPrev){
+    var cells=document.querySelectorAll("#mcStats .v");
+    var specs=[["p10",m],["p50",m],["p80",m],["pOver",function(v){return pct(v,0);}],["pBust",function(v){return pct(v,0);}]];
+    specs.forEach(function(s,i){
+      if(mcStatsPrev[s[0]]!==cur[s[0]]) tweenNum(cells[i],mcStatsPrev[s[0]],cur[s[0]],s[1],380);
+    });
+  }
+  mcStatsPrev=cur;
   document.getElementById("mcRead").innerHTML=
     (activeMc!==MC? "<b style='color:rgb(var(--c-code))'>Showing a narrowed run — some accounts locked to their observed CPI below.</b> " : "")+
     "The point forecast of <b style='color:rgb(var(--c-ink))'>"+m(T.eac)+"</b> sits inside the distribution — "+
@@ -4162,7 +4192,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,program:PROGRAM,eacs:EACS,mc:MC,
   contracts:CONTRACTS,deriveContract:deriveContract,
   portfolioRows:portfolioRows,fundingTier:fundingTier,
   cphCells:CPH_CELLS,deriveCph:deriveCph,
-  risks:RISKS,pBand:P_BAND,
+  risks:RISKS,pBand:P_BAND,tweenNum:tweenNum,
   eacTrendSeries:eacTrendSeries,acHistorySeries:acHistorySeries,forecastAccuracy:forecastAccuracy,
   revSvcDriftSeries:revSvcDriftSeries,pvA:pvA,acA:acA,milesLast:MILES[MILES.length-1],
   presentBeatsFull:PRESENT_BEATS_FULL,presentBeatsQuick:PRESENT_BEATS_QUICK,

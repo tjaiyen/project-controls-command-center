@@ -1434,6 +1434,22 @@ ok(indexSrc.includes('window.matchMedia && window.matchMedia("(prefers-reduced-m
   "wireDetailsAnimation checks prefers-reduced-motion before animating");
 ok(/\.finished\.then\(/.test(indexSrc) && !/\.onfinish=/.test(indexSrc),
   "uses the .finished promise, not .onfinish (the event-handler form was observed to drift from actual completion under live-browser verification)");
+
+// tweenNum() itself IS directly testable — it takes its target element as a parameter rather
+// than looking it up via the broken querySelectorAll stub, so real assertions are possible here,
+// not just source-text checks. This harness's matchMedia stub always reports matches:true (see
+// runPage), so only the reduced-motion / no-op branches are reachable — the actual
+// requestAnimationFrame interpolation was verified live instead (a real trajectory of
+// intermediate values observed, landing exactly on the target in both directions).
+{
+  const el1 = makeEl("t1");
+  P.tweenNum(el1, 100, 200, v => "$" + Math.round(v), 300);
+  ok(el1.textContent === "$200", "reduced-motion branch sets textContent straight to the end value, no animation frames");
+  const el2 = makeEl("t2");
+  P.tweenNum(el2, 50, 50, v => "$" + Math.round(v), 300);
+  ok(el2.textContent === "$50", "from===to short-circuits to the same value without animating");
+  ok(P.tweenNum(undefined, 1, 2, v => v, 300) === undefined, "missing element is a safe no-op, not a throw");
+}
 {
   // count only in the markup, not inside the <script> block — a JS doc-comment describing
   // <details class="dbox"> would otherwise inflate this count (found: it did, 7 vs 6, on the
