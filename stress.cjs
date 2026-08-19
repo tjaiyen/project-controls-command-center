@@ -1459,6 +1459,20 @@ ok(/\.finished\.then\(/.test(indexSrc) && !/\.onfinish=/.test(indexSrc),
   ok(detailsCount === 6, "exactly 6 details.dbox panels exist for this to wire", String(detailsCount));
 }
 
+// Extended growup/draw-in (2026-08-19) — source-level only, same stub limitation as above;
+// live-browser verified via each element's own .finished promise (not a blind setTimeout,
+// after this exact automation harness was observed giving a premature "stuck at scale(0)"
+// read on a bare timeout wait — re-checked via getAnimations()[0].finished and confirmed
+// correct: settles at transform:none, not stuck).
+ok(indexSrc.includes("#mcChart rect,#waterfall rect{transform-box:fill-box;transform-origin:bottom;animation:growup"),
+  "waterfall bars (vertical) reuse growup, same as the Monte Carlo histogram");
+ok(indexSrc.includes('#tornado rect{transform-box:fill-box;transform-origin:left;animation:growright'),
+  "tornado bars (horizontal — width is the varying dimension) get a distinct growright, not growup, which would squash them");
+ok(indexSrc.includes('#scurve path.draw,#mcChart polyline.draw{stroke-dasharray:2400'),
+  "the Monte Carlo CDF polyline reuses the S-curve's draw-in technique");
+ok(indexSrc.includes('var body=\'<polyline class="draw" points="'),
+  "the CDF polyline actually carries the draw class in its markup, not just the CSS selector existing unused");
+
 /* =========================================================================
    E. otak.html — runtime + internal consistency
    ========================================================================= */
