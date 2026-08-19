@@ -1070,6 +1070,12 @@ ok(covHtml.includes(tally.met + " / " + (tally.met + tally.part)),
 ok((O.registry.covBody._html.match(/<tr/g) || []).length === reqMatches.length,
   "coverage table renders every parsed requirement", reqMatches.length + " parsed");
 ok(otakSrc.includes("noindex,nofollow"), "otak.html stays noindex");
+// company-research callout (2026-08-19): a real, independently re-verified fact about Otak
+// itself, cited to its own site, distinct from the synthetic index.html ledger
+ok(otakSrc.includes("Sound Transit East Link") && otakSrc.includes("three people to a hundred and fifty"),
+  "otak.html cites Otak's own verified East Link project-controls scaling fact");
+ok(otakSrc.includes("https://www.otak.com/about/projects/sound-transit-east-link-light-rail/"),
+  "the East Link claim carries its source citation");
 
 /* =========================================================================
    F. COMPLIANCE SWEEPS
@@ -1077,13 +1083,16 @@ ok(otakSrc.includes("noindex,nofollow"), "otak.html stays noindex");
 console.log("== F. sweeps ==");
 const FAB = /P6|Primavera|MS Project|HeavyBid|AGTEK|Bluebeam|92%|Design-Build|DBE|PE licen/i;
 const SAN = /mawl|dagir|izlid|kiji|minirva|glare|milr/i;
-// The presenter-notes "own the gap" beat honestly DISCLAIMS P6 experience — the one approved
-// exception, stripped before the sweep so any OTHER appearance of P6 still gets caught. Same
-// reasoning already applied to the vault prep docs: the sweep exists to catch false CLAIMS, not
-// to ban the word outright.
-const FAB_APPROVED = "not years running P6";
+// Approved exceptions, stripped before the sweep so any OTHER appearance of the banned term
+// still gets caught — the sweep exists to catch false CLAIMS, not to ban a word outright.
+// 1. The presenter-notes "own the gap" beat honestly DISCLAIMS P6 experience.
+// 2. otak.html's new company-research callout quotes Otak's own site verbatim — "design-build
+//    procurement" describes what OTAK did on East Link, not a claim about TJ's own delivery-
+//    method experience (2026-08-19 /stress-test finding, real, not weakened).
+const FAB_APPROVED = ["not years running P6", "design-build procurement, schedule analysis"];
 [indexSrc, otakSrc, fs.readFileSync(DIR + "README.md", "utf8")].forEach((s, i) => {
-  ok(!FAB.test(s.split(FAB_APPROVED).join("")), "fabrication sweep file " + i);
+  const stripped = FAB_APPROVED.reduce((acc, phrase) => acc.split(phrase).join(""), s);
+  ok(!FAB.test(stripped), "fabrication sweep file " + i);
   ok(!SAN.test(s), "sanitization sweep file " + i);
 });
 ok(!/https?:\/\/(?!tjaiyen\.github\.io|github\.com\/tjaiyen|linkedin\.com|www\.w3\.org)/.test(indexSrc.replace(/mailto:[^"']*/g, "")),
