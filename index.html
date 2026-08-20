@@ -735,6 +735,14 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
           <span class="mono tab-num" id="scurveScrubLabel" style="font-size:11.5px;min-width:80px;text-align:right"></span>
         </div>
         <div class="outbox" id="scurveScrubHud" style="margin-top:10px"></div>
+        <!-- draggable confidence-percentile marker (brainstorm-mode upgrade, 2026-08-21) — purely
+             additive to the existing, already-pinned P10-P80 prediction cone above; drag to pick
+             any percentile from the same 4,000-run Monte Carlo simulation the cone already draws
+             from, rather than only the 3 fixed points. Reuses the exact .slider/range-input
+             pattern the What-If sliders already use, not new styling. -->
+        <div class="slider" style="margin-top:10px"><label for="sConf">Confidence (P__)</label>
+          <input type="range" id="sConf" min="50" max="95" step="1"><span class="tab-num mono" id="vConf"></span></div>
+        <div class="outbox" id="mcConfOut"></div>
         <p class="lede" id="scurveRead" style="margin-top:11px;font-size:12.8px"></p>
         <details class="dbox" style="margin-top:16px">
           <summary>How this is actually computed</summary>
@@ -1010,7 +1018,8 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         <p class="lede" style="font-size:12.5px;margin-top:5px">Every change is priced twice before anyone
           negotiates: the contractor&rsquo;s proposal, and an independent estimate built from first
           principles. Pending change is carried in the forecast at the independent estimate, not the ask.</p>
-        <div class="tw" style="min-width:0"><table id="coDefense"></table></div></div>
+        <div class="tw" style="min-width:0"><table id="coDefense"></table></div>
+        <p class="lede" id="coDefenseNote" style="font-size:12.5px;margin-top:11px"></p></div>
     </div>
   </section>
 
@@ -1122,6 +1131,16 @@ join dim_control_account b using (package_id)</pre></div>
         pipeline and as assertions in <code>stress.cjs</code> &mdash; three enforcement points for one
         contract.</p>
       <div class="card" style="margin-top:12px" id="aiGuards"></div>
+
+      <div class="sec-h" style="margin-top:30px"><h3>Statistical control &mdash; retrospective anomaly check</h3></div>
+      <p class="lede">The guards above are deterministic tie-outs &mdash; recompute and compare, pass or fail.
+        This is a different kind of check: a statistical control run over a real historical series already on
+        this page (CP-201's weekly crew cost-per-hour), flagging any point beyond &plusmn;2.5 standard
+        deviations from the series mean. Not a live feed &mdash; this ledger is static and synthetic, same as
+        everywhere else on this page &mdash; but the same rule that would catch an anomalous ERP posting on a
+        real, continuously-updating series, run honestly against the one real (if small) series this
+        dashboard has.</p>
+      <div class="card" style="margin-top:12px" id="aiStatControl"></div>
 
       <div class="sec-h" style="margin-top:30px"><h3>AI narrative &mdash; under a verification contract</h3></div>
       <p class="lede">The contract: <b style="color:rgb(var(--c-ink))">the model proposes, the code disposes.</b>
@@ -1494,27 +1513,62 @@ var RISKS = [
    NCR-2026-014 — one underlying problem, three different instruments looking at it. */
 var CPH_CELLS=[
  {id:"cph-201",name:"Tunnel liner &amp; excavation crew",pkg:"CP-201",crewSize:14,hrsPerWeek:56,baseline:2450,
+  /* reworkLinked (brainstorm-mode upgrade, 2026-08-21): an explicit per-week flag, not a runtime
+     string-match against `cause` — set once, by hand, from the same cause text every week already
+     carries. Only W-2/W-1 name ground-condition rework (R-01) compounding on top of the ongoing
+     staging delay; the other 4 weeks' cause never mentions it. This is the one new data point
+     that lets deriveCph() honestly split the non-idle residual instead of leaving it as one
+     unlabeled "everything else" bucket. */
   weeks:[
-   {w:"W-6",actual:2495,idlePct:0.03,cause:null},
-   {w:"W-5",actual:2560,idlePct:0.05,cause:null},
-   {w:"W-4",actual:2710,idlePct:0.10,cause:"Segment material staging delay at the tunnel access shaft"},
-   {w:"W-3",actual:3020,idlePct:0.16,cause:"Segment material staging delay at the tunnel access shaft"},
-   {w:"W-2",actual:3340,idlePct:0.21,cause:"Staging delay compounding with ground-condition rework (R-01)"},
-   {w:"W-1",actual:3180,idlePct:0.18,cause:"Staging delay compounding with ground-condition rework (R-01); trucking schedule adjustment in progress"}
+   {w:"W-6",actual:2495,idlePct:0.03,cause:null,reworkLinked:false},
+   {w:"W-5",actual:2560,idlePct:0.05,cause:null,reworkLinked:false},
+   {w:"W-4",actual:2710,idlePct:0.10,cause:"Segment material staging delay at the tunnel access shaft",reworkLinked:false},
+   {w:"W-3",actual:3020,idlePct:0.16,cause:"Segment material staging delay at the tunnel access shaft",reworkLinked:false},
+   {w:"W-2",actual:3340,idlePct:0.21,cause:"Staging delay compounding with ground-condition rework (R-01)",reworkLinked:true},
+   {w:"W-1",actual:3180,idlePct:0.18,cause:"Staging delay compounding with ground-condition rework (R-01); trucking schedule adjustment in progress",reworkLinked:true}
   ]}
 ];
 function deriveCph(cell){
   var weeks=cell.weeks.map(function(w){
     var varPerHr=w.actual-cell.baseline;
+    var weeklyOverrun=varPerHr*cell.hrsPerWeek;
+    var idleLeakage=w.idlePct*cell.hrsPerWeek*cell.baseline;
+    // 3-way split (brainstorm-mode upgrade, 2026-08-21): the non-idle residual goes entirely into
+    // ONE of two buckets per week, keyed off the real reworkLinked flag — never a fractional split
+    // within a week, which would be an invented precision this data doesn't support. Idle stays
+    // exactly as it was; this only names what the pre-existing "everything else" residual actually is.
+    var nonIdleResidual=weeklyOverrun-idleLeakage;
+    var reworkVariance=w.reworkLinked?nonIdleResidual:0;
+    var baselineVariance=w.reworkLinked?0:nonIdleResidual;
     return Object.assign({},w,{
-      varPerHr:varPerHr,
-      weeklyOverrun:varPerHr*cell.hrsPerWeek,
-      idleLeakage:w.idlePct*cell.hrsPerWeek*cell.baseline
+      varPerHr:varPerHr, weeklyOverrun:weeklyOverrun, idleLeakage:idleLeakage,
+      reworkVariance:reworkVariance, baselineVariance:baselineVariance
     });
   });
   var totalOverrun=weeks.reduce(function(s,w){return s+w.weeklyOverrun;},0);
   var totalIdle=weeks.reduce(function(s,w){return s+w.idleLeakage;},0);
-  return Object.assign({},cell,{weeks:weeks,totalOverrun:totalOverrun,totalIdle:totalIdle});
+  var totalRework=weeks.reduce(function(s,w){return s+w.reworkVariance;},0);
+  var totalBaseline=weeks.reduce(function(s,w){return s+w.baselineVariance;},0);
+  return Object.assign({},cell,{weeks:weeks,totalOverrun:totalOverrun,totalIdle:totalIdle,
+    totalRework:totalRework,totalBaseline:totalBaseline});
+}
+/* Statistical anomaly detection, honestly scoped (brainstorm-mode upgrade, 2026-08-21): the
+   proposal wanted this run against a live "ERP actuals ingestion" feed, but this page has no
+   live feed at all — every number here is a static, synthetic ledger, checked repeatedly
+   throughout this file. The only genuinely irregular (non-formula-generated) time series on the
+   whole page is CP-201's own weekly actual $/hr above — the S-curve's monthly actuals and every
+   KPI sparkline are pure interpolation formulas with zero injected variance, so a z-score
+   against either would be structurally meaningless (every point differs from a smooth curve's
+   mean by construction). Population stddev, not sample — this scores the series against itself,
+   not against an inferred larger population. */
+function deriveZScores(series,threshold){
+  threshold=threshold||2.5;
+  var n=series.length, mean=series.reduce(function(a,b){return a+b;},0)/n;
+  var variance=series.reduce(function(a,b){return a+Math.pow(b-mean,2);},0)/n;
+  var sd=Math.sqrt(variance);
+  return {mean:mean,sd:sd,threshold:threshold,
+    points:series.map(function(v,i){ var z=sd?(v-mean)/sd:0;
+      return {i:i,v:v,z:z,flag:Math.abs(z)>threshold}; })};
 }
 
 /* Conventional qualitative probability bands. A naive p/5 would map P5 to 100% —
@@ -1992,7 +2046,7 @@ function sparkline(series, ragColor){
    ========================================================================= */
 var state = {phase:"con", fam:"All", audience:"pcm", kpi:null, pkg:2, actFilter:"All", act:null,
   presenting:false, presentSet:"full", beatIdx:0, touring:false, tourIdx:0, textSize:0, tab:"over", mcView:"hist",
-  mcIncluded:rows.map(function(r){ return r.id; })};
+  mcIncluded:rows.map(function(r){ return r.id; }), cphDrill:false, mcConfidence:0.80};
 
 function renderPhases(){
   document.getElementById("phases").innerHTML = PHASES.map(function(p,i){
@@ -2198,11 +2252,18 @@ var eacTail=[T.ev].concat(cum(wB,T.eac-T.ev).map(function(v){ return v+T.ev; }))
    necessarily staying in sync — a second copy of this formula. */
 var SCURVE_W=980,SCURVE_H=350,SCURVE_PL=72,SCURVE_PR=18,SCURVE_PT=18,SCURVE_PB=38;
 function scurveX(i){ return SCURVE_PL+(i/(MT-1))*(SCURVE_W-SCURVE_PL-SCURVE_PR); }
+// same reason scurveX is hoisted — the confidence-marker updater (brainstorm-mode upgrade,
+// 2026-08-21) needs this exact Y formula to reposition without re-running all of renderScurve().
+// Recomputes maxY on every call rather than caching it at top level — MC isn't defined yet at the
+// point this file's own top-level vars execute (a real ReferenceError this caught on first try,
+// not assumed), and the recompute itself is two Math.max() calls, cheap enough not to matter.
+function scurveY(v){ var maxY=Math.ceil(Math.max(T.bac,T.eac,MC.p80)*1.03/200)*200;
+  return SCURVE_PT+(1-v/maxY)*(SCURVE_H-SCURVE_PT-SCURVE_PB); }
 function renderScurve(){
   var W=SCURVE_W,H=SCURVE_H,PL=SCURVE_PL,PR=SCURVE_PR,PT=SCURVE_PT,PB=SCURVE_PB;
   var maxY=Math.ceil(Math.max(T.bac,T.eac,MC.p80)*1.03/200)*200;
   var X=scurveX;
-  var Y=function(v){ return PT+(1-v/maxY)*(H-PT-PB); };
+  var Y=scurveY;
   function path(a,off){ return a.map(function(v,i){
     return (i?"L":"M")+X(i+(off||0)).toFixed(1)+" "+Y(v).toFixed(1); }).join(" "); }
   var g="",i;
@@ -2241,8 +2302,21 @@ function renderScurve(){
   var hot = pvA.map(function(_,j){
     return '<rect x="'+(X(j)-6).toFixed(1)+'" y="'+PT+'" width="12" height="'+(H-PT-PB)+'" fill="transparent" '+
       'data-mo="'+j+'" class="hot"/>'; }).join("");
+  /* Draggable confidence marker (brainstorm-mode upgrade, 2026-08-21) — purely additive next to
+     the existing predCone above; never shares its data-role, never touches its polygon. Own
+     accent color (not the cone's "bad" red) so the two visually read as two different things: a
+     fixed P10-P80 range, and a percentile the visitor picked. Rendered at its current position on
+     every full renderScurve() pass (so it survives tab-switches/redrawCharts() automatically) —
+     drag-time repositioning is a separate, cheap direct-attribute update, same division of labor
+     as #scurveScrubCursor just above it. */
+  var confX=X(MT-1), confY=Y(mcQuantile(MC.sims,state.mcConfidence));
+  var confMarker='<g id="scurveConfMarker" data-role="confmarker">'+
+    '<line x1="'+(confX-7).toFixed(1)+'" x2="'+(confX+7).toFixed(1)+'" y1="'+confY.toFixed(1)+'" y2="'+confY.toFixed(1)+'" '+
+      'stroke="'+C("accent")+'" stroke-width="2"/>'+
+    '<text x="'+(confX-11).toFixed(1)+'" y="'+(confY+3.5).toFixed(1)+'" text-anchor="end" font-size="9.5" '+
+      'font-family="ui-monospace,monospace" fill="'+C("accent")+'">P'+Math.round(state.mcConfidence*100)+'</text></g>';
   document.getElementById("scurve").innerHTML = svg(W,H,
-    g+lb+cvArea+predCone+
+    g+lb+cvArea+predCone+confMarker+
     '<line x1="'+dd.toFixed(1)+'" x2="'+dd.toFixed(1)+'" y1="'+PT+'" y2="'+(H-PB)+'" stroke="'+C("mut")+'" stroke-dasharray="3 3"/>'+
     '<text x="'+(dd+7).toFixed(1)+'" y="'+(PT+12)+'" font-size="10.5" font-family="ui-monospace,monospace" fill="'+C("mut")+'">data date &#183; '+PROGRAM.dataDate+'</text>'+
     '<path class="draw" d="'+path(pvA)+" "+path(pvB,ME).replace("M","L")+'" fill="none" stroke="'+C("mut")+'" stroke-width="2"/>'+
@@ -2321,6 +2395,33 @@ function renderScurveMath(){
     "substitute for a real monthly-actuals feed.</p>";
 }
 
+/* ---------- confidence-percentile slider (brainstorm-mode upgrade, 2026-08-21) ---------- */
+/* Repositions the marker drawn by renderScurve() above without re-running the whole S-curve —
+   same performance discipline as renderScurveScrub()'s cursor update just below. */
+function renderScurveConfMarker(){
+  var g=document.getElementById("scurveConfMarker"); if(!g) return;
+  var y=scurveY(mcQuantile(MC.sims,state.mcConfidence));
+  var line=g.querySelector("line"), label=g.querySelector("text");
+  line.setAttribute("y1",y.toFixed(1)); line.setAttribute("y2",y.toFixed(1));
+  label.setAttribute("y",(y+3.5).toFixed(1));
+  label.textContent="P"+Math.round(state.mcConfidence*100);
+}
+// No debounce here, unlike renderWhatIf's own #whatIfRead — that one exists specifically to
+// guard an aria-live region from announcing every drag tick; #mcConfOut carries no aria-live
+// (it's a plain stat outbox, same as #scurveScrubHud/#mcStats elsewhere on this tab, both of
+// which already update synchronously on every scrub/drag tick with no debounce). Debouncing this
+// one anyway would just be copying the OTHER control's shape without its reason — caught while
+// writing this feature's own test, not assumed correct because it "looked like" the established
+// pattern.
+function renderMcConfCallout(){
+  var required=Math.max(0,mcQuantile(MC.sims,state.mcConfidence)-T.bac);
+  var delta=T.contRemaining-required;
+  document.getElementById("mcConfOut").innerHTML=
+    '<div><div class="k">Contingency required at P'+Math.round(state.mcConfidence*100)+'</div>'+
+    '<div class="v">'+m(required)+'</div></div>'+
+    '<div><div class="k">'+(delta>=0?"Surplus":"Shortfall")+' vs. remaining contingency</div>'+
+    '<div class="v '+(delta>=0?"ok":"ba")+'">'+sgn(delta)+'</div></div>';
+}
 /* ---------- timeline scrubber ---------- */
 /* One control, two charts: the S-curve's own hover tooltip already reads PV/EV/AC/CPI/SPI at a
    given month (mousemove on the hot zones) — this is the same read, just explicit and draggable,
@@ -2684,6 +2785,10 @@ function mcParams(r){
    not "what if this account didn't exist." Always the same fixed seed — a filtered run is a
    genuinely different simulation (fewer draws per run shifts the whole subsequent sequence),
    not a slice of the canonical one, but just as reproducible for whatever set is passed in. */
+/* Extracted from computeMc()'s own inline closure (brainstorm-mode upgrade, 2026-08-21) — same
+   formula, now a shared top-level function so the new confidence slider can look up any arbitrary
+   percentile from an already-sorted run array without duplicating this one-line lookup. */
+function mcQuantile(sortedSims,p){ return sortedSims[Math.floor(p*sortedSims.length)]; }
 function computeMc(uncertainIds){
   var rnd=lcg(20260731), N=4000, sims=[], i, j;
   for(i=0;i<N;i++){
@@ -2706,8 +2811,7 @@ function computeMc(uncertainIds){
     sims.push(e);
   }
   sims.sort(function(a,b){return a-b;});
-  var q=function(p){ return sims[Math.floor(p*sims.length)]; };
-  return {n:N, sims:sims, p10:q(0.10), p50:q(0.50), p80:q(0.80),
+  return {n:N, sims:sims, p10:mcQuantile(sims,0.10), p50:mcQuantile(sims,0.50), p80:mcQuantile(sims,0.80),
     pOver:sims.filter(function(v){return v>T.bac;}).length/N,
     pBust:sims.filter(function(v){return v>T.bac+T.contRemaining;}).length/N};
 }
@@ -3404,7 +3508,25 @@ function renderRisk(){
     '<tr style="cursor:default"><td>Pending ('+PROGRAM.coPendingCount+' changes)</td>'+
       '<td class="tab-num">'+m(PROGRAM.coProposedPending)+'</td>'+
       '<td class="tab-num">'+m(PROGRAM.coPendingValue)+' <span class="mono" style="font-size:10.5px;color:rgb(var(--c-mut))">at estimate</span></td>'+
-      '<td class="tab-num wa">'+sgn(-pdSave)+' held out of the forecast</td></tr></tbody>';
+      '<td class="tab-num wa">'+sgn(-pdSave)+' held out of the forecast</td></tr>'+
+    /* a 3rd, visually distinct row — heavier top border, not just another population like the two
+       above it. T.riskExposure is a portfolio-level EMV total (probability x cost, summed across
+       the whole risk register), not a proposed/settled figure for any specific change order, so
+       giving it fabricated numbers in the Proposed/Defended columns would imply a comparability
+       that doesn't exist — those cells stay an explicit "—" instead (brainstorm-mode upgrade,
+       2026-08-21: a real gap the doc named, but the doc's own 3-way framing conflates a claim
+       comparison with a risk-exposure total; this keeps them visually distinct as 3 different
+       KINDS of exposure, not 3 estimates of the same quantity). */
+    '<tr style="cursor:default;border-top:2px solid rgb(var(--c-accent) / .4)">'+
+      '<td>Uncertain future risk exposure <span class="mono" style="font-size:10.5px;color:rgb(var(--c-mut))">(EMV, portfolio-level)</span></td>'+
+      '<td class="tab-num" style="color:rgb(var(--c-mut))">&mdash;</td>'+
+      '<td class="tab-num">'+m(T.riskExposure)+' <span class="mono" style="font-size:10.5px;color:rgb(var(--c-mut))">risk register EMV</span></td>'+
+      '<td class="tab-num" style="color:rgb(var(--c-mut))">&mdash;</td></tr></tbody>';
+  document.getElementById("coDefenseNote").innerHTML=
+    'Three different <em>kinds</em> of exposure, not three estimates of the same number: changes already priced '+
+    'and negotiated (approved), changes still being negotiated (pending), and unpriced future risk that hasn&rsquo;t '+
+    'become a change order yet (EMV). They belong on one page because all three draw against the same '+
+    'contingency pool &mdash; <b style="color:rgb(var(--c-ink))">'+m(T.contRemaining)+'</b> remaining.';
 }
 
 /* The math explainer — exposure = P_BAND[p] x cost, where P_BAND maps the register's 1-5
@@ -3481,20 +3603,45 @@ function renderCph(){
     ['<div><div class="k" style="font:600 9.5px/1.3 ui-monospace,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgb(var(--c-mut))">Standard CPH</div><div class="v" style="margin-top:5px;font:600 .98rem/1.2 inherit">'+usd(c.baseline)+'/hr</div></div>',
      '<div><div class="k" style="font:600 9.5px/1.3 ui-monospace,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgb(var(--c-mut))">'+last.w+' actual</div><div class="v ba" style="margin-top:5px;font:600 .98rem/1.2 inherit">'+usd(last.actual)+'/hr</div></div>',
      '<div><div class="k" style="font:600 9.5px/1.3 ui-monospace,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgb(var(--c-mut))">6-week overrun</div><div class="v ba" style="margin-top:5px;font:600 .98rem/1.2 inherit">'+usd(c.totalOverrun)+'</div></div>',
-     '<div><div class="k" style="font:600 9.5px/1.3 ui-monospace,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgb(var(--c-mut))">Idle-attributable</div><div class="v wa" style="margin-top:5px;font:600 .98rem/1.2 inherit">'+usd(c.totalIdle)+'</div></div>'
+     // now the click target for the 3-way drill-down (brainstorm-mode upgrade, 2026-08-21) — a
+     // real button element, not the plain div the other 3 tiles stay as, so it's keyboard-operable
+     '<button type="button" id="cphIdleToggle" aria-expanded="'+state.cphDrill+'" aria-controls="cphDrill" '+
+       'style="all:unset;cursor:pointer;display:block"><div class="k" style="font:600 9.5px/1.3 ui-monospace,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgb(var(--c-mut))">Idle-attributable <span aria-hidden="true">'+(state.cphDrill?"&#9662;":"&#9656;")+'</span></div><div class="v wa" style="margin-top:5px;font:600 .98rem/1.2 inherit">'+usd(c.totalIdle)+'</div></button>'
     ].join("")+'</div>'+
     '<div id="cphBars"></div>'+
+    '<div id="cphDrill"'+(state.cphDrill?"":" hidden")+'></div>'+
     '<p style="margin:12px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">Standard is '+usd(c.baseline)+
     '/hr. '+last.w+' ran '+sgnUsd(last.varPerHr)+'/hr over standard, with '+pct(last.idlePct)+
     ' of crew time idle. Root cause: '+(last.cause||"none logged")+'. Of the '+usd(c.totalOverrun)+
     ' six-week overrun, '+usd(c.totalIdle)+' &mdash; '+pct(c.totalIdle/c.totalOverrun)+
     ' of it &mdash; is idle time specifically, the part a logistics fix actually recovers rather than '+
-    'an engineering one. Same underlying condition as R-01 and NCR-2026-014; this is the crew-level '+
-    'view of the same problem, a week before it would otherwise show up in CP-201&rsquo;s own CPI.</p>';
+    'an engineering one. Click the idle figure above for the full 3-way split. Same underlying '+
+    'condition as R-01 and NCR-2026-014; this is the crew-level view of the same problem, a week '+
+    'before it would otherwise show up in CP-201&rsquo;s own CPI.</p>';
   bars("cphBars",c.weeks.map(function(w){
     return {id:w.w,v:w.varPerHr,c:w.varPerHr>350?"var(--c-pill-r)":w.varPerHr>150?"var(--c-pill-a)":"var(--c-pill-g)"}; }),
     function(v){return sgnUsd(v)+"/hr";});
+  if(state.cphDrill) renderCphDrill(c);
   renderCphMath(c,last);
+}
+/* 3-way drill-down (brainstorm-mode upgrade, 2026-08-21) — reuses the .stagger/rise keyframe
+   idiom already used for Gate 5's reveal (see renderGates()) rather than a new custom SVG
+   waterfall; the existing #waterfall chart is a separate, unrelated cost-bridge diagram. */
+function renderCphDrill(c){
+  var rows=[["Idle wait time",c.totalIdle,"wa"],["Rework-driven productivity loss",c.totalRework,"ba"],
+    ["Baseline execution variance",c.totalBaseline,"ok"]];
+  document.getElementById("cphDrill").innerHTML=
+    '<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--c-line)">'+
+    rows.map(function(r,i){
+      return '<div class="rowbar stagger" style="animation-delay:'+(i*140)+'ms;grid-template-columns:1fr auto 90px">'+
+        '<span style="font-size:12.5px">'+r[0]+'</span>'+
+        '<span class="tab-num mono '+r[2]+'" style="font-size:12.5px">'+sgnUsd(r[1])+'</span>'+
+        '<span class="mono" style="font-size:11px;color:rgb(var(--c-mut));text-align:right">'+pct(r[1]/c.totalOverrun)+'</span></div>';
+    }).join("")+
+    '<p style="margin:9px 0 0;font-size:12px;color:rgb(var(--c-mut))">Rework-driven loss is attributed only to the '+
+    'weeks whose logged cause names the ground-condition rework compounding (R-01) &mdash; W-2 and W-1. The '+
+    'remaining weeks&rsquo; non-idle residual is a small, honestly-unattributed baseline variance, not folded '+
+    'into either named driver.</p></div>';
 }
 
 /* The math explainer — deriveCph() already computes weeklyOverrun and idleLeakage per week;
@@ -3516,11 +3663,18 @@ function renderCphMath(c,last){
     "overrun. Idle time was <b style='color:rgb(var(--c-ink))'>"+pct(last.idlePct)+"</b> of the crew's hours: "+
     "<code>"+pct(last.idlePct)+" &times; "+c.hrsPerWeek+" &times; "+usd(c.baseline)+" = "+usd(last.idleLeakage)+
     "</code> of that week's labor spent idle, at standard rate.</p>"+
+    "<p style='margin-top:8px'>The remaining, non-idle residual splits again the same way: "+
+    "<code>rework-driven = weekly overrun &minus; idle-attributable</code>, but only for weeks whose logged "+
+    "cause names the ground-condition rework (R-01) compounding &mdash; W-2 and W-1. Every other week's residual "+
+    "is left as an honestly-unattributed baseline execution variance rather than folded into either named "+
+    "driver.</p>"+
     "<p style='margin-top:8px'>Summed across all "+c.weeks.length+" weeks shown: "+usd(c.totalOverrun)+
     " total overrun, of which "+usd(c.totalIdle)+" &mdash; "+pct(c.totalIdle/c.totalOverrun)+
-    " &mdash; is idle time specifically. That split is the actual point of tracking this weekly: it separates "+
-    "a logistics problem (idle time, fixable by resequencing) from an engineering one (the remaining variance, "+
-    "the ground-condition rework itself).</p>";
+    " &mdash; is idle time, "+usd(c.totalRework)+" &mdash; "+pct(c.totalRework/c.totalOverrun)+
+    " &mdash; is rework-driven, and "+usd(c.totalBaseline)+" &mdash; "+pct(c.totalBaseline/c.totalOverrun)+
+    " &mdash; is baseline variance. That split is the actual point of tracking this weekly: it separates "+
+    "a logistics problem (idle time, fixable by resequencing) from an engineering one (rework), from "+
+    "everything else neither named driver explains.</p>";
 }
 
 /* ---------- framework tab ---------- */
@@ -4286,6 +4440,29 @@ function renderGuards(){
        '<span class="tab-num mono" style="font-size:11.5px;color:rgb(var(--c-mut))">'+r.detail+'</span>'+
        '<span style="text-align:right"><span class="pill '+(r.pass?"g":"r")+'">'+(r.pass?"PASS":"FAIL")+'</span></span></div>';
    }).join("");
+}
+/* Same visual family as renderGuards() above (.gate/.rowbar/.pill) on purpose — this should read
+   as a sibling control, not a new kind of chrome. Runs once at init; no interactive state, so
+   (like renderGuards) it's not called from redrawCharts(). */
+function renderStatControl(){
+  var series=CPH_CELLS[0].weeks.map(function(w){ return w.actual; });
+  var z=deriveZScores(series);
+  var flags=z.points.filter(function(p){ return p.flag; }).length;
+  var maxAbsZ=z.points.reduce(function(m2,p){ return Math.max(m2,Math.abs(p.z)); },0);
+  document.getElementById("aiStatControl").innerHTML=
+   '<div class="gate"><b>Statistical control &middot; '+z.points.length+' weeks scored, &plusmn;'+z.threshold+'&sigma; threshold</b>'+
+   '<span class="pill '+(flags?"r":"g")+'">'+(flags? flags+" FLAGGED":"GREEN — 0 anomalies, max |z| "+maxAbsZ.toFixed(2))+'</span></div>'+
+   z.points.map(function(p,i){
+     var w=CPH_CELLS[0].weeks[i];
+     return '<div class="rowbar" style="grid-template-columns:1fr auto 64px;cursor:default">'+
+       '<span style="font-size:12.5px">'+w.w+'</span>'+
+       '<span class="tab-num mono" style="font-size:11.5px;color:rgb(var(--c-mut))">'+usd(p.v)+'/hr &rarr; z = '+p.z.toFixed(2)+'</span>'+
+       '<span style="text-align:right"><span class="pill '+(p.flag?"r":"g")+'">'+(p.flag?"FLAG":"PASS")+'</span></span></div>';
+   }).join("")+
+   '<p style="margin:11px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">Mean '+usd(z.mean)+'/hr, '+
+   'population &sigma; '+usd(z.sd)+'/hr, across the '+z.points.length+' weeks above. '+
+   (flags? "The flagged week"+(flags>1?"s":"")+" would warrant a look before this posts to the ledger."
+     : "No week crosses the threshold — a genuine, honestly-computed null result, not a placeholder.")+'</p>';
 }
 
 /* The narrative: figures first, prose second, verification last. */
@@ -5152,6 +5329,13 @@ document.getElementById("kdetail").addEventListener("click",function(e){
 document.getElementById("invCard").addEventListener("click",function(e){
   var b=e.target.closest("[data-jump]"); if(b) jumpToAction(b.dataset.jump);
 });
+// idle-tile drill-down toggle (brainstorm-mode upgrade, 2026-08-21) — a real button element, so
+// Enter/Space activation already works natively; only the click needs wiring, matching kboard above.
+document.getElementById("cphCard").addEventListener("click",function(e){
+  var b=e.target.closest("#cphIdleToggle"); if(!b) return;
+  state.cphDrill=!state.cphDrill;
+  renderCph();
+});
 document.getElementById("gateLine").addEventListener("click",function(e){
   var n=e.target.closest("[data-idx]"); if(n) selectGL(+n.dataset.idx);
 });
@@ -5201,6 +5385,15 @@ body.addEventListener("keydown",function(e){
   // renderWhatIf's own `immediate` param truthy on every drag tick too, silently defeating the
   // debounce above (caught by test, not by reading the code — /stress-test, 2026-08-20).
   document.getElementById(id).addEventListener("input",function(){ renderWhatIf(); }); });
+// confidence-percentile slider (brainstorm-mode upgrade, 2026-08-21) — same split as the What-If
+// sliders: the marker's position updates immediately (visual feedback while dragging), the
+// contingency-required callout is debounced (same Event-is-truthy pitfall, same plain-closure fix).
+document.getElementById("sConf").addEventListener("input",function(){
+  state.mcConfidence=(+document.getElementById("sConf").value)/100;
+  document.getElementById("vConf").textContent="P"+document.getElementById("sConf").value;
+  renderScurveConfMarker();
+  renderMcConfCallout();
+});
 document.getElementById("resetWhatIf").addEventListener("click",function(){
   document.getElementById("sCpi").value=T.cpi;
   document.getElementById("sSpi").value=T.spi;
@@ -5287,12 +5480,15 @@ renderPhases(); renderStrip(); renderPortfolio(); renderAudienceFilters(); rende
 renderScurve(); renderScurveMath();
 document.getElementById("scurveScrub").max=String(MT);
 document.getElementById("scurveScrub").value=String(PROGRAM.monthsElapsed);
+document.getElementById("sConf").value=String(Math.round(state.mcConfidence*100));
+document.getElementById("vConf").textContent="P"+Math.round(state.mcConfidence*100);
+renderMcConfCallout();
 renderWaterfall(); renderWaterfallMath(); renderBaseline(); renderEac(); renderCont(); renderTable();
 renderEacTrend(); renderFcastTable(); renderCashflow();
 renderGantt(); renderSchedule(); renderRisk(); renderContracts(); renderDelivery(); renderFramework(); renderActions();
 renderDataStrategy();
 renderMcFilter(); syncMcView(); renderMcMath(); renderScen(); renderPrint();
-renderArch(); renderGuards();
+renderArch(); renderGuards(); renderStatControl();
 renderGlossary("");
 document.getElementById("sCpi").value=T.cpi;
 document.getElementById("sSpi").value=T.spi;
@@ -5310,8 +5506,8 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   wbs:WBS,gates:GATES,gate5Checks:GATE5_CHECKS,glNodes:GL_NODES,glCaption:glCaption,glNodeState:glNodeState,
   contracts:CONTRACTS,deriveContract:deriveContract,
   portfolioRows:portfolioRows,fundingTier:fundingTier,
-  cphCells:CPH_CELLS,deriveCph:deriveCph,
-  risks:RISKS,pBand:P_BAND,tweenNum:tweenNum,
+  cphCells:CPH_CELLS,deriveCph:deriveCph,deriveZScores:deriveZScores,
+  risks:RISKS,pBand:P_BAND,tweenNum:tweenNum,mcQuantile:mcQuantile,
   eacTrendSeries:eacTrendSeries,acHistorySeries:acHistorySeries,forecastAccuracy:forecastAccuracy,
   revSvcDriftSeries:revSvcDriftSeries,pvA:pvA,acA:acA,evA:evA,pvB:pvB,milesLast:MILES[MILES.length-1],
   presentBeatsFull:PRESENT_BEATS_FULL,presentBeatsQuick:PRESENT_BEATS_QUICK,tourBeats:TOUR_BEATS,state:state,

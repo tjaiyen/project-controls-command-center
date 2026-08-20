@@ -946,6 +946,39 @@ try {
   ok(R.win._printed === true, "print button invokes window.print");
 } catch (e) { ok(false, "print button", e.message); }
 
+// draggable confidence-percentile slider (brainstorm-mode upgrade, 2026-08-21) — additive to the
+// existing, already-pinned P10-P80 prediction cone above; this block never touches that cone's
+// own assertions, and their continued pass (unmodified, earlier in this file) IS the regression
+// check that this addition didn't disturb them.
+{
+  // 1. the refactor (inline `q` closure -> shared mcQuantile) is behavior-preserving
+  ok(P.mcQuantile(P.mc.sims, 0.50) === P.mc.p50, "mcQuantile(0.50) matches MC.p50 exactly — refactor didn't change the formula");
+  ok(P.mcQuantile(P.mc.sims, 0.80) === P.mc.p80, "mcQuantile(0.80) matches MC.p80 exactly — refactor didn't change the formula");
+  // 2. firing a real 'input' event (not a direct state mutation) updates state + the visible label
+  try {
+    ok(P.state.mcConfidence === 0.80, "confidence defaults to P80 on init", String(P.state.mcConfidence));
+    G.sConf.value = "90";
+    fire(G.sConf, "input");
+    ok(P.state.mcConfidence === 0.90, "dragging the slider to 90 updates state.mcConfidence");
+    ok(String(G.vConf.textContent) === "P90", "the visible label updates to match", String(G.vConf.textContent));
+    // #scurveConfMarker's own reposition (renderScurveConfMarker) calls querySelector/setAttribute
+    // directly on the live DOM to avoid a full re-render — same documented limitation as the
+    // #scurveScrubCursor pattern just below it: this stub's querySelector always returns a fresh,
+    // disconnected stub, so that specific direct-DOM update is live-browser-only coverage, not
+    // exercised here. What IS exercised: the callout, a genuine innerHTML write.
+    const required = Math.max(0, P.mcQuantile(P.mc.sims, 0.90) - P.totals.bac);
+    const delta = P.totals.contRemaining - required;
+    ok(G.mcConfOut._html.includes("P90"), "callout header states the current percentile");
+    ok(G.mcConfOut._html.includes(m(required)), "callout's contingency-required figure matches independent recomputation at P90");
+    ok(G.mcConfOut._html.includes(sgn(delta)), "callout's surplus/shortfall figure matches independent recomputation");
+    // reset to the default so later sections (which read state.mcConfidence indirectly through
+    // nothing else, but for cleanliness) aren't left mid-test
+    G.sConf.value = "80";
+    fire(G.sConf, "input");
+    ok(P.state.mcConfidence === 0.80, "confidence resets cleanly back to P80");
+  } catch (e) { ok(false, "confidence slider interaction", e.message); }
+}
+
 /* ---- AI & data tab ---- */
 console.log("== D3. AI & data tab ==");
 ok(idsA.includes("t-ai") && idsA.includes("p-ai"), "AI tab/panel pair exists");
@@ -985,6 +1018,33 @@ ok(String(G.guardCountLede.textContent) === String(guardPasses + guardFails),
   String(G.guardCountLede.textContent));
 ok(G.arch._html.includes("fct_control_account") && G.arch._html.includes("integrity gate"),
    "architecture diagram renders pipeline stages");
+// statistical control (brainstorm-mode upgrade, 2026-08-21): a genuinely different check from
+// the deterministic GUARDS above — independently re-derive mean/stddev/z-scores from the raw
+// series in THIS file, not by calling P.deriveZScores (same "don't trust the app's own math"
+// doctrine as the MC checks elsewhere), and match against the rendered markup.
+{
+  const series = P.cphCells[0].weeks.map(w => w.actual);
+  const n = series.length;
+  const mean = series.reduce((a, b) => a + b, 0) / n;
+  const sd = Math.sqrt(series.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / n);
+  const zs = series.map(v => (v - mean) / sd);
+  ok(Math.abs(mean - 2884.1666666666665) < 1e-6, "independently-derived series mean matches the hand-computed value from the plan", mean.toFixed(4));
+  ok(Math.abs(sd - 316.3913276659495) < 1e-6, "independently-derived population stddev matches the hand-computed value from the plan", sd.toFixed(4));
+  const maxAbsZ = Math.max(...zs.map(Math.abs));
+  ok(maxAbsZ < 2.5, "pre-registered: this series genuinely has zero anomalies at the 2.5σ threshold — a real null result, not assumed", maxAbsZ.toFixed(3));
+  zs.forEach((z, i) => {
+    ok(G.aiStatControl._html.includes("z = " + z.toFixed(2)),
+      "week " + i + "'s independently-recomputed z-score (" + z.toFixed(2) + ") appears verbatim in the rendered control");
+  });
+  // the honest null result must be STATED, not a blank/dropped section — this is the exact
+  // failure mode the plan calls out as unacceptable (dropping a feature because it found nothing)
+  has("aiStatControl", "GREEN — 0 anomalies", "the control explicitly states the true zero-anomaly verdict");
+  has("aiStatControl", "2.5", "the ±2.5σ threshold is stated in the rendered control");
+  ok((G.aiStatControl._html.match(/class="rowbar"/g) || []).length === 6,
+    "exactly one row per week (6 weeks of CPH history)", String((G.aiStatControl._html.match(/class="rowbar"/g) || []).length));
+  ok((G.aiStatControl._html.match(/>PASS</g) || []).length === 6 && (G.aiStatControl._html.match(/>FLAG</g) || []).length === 0,
+    "all 6 weeks render PASS, none FLAG — matches the independently-confirmed zero-anomaly result");
+}
 // narrative: generate, verify every figure, check the contract panel
 try {
   fire(G.aiNarrBtn, "click");
@@ -1604,6 +1664,14 @@ has("coDefense", "$48.9M", "approved changes proposed at $48.9M");
 has("coDefense", "$41.2M", "approved changes settled at $41.2M (matches coApprovedValue)");
 has("coDefense", "15.7%", "negotiated savings 15.7% below ask");
 has("coDefense", "$18.6M", "pending carried at independent estimate $18.6M");
+// 3rd exposure lens (brainstorm-mode upgrade, 2026-08-21): risk-weighted EMV, a portfolio-level
+// total distinct in KIND from the two claim-population rows above it, not a fabricated 3rd
+// estimate of the same quantity — its non-applicable cells must render "—", never a number.
+has("coDefense", m(P.totals.riskExposure), "coDefense's 3rd row states the live risk-weighted EMV total, matching T.riskExposure exactly");
+ok((G.coDefense._html.match(/tab-num" style="color:rgb\(var\(--c-mut\)\)">&mdash;</g) || []).length === 2,
+  "the EMV row's Proposed/Defended cells render an explicit em-dash, not a computed number (no comparability to fabricate)");
+has("coDefenseNote", m(P.totals.contRemaining), "the connecting note states the live remaining-contingency figure the 3 lenses share");
+has("coDefenseNote", "different", "the connecting note frames the 3 rows as different kinds of exposure, not 3 estimates of one quantity");
 // TIA register ties to float and milestones
 has("tiaReg", "D-02", "delay register lists the tunnel event");
 has("tiaReg", "+40d", "tunnel delay day-count matches CP-201 negative float");
@@ -1707,6 +1775,49 @@ ok(P.cphCells.length === 1, "exactly 1 CPH cell in this pass", String(P.cphCells
   has("cphMathBody", usd(last.idleLeakage), "math panel's worked-week idle leakage matches independent recomputation");
   has("cphMathBody", usd(overrun), "math panel states the same $145,880 total as the card above it");
   has("cphMathBody", usd(idle), "math panel states the same $100,156 idle total as the card above it");
+
+  // 3-way drill-down (brainstorm-mode upgrade, 2026-08-21): independently re-sum rework/baseline
+  // from raw weekly inputs (never calling deriveCph's own math), then check the hard invariant and
+  // the two pre-existing headline totals didn't move by a cent.
+  let rework = 0, baseline = 0;
+  P.cphCells[0].weeks.forEach(w => {
+    const weeklyOverrun = (w.actual - P.cphCells[0].baseline) * P.cphCells[0].hrsPerWeek;
+    const idleLeakage = w.idlePct * P.cphCells[0].hrsPerWeek * P.cphCells[0].baseline;
+    const residual = weeklyOverrun - idleLeakage;
+    if (w.reworkLinked) rework += residual; else baseline += residual;
+  });
+  ok(Math.abs(c.totalRework - rework) < 1e-6 && Math.abs(c.totalBaseline - baseline) < 1e-6,
+    "deriveCph's rework/baseline totals match the independent re-derivation");
+  ok(Math.abs((idle + rework + baseline) - overrun) < 1e-6,
+    "idle + rework + baseline reconstitutes the exact same total overrun, every dollar accounted for once",
+    (idle + rework + baseline).toFixed(2) + " vs " + overrun.toFixed(2));
+  ok(Math.abs(overrun - 145880) < 1e-6 && Math.abs(idle - 100156) < 1e-6,
+    "the two pre-existing headline totals ($145,880/$100,156) are unchanged by adding the 3rd/4th category — regression guard specific to this change");
+  const reworkWeeks = P.cphCells[0].weeks.filter(w => w.reworkLinked).length;
+  ok(reworkWeeks === 2, "exactly 2 weeks (W-2, W-1) are rework-linked, matching their real logged cause text", String(reworkWeeks));
+
+  // drill-down interaction — fire the real click, not a direct state mutation. This stub never
+  // parses innerHTML strings into a real child DOM, so #cphIdleToggle/#cphDrill's own attributes
+  // (aria-expanded, hidden) are only checkable by string-matching the PARENT's (#cphCard's)
+  // rendered innerHTML, not via getElementById on a stub the app itself never separately queries
+  // (same "attribute lives in a string, not a stub property" class of gotcha this file has hit
+  // before, mirrored here on the parent/child boundary instead of innerHTML-vs-textContent).
+  try {
+    ok(G.cphCard._html.includes('aria-expanded="false"'), "drill-down starts collapsed (aria-expanded=false)");
+    ok(/id="cphDrill" hidden/.test(G.cphCard._html), "#cphDrill starts hidden");
+    fire(G.cphCard, "click", { target: { closest: sel => sel === "#cphIdleToggle" ? {} : null } });
+    ok(P.state.cphDrill === true, "clicking the idle tile toggles state.cphDrill on");
+    ok(G.cphCard._html.includes('aria-expanded="true"'), "aria-expanded flips to true on reveal");
+    ok(!/id="cphDrill" hidden/.test(G.cphCard._html), "#cphDrill's hidden attribute is gone once expanded");
+    ok((G.cphDrill._html.match(/class="rowbar stagger"/g) || []).length === 3,
+      "drill-down renders exactly 3 staggered rows (idle / rework / baseline)");
+    ok(G.cphDrill._html.includes(usd(idle)) && G.cphDrill._html.includes(usd(rework)) && G.cphDrill._html.includes(usd(baseline)),
+      "all 3 drill-down rows show the independently-recomputed dollar figures");
+    fire(G.cphCard, "click", { target: { closest: sel => sel === "#cphIdleToggle" ? {} : null } });
+    ok(P.state.cphDrill === false, "clicking the idle tile again toggles state.cphDrill back off");
+    ok(G.cphCard._html.includes('aria-expanded="false"'), "aria-expanded flips back to false on collapse");
+    ok(/id="cphDrill" hidden/.test(G.cphCard._html), "#cphDrill's hidden attribute returns on collapse");
+  } catch (e) { ok(false, "CPH drill-down click interaction", e.message); }
 }
 has("cphCard", "Tunnel liner", "CPH card names the tunnel crew");
 has("cphCard", "R-01", "CPH prose cross-references the tunnel ground-condition risk");
