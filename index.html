@@ -1513,7 +1513,10 @@ var FLOAT_HIST=[
 function eacTrendSeries(){ return EAC_HISTORY.concat([{m:"Jul*",eac:T.eac}]); }
 /* EAC Drift Velocity (megaproject-controls-doc upgrade, 2026-08-22) — a trailing-5-period average
    monthly drift, matching the source doc's own "DV_5" framing. Reuses eacTrendSeries()'s own
-   6-point series (5 history + 1 live) rather than a second, separately-maintained history. */
+   6-point series (5 history + 1 live) rather than a second, separately-maintained history.
+   Note for anyone re-deriving this by hand (a /stress-test reviewer flagged this as a non-obvious
+   trap): T.eac is the SUM of each package's own bottom-up EAC (bac/cpi per package), not
+   BAC_total/CPI_total — the two give different numbers, and only the per-package sum is correct. */
 function eacDriftVelocity(){ var s=eacTrendSeries(); return (s[s.length-1].eac-s[0].eac)/(s.length-1); }
 function acHistorySeries(){ return AC_HISTORY.concat([{m:"Jul*",ac:T.ac}]); }
 function revSvcDriftSeries(){ return REVSVC_HISTORY.concat([{m:"Jul*",slip:MILES[MILES.length-1].d}]); }
@@ -2324,18 +2327,30 @@ var eacTail=[T.ev].concat(cum(wB,T.eac-T.ev).map(function(v){ return v+T.ev; }))
 
 /* Earned Schedule / time-based SPI (megaproject-controls-doc upgrade, 2026-08-22) — a real,
    distinct schedule index (Lipke's Earned Schedule method), not a duplicate of CPLI/BEI: walks
-   the existing pvA curve for the latest period whose planned value the program has actually
-   earned, interpolating fractionally between periods. Two edge cases handled explicitly:
-   EV below pvA[0] (interpolate against an implicit (0,0) origin) and EV at/past the curve's own
-   endpoint (fully caught up — es=at, spit=1.00), so this never silently divides by an
-   out-of-range index. */
-function deriveEarnedSchedule(){
-  var at=pvA.length, i=-1, j;
-  for(j=0;j<pvA.length;j++){ if(pvA[j]<=T.ev) i=j; }
+   the planned-value curve for the latest period whose planned value the program has actually
+   earned, interpolating fractionally between periods. Two edge cases handled explicitly, both
+   genuine Lipke-method extrapolation (not a clamp) so this never silently caps at 1.00: EV below
+   pv[0] extrapolates against an implicit (0,0) origin; EV at/past the curve's own endpoint
+   extrapolates using the FINAL segment's own slope, the same way every interior segment already
+   does — the first version of this shipped clamped that second case to es=at/spit=1.00 exactly,
+   which understates a genuinely ahead-of-schedule program (dormant with today's data, SPI<1, but
+   a real accuracy bug the day SPI(t) needs to read above 1.00; caught by two independent
+   /stress-test reviewers converging on the same finding, not assumed).
+   Parameterized (defaults to the live pvA/T.ev) so its edge branches — unreachable with today's
+   ledger — are independently testable without touching live data; see stress.cjs. */
+function deriveEarnedSchedule(pv,ev){
+  pv=pv||pvA; ev=ev===undefined?T.ev:ev;
+  var at=pv.length, i=-1, j;
+  for(j=0;j<pv.length;j++){ if(pv[j]<=ev) i=j; }
   var es;
-  if(i===-1){ es=T.ev/pvA[0]; }
-  else if(i===pvA.length-1){ es=at; }
-  else{ es=(i+1)+(T.ev-pvA[i])/(pvA[i+1]-pvA[i]); }
+  if(i===-1){ es=ev/pv[0]; }
+  else if(i===pv.length-1){
+    // extrapolate past the curve's endpoint using the final segment's own slope — a genuine
+    // ahead-of-schedule reading (spit>1.00), not a silent cap at exactly 1.00. Falls back to the
+    // simple clamp only if there's no prior segment to derive a slope from (at<2).
+    es = at<2 ? at : at+(ev-pv[i])/(pv[i]-pv[i-1]);
+  }
+  else{ es=(i+1)+(ev-pv[i])/(pv[i+1]-pv[i]); }
   return {es:es, at:at, spit:es/at};
 }
 
@@ -3502,7 +3517,7 @@ function renderFloatErosion(){
      'CP-201&rsquo;s float has eroded further in <b style="color:rgb(var(--c-ink))">every one of the last '+
      deltas.length+' reporting periods</b> &mdash; the driving path is consuming margin steadily, not holding at a recovered position.':
      'CP-201&rsquo;s float has moved both directions across these periods, consistent with a driving path that has stabilized rather than one still eroding.')+
-   ' Same tunnel condition carried by R-01, NCR-2026-014, the crew cost-per-hour spike, and the revenue-service drift above &mdash; one root cause, five instruments.</p>';
+   ' Same tunnel condition carried by R-01, NCR-2026-014, the crew cost-per-hour spike, and the revenue-service drift trend below &mdash; one root cause, five instruments.</p>';
   bars("floatErosionBars",deltas.map(function(d){ return {id:d.m,v:d.delta,c:d.delta<0?"var(--c-pill-r)":"var(--c-pill-g)"}; }),days);
 }
 

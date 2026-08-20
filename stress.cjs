@@ -930,9 +930,12 @@ const expectedFiring =
   (Math.abs(Math.min(0, T.vac)) > T.contRemaining) + (T.negFloat.length > 0) +
   (P.program.coCycleDays > P.program.coCycleTarget) + (P.program.rfiOver30 > 0) +
   (P.program.trir > P.program.trirBenchmark) +
-  // EAC Drift Velocity (megaproject-controls-doc upgrade, 2026-08-22) — independently recomputed
-  // from P.eacTrendSeries(), never calling P.eacDriftVelocity() and trusting it.
-  ((() => { const s = P.eacTrendSeries(); return (s[s.length - 1].eac - s[0].eac) / (s.length - 1); })() > 1.0) +
+  // EAC Drift Velocity (megaproject-controls-doc upgrade, 2026-08-22) — recomputed from the
+  // literal first EAC_HISTORY point (1266.0, index.html's own source) + live T.eac, not from
+  // P.eacTrendSeries()'s own output (a /stress-test reviewer caught the original version of this
+  // as circular — it called eacTrendSeries() and reapplied the same formula the app's own
+  // eacDriftVelocity() uses, which only proves the formula is deterministic, not correct).
+  (((T.eac - 1266.0) / 5) > 1.0) +
   // Non-Critical Progress Inflation (megaproject-controls-doc upgrade, 2026-08-22) — false today
   // (T.spi<1.00), included here so this count stays correct if that ever flips, not just today.
   (T.spi >= 1.00 && T.cpli < 0.90);
@@ -1739,10 +1742,17 @@ console.log("== D5.3. forecast model (actual vs plan) ==");
   ok(deltas.every(d => d > 0), "EAC has risen every single period — genuinely diverging, not oscillating",
     deltas.map(d => d.toFixed(2)).join(","));
   has("eacTrend", "diverging", "EAC trend prose calls out the divergence");
-  // EAC Drift Velocity (megaproject-controls-doc upgrade, 2026-08-22) — independently recompute,
-  // never call P.eacDriftVelocity() and trust it.
-  const dv = (s[s.length - 1].eac - s[0].eac) / (s.length - 1);
-  ok(Math.abs(dv - P.eacDriftVelocity()) < 1e-9, "eacDriftVelocity() matches an independent recomputation from eacTrendSeries()", dv.toFixed(3));
+  // EAC Drift Velocity (megaproject-controls-doc upgrade, 2026-08-22) — recompute from the LITERAL
+  // first history point (visible in index.html's own EAC_HISTORY array, not exposed via __PCC__)
+  // plus the live T.eac, never from P.eacTrendSeries()'s own output. The first draft of this check
+  // called P.eacTrendSeries() and reapplied the same formula the app's own eacDriftVelocity() uses
+  // — technically not calling that function by name, but still only proving the formula is
+  // deterministic, not that it's correct against a real input (a /stress-test reviewer caught this
+  // as a genuine circularity, not a false positive — same doctrine this file states repeatedly:
+  // independently re-derive, don't trust a shared derived value two different ways).
+  const eacFirstHistoric = 1266.0; // EAC_HISTORY[0].eac — index.html's own literal
+  const dv = (T.eac - eacFirstHistoric) / 5;
+  ok(Math.abs(dv - P.eacDriftVelocity()) < 1e-9, "eacDriftVelocity() matches an independent recomputation from the literal first history point + live EAC, not eacTrendSeries()'s own output", dv.toFixed(3));
   ok(dv > 1.0, "pre-registered: this series genuinely exceeds the $1.0M/month threshold — a real breach, not manufactured", dv.toFixed(3));
   ok(idsA.includes("eacDriftOut"), "markup contains #eacDriftOut");
   has("eacDriftOut", "Breached", "the drift-velocity outbox states the true over-threshold verdict");
@@ -1761,7 +1771,10 @@ console.log("== D5.3. forecast model (actual vs plan) ==");
   for (let j = 0; j < pvA.length; j++) if (pvA[j] <= ev) i = j;
   let es;
   if (i === -1) es = ev / pvA[0];
-  else if (i === pvA.length - 1) es = pvA.length;
+  // genuine extrapolation, not a clamp — matches the fixed deriveEarnedSchedule() in index.html
+  // (its own comment explains why: the original clamp silently understated a genuinely
+  // ahead-of-schedule reading; unreachable with today's live data either way).
+  else if (i === pvA.length - 1) es = pvA.length < 2 ? pvA.length : pvA.length + (ev - pvA[i]) / (pvA[i] - pvA[i - 1]);
   else es = (i + 1) + (ev - pvA[i]) / (pvA[i + 1] - pvA[i]);
   const at = pvA.length, spit = es / at;
   const real = P.deriveEarnedSchedule();
@@ -1792,6 +1805,36 @@ console.log("== D5.3. forecast model (actual vs plan) ==");
   ok(!!progInflationRow && progInflationRow[1] === "Controls manager" && progInflationRow[3] === "72 hours",
     "the new composite row reuses the existing 'Controls manager' role, not a new near-duplicate one", JSON.stringify(progInflationRow));
   ok(P.kpis.length === 20, "regression guard: KPIS.length is still exactly 20 — SPI(t) was deliberately not made a 21st KPI card");
+  // deriveEarnedSchedule()'s two edge-case branches are unreachable with today's live ledger data
+  // (real EV always lands in the "normal" interpolation branch) — a /stress-test reviewer flagged
+  // this as a genuine coverage gap, since the branches were shipped but never exercised. Fixed by
+  // parameterizing the function (defaults to live pvA/T.ev, unchanged for every other call site)
+  // so these can be driven directly with synthetic inputs, hand-verified below independently of
+  // the function under test.
+  {
+    // i===-1: EV below the first period's planned value — interpolates against an implicit (0,0)
+    // origin. Hand-derived: es = 5/10 = 0.5, at = 3, spit = 0.5/3.
+    const r1 = P.deriveEarnedSchedule([10, 20, 30], 5);
+    ok(Math.abs(r1.es - 0.5) < 1e-9 && r1.at === 3 && Math.abs(r1.spit - 0.5 / 3) < 1e-9,
+      "deriveEarnedSchedule()'s i===-1 branch: interpolates against the implicit (0,0) origin", JSON.stringify(r1));
+    // i===pv.length-1, genuinely ahead of schedule: EV past the curve's own endpoint now
+    // EXTRAPOLATES using the final segment's slope (10/unit), not a silent clamp to spit=1.00 —
+    // the actual bug this test exists to catch (found by two independent reviewers converging on
+    // the same finding). Hand-derived: es = 3+(35-30)/(30-20) = 3.5, spit = 3.5/3 ≈ 1.167 (>1.00).
+    const r2 = P.deriveEarnedSchedule([10, 20, 30], 35);
+    ok(Math.abs(r2.es - 3.5) < 1e-9 && Math.abs(r2.spit - 3.5 / 3) < 1e-9,
+      "deriveEarnedSchedule()'s past-the-curve branch genuinely extrapolates (spit>1.00), not a silent clamp to exactly 1.00", JSON.stringify(r2));
+    ok(r2.spit > 1.0, "pre-registered: a genuinely ahead-of-schedule synthetic input reads SPI(t)>1.00 — the exact case the old clamp would have silently reported as exactly 1.00");
+    // at<2 fallback: no prior segment exists to derive a slope from, so this one genuinely must
+    // clamp (there's nothing to extrapolate from). Hand-derived: es=at=1, spit=1.00.
+    const r3 = P.deriveEarnedSchedule([10], 15);
+    ok(r3.es === 1 && r3.at === 1 && r3.spit === 1, "deriveEarnedSchedule()'s at<2 fallback still clamps correctly (no prior segment to extrapolate from)", JSON.stringify(r3));
+    // the default-parameter path (no args) must still match the live-ledger figures already
+    // asserted above — confirms the refactor didn't change the real, exercised behavior.
+    const rLive = P.deriveEarnedSchedule();
+    ok(Math.abs(rLive.es - es) < 1e-9 && Math.abs(rLive.spit - spit) < 1e-9,
+      "deriveEarnedSchedule() with no args still matches the live pvA/T.ev computation (refactor is behavior-preserving)");
+  }
 }
 // B. Forecast accuracy — pre-registered: 3 small misses, 1 large miss in the most recent month
 {
