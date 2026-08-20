@@ -929,7 +929,13 @@ const expectedFiring =
   (T.cpi < 0.95) + (T.cpli < 0.95) + (T.tcpi - T.cpi > 0.10) + (T.tcpi > 1.10) + (T.contCoverage < 1) +
   (Math.abs(Math.min(0, T.vac)) > T.contRemaining) + (T.negFloat.length > 0) +
   (P.program.coCycleDays > P.program.coCycleTarget) + (P.program.rfiOver30 > 0) +
-  (P.program.trir > P.program.trirBenchmark);
+  (P.program.trir > P.program.trirBenchmark) +
+  // EAC Drift Velocity (megaproject-controls-doc upgrade, 2026-08-22) — independently recomputed
+  // from P.eacTrendSeries(), never calling P.eacDriftVelocity() and trusting it.
+  ((() => { const s = P.eacTrendSeries(); return (s[s.length - 1].eac - s[0].eac) / (s.length - 1); })() > 1.0) +
+  // Non-Critical Progress Inflation (megaproject-controls-doc upgrade, 2026-08-22) — false today
+  // (T.spi<1.00), included here so this count stays correct if that ever flips, not just today.
+  (T.spi >= 1.00 && T.cpli < 0.90);
 has("printBrief", "Escalations firing (" + expectedFiring + ")", "print brief escalation count matches independent derivation");
 ok(!G.printBrief._html.includes("DBE"), "print brief carries no swept terms");
 // content correctness, not just count: a firing trigger must attach the RIGHT rule text, not a
@@ -990,7 +996,10 @@ try {
 // integrity gate: every check passes, pill count matches
 const guardPasses = (G.aiGuards._html.match(/>PASS</g) || []).length;
 const guardFails = (G.aiGuards._html.match(/>FAIL</g) || []).length;
-ok(guardPasses === 27 && guardFails === 0, "integrity gate: 27 PASS, 0 FAIL",
+// 27->28 (megaproject-controls-doc upgrade, 2026-08-22): one new GUARDS tie-out row added
+// alongside the new floatErosionSeries() — see item C's own assertions further down for the
+// independent re-derivation of that specific row.
+ok(guardPasses === 28 && guardFails === 0, "integrity gate: 28 PASS, 0 FAIL",
    guardPasses + " pass / " + guardFails + " fail");
 has("aiGuards", "GREEN", "gate shows GREEN");
 // the header's own stated count must equal what actually rendered — a stray trailing comma in
@@ -1044,6 +1053,29 @@ ok(G.arch._html.includes("fct_control_account") && G.arch._html.includes("integr
     "exactly one row per week (6 weeks of CPH history)", String((G.aiStatControl._html.match(/class="rowbar"/g) || []).length));
   ok((G.aiStatControl._html.match(/>PASS</g) || []).length === 6 && (G.aiStatControl._html.match(/>FLAG</g) || []).length === 0,
     "all 6 weeks render PASS, none FLAG — matches the independently-confirmed zero-anomaly result");
+}
+// ingestion validation (megaproject-controls-doc upgrade, 2026-08-22) — a raw-record check,
+// distinct from the GUARDS reconciliation gate above. Independently re-derive both checks from
+// P.rows, never trust INGEST_GUARDS' own run() in isolation.
+{
+  ok(idsA.includes("aiIngestGuards"), "markup contains #aiIngestGuards");
+  ok(P.ingestGuards.length === 2, "exactly 2 ingestion checks — the other 4 doc conditions need a live feed this demo doesn't have", String(P.ingestGuards.length));
+  const noNegAc = P.rows.every(r => r.ac >= 0);
+  const evWithinBac = P.rows.every(r => r.ev <= r.bac);
+  ok(noNegAc === P.ingestGuards[0].run()[0], "no-negative-AC check's own verdict matches an independent re-derivation from P.rows");
+  ok(evWithinBac === P.ingestGuards[1].run()[0], "EV<=BAC check's own verdict matches an independent re-derivation from P.rows");
+  ok(noNegAc === true && evWithinBac === true, "pre-registered: both checks genuinely pass against this ledger today — an honest pass, not a rigged one");
+  has("aiIngestGuards", "GREEN — all 2 passing", "the section explicitly states the true pass verdict");
+  // the gap-naming sentence is in the static .lede paragraph above #aiIngestGuards, not inside
+  // the element's own rendered innerHTML — check indexSrc, not has() (same "which field actually
+  // holds this text" discipline this file has hit before, mirrored here on the static-markup
+  // vs. rendered-innerHTML boundary instead of innerHTML-vs-textContent).
+  ok(indexSrc.includes("schedule/ERP feed this demo doesn't have"),
+    "the section's own copy names the unimplemented-condition gap rather than silently under-delivering");
+  // the file-wide fabrication sweep (section F below) already covers "no flagged tool name
+  // anywhere" — this section's own copy tripped it once already while writing it (a bare "P6"
+  // mention describing what the source doc proposes, not a claimed personal-experience fact),
+  // fixed by rewording rather than growing the sweep's allowlist; no need for a duplicate check here.
 }
 // narrative: generate, verify every figure, check the contract panel
 try {
@@ -1707,6 +1739,59 @@ console.log("== D5.3. forecast model (actual vs plan) ==");
   ok(deltas.every(d => d > 0), "EAC has risen every single period — genuinely diverging, not oscillating",
     deltas.map(d => d.toFixed(2)).join(","));
   has("eacTrend", "diverging", "EAC trend prose calls out the divergence");
+  // EAC Drift Velocity (megaproject-controls-doc upgrade, 2026-08-22) — independently recompute,
+  // never call P.eacDriftVelocity() and trust it.
+  const dv = (s[s.length - 1].eac - s[0].eac) / (s.length - 1);
+  ok(Math.abs(dv - P.eacDriftVelocity()) < 1e-9, "eacDriftVelocity() matches an independent recomputation from eacTrendSeries()", dv.toFixed(3));
+  ok(dv > 1.0, "pre-registered: this series genuinely exceeds the $1.0M/month threshold — a real breach, not manufactured", dv.toFixed(3));
+  ok(idsA.includes("eacDriftOut"), "markup contains #eacDriftOut");
+  has("eacDriftOut", "Breached", "the drift-velocity outbox states the true over-threshold verdict");
+  const eacDriftRow = P.escalation.filter(e => /^EAC Drift Velocity/.test(e[0]))[0];
+  ok(!!eacDriftRow && eacDriftRow[1] === "Program Risk Manager" && eacDriftRow[3] === "10 days",
+    "the new EAC-drift escalation row carries the source doc's own owner/SLA", JSON.stringify(eacDriftRow));
+  ok(P.firingEscalations().some(e => /^EAC Drift Velocity/.test(e[0])),
+    "firingEscalations() genuinely includes the EAC-drift row today (confirmed breach, not dormant)");
+}
+// Earned Schedule / SPI(t) + Non-Critical Progress Inflation composite (megaproject-controls-doc
+// upgrade, 2026-08-22). Independently recompute from P.pvA/P.totals.ev in this file — never call
+// P.deriveEarnedSchedule() and trust it.
+{
+  const pvA = P.pvA, ev = P.totals.ev;
+  let i = -1;
+  for (let j = 0; j < pvA.length; j++) if (pvA[j] <= ev) i = j;
+  let es;
+  if (i === -1) es = ev / pvA[0];
+  else if (i === pvA.length - 1) es = pvA.length;
+  else es = (i + 1) + (ev - pvA[i]) / (pvA[i + 1] - pvA[i]);
+  const at = pvA.length, spit = es / at;
+  const real = P.deriveEarnedSchedule();
+  ok(Math.abs(real.es - es) < 1e-9 && Math.abs(real.spit - spit) < 1e-9,
+    "deriveEarnedSchedule() matches an independent recomputation from pvA/T.ev", es.toFixed(4) + " / " + spit.toFixed(4));
+  ok(Math.abs(es - 21.5095) < 0.01, "pre-registered: Earned Schedule is ~21.51 months against this ledger", es.toFixed(4));
+  ok(Math.abs(spit - 0.9777) < 0.001, "pre-registered: SPI(t) is ~0.978, genuinely different from dollar SPI (0.968)", spit.toFixed(4));
+  // click the spi KPI card, confirm the companion dbox renders and matches
+  try {
+    const spiKpi = P.kpis.filter(k => k.id === "spi")[0];
+    fire(G.kboard, "click", { target: { closest: (sel) => (sel === "[data-kpi]" ? { dataset: { kpi: "spi" } } : null) } });
+    ok(P.state.kpi === "spi", "clicking the SPI card sets state.kpi to spi");
+    has("kdetail", "Earned Schedule", "SPI's drawer renders the Earned Schedule companion dbox");
+    has("kdetail", idx(spit), "the drawer's rendered SPI(t) value matches the independent recomputation");
+    fire(G.kboard, "click", { target: { closest: (sel) => (sel === "[data-kpi]" ? { dataset: { kpi: "spi" } } : null) } });
+    ok(P.state.kpi === null, "clicking the SPI card again closes the drawer");
+    // a different KPI's drawer must NOT carry the companion dbox — it's spi-only
+    fire(G.kboard, "click", { target: { closest: (sel) => (sel === "[data-kpi]" ? { dataset: { kpi: "cpli" } } : null) } });
+    ok(!G.kdetail._html.includes("Earned Schedule"), "the Earned Schedule companion dbox does NOT leak into a different KPI's drawer (cpli)");
+    fire(G.kboard, "click", { target: { closest: (sel) => (sel === "[data-kpi]" ? { dataset: { kpi: "cpli" } } : null) } });
+  } catch (e) { ok(false, "SPI drawer / Earned Schedule companion interaction", e.message); }
+  // the composite alert — pre-registered against the real ledger, not assumed either way
+  const firing = T.spi >= 1.00 && T.cpli < 0.90;
+  ok(firing === false, "pre-registered: dollar SPI is below 1.00 today, so Non-Critical Progress Inflation does NOT currently fire — the honest current state, not a placeholder", "SPI=" + T.spi.toFixed(3) + " CPLI=" + T.cpli.toFixed(3));
+  ok(P.firingEscalations().some(e => /^Non-Critical Progress Inflation/.test(e[0])) === firing,
+    "firingEscalations() matches the pre-registered firing/non-firing state exactly");
+  const progInflationRow = P.escalation.filter(e => /^Non-Critical Progress Inflation/.test(e[0]))[0];
+  ok(!!progInflationRow && progInflationRow[1] === "Controls manager" && progInflationRow[3] === "72 hours",
+    "the new composite row reuses the existing 'Controls manager' role, not a new near-duplicate one", JSON.stringify(progInflationRow));
+  ok(P.kpis.length === 20, "regression guard: KPIS.length is still exactly 20 — SPI(t) was deliberately not made a 21st KPI card");
 }
 // B. Forecast accuracy — pre-registered: 3 small misses, 1 large miss in the most recent month
 {
@@ -1738,6 +1823,23 @@ has("aiGuards", "reads live off this program", "integrity gate covers at least o
   ok(deltas.every(d => d > 0), "revenue-service slip has grown every single period", deltas.join(","));
   has("schedDriftCard", "still finding its true finish", "schedule-drift prose calls out the ongoing slip");
   has("schedDriftCard", "R-01, NCR-2026-014", "schedule-drift prose cross-references the same tunnel root cause");
+}
+// E. Critical float erosion rate (megaproject-controls-doc upgrade, 2026-08-22) — same shape as
+// the schedule-drift block above; CP-201 is the anchor package (most negative float, distinct
+// from CP-601's worst-CPLI framing — see index.html's own FLOAT_HIST comment).
+{
+  ok(idsA.includes("floatErosionCard"), "markup contains #floatErosionCard");
+  const s = P.floatErosionSeries();
+  ok(s.length === 6, "float-erosion series has 6 periods", String(s.length));
+  const live = P.rows.filter(r => r.id === "CP-201")[0].float;
+  ok(s[s.length - 1].float === live, "float-erosion current point reads live off CP-201's own float, not a duplicated hand-typed number");
+  const deltas = [];
+  for (let i = 1; i < s.length; i++) deltas.push(s[i].float - s[i - 1].float);
+  ok(deltas.every(d => d < 0), "CP-201's float has eroded every single period — genuinely eroding, not oscillating", deltas.join(","));
+  has("floatErosionCard", "eroded further", "float-erosion prose calls out the ongoing erosion");
+  has("floatErosionCard", "R-01, NCR-2026-014", "float-erosion prose cross-references the same tunnel root cause");
+  // the new GUARDS tie-out row itself, independently re-derived (not just trusting its own run())
+  has("aiGuards", days(live), "the new float-erosion GUARDS row states the same live CP-201 float value, independently confirmed");
 }
 
 /* =========================================================================

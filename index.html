@@ -795,7 +795,8 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
           <p class="lede" style="font-size:12.5px;margin-top:5px">A forecast that oscillates is noisy but
             healthy. A forecast that moves the same direction every single period is not stabilizing &mdash;
             it is <em>diverging</em>, and the trend line is the only way to see that before it is obvious.</p>
-          <div id="eacTrend"></div></div>
+          <div id="eacTrend"></div>
+          <div class="outbox" id="eacDriftOut" style="margin-top:10px"></div></div>
         <div class="card"><h3>1-month-ahead forecast accuracy</h3>
           <p class="lede" style="font-size:12.5px;margin-top:5px">Grades the forecasting method, not the
             program: what a simple run-rate projection said last month's actual cost would be, versus what it
@@ -958,6 +959,13 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
           (Sound Transit 2023 Standard Division 01 Specifications, verified 19&nbsp;Aug&nbsp;2026 &mdash;
           a real, external citation, not this program's own data.)</p>
       </div>
+
+      <div class="sec-h" style="margin-top:34px"><h2>Critical float erosion rate</h2><span class="tag">trend, not a snapshot</span></div>
+      <p class="lede">The float KPI above is a point-in-time count &mdash; how many packages sit at or below
+        zero float right now. This shows the same driving package&rsquo;s float <em>trajectory</em>: whether
+        the margin has been eroding steadily or just arrived where it is, which changes what a recovery plan
+        actually has to fix.</p>
+      <div class="card" style="margin-top:15px" id="floatErosionCard"></div>
 
       <div class="sec-h" style="margin-top:34px"><h2>Revenue-service forecast drift</h2><span class="tag">trend, not a snapshot</span></div>
       <p class="lede">The milestone table above shows today's variance against the contractual date. This
@@ -1141,6 +1149,18 @@ join dim_control_account b using (package_id)</pre></div>
         real, continuously-updating series, run honestly against the one real (if small) series this
         dashboard has.</p>
       <div class="card" style="margin-top:12px" id="aiStatControl"></div>
+
+      <div class="sec-h" style="margin-top:30px"><h3>Ingestion validation &mdash; not the same thing as the gate above</h3></div>
+      <p class="lede">The integrity gate above re-derives already-accepted totals and compares them &mdash;
+        reconciliation, not validation. This checks something earlier: whether a raw record should have been
+        trusted at all before it entered the ledger. A real predictive-controls engine quarantines a bad
+        record at intake &mdash; negative actual costs, physical progress claimed past 100%, task updates
+        posted after the data date, costs charged to an unmapped cost code, schedule imports carrying open-ended
+        tasks or hard constraints on the critical path, and baseline changes without a signed change-order ID.
+        Only the first two are honestly checkable against this static ledger &mdash; the other four need a
+        live schedule/ERP feed this demo doesn't have and never will; naming that gap here instead of quietly
+        skipping it.</p>
+      <div class="card" style="margin-top:12px" id="aiIngestGuards"></div>
 
       <div class="sec-h" style="margin-top:30px"><h3>AI narrative &mdash; under a verification contract</h3></div>
       <p class="lede">The contract: <b style="color:rgb(var(--c-ink))">the model proposes, the code disposes.</b>
@@ -1376,7 +1396,7 @@ join dim_control_account b using (package_id)</pre></div>
         &mdash; an XML standard pairing <i>applicability</i> (which
         records a rule governs) with <i>requirements</i> (what those records must have) so a
         submittal that fails gets rejected with a specific, itemized reason. This dashboard's own
-        <span id="guardCountLede">27</span>-check integrity gate is a working small-scale version of the same pattern.</p>
+        <span id="guardCountLede">28</span>-check integrity gate is a working small-scale version of the same pattern.</p>
       <div class="tw"><table id="guardrailTable"></table></div>
 
       <div class="sec-h" style="margin-top:30px"><h3>When systems disagree</h3></div>
@@ -1481,9 +1501,26 @@ var AC_HISTORY=[
 var REVSVC_HISTORY=[
  {m:"Feb",slip:16},{m:"Mar",slip:21},{m:"Apr",slip:26},{m:"May",slip:31},{m:"Jun",slip:36}
 ];
+/* Critical float erosion (megaproject-controls-doc upgrade, 2026-08-22) — same shape and same
+   discipline as REVSVC_HISTORY above: 5 hand-authored historical points, the 6th (current) point
+   read live off the ledger below, never duplicated. CP-201 is the anchor on purpose — it carries
+   the most negative float (-40d) of any package, distinct from CP-601 (worst CPLI ratio but a
+   less-negative float) — the same "worst" split renderNarr()'s own comment already keeps apart
+   elsewhere in this file; float erosion is about float, so CP-201 is the correct package here. */
+var FLOAT_HIST=[
+ {m:"Feb",float:5},{m:"Mar",float:-3},{m:"Apr",float:-12},{m:"May",float:-20},{m:"Jun",float:-31}
+];
 function eacTrendSeries(){ return EAC_HISTORY.concat([{m:"Jul*",eac:T.eac}]); }
+/* EAC Drift Velocity (megaproject-controls-doc upgrade, 2026-08-22) — a trailing-5-period average
+   monthly drift, matching the source doc's own "DV_5" framing. Reuses eacTrendSeries()'s own
+   6-point series (5 history + 1 live) rather than a second, separately-maintained history. */
+function eacDriftVelocity(){ var s=eacTrendSeries(); return (s[s.length-1].eac-s[0].eac)/(s.length-1); }
 function acHistorySeries(){ return AC_HISTORY.concat([{m:"Jul*",ac:T.ac}]); }
 function revSvcDriftSeries(){ return REVSVC_HISTORY.concat([{m:"Jul*",slip:MILES[MILES.length-1].d}]); }
+function floatErosionSeries(){
+  var live=rows.filter(function(r){ return r.id==="CP-201"; })[0].float;
+  return FLOAT_HIST.concat([{m:"Jul*",float:live}]);
+}
 /* Naive run-rate forecast: next month = this month + this month's own delta from the one before.
    Deliberately simple and transparent, so a miss is a genuine forecast-method finding, not a
    tuned model quietly hiding its own errors. */
@@ -1726,6 +1763,22 @@ var GATE5_CHECKS=[
    return [ok, PKGS.length+" packages checked"];}},
  {key:"contCoverage", n:"Risk-adjusted contingency reserve covers exposure (coverage &ge; 1.00)", run:function(){
    return [T.contCoverage>=1.0, idx(T.contCoverage)];}}
+];
+
+/* Ingestion validation — a raw-record check, not a reconciliation (GUARDS above re-derives
+   already-accepted totals; this asks whether a record should have been trusted at intake).
+   Megaproject-controls-doc upgrade, 2026-08-22: only these 2 of the source doc's 6 proposed
+   quarantine conditions are honestly computable against this static, already-clean ledger — the
+   other 4 (schedule-import logic quality, cost-code-mapping enforcement, post-data-date rejection,
+   signed-change-order authorization) need a live schedule/ERP feed this demo doesn't have; named in the
+   section's own copy rather than silently built. Same {key,n,run} shape as GATE5_CHECKS above. */
+var INGEST_GUARDS=[
+ {key:"noNegAc", n:"No negative actual cost anywhere in the control-account ledger", run:function(){
+   var ok=PKGS.every(function(p){ return p.ac>=0; });
+   return [ok, PKGS.length+" packages checked"];}},
+ {key:"evWithinBac", n:"No package has earned more value than its own budget (EV &le; BAC)", run:function(){
+   var ok=PKGS.every(function(p){ return p.ev<=p.bac; });
+   return [ok, PKGS.length+" packages checked"];}}
 ];
 
 /* =========================================================================
@@ -2179,6 +2232,7 @@ function renderDetail(){
       '<div class="dbox"><h4>Thresholds</h4><p>'+k.th+'</p></div>'+
       '<div class="dbox"><h4>System of record</h4><p>'+k.src+'</p></div>'+
     '</div>'+
+    spiTCompanionDbox(k)+
     renderRootCause(k,rag)+
     '<p style="margin:14px 0 0;font-size:12.3px;color:rgb(var(--c-mut))">'+
       '<b style="color:rgb(var(--c-ink))">Meaningful in:</b> '+phNames+
@@ -2187,6 +2241,27 @@ function renderDetail(){
   el.scrollIntoView({block:"nearest"});
 }
 
+/* Companion 5th dbox, SPI's drawer only (megaproject-controls-doc upgrade, 2026-08-22) — a real,
+   distinct schedule index, not a duplicate CPLI/BEI reading. Also states the live status of the
+   "Non-Critical Progress Inflation" composite (dollar-SPI>=1.00 with CPLI<0.90) plainly, rather
+   than silently — that composite intentionally gates on dollar SPI (the metric the source doc
+   says masks the problem), never on this more honest SPI(t) reading. */
+function spiTCompanionDbox(k){
+  if(k.id!=="spi") return "";
+  var es=deriveEarnedSchedule();
+  var firing=T.spi>=1.00 && T.cpli<0.90;
+  return '<div class="dbox" style="margin-top:13px"><h4>Earned Schedule &mdash; a second, time-based reading</h4>'+
+    '<p>SPI above is measured in dollars. <b style="color:rgb(var(--c-ink))">SPI(t) = '+idx(es.spit)+
+    '</b> measures the same question in time instead: <code>Earned Schedule &divide; Actual Time</code>, where '+
+    'Earned Schedule ('+es.es.toFixed(1)+' months) is the point on the planned-value curve this program has '+
+    'actually reached, against '+es.at+' months elapsed. '+
+    (firing?
+      'Right now dollar SPI is at or above 1.00 while CPLI is below 0.90 &mdash; the exact "Non-Critical Progress '+
+      'Inflation" pattern this reading exists to catch: volume is masking a stalled driving path.'
+      :'Dollar SPI is itself below 1.00 today ('+idx(T.spi)+'), so it is not currently masking the critical-path '+
+      'erosion CPLI already shows ('+idx(T.cpli)+') &mdash; this rule stands ready for the day that flips.')+
+    '</p></div>';
+}
 /* The actual ask this section answers: not just "why is this number bad" (the dbox above already
    says that in general terms) but "which real, currently-open item is tracking it, who owns that
    item right now, and by when" — with a click-through straight to that item on the Actions tab.
@@ -2246,6 +2321,23 @@ var evA=pvA.map(function(v,i){ return v*ramp(i,T.spi); });
 var acA=evA.map(function(v,i){ return v/ramp(i,T.cpi); });
 var pvB=cum(wB,T.bac-T.pv).map(function(v){ return v+T.pv; });
 var eacTail=[T.ev].concat(cum(wB,T.eac-T.ev).map(function(v){ return v+T.ev; }));
+
+/* Earned Schedule / time-based SPI (megaproject-controls-doc upgrade, 2026-08-22) — a real,
+   distinct schedule index (Lipke's Earned Schedule method), not a duplicate of CPLI/BEI: walks
+   the existing pvA curve for the latest period whose planned value the program has actually
+   earned, interpolating fractionally between periods. Two edge cases handled explicitly:
+   EV below pvA[0] (interpolate against an implicit (0,0) origin) and EV at/past the curve's own
+   endpoint (fully caught up — es=at, spit=1.00), so this never silently divides by an
+   out-of-range index. */
+function deriveEarnedSchedule(){
+  var at=pvA.length, i=-1, j;
+  for(j=0;j<pvA.length;j++){ if(pvA[j]<=T.ev) i=j; }
+  var es;
+  if(i===-1){ es=T.ev/pvA[0]; }
+  else if(i===pvA.length-1){ es=at; }
+  else{ es=(i+1)+(T.ev-pvA[i])/(pvA[i+1]-pvA[i]); }
+  return {es:es, at:at, spit:es/at};
+}
 
 /* Geometry constants hoisted out of renderScurve() so the timeline scrubber (below) can position
    its cursor at exactly the same X a given month renders at, instead of re-deriving — and
@@ -2661,6 +2753,11 @@ function renderEacTrend(){
     deltas.length+' periods</b>. That is not noise; a healthy forecast oscillates. This one is diverging.':
     'It has moved in both directions, which is normal variation, not a systemic drift.')+
     ' Net movement over '+deltas.length+' periods: '+sgn(s[s.length-1].eac-s[0].eac)+'.</p>');
+  var dv=eacDriftVelocity(), overThreshold=dv>1.0;
+  document.getElementById("eacDriftOut").innerHTML=
+    '<div><div class="k">EAC drift velocity (5-period avg)</div><div class="v '+(overThreshold?"ba":"ok")+'">'+sgn(dv)+'/mo</div></div>'+
+    '<div><div class="k">vs. $1.0M/month threshold</div><div class="v '+(overThreshold?"ba":"ok")+'">'+
+    (overThreshold?"Breached":"Within threshold")+'</div></div>';
 }
 function renderFcastTable(){
   var rows2=forecastAccuracy();
@@ -3084,6 +3181,8 @@ function firingEscalations(){
   if(PROGRAM.coCycleDays>PROGRAM.coCycleTarget) f.push(findEsc(ESC_PAT.coAging));
   if(PROGRAM.rfiOver30>0) f.push(findEsc(ESC_PAT.rfiAging));
   if(PROGRAM.trir>PROGRAM.trirBenchmark) f.push(findEsc(ESC_PAT.trir));
+  if(eacDriftVelocity()>1.0) f.push(findEsc(ESC_PAT.eacDrift));
+  if(T.spi>=1.00 && T.cpli<0.90) f.push(findEsc(ESC_PAT.progInflation));
   return f;
 }
 function renderPrint(){
@@ -3339,6 +3438,7 @@ function renderSchedule(){
     days(MILES[MILES.length-1].d)+
     ' late. An event with no fragnet is an opinion; an event with one is arithmetic.</p>';
   renderSchedDrift();
+  renderFloatErosion();
 }
 
 /* The math explainer — CPLI's formula is already stated as prose above the bars; this panel
@@ -3380,6 +3480,30 @@ function renderSchedDrift(){
      'The projected date has moved both directions across these periods, consistent with a schedule that has stabilized rather than one still sliding.')+
    ' Driven by the same tunnel condition carried by R-01, NCR-2026-014 and the crew cost-per-hour spike on the Delivery tab &mdash; one root cause showing up in four different instruments.</p>';
   bars("schedDriftBars",deltas.map(function(d){ return {id:d.m,v:d.delta,c:d.delta>0?"var(--c-pill-r)":"var(--c-pill-g)"}; }),days);
+}
+/* Critical float erosion rate (megaproject-controls-doc upgrade, 2026-08-22) — exact clone of
+   renderSchedDrift() above, "allDown" in place of "allUp" since float eroding means the
+   trend runs negative, not positive. */
+function renderFloatErosion(){
+  var s=floatErosionSeries(), deltas=[], i;
+  for(i=1;i<s.length;i++) deltas.push({m:s[i].m,delta:s[i].float-s[i-1].float});
+  var allDown=deltas.every(function(d){ return d.delta<0; });
+  var ratePerMonth=(s[s.length-1].float-s[0].float)/deltas.length;
+  document.getElementById("floatErosionCard").innerHTML=
+   '<div style="display:flex;gap:22px;flex-wrap:wrap;margin-bottom:14px">'+
+   [["First measured float",days(s[0].float)],
+    ["Current float",days(s[s.length-1].float)],
+    ["Net erosion over "+deltas.length+" periods",days(s[s.length-1].float-s[0].float)],
+    ["Erosion rate",days(ratePerMonth)+"/mo"]
+   ].map(function(r){ return '<div><div class="k" style="font:600 9.5px/1.3 ui-monospace,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgb(var(--c-mut))">'+
+     r[0]+'</div><div class="v" style="margin-top:5px;font:600 .98rem/1.2 inherit">'+r[1]+'</div></div>'; }).join("")+
+   '</div><div id="floatErosionBars"></div>'+
+   '<p style="margin:12px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">'+(allDown?
+     'CP-201&rsquo;s float has eroded further in <b style="color:rgb(var(--c-ink))">every one of the last '+
+     deltas.length+' reporting periods</b> &mdash; the driving path is consuming margin steadily, not holding at a recovered position.':
+     'CP-201&rsquo;s float has moved both directions across these periods, consistent with a driving path that has stabilized rather than one still eroding.')+
+   ' Same tunnel condition carried by R-01, NCR-2026-014, the crew cost-per-hour spike, and the revenue-service drift above &mdash; one root cause, five instruments.</p>';
+  bars("floatErosionBars",deltas.map(function(d){ return {id:d.m,v:d.delta,c:d.delta<0?"var(--c-pill-r)":"var(--c-pill-g)"}; }),days);
 }
 
 /* ---------- risk tab ---------- */
@@ -3777,7 +3901,9 @@ var ESCALATION=[
  ["Any package at ≤ 0 float","Package manager","Weekly recovery cadence with named owner","Next weekly"],
  ["Change order aging &gt; 30d","Change board chair","Escalate to resolution or reject with reasons","Weekly review"],
  ["RFI aged &gt; 30d on the critical path","Design manager","Daily escalation until closed","Daily"],
- ["TRIR above benchmark","Safety manager","Incident-pattern review; check clustering against negative-float packages","Same week"]
+ ["TRIR above benchmark","Safety manager","Incident-pattern review; check clustering against negative-float packages","Same week"],
+ ["EAC Drift Velocity &gt; $1.0M/month","Program Risk Manager","10-day mitigation review — determine whether the driver is systemic or a discrete cause","10 days"],
+ ["Non-Critical Progress Inflation: SPI &ge; 1.00 with CPLI &lt; 0.90","Controls manager","Independent critical-path review — dollar SPI reading healthy while the driving path is not; do not rely on SPI alone to clear this KPI","72 hours"]
 ];
 /* ESCALATION rows have no stable key field (unlike GATE5_CHECKS) — look them up by anchored
    trigger text, not a raw index. renderInversion() already did this for one row (below); a
@@ -3788,7 +3914,8 @@ var ESCALATION=[
 function findEsc(pattern){ return ESCALATION.filter(function(e){ return pattern.test(e[0]); })[0]; }
 var ESC_PAT={cpi:/^CPI /, cpli:/^CPLI /, tcpiGap:/^TCPI −/, tcpiBac:/^TCPI\(BAC\)/,
   contCoverage:/^Contingency coverage/, vacContingency:/^VAC exceeds/, negFloat:/^Any package/,
-  coAging:/^Change order aging/, rfiAging:/^RFI aged/, trir:/^TRIR/};
+  coAging:/^Change order aging/, rfiAging:/^RFI aged/, trir:/^TRIR/, eacDrift:/^EAC Drift Velocity/,
+  progInflation:/^Non-Critical Progress Inflation/};
 /* KPI -> ESCALATION rows, for KPIs whose rule has no ACTIONS item logged yet. Used only as a
    fallback in the KPI drawer when actionsForKpi() finds nothing — an honest "here is the rule,
    no item tracks it yet" rather than a silent gap. Patterns, not indices — same fix as above. */
@@ -4422,7 +4549,10 @@ var GUARDS=[
    var n=Math.min(6,ME), actualSum=0, i;
    for(i=ME-n;i<ME;i++) actualSum+=acA[i]-(i>0?acA[i-1]:0);
    var span=acA[ME-1]-(ME-n>0?acA[ME-n-1]:0);
-   return [Math.abs(actualSum-span)<1e-6, m(actualSum)+" = "+m(span)];}}
+   return [Math.abs(actualSum-span)<1e-6, m(actualSum)+" = "+m(span)];}},
+ {n:"Float-erosion series' current point reads live off CP-201's own float, never duplicated", run:function(){
+   var s=floatErosionSeries(), live=rows.filter(function(r){ return r.id==="CP-201"; })[0].float;
+   return [s[s.length-1].float===live, days(s[s.length-1].float)];}}
 ];
 function renderGuards(){
   var res=GUARDS.map(function(g){ var r=g.run(); return {n:g.n,pass:r[0],detail:r[1]}; });
@@ -4463,6 +4593,21 @@ function renderStatControl(){
    'population &sigma; '+usd(z.sd)+'/hr, across the '+z.points.length+' weeks above. '+
    (flags? "The flagged week"+(flags>1?"s":"")+" would warrant a look before this posts to the ledger."
      : "No week crosses the threshold — a genuine, honestly-computed null result, not a placeholder.")+'</p>';
+}
+/* Same visual family as renderGuards()/renderStatControl() above — a sibling check, not new
+   chrome. Megaproject-controls-doc upgrade, 2026-08-22. */
+function renderIngestGuards(){
+  var res=INGEST_GUARDS.map(function(g){ var r=g.run(); return {n:g.n,pass:r[0],detail:r[1]}; });
+  var fails=res.filter(function(r){return !r.pass;}).length;
+  document.getElementById("aiIngestGuards").innerHTML=
+   '<div class="gate"><b>Ingestion validation &middot; '+INGEST_GUARDS.length+' checks</b>'+
+   '<span class="pill '+(fails?"r":"g")+'">'+(fails? fails+" FAILING":"GREEN — all "+INGEST_GUARDS.length+" passing")+'</span></div>'+
+   res.map(function(r){
+     return '<div class="rowbar" style="grid-template-columns:1fr auto 64px;cursor:default">'+
+       '<span style="font-size:12.5px">'+r.n+'</span>'+
+       '<span class="tab-num mono" style="font-size:11.5px;color:rgb(var(--c-mut))">'+r.detail+'</span>'+
+       '<span style="text-align:right"><span class="pill '+(r.pass?"g":"r")+'">'+(r.pass?"PASS":"FAIL")+'</span></span></div>';
+   }).join("");
 }
 
 /* The narrative: figures first, prose second, verification last. */
@@ -5488,7 +5633,7 @@ renderEacTrend(); renderFcastTable(); renderCashflow();
 renderGantt(); renderSchedule(); renderRisk(); renderContracts(); renderDelivery(); renderFramework(); renderActions();
 renderDataStrategy();
 renderMcFilter(); syncMcView(); renderMcMath(); renderScen(); renderPrint();
-renderArch(); renderGuards(); renderStatControl();
+renderArch(); renderGuards(); renderStatControl(); renderIngestGuards();
 renderGlossary("");
 document.getElementById("sCpi").value=T.cpi;
 document.getElementById("sSpi").value=T.spi;
@@ -5506,10 +5651,11 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   wbs:WBS,gates:GATES,gate5Checks:GATE5_CHECKS,glNodes:GL_NODES,glCaption:glCaption,glNodeState:glNodeState,
   contracts:CONTRACTS,deriveContract:deriveContract,
   portfolioRows:portfolioRows,fundingTier:fundingTier,
-  cphCells:CPH_CELLS,deriveCph:deriveCph,deriveZScores:deriveZScores,
+  cphCells:CPH_CELLS,deriveCph:deriveCph,deriveZScores:deriveZScores,ingestGuards:INGEST_GUARDS,
+  deriveEarnedSchedule:deriveEarnedSchedule,
   risks:RISKS,pBand:P_BAND,tweenNum:tweenNum,mcQuantile:mcQuantile,
-  eacTrendSeries:eacTrendSeries,acHistorySeries:acHistorySeries,forecastAccuracy:forecastAccuracy,
-  revSvcDriftSeries:revSvcDriftSeries,pvA:pvA,acA:acA,evA:evA,pvB:pvB,milesLast:MILES[MILES.length-1],
+  eacTrendSeries:eacTrendSeries,eacDriftVelocity:eacDriftVelocity,acHistorySeries:acHistorySeries,forecastAccuracy:forecastAccuracy,
+  revSvcDriftSeries:revSvcDriftSeries,floatErosionSeries:floatErosionSeries,pvA:pvA,acA:acA,evA:evA,pvB:pvB,milesLast:MILES[MILES.length-1],
   presentBeatsFull:PRESENT_BEATS_FULL,presentBeatsQuick:PRESENT_BEATS_QUICK,tourBeats:TOUR_BEATS,state:state,
   guardrails:GUARDRAILS,discrepancySteps:DISCREPANCY_STEPS,rollout:ROLLOUT,dsNodes:DS_NODES,dsCaption:dsCaption,
   gloss:GLOSS,findGloss:findGloss,
