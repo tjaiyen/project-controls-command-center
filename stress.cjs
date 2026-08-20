@@ -506,6 +506,12 @@ ok(Math.abs(trueMin.cpli - T.cpli) < 1e-9,
 
 // Tracking Gantt (2026-08-19) — every date independently recomputed from the same two real
 // fields (cpRem, float) and the same anchor date already used by actDays()/isStale() elsewhere.
+// renderGanttScrubMarker() (index.html, repositions #ganttScrubMarker) is the same direct-DOM-
+// -manipulation-not-full-re-render pattern as renderScurveConfMarker() — this stub's
+// querySelector always returns a fresh, disconnected stub, so it's live-browser-only coverage,
+// not exercised here (2026-08-20 /stress-test finding: this specific function/id had zero
+// mentions anywhere in this file, unlike its twin at line 372/983-987, though the class of
+// limitation was already noted in general terms at line 372 — naming it here closes that gap).
 {
   const ACT_ASOF = new Date(Date.UTC(2026, 6, 31)); // 31 Jul 2026 — matches PROGRAM.dataDate
   function addDays(base, n) { return new Date(base.getTime() + n * 86400000); }
@@ -776,7 +782,13 @@ ok(indexSrc.includes('data-help="referenceclass"'), "reference-class callout car
   }
   function m_(v) { const s = Math.abs(v).toFixed(1).split(".");
     return (v < 0 ? "−" : "") + "$" + s[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",") + "." + s[1] + "M"; }
-  const aLow = Math.max(0.78, mcR.cpi - 0.08), bHigh = mcR.cpi + 0.06, mode = mcR.cpi;
+  // Ground truth is the CLAMPED formula (mirrors index.html's mcParams(), never by calling
+  // P.mcParams() itself — 2026-08-20 /stress-test finding: this used to hand-roll the same
+  // unclamped duplicate the app itself had, so it would have silently enshrined that bug rather
+  // than catching it. Identical to the live data today (min CPI ~0.865, well above where the
+  // clamp engages) but now testing real ground truth, not a shared mistake.
+  const aLow = Math.max(0.78, mcR.cpi - 0.08), bHigh = Math.max(aLow + 0.02, mcR.cpi + 0.06),
+    mode = Math.max(aLow, Math.min(bHigh, mcR.cpi));
   has("mcMathBody", "AC + (BAC", "math panel states the per-run formula");
   has("mcMathBody", "4000 runs", "math panel names the actual run count, not a stale number");
   has("mcMathBody", mcR.id, "math panel names the worked control account by id");
@@ -822,7 +834,9 @@ ok(indexSrc.includes('data-help="referenceclass"'), "reference-class callout car
   const rnd1 = lcgCheck(20260731 + 1 * 7919);
   let total1 = 0;
   rows.forEach(r => {
-    const c = triangCheck2(rnd1(), Math.max(0.78, r.cpi - 0.08), r.cpi + 0.06, r.cpi);
+    // clamped ground truth (mcParams()), same 2026-08-20 fix as the math-explainer block above
+    const lo1 = Math.max(0.78, r.cpi - 0.08), hi1 = Math.max(lo1 + 0.02, r.cpi + 0.06);
+    const c = triangCheck2(rnd1(), lo1, hi1, Math.max(lo1, Math.min(hi1, r.cpi)));
     total1 += r.ac + (r.bac - r.ev) / c;
   });
   ok(G.mcOneRun._html.includes(m2(total1)), "run #1's summed total matches independent recomputation", m2(total1));
@@ -836,7 +850,8 @@ ok(indexSrc.includes('data-help="referenceclass"'), "reference-class callout car
   const rnd2 = lcgCheck(20260731 + 2 * 7919);
   let total2 = 0;
   rows.forEach(r => {
-    const c = triangCheck2(rnd2(), Math.max(0.78, r.cpi - 0.08), r.cpi + 0.06, r.cpi);
+    const lo2 = Math.max(0.78, r.cpi - 0.08), hi2 = Math.max(lo2 + 0.02, r.cpi + 0.06);
+    const c = triangCheck2(rnd2(), lo2, hi2, Math.max(lo2, Math.min(hi2, r.cpi)));
     total2 += r.ac + (r.bac - r.ev) / c;
   });
   ok(total1 !== total2, "pre-registered: two clicks with different seeds land on different totals", total1 + " vs " + total2);
@@ -2854,6 +2869,24 @@ ok(otakSrc.includes("R2026-11") && otakSrc.includes("verified 19&nbsp;Aug&nbsp;2
    F. COMPLIANCE SWEEPS
    ========================================================================= */
 console.log("== F. sweeps ==");
+// mcParams() reuse tripwire (2026-08-20 /stress-test finding) — today's live CPI data (0.865-1.042)
+// can never distinguish the clamped mcParams() formula from the unclamped duplicate that used to
+// live in renderMcMath()/renderMcOneRun(), so a regression back to hand-rolled Math.max(0.78,...)
+// in either function would pass every value-level assertion above silently. A source-text check
+// is the only thing that actually guards this fix — extracting the two function bodies and
+// confirming each calls mcParams(r) rather than reimplementing its formula.
+{
+  const mcMathSrc = indexSrc.slice(indexSrc.indexOf("function renderMcMath()"), indexSrc.indexOf("function renderMcOneRun()"));
+  const mcOneRunSrc = indexSrc.slice(indexSrc.indexOf("function renderMcOneRun()"), indexSrc.indexOf("document.getElementById(\"mcRunOne\")"));
+  ok(mcMathSrc.includes("mcParams(r)"), "renderMcMath() calls the shared mcParams(), not a hand-rolled duplicate");
+  ok(mcOneRunSrc.includes("mcParams(r)"), "renderMcOneRun() calls the shared mcParams(), not a hand-rolled duplicate");
+  // A third regex-based check attempting to catch the specific old unclamped literal pattern was
+  // tried here and dropped: probe-verified (temporarily reverting the fix and re-running) that it
+  // did NOT actually fire against renderMcMath()'s real old shape (a variable-declaration list,
+  // not the triang()-call-argument shape the regex was written against) — a contradicted
+  // prediction (B35), not assumed safe. The two mcParams(r) presence checks above are the ones
+  // empirically confirmed (same probe) to fail correctly on the pre-fix code.
+}
 const FAB = /P6|Primavera|MS Project|HeavyBid|AGTEK|Bluebeam|92%|Design-Build|DBE|PE licen/i;
 const SAN = /mawl|dagir|izlid|kiji|minirva|glare|milr/i;
 // Approved exceptions, stripped before the sweep so any OTHER appearance of the banned term

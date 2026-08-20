@@ -3066,20 +3066,34 @@ function recomputeActiveMc(){
    is drawn clamped to the right edge with an explicit "off scale" label instead of being quietly
    mis-positioned as if it were inside the shown range. Shared by both chart views so the
    off-scale logic exists once, not twice. */
+var RCF_MULT=1.45; // Flyvbjerg's cited rail-project average overrun — one constant, not a
+                    // literal duplicated between this marker and renderMcRcf()'s own read-out.
 function rcfMarkerSvg(W,H,PL,PR,PT,PB,hi,X){
-  var rcfVal=T.bac*1.45, offScale=rcfVal>hi;
+  var rcfVal=T.bac*RCF_MULT, offScale=rcfVal>hi;
   var x=offScale?(W-PR):X(rcfVal);
   var label=(offScale?"▸ ":"")+"RCF (rail, +45%) "+m(rcfVal)+(offScale?" — off scale":"");
   return '<line x1="'+x+'" x2="'+x+'" y1="'+PT+'" y2="'+(H-PB)+'" stroke="'+C("info")+'" stroke-width="1.8" stroke-dasharray="2 2"/>'+
     '<text x="'+x+'" y="'+(PT+11)+'" text-anchor="'+(offScale?"end":"middle")+'" font-size="10" font-family="ui-monospace,monospace" fill="'+C("info")+'">'+label+'</text>';
 }
-function renderMc(){
-  var W=980,H=260,PL=64,PR=18,PT=18,PB=40;
+/* Shared by both chart views below (2026-08-20 /stress-test finding: this range-with-degenerate-
+   -case-padding logic and the marker() helper were duplicated byte-for-byte, comment included,
+   in renderMc() and renderMcCdf() — same reuse principle rcfMarkerSvg() above already applies to
+   the off-scale reference-class logic, now applied here too). */
+function mcChartRange(){
   var lo=activeMc.sims[Math.floor(0.02*activeMc.sims.length)], hi=activeMc.sims[Math.floor(0.98*activeMc.sims.length)];
   /* Degenerate case: every account locked to its observed CPI collapses the run to one repeated
      value (lo===hi) — pad the axis rather than divide by zero. A genuine, if rare, honest state
      (zero modeled uncertainty), not an error to hide. */
   if(hi<=lo) hi=lo+Math.max(1,Math.abs(lo)*0.001);
+  return {lo:lo,hi:hi};
+}
+function mcMarker(X,H,PT,PB,v,color,label){
+  return '<line x1="'+X(v)+'" x2="'+X(v)+'" y1="'+PT+'" y2="'+(H-PB)+'" stroke="'+color+'" stroke-width="1.8" stroke-dasharray="4 3"/>'+
+    '<text x="'+X(v)+'" y="'+(H-24)+'" text-anchor="middle" font-size="10" font-family="ui-monospace,monospace" fill="'+color+'">'+label+'</text>';
+}
+function renderMc(){
+  var W=980,H=260,PL=64,PR=18,PT=18,PB=40;
+  var range=mcChartRange(), lo=range.lo, hi=range.hi;
   var bins=26, bw=(hi-lo)/bins, counts=[], i;
   for(i=0;i<bins;i++) counts.push(0);
   activeMc.sims.forEach(function(v){ if(v<lo||v>hi) return;
@@ -3096,14 +3110,10 @@ function renderMc(){
     return '<rect x="'+x.toFixed(1)+'" y="'+(H-PB-h).toFixed(1)+'" width="'+w.toFixed(1)+'" height="'+Math.max(1,h).toFixed(1)+
       '" rx="1.5" fill="'+col+'" opacity=".78"><title>'+m(lo+i*bw)+' – '+m(lo+(i+1)*bw)+': '+c+' runs</title></rect>';
   }).join("");
-  function marker(v,color,label){
-    return '<line x1="'+X(v)+'" x2="'+X(v)+'" y1="'+PT+'" y2="'+(H-PB)+'" stroke="'+color+'" stroke-width="1.8" stroke-dasharray="4 3"/>'+
-      '<text x="'+X(v)+'" y="'+(H-24)+'" text-anchor="middle" font-size="10" font-family="ui-monospace,monospace" fill="'+color+'">'+label+'</text>';
-  }
   document.getElementById("mcChart").innerHTML=svg(W,H,body+
-    marker(T.bac,C("ok"),"BAC "+m(T.bac))+
-    marker(activeMc.p50,C("warn"),"P50 "+m(activeMc.p50))+
-    marker(T.bac+T.contRemaining,C("bad"),"BAC+cont "+m(T.bac+T.contRemaining))+
+    mcMarker(X,H,PT,PB,T.bac,C("ok"),"BAC "+m(T.bac))+
+    mcMarker(X,H,PT,PB,activeMc.p50,C("warn"),"P50 "+m(activeMc.p50))+
+    mcMarker(X,H,PT,PB,T.bac+T.contRemaining,C("bad"),"BAC+cont "+m(T.bac+T.contRemaining))+
     rcfMarkerSvg(W,H,PL,PR,PT,PB,hi,X),
     "Monte Carlo distribution of the forecast at completion across "+activeMc.n+" simulated completions, marked with budget, median, budget plus remaining contingency, and the rail reference-class estimate.");
   renderMcStatsRead();
@@ -3113,11 +3123,7 @@ function renderMc(){
    a histogram. No new simulation, no new randomness. */
 function renderMcCdf(){
   var W=980,H=260,PL=64,PR=18,PT=18,PB=40;
-  var lo=activeMc.sims[Math.floor(0.02*activeMc.sims.length)], hi=activeMc.sims[Math.floor(0.98*activeMc.sims.length)];
-  /* Degenerate case: every account locked to its observed CPI collapses the run to one repeated
-     value (lo===hi) — pad the axis rather than divide by zero. A genuine, if rare, honest state
-     (zero modeled uncertainty), not an error to hide. */
-  if(hi<=lo) hi=lo+Math.max(1,Math.abs(lo)*0.001);
+  var range=mcChartRange(), lo=range.lo, hi=range.hi;
   var n=activeMc.sims.length;
   var X=function(v){ return PL+((Math.min(hi,Math.max(lo,v))-lo)/(hi-lo))*(W-PL-PR); };
   var Y=function(p){ return (H-PB)-p*(H-PT-PB); };
@@ -3128,14 +3134,10 @@ function renderMcCdf(){
   }
   pts.push(X(hi).toFixed(1)+","+Y(1).toFixed(1));
   var body='<polyline class="draw" points="'+pts.join(" ")+'" fill="none" stroke="'+C("accent")+'" stroke-width="2"/>';
-  function marker(v,color,label){
-    return '<line x1="'+X(v)+'" x2="'+X(v)+'" y1="'+PT+'" y2="'+(H-PB)+'" stroke="'+color+'" stroke-width="1.8" stroke-dasharray="4 3"/>'+
-      '<text x="'+X(v)+'" y="'+(H-24)+'" text-anchor="middle" font-size="10" font-family="ui-monospace,monospace" fill="'+color+'">'+label+'</text>';
-  }
   document.getElementById("mcChart").innerHTML=svg(W,H,body+
-    marker(T.bac,C("ok"),"BAC "+m(T.bac))+
-    marker(activeMc.p50,C("warn"),"P50 "+m(activeMc.p50))+
-    marker(T.bac+T.contRemaining,C("bad"),"BAC+cont "+m(T.bac+T.contRemaining))+
+    mcMarker(X,H,PT,PB,T.bac,C("ok"),"BAC "+m(T.bac))+
+    mcMarker(X,H,PT,PB,activeMc.p50,C("warn"),"P50 "+m(activeMc.p50))+
+    mcMarker(X,H,PT,PB,T.bac+T.contRemaining,C("bad"),"BAC+cont "+m(T.bac+T.contRemaining))+
     rcfMarkerSvg(W,H,PL,PR,PT,PB,hi,X),
     "Cumulative probability of the forecast at completion across "+activeMc.n+" simulated completions — the probability of finishing at or under a given cost — marked with budget, median, budget plus remaining contingency, and the rail reference-class estimate.");
   renderMcStatsRead();
@@ -3200,7 +3202,7 @@ function syncMcView(){
    claim doesn't quietly ride on the same clipping that positions the marker itself. Tracks
    whichever run is currently displayed, matching the marker drawn on the same chart. */
 function renderMcRcf(){
-  var rcfVal=T.bac*1.45, trueMax=activeMc.sims[activeMc.sims.length-1];
+  var rcfVal=T.bac*RCF_MULT, trueMax=activeMc.sims[activeMc.sims.length-1];
   var beyondWorst=rcfVal>trueMax;
   document.getElementById("mcRcfRead").innerHTML=
     "Applied to this program's own budget, that rail base rate implies <b style='color:rgb(var(--c-ink))'>"+m(rcfVal)+
@@ -3217,7 +3219,11 @@ function renderMcRcf(){
    off `rows` / `triang()` at render time. */
 function renderMcMath(){
   var r=rows.filter(function(x){ return x.id==="CP-201"; })[0];
-  var aLow=Math.max(0.78,r.cpi-0.08), bHigh=r.cpi+0.06, mode=r.cpi;
+  // Reuse the canonical mcParams() clamp (2026-08-20 /stress-test finding, real, dormant with
+  // today's data): this used to hand-roll its own unclamped copy of the same formula
+  // mcParams() exists specifically to guard — bHigh could fall below aLow once CPI drops
+  // low enough, the exact 0/0 landmine mcParams()'s own comment warns about.
+  var p=mcParams(r), aLow=p.lo, bHigh=p.hi, mode=p.mode;
   var draws=[0.10,0.50,0.90].map(function(u){
     var c=triang(u,aLow,bHigh,mode);
     return {u:u, c:c, contrib:r.ac+(r.bac-r.ev)/c};
@@ -3262,7 +3268,9 @@ function renderMcOneRun(){
   var rnd=lcg(20260731+mcRunCount*7919), total=0;
   var lines=rows.map(function(r){
     var uncertain=state.mcIncluded.indexOf(r.id)>=0;
-    var c=uncertain? triang(rnd(), Math.max(0.78,r.cpi-0.08), r.cpi+0.06, r.cpi) : r.cpi;
+    // same mcParams() reuse fix as renderMcMath() above — was an unclamped duplicate.
+    var p=mcParams(r);
+    var c=uncertain? triang(rnd(), p.lo, p.hi, p.mode) : r.cpi;
     var contrib=r.ac+(r.bac-r.ev)/c;
     total+=contrib;
     return {id:r.id, c:c, contrib:contrib, uncertain:uncertain};
@@ -4805,43 +4813,48 @@ function renderNarr(){
   function rawAc(){ return PKGS.reduce(function(a,p){return a+p.ac;},0); }
   function rawPv(){ return PKGS.reduce(function(a,p){return a+p.pv;},0); }
   var FIGS=[
-   {what:"% complete", shown:pct(T.pct), chk:function(){ return pct(rawEv()/rawBac())===pct(T.pct); }},
-   {what:"CPI", shown:idx(T.cpi), chk:function(){ return idx(rawEv()/rawAc())===idx(T.cpi); }},
-   {what:"SPI", shown:idx(T.spi), chk:function(){ return idx(rawEv()/rawPv())===idx(T.spi); }},
-   {what:"EAC (bottom-up)", shown:m(T.eac), chk:function(){
+   {key:"pct", what:"% complete", shown:pct(T.pct), chk:function(){ return pct(rawEv()/rawBac())===pct(T.pct); }},
+   {key:"cpi", what:"CPI", shown:idx(T.cpi), chk:function(){ return idx(rawEv()/rawAc())===idx(T.cpi); }},
+   {key:"spi", what:"SPI", shown:idx(T.spi), chk:function(){ return idx(rawEv()/rawPv())===idx(T.spi); }},
+   {key:"eac", what:"EAC (bottom-up)", shown:m(T.eac), chk:function(){
      return m(PKGS.reduce(function(a,p){return a+p.bac/(p.ev/p.ac);},0))===m(T.eac); }},
-   {what:"VAC", shown:sgn(T.vac), chk:function(){ return sgn(rawBac()-T.eac)===sgn(T.vac); }},
-   {what:"TCPI", shown:idx(T.tcpi), chk:function(){
+   {key:"vac", what:"VAC", shown:sgn(T.vac), chk:function(){ return sgn(rawBac()-T.eac)===sgn(T.vac); }},
+   {key:"tcpi", what:"TCPI", shown:idx(T.tcpi), chk:function(){
      return idx((rawBac()-rawEv())/(rawBac()-rawAc()))===idx(T.tcpi); }},
-   {what:"TCPI−CPI gap", shown:idx(T.tcpi-T.cpi), chk:function(){
+   {key:"tcpiGap", what:"TCPI−CPI gap", shown:idx(T.tcpi-T.cpi), chk:function(){
      return idx((rawBac()-rawEv())/(rawBac()-rawAc())-rawEv()/rawAc())===idx(T.tcpi-T.cpi); }},
-   {what:"Driving package", shown:w.id, chk:function(){
+   {key:"drivingPkg", what:"Driving package", shown:w.id, chk:function(){
      var mn=PKGS.reduce(function(a,p){ return p.float<a.float?p:a; },PKGS[0]);
      return mn.id===w.id; }},
-   {what:"Driving-package float", shown:days(w.float), chk:function(){
+   {key:"drivingFloat", what:"Driving-package float", shown:days(w.float), chk:function(){
      return PKGS.reduce(function(a,p){ return Math.min(a,p.float); },0)===w.float; }},
-   {what:"Share of gross overrun", shown:pct(Math.abs(w.vac)/T.grossOver), chk:function(){
+   {key:"overrunShare", what:"Share of gross overrun", shown:pct(Math.abs(w.vac)/T.grossOver), chk:function(){
      var wv=w.bac-w.bac/(w.ev/w.ac);
      var g=PKGS.reduce(function(a,p){ var v=p.bac-p.bac/(p.ev/p.ac); return v<0?a+Math.abs(v):a; },0);
      return pct(Math.abs(wv)/g)===pct(Math.abs(w.vac)/T.grossOver); }},
-   {what:"Revenue-service slip", shown:days(MILES[MILES.length-1].d), chk:function(){ return true; }},
-   {what:"P(bust)", shown:pct(MC.pBust,0), chk:function(){ return MC.pBust>=0&&MC.pBust<=1; }},
-   {what:"Escalations firing", shown:String(f.length), chk:function(){ return f.length===firingEscalations().length; }},
-   {what:"Contingency remaining", shown:m(T.contRemaining), chk:function(){
+   {key:"revSvcSlip", what:"Revenue-service slip", shown:days(MILES[MILES.length-1].d), chk:function(){ return true; }},
+   {key:"pBust", what:"P(bust)", shown:pct(MC.pBust,0), chk:function(){ return MC.pBust>=0&&MC.pBust<=1; }},
+   {key:"escFiring", what:"Escalations firing", shown:String(f.length), chk:function(){ return f.length===firingEscalations().length; }},
+   {key:"contRemaining", what:"Contingency remaining", shown:m(T.contRemaining), chk:function(){
      return m(PROGRAM.contingency-PROGRAM.contingencyDrawn)===m(T.contRemaining); }}
   ];
+  // Look up by stable key, never by array position — the ESCALATION/GATE5_CHECKS bug class
+  // (a hardcoded numeric index silently pointing at the wrong entry once the array's order
+  // changes) had recurred here undetected: FIGS[N].shown in the prose below used to be raw
+  // positional access into this same array (2026-08-20 /stress-test finding, real).
+  function fig(k){ return FIGS.filter(function(x){return x.key===k;})[0]; }
   document.getElementById("aiNarr").innerHTML=
-   '<p>At <b>'+FIGS[0].shown+'</b> complete, the program is earning '+pct(T.cpi,0)+' cents of budgeted work per dollar spent (CPI '+FIGS[1].shown+
-   ') and delivering work at '+FIGS[2].shown+' of the planned rate. The bottom-up forecast lands at '+FIGS[3].shown+
-   ' against a '+m(T.bac)+' budget — a '+FIGS[4].shown+' variance at completion.</p>'+
-   '<p>The variance is concentrated, not general. '+FIGS[7].shown+' (tunnel &amp; portals) carries '+FIGS[9].shown+
-   ' of the gross overrun and, at '+FIGS[8].shown+' of float, sets the completion date; revenue service is forecasting '+
-   FIGS[10].shown+' against the contractual milestone. Recovery money spent anywhere else does not move the date.</p>'+
+   '<p>At <b>'+fig("pct").shown+'</b> complete, the program is earning '+pct(T.cpi,0)+' cents of budgeted work per dollar spent (CPI '+fig("cpi").shown+
+   ') and delivering work at '+fig("spi").shown+' of the planned rate. The bottom-up forecast lands at '+fig("eac").shown+
+   ' against a '+m(T.bac)+' budget — a '+fig("vac").shown+' variance at completion.</p>'+
+   '<p>The variance is concentrated, not general. '+fig("drivingPkg").shown+' (tunnel &amp; portals) carries '+fig("overrunShare").shown+
+   ' of the gross overrun and, at '+fig("drivingFloat").shown+' of float, sets the completion date; revenue service is forecasting '+
+   fig("revSvcSlip").shown+' against the contractual milestone. Recovery money spent anywhere else does not move the date.</p>'+
    '<p>The recovery arithmetic no longer supports optimism. Finishing on budget requires the remaining work to run at '+
-   FIGS[5].shown+' against a demonstrated '+FIGS[1].shown+' — a '+FIGS[6].shown+' gap, above the 0.10 recoverability line — '+
-   'and 4,000 simulated completions put the probability of busting budget plus remaining contingency at '+FIGS[11].shown+'.</p>'+
-   '<p>'+FIGS[12].shown+' escalation triggers are firing. The controls recommendation this cycle: stop forecasting recovery, '+
-   'open the funding conversation while '+FIGS[13].shown+' of contingency remains, and commission the formal recovery '+
+   fig("tcpi").shown+' against a demonstrated '+fig("cpi").shown+' — a '+fig("tcpiGap").shown+' gap, above the 0.10 recoverability line — '+
+   'and 4,000 simulated completions put the probability of busting budget plus remaining contingency at '+fig("pBust").shown+'.</p>'+
+   '<p>'+fig("escFiring").shown+' escalation triggers are firing. The controls recommendation this cycle: stop forecasting recovery, '+
+   'open the funding conversation while '+fig("contRemaining").shown+' of contingency remains, and commission the formal recovery '+
    'analysis on the driving path within 72 hours.</p>';
   var fails=FIGS.filter(function(x){return !x.chk();}).length;
   document.getElementById("aiNarrChecks").innerHTML=
