@@ -1388,15 +1388,25 @@ ok(!indexSrc.includes(".kpi.dim{opacity:.4}"),
 ok(/\.kpi\.dim\{background:rgb\(var\(--c-card\) \/ \.45\)/.test(indexSrc),
   "dimming now fades the background specifically (verified by direct computation to stay 6.5:1+ with full-color text), not text+background together");
 
-// 3. Sticky table headers, tracked via --header-h
-ok(indexSrc.includes(".tw table th{position:sticky;top:var(--header-h,60px);z-index:5}"),
-  "table column headers are sticky, offset below the real (measured) header height");
-// honesty correction (/stress-test coverage finding, 2026-08-20): this label used to read
-// "--header-h IS tracked live via ResizeObserver" as if verified — it's actually a source-text
-// presence check (this stub has no layout engine to resize), not proof the observer fires. See
-// D4.10 #6 below for the fuller accepted-limitation note.
-ok(indexSrc.includes("new ResizeObserver") && indexSrc.includes('--header-h'),
-  "source contains a ResizeObserver wired to --header-h (source-text check only — the observer actually firing is live-browser-only coverage, not exercised by this stub)");
+// 3. Sticky table headers — BUILT (2026-08-19), then REVERTED (2026-08-20) after a user report
+// ("column headers moved to different rows") led to a confirmed live bug: .tw's overflow-x:auto
+// forces its overflow-y to auto too (CSS Overflow spec's visible-axis promotion rule), turning
+// .tw into position:sticky's containing block instead of the page viewport — every sticky <th>
+// painted offset from its own row by roughly --header-h, landing on top of the table's second
+// data row. Caught by elementsFromPoint() disagreeing with getBoundingClientRect() (the paint
+// position and the layout-box position had diverged) — this stub has no real layout/paint engine,
+// so that specific contradiction was never visible to it; these two checks now assert the revert.
+ok(!indexSrc.includes("position:sticky") || !indexSrc.includes(".tw table th"),
+  "sticky table headers are gone from .tw table th — reverted, not just source-text absent by coincidence",
+  indexSrc.includes(".tw table th") ? indexSrc.match(/\.tw table th\{[^}]*\}/)[0] : "(.tw table th rule not found)");
+// checks the actual consuming/producing forms, not "the string --header-h/ResizeObserver appears
+// nowhere" — the revert's own explanatory comments (both here and in index.html) legitimately
+// mention both names, and a bare .includes("ResizeObserver") false-failed against its own comment
+// two lines above this one the first time this was written (the same self-own class of bug the
+// #whatIfOut debounce fix's own test caught earlier this round — checking for a live construct,
+// not a word, is the actual fix each time).
+ok(!indexSrc.includes("var(--header-h") && !indexSrc.includes('"--header-h"') && !indexSrc.includes("new ResizeObserver("),
+  "no live code still reads --header-h via var(), writes it via setProperty, or runs the ResizeObserver that used to feed it");
 
 // 4. scope="row" on the ledger, actions register, and contract table's identifying column
 has("pkgBody", '<th scope="row">', "control-account ledger rows use a real row header, not just a first td");
@@ -1542,16 +1552,12 @@ ok(/\.tsize \.btn\{[^}]*position:relative\}/.test(indexSrc),
 ok(/\.tsize \.btn::before\{content:"";position:absolute;top:50%;left:50%;width:44px;height:44px/.test(indexSrc),
   ".tsize .btn carries the same 44px invisible hit-slop pattern as .help-ic/.help-pop-close");
 
-// 6. ResizeObserver fallback — accepted as a stated limitation, not silently dropped (see the
-// comment directly above the ResizeObserver guard in index.html for the full reasoning).
-ok(indexSrc.includes("No fallback measurement path if ResizeObserver is unsupported — accepted, not overlooked"),
-  "the missing ResizeObserver fallback is an explicit, documented accepted limitation, not an unaddressed gap");
-// honesty correction to the D4.8 #3 assertion above (/stress-test coverage finding, 2026-08-20):
-// that check's own label calls this "tracked live via ResizeObserver", which is true of the code,
-// but the check itself only greps source text for "new ResizeObserver" + "--header-h" — it does
-// not and cannot exercise the observer firing (this stub's DOM has no real layout engine to
-// resize). Real behavioral coverage for that mechanism is live-browser only, same division of
-// labor already established for D5.8's SMIL-pulse and D11's wireDetailsAnimation checks below.
+// 6. ResizeObserver fallback — SUPERSEDED (2026-08-20): the "accepted limitation" this item used
+// to assert doesn't apply to anything anymore, because the sticky-header feature the
+// ResizeObserver existed to feed was itself reverted the same day (see item 3 above) for a real
+// bug it caused, not a browser-support gap. Kept as a numbered item, not silently deleted, so the
+// D4.10 numbering stays a legible record of what was actually reviewed this round — the same
+// "state what changed and why" discipline as every other comment in this file.
 
 // 7. curZoom() — zero test coverage before this pass despite being the mechanism the position:
 // fixed compensation fix (round-1 text-size build) depends on. Confirms it reads live state, not
