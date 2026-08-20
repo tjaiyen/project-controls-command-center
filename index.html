@@ -1116,6 +1116,18 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
           monthly claims deterministically, builds the ledger through <code>fct_control_account.sql</code>
           in DuckDB, and proves the result identical to what this page computes in JavaScript &mdash;
           54 checks, two independent stacks, one set of numbers. That equality is the integrity argument.</p></div>
+      <div id="archDetail" aria-live="polite"></div>
+      <div class="card" style="margin-top:14px" id="archStoryCard">
+        <div class="eyebrow">Follow one box through the pipeline</div>
+        <h4 id="archStoryTitle" style="margin:0 0 7px"></h4>
+        <p id="archStoryText" style="margin:0;font-size:13.2px;line-height:1.65;color:rgb(var(--c-mut));max-width:74ch"></p>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap">
+          <button class="btn" id="archPrev" type="button">&larr; Back</button>
+          <span class="story-dots" id="archDots" aria-hidden="true"></span>
+          <span class="mono" id="archPos" style="font-size:11px;color:rgb(var(--c-mut))"></span>
+          <button class="btn" id="archNext" type="button">Next &rarr;</button>
+        </div>
+      </div>
 
       <div class="grid g2">
         <div class="card"><h3>The model &mdash; <span class="mono" style="font-size:.85em">fct_control_account.sql</span></h3>
@@ -4740,33 +4752,76 @@ function renderActDrill(rows){
 }
 
 /* ---------- AI & data tab ---------- */
+/* The pipeline diagram, given the same per-node story-navigator interactivity already proven
+   twice on this page (Gate-Line's selectGL()/glCaption(), the CDE flow's selectDS()/dsCaption())
+   — engagement/interactivity upgrade, 2026-08-20. ARCH_NODES' order matches the SVG's own left-
+   to-right/top-to-bottom reading order, not an arbitrary list. */
+var ARCH_NODES=[
+ {k:"ledger",n:"Cost ledger (ERP)"},{k:"schedule",n:"CPM schedule export"},{k:"timesheets",n:"Timesheets"},
+ {k:"doccontrol",n:"Document control"},{k:"changelog",n:"Change log"},{k:"riskreg",n:"Risk register"},
+ {k:"staging",n:"dbt staging"},{k:"marts",n:"marts"},{k:"gate",n:"integrity gate"},
+ {k:"dashboard",n:"This dashboard"},{k:"brief",n:"Executive brief"},{k:"narrative",n:"AI narrative draft"}
+];
+function archCaption(node){
+  switch(node.k){
+    case "ledger": return {t:"Cost ledger (ERP)",x:"Feeds every actual-cost figure on this dashboard — PKGS[].ac, and by extension every CPI/CV reading on the Cost and Overview tabs, plus the crew cost-per-hour weekly actuals (Delivery tab, and the z-score/EWMA statistical controls on this tab) that trace to the same ledger."};
+    case "schedule": return {t:"CPM schedule export",x:"Feeds the driving-path float and remaining duration behind CPLI, the Gantt chart, and every SPI/SV/float row on the Overview KPI board — the Schedule tab's baseline-vs-forecast comparison starts here, not from a hand-typed date."};
+    case "timesheets": return {t:"Timesheets",x:"Feeds earned/actual hours (the Productivity Factor on Delivery) and the crew cost-per-hour ledger's weekly actual $/hr — the same six-week CP-201 series the z-score and EWMA control charts above score."};
+    case "doccontrol": return {t:"Document control",x:"Feeds RFI aging — the driving-path RFI count on the Overview KPI board (the rfi metric) that the Schedule tab's critical-path commentary references."};
+    case "changelog": return {t:"Change log",x:"Feeds the change-order register — approved, pending and proposed values reconciled on the Cost tab's change pricing defense table."};
+    case "riskreg": return {t:"Risk register",x:"Feeds RISKS — the probability &times; impact heat map, the exposure total, and the DRB EMV decision tree's own pending-value input on the Risk &amp; Change tab."};
+    case "staging": return {t:"dbt staging &middot; stg_progress_claims",x:"Raw records land here first, one row per source system above, before anything is reconciled across sources — nothing downstream ever reads a raw feed directly, only this staged version."};
+    case "marts": return {t:"marts &middot; fct_control_account",x:"The reconciled per-control-account table — this IS the PKGS array every tab on this dashboard reads from, not a separate copy that merely happens to agree with it."};
+    case "gate": return {t:"Integrity gate",x:"54 dbt-side tests run against the mart before it's trusted. A separate "+GUARDS.length+"-check JS gate (this tab's own Integrity gate card, above) independently re-derives the same headline totals in a different language, from the same mart — two stacks, one set of numbers, not one gate wearing two names."};
+    case "dashboard": return {t:"This dashboard",x:"Every chart, KPI card and table on this page is a pure function of the mart above — move the data date or edit a row and every downstream figure recomputes; nothing is cached separately."};
+    case "brief": return {t:"Executive brief",x:"The print one-pager (the Print brief button on every tab) reads the identical mart — never a hand-copied summary that can drift from the live figures."};
+    case "narrative": return {t:"AI narrative draft",x:"This tab's own narrative prose is drafted from the mart, then every cited figure is independently re-derived and checked before it's allowed to post — verified, not trusted on the model's say-so."};
+  }
+}
+var archIdx=0;
+function selectArch(idx){
+  archIdx=Math.max(0,Math.min(ARCH_NODES.length-1,idx));
+  var node=ARCH_NODES[archIdx], cap=archCaption(node);
+  Array.prototype.forEach.call(document.querySelectorAll("#arch .flow-node"),function(el){
+    el.classList.toggle("on", el.dataset.k===node.k);
+  });
+  document.getElementById("archDetail").innerHTML='<div class="dbox" style="margin-top:2px"><h4>'+cap.t+'</h4><p>'+cap.x+'</p></div>';
+  document.getElementById("archStoryTitle").innerHTML=cap.t;
+  document.getElementById("archStoryText").innerHTML=cap.x;
+  document.getElementById("archPos").textContent=(archIdx+1)+" of "+ARCH_NODES.length;
+  document.getElementById("archDots").innerHTML=ARCH_NODES.map(function(_,j){
+    return '<i class="'+(j===archIdx?"on":"")+'"></i>'; }).join("");
+}
 function renderArch(){
   var W=980,H=250;
-  function box(x,y,w,h,title,sub,accent){
-    return '<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="8" '+
+  function box(x,y,w,h,k,title,sub,accent){
+    return '<g class="flow-node" tabindex="0" role="button" data-k="'+k+'" aria-label="'+title+(sub?" — "+sub:"")+'">'+
+      '<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="8" '+
       'style="fill:rgb(var(--c-bg));stroke:'+(accent?'rgb(var(--c-accent))':'var(--c-line)')+
       (accent?';stroke-width:1.8':'')+'"/>'+
       '<text x="'+(x+w/2)+'" y="'+(y+(sub?h/2-5:h/2+4))+'" text-anchor="middle" font-size="11.5" font-weight="600" style="fill:rgb(var(--c-ink))">'+title+'</text>'+
-      (sub?'<text x="'+(x+w/2)+'" y="'+(y+h/2+12)+'" text-anchor="middle" font-size="9.5" style="fill:rgb(var(--c-mut))">'+sub+'</text>':"");
+      (sub?'<text x="'+(x+w/2)+'" y="'+(y+h/2+12)+'" text-anchor="middle" font-size="9.5" style="fill:rgb(var(--c-mut))">'+sub+'</text>':"")+'</g>';
   }
   function arrow(x1,y1,x2,y2){
     return '<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'" style="stroke:rgb(var(--c-mut));stroke-width:1.3"/>'+
       '<path d="M'+x2+' '+y2+' l-6 -3.4 l0 6.8 Z" style="fill:rgb(var(--c-mut))"/>';
   }
-  var srcs=["Cost ledger (ERP)","CPM schedule export","Timesheets","Document control","Change log","Risk register"];
-  var s=srcs.map(function(t,i){ return box(8,14+i*38,152,30,t,null,false); }).join("");
+  var srcs=[["ledger","Cost ledger (ERP)"],["schedule","CPM schedule export"],["timesheets","Timesheets"],
+    ["doccontrol","Document control"],["changelog","Change log"],["riskreg","Risk register"]];
+  var s=srcs.map(function(p,i){ return box(8,14+i*38,152,30,p[0],p[1],null,false); }).join("");
   var a="",i;
   for(i=0;i<6;i++) a+=arrow(160,29+i*38,222,120);
-  s+=box(222,90,140,60,"dbt staging","stg_progress_claims",false);
-  s+=box(402,90,168,60,"marts","fct_control_account",false);
-  s+=box(610,90,150,60,"integrity gate","dbt tests · 54 checks",true);
-  s+=box(800,30,172,52,"This dashboard","browser derivation",false);
-  s+=box(800,100,172,52,"Executive brief","print one-pager",false);
-  s+=box(800,170,172,52,"AI narrative draft","prose only · verified",false);
+  s+=box(222,90,140,60,"staging","dbt staging","stg_progress_claims",false);
+  s+=box(402,90,168,60,"marts","marts","fct_control_account",false);
+  s+=box(610,90,150,60,"gate","integrity gate","dbt tests · 54 checks",true);
+  s+=box(800,30,172,52,"dashboard","This dashboard","browser derivation",false);
+  s+=box(800,100,172,52,"brief","Executive brief","print one-pager",false);
+  s+=box(800,170,172,52,"narrative","AI narrative draft","prose only · verified",false);
   a+=arrow(362,120,402,120)+arrow(570,120,610,120);
   a+=arrow(760,120,800,56)+arrow(760,120,800,126)+arrow(760,120,800,196);
   document.getElementById("arch").innerHTML=svg(W,H,s+a,
     "Pipeline: six source systems feed dbt staging, the control-account mart, an integrity gate, and three outputs — dashboard, printed brief, and AI narrative draft.");
+  selectArch(archIdx);
 }
 
 /* The gate. Each check runs against the live ledger on every load. */
@@ -5980,6 +6035,17 @@ document.getElementById("cdeFlow").addEventListener("keydown",function(e){
 });
 document.getElementById("dsPrev").addEventListener("click",function(){ selectDS(dsIdx-1); });
 document.getElementById("dsNext").addEventListener("click",function(){ selectDS(dsIdx+1); });
+document.getElementById("arch").addEventListener("click",function(e){
+  var n=e.target.closest("[data-k]"); if(!n) return;
+  var i=ARCH_NODES.map(function(d){return d.k;}).indexOf(n.dataset.k); if(i>=0) selectArch(i);
+});
+document.getElementById("arch").addEventListener("keydown",function(e){
+  if(e.key!=="Enter"&&e.key!==" ") return;
+  var n=e.target.closest("[data-k]"); if(!n) return; e.preventDefault();
+  var i=ARCH_NODES.map(function(d){return d.k;}).indexOf(n.dataset.k); if(i>=0) selectArch(i);
+});
+document.getElementById("archPrev").addEventListener("click",function(){ selectArch(archIdx-1); });
+document.getElementById("archNext").addEventListener("click",function(){ selectArch(archIdx+1); });
 document.getElementById("actFilters").addEventListener("click",function(e){
   var b=e.target.closest("[data-actf]"); if(!b) return;
   state.actFilter=b.dataset.actf; renderActions();
@@ -6137,6 +6203,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   revSvcDriftSeries:revSvcDriftSeries,floatErosionSeries:floatErosionSeries,pvA:pvA,acA:acA,evA:evA,pvB:pvB,milesLast:MILES[MILES.length-1],
   presentBeatsFull:PRESENT_BEATS_FULL,presentBeatsQuick:PRESENT_BEATS_QUICK,tourBeats:TOUR_BEATS,state:state,
   guardrails:GUARDRAILS,discrepancySteps:DISCREPANCY_STEPS,rollout:ROLLOUT,dsNodes:DS_NODES,dsCaption:dsCaption,
+  archNodes:ARCH_NODES,archCaption:archCaption,
   gloss:GLOSS,findGloss:findGloss,
   miles:MILES,delays:DELAYS,spark:SPARK,baseline:BASELINE,guards:GUARDS,escPat:ESC_PAT,
   mcParams:mcParams,triang:triang,dsStep:dsStep,

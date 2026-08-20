@@ -1100,6 +1100,38 @@ ok(String(G.guardCountLede.textContent) === String(guardPasses + guardFails),
 }
 ok(G.arch._html.includes("fct_control_account") && G.arch._html.includes("integrity gate"),
    "architecture diagram renders pipeline stages");
+// pipeline-architecture story navigator (Phase 4, engagement/interactivity upgrade, 2026-08-20) —
+// same proven pattern as the Gate-Line and CDE-flow diagrams: per-node click/keyboard nav,
+// mutually-distinct captions, node count matching what's actually rendered.
+{
+  ["archDetail", "archStoryCard", "archStoryTitle", "archStoryText", "archPos", "archDots", "archPrev", "archNext"]
+    .forEach(id => ok(idsA.includes(id), "markup contains #" + id));
+  ok(P.archNodes.length === 12, "ARCH_NODES has exactly 12 entries (6 sources + staging + marts + gate + 3 outputs)", String(P.archNodes.length));
+  ok((G.arch._html.match(/data-k="/g) || []).length === 12,
+    "rendered SVG contains all 12 clickable nodes", String((G.arch._html.match(/data-k="/g) || []).length));
+  const caps = P.archNodes.map(n => P.archCaption(n));
+  ok(caps.every(c => c && typeof c.t === "string" && c.t.length > 0 && typeof c.x === "string" && c.x.length > 0),
+    "every ARCH_NODES entry resolves to a non-empty caption");
+  ok(new Set(caps.map(c => c.x)).size === caps.length, "all 12 captions are mutually distinct — no copy-paste placeholder");
+  // additive, not restated — each source node names a SPECIFIC live field/downstream tab, not a
+  // generic "feeds the dashboard" sentence that would say nothing a reader couldn't already guess.
+  ok(P.archCaption({ k: "ledger" }).x.includes("PKGS[].ac"), "ledger caption names the specific live field it feeds");
+  ok(P.archCaption({ k: "gate" }).x.includes(String(P.guards.length)), "gate caption cites the dashboard's own live GUARDS.length, not a typed number");
+  try {
+    fire(G.arch, "click", { target: { closest: sel => sel === "[data-k]" ? { dataset: { k: "gate" } } : null } });
+    ok(G.archStoryTitle._html.includes("Integrity gate"), "clicking a node updates the story title");
+  } catch (e) { ok(false, "arch diagram click interaction", e.message); }
+  try {
+    fire(G.arch, "keydown", { key: " ", preventDefault(){}, target: { closest: sel => sel === "[data-k]" ? { dataset: { k: "narrative" } } : null } });
+    ok(G.archStoryTitle._html.includes("AI narrative draft"), "Space-key activation on a node works the same as a click");
+  } catch (e) { ok(false, "arch diagram keyboard interaction", e.message); }
+  try {
+    for (let i = 0; i < 20; i++) fire(G.archNext, "click");
+    ok(String(G.archPos.textContent).includes("12 of 12"), "story Next clamps at the last stop");
+    for (let i = 0; i < 20; i++) fire(G.archPrev, "click");
+    ok(String(G.archPos.textContent).includes("1 of 12"), "story Prev clamps at the first stop");
+  } catch (e) { ok(false, "arch diagram story nav", e.message); }
+}
 // statistical control (brainstorm-mode upgrade, 2026-08-21): a genuinely different check from
 // the deterministic GUARDS above — independently re-derive mean/stddev/z-scores from the raw
 // series in THIS file, not by calling P.deriveZScores (same "don't trust the app's own math"
