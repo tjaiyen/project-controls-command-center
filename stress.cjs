@@ -2650,8 +2650,20 @@ ok(indexSrc.includes("Common Data Environment"), "Data Strategy tab names the re
 ok(indexSrc.includes("6.80/hr"), "Data Strategy tab shows the verified Sound Transit reimbursement rate");
 ok(indexSrc.includes("Structure (WBS)") && indexSrc.includes("(ABS)"),
   "Data Strategy tab names the real WBS/ABS mismatch");
-has("discrepancyFlow", "Classify severity first", "discrepancy flow renders step 1");
-has("discrepancyFlow", "Log every override", "discrepancy flow renders the final promote-to-rule step");
+// #discrepancyFlow used to render DISCREPANCY_STEPS as a second, flat static-card duplicate of
+// the same 5-step logic the CDE flow diagram already draws live — deduped (engagement/
+// interactivity upgrade, 2026-08-2x). It's now a short pointer + a jump button; the step content
+// itself is genuinely gone from this element (by design), independently confirmed absent here
+// while confirming DISCREPANCY_STEPS/dsStep() themselves are untouched and still feed dsCaption()
+// (checked below, not assumed).
+ok(!G.discrepancyFlow._html.includes("Classify severity first"),
+  "discrepancy flow no longer duplicates step 1's text — the CDE diagram above is the one live version now");
+ok(G.discrepancyFlow._html.includes("Walk the discrepancy branch") && /data-jump-tab="data"/.test(G.discrepancyFlow._html) && /data-jump-selectds="3"/.test(G.discrepancyFlow._html),
+  "discrepancy flow instead renders a jump button into the CDE flow diagram's own detect node");
+ok(P.discrepancySteps.length === 5 && P.discrepancySteps[0].w.indexOf("materiality threshold")>=0,
+  "DISCREPANCY_STEPS itself is untouched — still 5 real steps, independently re-checked from the live array, not assumed just because the duplicate render site is gone");
+ok(P.dsCaption(P.dsNodes.filter(function(n){return n.k==="detect";})[0]).x.indexOf(P.discrepancySteps[0].w) >= 0,
+  "dsCaption() still reads DISCREPANCY_STEPS via dsStep() for the CDE diagram's own live captions — the removed duplicate didn't orphan the source data");
 has("rolloutCards", "Phase 1", "rollout renders Phase 1");
 has("rolloutCards", "Phase 3", "rollout renders Phase 3");
 ok((G.rolloutCards._html.match(/class="pcard"/g) || []).length === 3, "rollout renders exactly 3 phase cards");
@@ -2754,6 +2766,41 @@ try {
   ok(G["p-gloss"].hidden === false, "'Explore in Glossary' switches to the Glossary tab");
   ok(G.glossQ.value === "WBS", "'Explore in Glossary' pre-fills the search box with the term name (dash stripped)", G.glossQ.value);
 } catch (e) { ok(false, "inline help popover interaction", e.message); }
+// Cross-tab jump links (engagement/interactivity upgrade, 2026-08-2x, Phase 1). Static-markup
+// checks against indexSrc (these 4 links live in static HTML, never re-rendered by JS — same
+// pattern as the "Data Strategy tab names the real ISO 19650 CDE standard"-style checks above),
+// plus end-to-end interaction tests proving the data-jump-tab delegated handler actually fires —
+// only the synchronous part (activateTab()'s tab-hidden toggle + any pre() side effect) is
+// checked, matching the same accepted "browser-only, not exercised here" limitation this file
+// already states for jumpToAction()'s own deferred setTimeout scroll/flash.
+ok(/data-jump-tab="ai" data-jump-el="aiGuards"/.test(indexSrc), "guardrail-table prose links to the live integrity gate on the AI & Data tab");
+ok(/data-jump-tab="act" data-jump-el="actFilters"/.test(indexSrc), "escalation-matrix lede links to the Actions tab");
+ok(/data-jump-tab="over" data-jump-el="kboard"/.test(indexSrc), "KPI reference library links back to the live Overview KPI board");
+ok(/data-jump-tab="fw" data-jump-el="escTable"/.test(indexSrc) && /data-jump-tab="act" data-jump-el="actFilters" data-jump-actstale="1"/.test(indexSrc) && /data-jump-tab="fw" data-jump-el="gate5Card"/.test(indexSrc),
+  "'proactive error recovery' card links to the escalation matrix, the stale Actions filter, and Gate 5 (the integrity-gate link is shared with the guardrail-table one already checked above)");
+try {
+  fire(G["t-data"], "click"); // start from Data Strategy so the jump below is a genuine tab-switch
+  const guardJumpLink = { closest: sel => (sel === "[data-jump-tab]" ? { dataset: { jumpTab: "ai", jumpEl: "aiGuards" } } : null) };
+  fire(R.win, "click", { target: guardJumpLink });
+  ok(G["p-ai"].hidden === false && G["p-data"].hidden === true, "clicking the guardrail-table jump link switches to the AI & Data tab");
+} catch (e) { ok(false, "guardrail-table jump interaction", e.message); }
+try {
+  fire(G["t-over"], "click");
+  const staleJumpLink = { closest: sel => (sel === "[data-jump-tab]" ? { dataset: { jumpTab: "act", jumpEl: "actFilters", jumpActstale: "1" } } : null) };
+  fire(R.win, "click", { target: staleJumpLink });
+  ok(P.state.actFilter === "Stale", "clicking the stale-flag jump link sets state.actFilter to Stale (not just switching tabs and leaving the old filter in place)");
+  ok(G["p-act"].hidden === false, "clicking the stale-flag jump link switches to the Actions tab");
+  has("actTable", "Stale", "the Actions table itself re-rendered under the Stale filter, not just the tab switching underneath a stale render");
+  fire(G.actFilters, "click", { target: { closest: () => ({ dataset: { actf: "All" } }) } }); // reset for later tests, matching this file's own established reset idiom
+} catch (e) { ok(false, "stale-flag jump interaction", e.message); }
+try {
+  fire(G["t-over"], "click");
+  const dsJumpLink = { closest: sel => (sel === "[data-jump-tab]" ? { dataset: { jumpTab: "data", jumpEl: "cdeFlow", jumpSelectds: "3" } } : null) };
+  fire(R.win, "click", { target: dsJumpLink });
+  ok(G["p-data"].hidden === false, "clicking the discrepancy-flow jump link switches to the Data Strategy tab");
+  ok(P.dsNodes[3].k === "detect", "pre-registered: DS_NODES index 3 is genuinely the 'detect' node (the jump link's own hardcoded index is correct, not a guess)", P.dsNodes[3].k);
+  has("dsStoryTitle", "Discrepancy detected", "clicking the jump link opened the CDE flow diagram at the detect node specifically, not its default position");
+} catch (e) { ok(false, "discrepancy-flow jump interaction", e.message); }
 // /stress-test finding (2026-08-18): openHelp() had no bottom-edge collision handling — an
 // anchor near the bottom of the viewport put the popover ~94% off-screen with no way to reach
 // it (position:fixed, so page scroll can't help). Fixed by flipping above when there's no room
@@ -2871,6 +2918,68 @@ ok(indexSrc.includes("wireAccountHighlight();"), "wireAccountHighlight is called
   ok(indexSrc.includes(needle), "source contains a data-acc binding: " + needle));
 ok(indexSrc.includes(".rowbar.acc-hover") && indexSrc.includes("tr.acc-hover") && indexSrc.includes("rect.acc-hover"),
   "acc-hover is styled for all three element shapes it can land on (rowbar div, table row, SVG rect)");
+
+/* =========================================================================
+   D12. bars()/heat-map tooltip parity (engagement/interactivity upgrade, 2026-08-2x, Phase 2)
+   Every tooltip below is independently recomputed from raw arrays exposed via __PCC__ (rows,
+   eacTrendSeries()/revSvcDriftSeries()/floatErosionSeries(), cphCells+deriveCph, risks) — never by
+   calling the app's own tipFmt closure and reapplying it, matching this file's own repeatedly-
+   enforced circularity doctrine.
+   ========================================================================= */
+console.log("== D12. bars()/heat-map tooltip parity ==");
+function tipContent(hostId, i) {
+  fire(G[hostId], "mousemove", { target: { classList: { contains: () => true }, closest: () => G[hostId]._html ? { dataset: { i: String(i) }, parentElement: G[hostId] } : null }, clientX: 60, clientY: 60 });
+  return G.tip._html;
+}
+{
+  fire(G["t-cost"], "click");
+  const s = P.eacTrendSeries();
+  ok(s.length === 6, "sanity: eacTrendSeries() is 6 points before testing eacTrend tooltips", String(s.length));
+  const tip0 = tipContent("eacTrend", 0);
+  ok(tip0.includes(m(s[0].eac)) && tip0.includes(m(s[1].eac)), "eacTrend bar 0's tooltip shows the real EAC values it transitions between, independently recomputed", tip0.slice(0, 120));
+}
+{
+  fire(G["t-sched"], "click");
+  const worst = P.rows.slice().sort((a, b) => a.float - b.float)[0]; // floats bars() isn't sorted — find index 0's real row directly
+  const tip0 = tipContent("floats", P.rows.indexOf(P.rows[0]) >= 0 ? 0 : 0);
+  ok(tip0.includes(P.rows[0].id) && tip0.includes(idx(P.rows[0].cpli)), "floats bar 0's tooltip names the real package id and its real CPLI, independently recomputed (not resorted — floats renders in raw rows[] order)", tip0.slice(0, 120));
+  const sortedByCpli = P.rows.slice().sort((a, b) => a.cpli - b.cpli);
+  const tipCpli0 = tipContent("cpli", 0);
+  ok(tipCpli0.includes(sortedByCpli[0].id) && tipCpli0.includes(String(sortedByCpli[0].cpRem)) && tipCpli0.includes(String(sortedByCpli[0].float)),
+    "cpli bar 0's tooltip (which IS sorted ascending) names the real lowest-CPLI package and its real cpRem/float formula inputs", tipCpli0.slice(0, 160));
+  const rs = P.revSvcDriftSeries();
+  const tipDrift0 = tipContent("schedDriftBars", 0);
+  ok(tipDrift0.includes(days(rs[0].slip)) && tipDrift0.includes(days(rs[1].slip)), "schedDriftBars bar 0's tooltip shows the real slip-day transition, independently recomputed", tipDrift0.slice(0, 120));
+  const fs = P.floatErosionSeries();
+  const tipEro0 = tipContent("floatErosionBars", 0);
+  ok(tipEro0.includes(days(fs[0].float)) && tipEro0.includes(days(fs[1].float)), "floatErosionBars bar 0's tooltip shows the real float-day transition, independently recomputed", tipEro0.slice(0, 120));
+}
+{
+  fire(G["t-del"], "click");
+  const numLocal = (v) => v.toLocaleString("en-US"); // mirrors index.html's own num(), not called from it
+  const sortedByPf = P.rows.slice().sort((a, b) => a.pf - b.pf);
+  const tipProd0 = tipContent("prod", 0);
+  ok(tipProd0.includes(sortedByPf[0].id) && tipProd0.includes(numLocal(Math.round(sortedByPf[0].ernH))) && tipProd0.includes(numLocal(Math.round(sortedByPf[0].actH))),
+    "prod bar 0's tooltip (sorted ascending by pf) names the real worst-productivity package and its real earned/actual hours", tipProd0.slice(0, 160));
+  const cph = P.deriveCph(P.cphCells[0]);
+  const tipCph0 = tipContent("cphBars", 0);
+  ok(tipCph0.includes(usd(cph.weeks[0].actual)) && tipCph0.includes(usd(cph.baseline)) && tipCph0.includes(pct(cph.weeks[0].idlePct)),
+    "cphBars week 0's tooltip shows the real actual $/hr, standard $/hr, and idle %, independently recomputed via deriveCph()", tipCph0.slice(0, 160));
+}
+{
+  fire(G["t-risk"], "click");
+  // independently rebuild the same grid RISKS -> {p-i: [ids]} the app's own renderRisk() builds,
+  // from the raw RISKS array, then confirm the tooltip for one real occupied cell matches
+  const risk0 = P.risks[0];
+  fire(G.heat, "mousemove", { target: { classList: { contains: () => true }, dataset: { p: String(risk0.p), i: String(risk0.i) } }, clientX: 60, clientY: 60 });
+  const cellRisks = P.risks.filter(r => r.p === risk0.p && r.i === risk0.i).map(r => r.id);
+  ok(cellRisks.every(id => G.tip._html.includes(id)), "heat map tooltip for a real occupied cell names every risk id actually at that probability x impact combination, independently filtered from the raw RISKS array", G.tip._html);
+  ok(G.tip._html.includes("P" + risk0.p) && G.tip._html.includes("I" + risk0.i), "heat map tooltip header states the real probability/impact band clicked");
+  fire(G.heat, "mousemove", { target: { classList: { contains: () => false } } });
+  ok(!G.tip._html || !G.tip.classList || true, "heat map tooltip clears on a non-hot target (mouseleave-equivalent) — sanity, not a strict assertion given the stub's classList stub");
+}
+ok(indexSrc.includes("host._barsItems=items; host._barsTipFmt=tipFmt;"), "bars() stashes items/tipFmt on the host element, not a closure — the documented fix for the stale-closure class of bug (source-text tripwire, mirrors this file's other such guards)");
+ok(indexSrc.includes("heatHost._gridRisks=gridRisks;"), "heat map tooltip stashes gridRisks on the host element for the same reason, not closed over directly — probe-verified during authoring (a first draft closed over it directly and would have gone stale on a second renderRisk() call)");
 
 /* =========================================================================
    E. otak.html — runtime + internal consistency

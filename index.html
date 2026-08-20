@@ -1261,7 +1261,7 @@ join dim_control_account b using (package_id)</pre></div>
 
       <div class="sec-h" style="margin-top:34px"><h3>Escalation matrix</h3></div>
       <p class="lede">Thresholds are worthless without a named consequence. Every breach below has an owner
-        and a clock.</p>
+        and a clock. <button type="button" class="btn" data-jump-tab="act" data-jump-el="actFilters">See who owes what, today, on the Actions tab &rarr;</button></p>
       <div class="tw"><table id="escTable" style="min-width:720px"></table></div>
 
       <div class="sec-h" style="margin-top:34px"><h3>Working backward from Gate 5 &mdash; a worked example</h3></div>
@@ -1283,7 +1283,8 @@ join dim_control_account b using (package_id)</pre></div>
 
       <div class="sec-h" style="margin-top:34px"><h3>KPI reference library</h3></div>
       <p class="lede">All twenty, with the formula as implemented and the system of record each one needs.
-        A metric with no owned data source is a metric that will quietly stop being true.</p>
+        A metric with no owned data source is a metric that will quietly stop being true.
+        <button type="button" class="btn" data-jump-tab="over" data-jump-el="kboard">See these live on the Overview board &rarr;</button></p>
       <div class="tw"><table id="libTable"></table></div>
 
       <div class="note"><b>On the numbers.</b> Every figure in this tool is computed from a
@@ -1430,7 +1431,8 @@ join dim_control_account b using (package_id)</pre></div>
         &mdash; an XML standard pairing <i>applicability</i> (which
         records a rule governs) with <i>requirements</i> (what those records must have) so a
         submittal that fails gets rejected with a specific, itemized reason. This dashboard's own
-        <span id="guardCountLede">28</span>-check integrity gate is a working small-scale version of the same pattern.</p>
+        <span id="guardCountLede">28</span>-check integrity gate is a working small-scale version of the same pattern.
+        <button type="button" class="btn" data-jump-tab="ai" data-jump-el="aiGuards" style="margin-left:6px">See it live &rarr;</button></p>
       <div class="tw"><table id="guardrailTable"></table></div>
 
       <div class="sec-h" style="margin-top:30px"><h3>When systems disagree</h3></div>
@@ -1438,7 +1440,7 @@ join dim_control_account b using (package_id)</pre></div>
         &mdash; and the loop back at the end is the part that matters most: every novel
         discrepancy a person resolves should make the next occurrence of the same problem
         automatic.</p>
-      <div id="discrepancyFlow"></div>
+      <div id="discrepancyFlow" style="margin-top:12px"></div>
 
       <div class="sec-h" style="margin-top:30px"><h3>Proactive error recovery</h3></div>
       <p class="lede">Detecting a problem and recovering from one are different capabilities.
@@ -1454,8 +1456,10 @@ join dim_control_account b using (package_id)</pre></div>
         <div class="dbox"><h4>Self-healing for known patterns</h4><p>Some errors have one obvious
           fix &mdash; a known unit-of-measure mismatch, a predictable timing offset. Auto-correct
           those narrowly and log that it happened.</p></div>
-        <div class="dbox"><h4>Already proven at small scale, here</h4><p>The integrity gate, the
-          escalation matrix, the Actions register's stale-flag, and Gate 5 are all working
+        <div class="dbox"><h4>Already proven at small scale, here</h4><p>The <button type="button" class="btn" style="min-height:auto;padding:1px 8px;font-size:12.5px" data-jump-tab="ai" data-jump-el="aiGuards">integrity gate</button>,
+          the <button type="button" class="btn" style="min-height:auto;padding:1px 8px;font-size:12.5px" data-jump-tab="fw" data-jump-el="escTable">escalation matrix</button>,
+          the <button type="button" class="btn" style="min-height:auto;padding:1px 8px;font-size:12.5px" data-jump-tab="act" data-jump-el="actFilters" data-jump-actstale="1">Actions register's stale-flag</button>,
+          and <button type="button" class="btn" style="min-height:auto;padding:1px 8px;font-size:12.5px" data-jump-tab="fw" data-jump-el="gate5Card">Gate 5</button> are all working
           instances of this same philosophy &mdash; on one synthetic ledger. This plan is the same
           architecture, at the scale a real program needs.</p></div>
       </div>
@@ -2869,7 +2873,8 @@ function renderEacTrend(){
   var s=eacTrendSeries(), deltas=[], i;
   for(i=1;i<s.length;i++) deltas.push({m:s[i].m,delta:s[i].eac-s[i-1].eac});
   var allUp=deltas.every(function(d){ return d.delta>0; });
-  bars("eacTrend",deltas.map(function(d){ return {id:d.m,v:d.delta,c:d.delta>0?"var(--c-pill-r)":"var(--c-pill-g)"}; }),sgn);
+  bars("eacTrend",deltas.map(function(d){ return {id:d.m,v:d.delta,c:d.delta>0?"var(--c-pill-r)":"var(--c-pill-g)"}; }),sgn,
+    function(o,i){ return "<b>"+o.id+"</b>EAC moved "+m(s[i].eac)+" &rarr; "+m(s[i+1].eac)+"<br>"+sgn(o.v)+" this period"; });
   document.getElementById("eacTrend").insertAdjacentHTML("beforeend",
     '<p style="margin:12px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">Each bar is the change in EAC '+
     'from the prior period, not the EAC itself. '+(allUp?
@@ -3452,19 +3457,53 @@ function select(i){
 }
 
 /* ---------- schedule tab ---------- */
-function bars(el,items,fmt){
+function bars(el,items,fmt,tipFmt){
+  var host=document.getElementById(el);
+  // Reused by the shared tooltip handler wired below, read fresh at event time rather than
+  // closed over — bars() re-renders the SAME container with DIFFERENT data across a program's
+  // lifetime (e.g. renderSchedule() calling bars("floats",...) again after a filter changes), so
+  // a listener wired once must never read a stale array from whichever render call happened to
+  // wire it first.
+  host._barsItems=items; host._barsTipFmt=tipFmt;
   var maxAbs=Math.max.apply(null,items.map(function(o){return Math.abs(o.v);}))||1;
-  document.getElementById(el).innerHTML=items.map(function(o){
+  host.innerHTML=items.map(function(o,i){
     var w=Math.abs(o.v)/maxAbs*(o.center?50:100), neg=o.v<0;
     /* data-acc carries o.id unconditionally — for float/cpli/prod that id genuinely IS a
        control-account id and becomes cross-chart-highlightable for free; for callers whose id is
        a month/week label instead (eacTrend, schedDriftBars, cphBars) it's a harmless no-op, since
-       nothing else on the page shares that same label as its own data-acc. */
-    return '<div class="rowbar" data-acc="'+o.id+'"><span class="mono" style="font-size:11.5px;color:rgb(var(--c-code))">'+o.id+'</span>'+
+       nothing else on the page shares that same label as its own data-acc. data-i is the tooltip
+       lookup key (index into host._barsItems), independent of data-acc. */
+    return '<div class="rowbar'+(tipFmt?' hot':'')+'" data-acc="'+o.id+'" data-i="'+i+'"><span class="mono" style="font-size:11.5px;color:rgb(var(--c-code))">'+o.id+'</span>'+
       '<span class="track">'+(o.center?'<span class="zero" style="left:50%"></span>':'')+
       '<i style="'+(o.center?(neg?"right:50%":"left:50%"):"left:0")+';width:'+w.toFixed(1)+'%;background:'+o.c+'"></i></span>'+
       '<span class="tab-num" style="text-align:right;color:'+o.c+'">'+fmt(o.v)+'</span></div>';
   }).join("");
+  // Shared value tooltip for bars()-rendered charts (engagement/interactivity upgrade, 2026-08-2x)
+  // — same .hot + mousemove/click + curZoom()-corrected positioning already proven on the
+  // S-curve/waterfall/Gantt/tornado tooltips, reused verbatim rather than reinvented. One real
+  // difference from those: a .rowbar has child elements (the mono label, the track/i fill, the
+  // tab-num value) any of which can be the real e.target, so this uses closest(".hot") rather
+  // than the flat SVG charts' direct classList.contains("hot") check — those hover a single leaf
+  // <rect> with no children to land on instead. Wired ONCE per host container (a dataset.tipWired
+  // guard, since .innerHTML is replaced on every render but the container element itself
+  // survives); the handler reads host._barsItems/_barsTipFmt fresh at event time.
+  if(tipFmt && !host.dataset.tipWired){
+    var tip=document.getElementById("tip");
+    function barsTip(e){
+      var t=e.target.closest?e.target.closest(".hot"):null;
+      if(!t||t.parentElement!==host){ tip.classList.remove("on"); return; }
+      var item=host._barsItems[+t.dataset.i];
+      if(!item||!host._barsTipFmt){ tip.classList.remove("on"); return; }
+      tip.innerHTML=host._barsTipFmt(item,+t.dataset.i);
+      tip.classList.add("on");
+      tip.style.left=Math.min(e.clientX+14,window.innerWidth-262)/curZoom()+"px";
+      tip.style.top=Math.min(e.clientY+14,window.innerHeight-130)/curZoom()+"px";
+    }
+    host.addEventListener("mousemove",barsTip);
+    host.addEventListener("click",barsTip);
+    host.addEventListener("mouseleave",function(){ tip.classList.remove("on"); });
+    host.dataset.tipWired="1";
+  }
 }
 /* ---------- tracking gantt ---------- */
 /* Every date below is derived from two fields already real and already driving CPLI elsewhere
@@ -3552,13 +3591,18 @@ function renderGanttMath(ends){
 }
 function renderSchedule(){
   bars("floats",rows.map(function(r){ return {id:r.id,v:r.float,center:true,
-    c:r.float<0?"var(--c-pill-r)":r.float<10?"var(--c-pill-a)":"var(--c-pill-g)"}; }),days);
+    c:r.float<0?"var(--c-pill-r)":r.float<10?"var(--c-pill-a)":"var(--c-pill-g)"}; }),days,
+    function(o){ var r=rows.filter(function(x){return x.id===o.id;})[0];
+      return "<b>"+r.id+"</b>"+r.n.replace(/&amp;/g,"&")+"<br>Total float "+days(r.float)+
+        "<br>CPLI (this path) "+idx(r.cpli); });
   document.getElementById("floats").insertAdjacentHTML("beforeend",
     '<p style="margin:12px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">'+T.negFloat.length+
     ' package'+(T.negFloat.length===1?"":"s")+' ('+T.negFloat.map(function(r){return r.id;}).join(", ")+
     ') sit at or below zero float. They, and only they, set the program completion date.</p>');
   bars("cpli",rows.slice().sort(function(a,b){return a.cpli-b.cpli;}).map(function(r){
-    return {id:r.id,v:r.cpli,c:r.cpli<0.95?"var(--c-pill-r)":r.cpli<1?"var(--c-pill-a)":"var(--c-pill-g)"}; }),idx);
+    return {id:r.id,v:r.cpli,c:r.cpli<0.95?"var(--c-pill-r)":r.cpli<1?"var(--c-pill-a)":"var(--c-pill-g)"}; }),idx,
+    function(o){ var r=rows.filter(function(x){return x.id===o.id;})[0];
+      return "<b>"+r.id+"</b>"+r.n.replace(/&amp;/g,"&")+"<br>("+r.cpRem+"d remaining + "+r.float+"d float) &divide; "+r.cpRem+"d = "+idx(r.cpli); });
   document.getElementById("cpli").insertAdjacentHTML("beforeend",
     '<p style="margin:12px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">Program CPLI is reported as the '+
     '<b style="color:rgb(var(--c-ink))">driving path’s</b>, not an average — averaging would let '+
@@ -3638,7 +3682,8 @@ function renderSchedDrift(){
      deltas.length+' reporting periods</b> — a schedule that is still finding its true finish, not one holding a recovered date.':
      'The projected date has moved both directions across these periods, consistent with a schedule that has stabilized rather than one still sliding.')+
    ' Driven by the same tunnel condition carried by R-01, NCR-2026-014, the crew cost-per-hour spike on the Delivery tab, and the Critical Float Erosion Rate above &mdash; one root cause showing up in five different instruments.</p>';
-  bars("schedDriftBars",deltas.map(function(d){ return {id:d.m,v:d.delta,c:d.delta>0?"var(--c-pill-r)":"var(--c-pill-g)"}; }),days);
+  bars("schedDriftBars",deltas.map(function(d){ return {id:d.m,v:d.delta,c:d.delta>0?"var(--c-pill-r)":"var(--c-pill-g)"}; }),days,
+    function(o,i){ return "<b>"+o.id+"</b>Projected slip moved "+days(s[i].slip)+" &rarr; "+days(s[i+1].slip); });
 }
 /* Critical float erosion rate (megaproject-controls-doc upgrade, 2026-08-22) — exact clone of
    renderSchedDrift() above, "allDown" in place of "allUp" since float eroding means the
@@ -3662,7 +3707,8 @@ function renderFloatErosion(){
      deltas.length+' reporting periods</b> &mdash; the driving path is consuming margin steadily, not holding at a recovered position.':
      'CP-201&rsquo;s float has moved both directions across these periods, consistent with a driving path that has stabilized rather than one still eroding.')+
    ' Same tunnel condition carried by R-01, NCR-2026-014, the crew cost-per-hour spike, and the revenue-service drift trend below &mdash; one root cause, five instruments.</p>';
-  bars("floatErosionBars",deltas.map(function(d){ return {id:d.m,v:d.delta,c:d.delta<0?"var(--c-pill-r)":"var(--c-pill-g)"}; }),days);
+  bars("floatErosionBars",deltas.map(function(d){ return {id:d.m,v:d.delta,c:d.delta<0?"var(--c-pill-r)":"var(--c-pill-g)"}; }),days,
+    function(o,i){ return "<b>"+o.id+"</b>CP-201 float moved "+days(s[i].float)+" &rarr; "+days(s[i+1].float); });
 }
 
 /* ---------- risk tab ---------- */
@@ -3719,7 +3765,8 @@ function renderRisk(){
   tornHost.addEventListener("click",tornTipFn);
   tornHost.addEventListener("mouseleave",function(){ tornTip.classList.remove("on"); });
   renderRiskMath(ranked);
-  var grid={}; RISKS.forEach(function(k){ grid[k.p+"-"+k.i]=(grid[k.p+"-"+k.i]||0)+1; });
+  var grid={}, gridRisks={};
+  RISKS.forEach(function(k){ var key=k.p+"-"+k.i; grid[key]=(grid[key]||0)+1; (gridRisks[key]=gridRisks[key]||[]).push(k); });
   var html='<div class="ax"></div>',p,im;
   for(im=1;im<=5;im++) html+='<div class="ax">I'+im+'</div>';
   for(p=5;p>=1;p--){ html+='<div class="ax">P'+p+'</div>';
@@ -3733,8 +3780,35 @@ function renderRisk(){
       var bg=band==="high"?"#FCA5A5":band==="medium"?"#FCD34D":"#A7F3D0";
       var bd=band==="high"?"2px solid #7F1D1D":"1px solid transparent";
       var lab="Probability "+p+", impact "+im+" — "+band+" severity: "+n+" risk"+(n===1?"":"s");
-      html+='<div class="hc" role="img" aria-label="'+lab+'" title="'+lab+'" style="background:'+bg+';border:'+bd+';opacity:'+(n?1:.34)+'">'+n+'</div>'; } }
+      // class="hot"+data-p/data-i drive a rich custom tooltip (engagement/interactivity upgrade,
+      // 2026-08-2x, replacing the native title= as the primary UX) naming which specific risks
+      // fall in this cell — aria-label/title stay as the accessibility fallback, not removed.
+      html+='<div class="hc hot" role="img" aria-label="'+lab+'" title="'+lab+'" data-p="'+p+'" data-i="'+im+'" style="background:'+bg+';border:'+bd+';opacity:'+(n?1:.34)+'">'+n+'</div>'; } }
   document.getElementById("heat").innerHTML=html;
+  // Same #tip pattern as the S-curve/waterfall/Gantt/tornado/bars() tooltips, wired once per
+  // container (heat map cells are fully replaced above on every renderRisk() call, but #heat
+  // itself survives — same dataset.tipWired guard as bars()). gridRisks is stashed on the host
+  // element itself, not closed over directly: renderRisk() can run again later (theme toggle, tab
+  // switch both call it via redrawCharts()), and a closure captured on the FIRST wiring would
+  // silently keep showing the first render's risk list forever — the exact stale-closure bug
+  // bars()'s own host._barsItems pattern exists to avoid, reused here for the same reason.
+  var heatHost=document.getElementById("heat");
+  heatHost._gridRisks=gridRisks;
+  if(!heatHost.dataset.tipWired){
+    var heatTip=document.getElementById("tip");
+    function heatTipFn(e){
+      var t=e.target; if(!t.classList||!t.classList.contains("hot")){ heatTip.classList.remove("on"); return; }
+      var pk=+t.dataset.p, ik=+t.dataset.i, names=(heatHost._gridRisks[pk+"-"+ik]||[]).map(function(k){ return k.id; });
+      heatTip.innerHTML="<b>P"+pk+" &times; I"+ik+"</b>"+(names.length? names.join(", ") : "No risks currently at this probability/impact combination");
+      heatTip.classList.add("on");
+      heatTip.style.left=Math.min(e.clientX+14,window.innerWidth-262)/curZoom()+"px";
+      heatTip.style.top=Math.min(e.clientY+14,window.innerHeight-130)/curZoom()+"px";
+    }
+    heatHost.addEventListener("mousemove",heatTipFn);
+    heatHost.addEventListener("click",heatTipFn);
+    heatHost.addEventListener("mouseleave",function(){ heatTip.classList.remove("on"); });
+    heatHost.dataset.tipWired="1";
+  }
   document.getElementById("contCover").innerHTML=
    [["Exposure",m(T.riskExposure),""],["Contingency left",m(T.contRemaining),""],
     ["Coverage ratio",idx(T.contCoverage),T.contCoverage<1?"ba":"wa"]
@@ -3858,7 +3932,10 @@ function renderRiskMath(ranked){
 /* ---------- delivery tab ---------- */
 function renderDelivery(){
   bars("prod",rows.slice().sort(function(a,b){return a.pf-b.pf;}).map(function(r){
-    return {id:r.id,v:r.pf,c:r.pf<0.95?"var(--c-pill-r)":r.pf<1?"var(--c-pill-a)":"var(--c-pill-g)"}; }),idx);
+    return {id:r.id,v:r.pf,c:r.pf<0.95?"var(--c-pill-r)":r.pf<1?"var(--c-pill-a)":"var(--c-pill-g)"}; }),idx,
+    function(o){ var r=rows.filter(function(x){return x.id===o.id;})[0];
+      return "<b>"+r.id+"</b>"+r.n.replace(/&amp;/g,"&")+"<br>"+num(Math.round(r.ernH))+" earned hrs &divide; "+
+        num(Math.round(r.actH))+" actual hrs"; });
   document.getElementById("prod").insertAdjacentHTML("beforeend",
     '<p style="margin:12px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">Program factor <b style="color:rgb(var(--c-ink))">'+
     idx(T.pf)+'</b>. CP-201 and CP-601 are burning hours fastest — the same two packages already carrying '+
@@ -3925,7 +4002,10 @@ function renderCph(){
     'before it would otherwise show up in CP-201&rsquo;s own CPI.</p>';
   bars("cphBars",c.weeks.map(function(w){
     return {id:w.w,v:w.varPerHr,c:w.varPerHr>350?"var(--c-pill-r)":w.varPerHr>150?"var(--c-pill-a)":"var(--c-pill-g)"}; }),
-    function(v){return sgnUsd(v)+"/hr";});
+    function(v){return sgnUsd(v)+"/hr";},
+    function(o){ var w=c.weeks.filter(function(x){return x.w===o.id;})[0];
+      return "<b>"+w.w+"</b>"+usd(w.actual)+"/hr actual vs "+usd(c.baseline)+"/hr standard<br>"+
+        pct(w.idlePct)+" of crew time idle"; });
   if(state.cphDrill) renderCphDrill(c);
   renderCphMath(c,last);
 }
@@ -4471,6 +4551,21 @@ function jumpToAction(id){
     row.scrollIntoView({block:"center",behavior:"smooth"});
     row.classList.add("jump-flash");
     setTimeout(function(){ row.classList.remove("jump-flash"); },1600);
+  },140);
+}
+// Generic cross-tab jump (engagement/interactivity upgrade, 2026-08-2x) — same activateTab ->
+// setTimeout -> scrollIntoView -> jump-flash idiom as jumpToAction() above, generalized to any
+// target element rather than one specific to the Actions register. jumpToAction() itself is left
+// untouched (tested, working code) rather than rewritten in terms of this helper.
+function jumpToEl(tabId,elId,pre){
+  activateTab(tabId);
+  if(pre) pre();
+  setTimeout(function(){
+    var el=document.getElementById(elId);
+    if(!el) return;
+    el.scrollIntoView({block:"center",behavior:"smooth"});
+    el.classList.add("jump-flash");
+    setTimeout(function(){ el.classList.remove("jump-flash"); },1600);
   },140);
 }
 
@@ -5212,11 +5307,16 @@ function renderDataStrategy(){
       '</td><td style="white-space:normal;font-size:12.5px">'+g.c+'</td>'+
       '<td style="white-space:normal;font-size:12px;color:rgb(var(--c-mut))">'+g.e+'</td></tr>'; }).join("")+
     '</tbody>';
+  // Was a second, flat static-card rendering of the identical 5-step DISCREPANCY_STEPS logic the
+  // CDE flow diagram above already draws live (dsCaption()'s "detect"/"known"/"escalate"/
+  // "promote"/"auto" nodes read this exact same array) — one true version now, jumped to rather
+  // than duplicated (engagement/interactivity upgrade, 2026-08-2x). DISCREPANCY_STEPS/dsStep()
+  // stay exactly as they were; only this second render site is gone.
   document.getElementById("discrepancyFlow").innerHTML=
-    '<div class="grid g2">'+DISCREPANCY_STEPS.map(function(s){
-      return '<div class="card"><div class="eyebrow">'+s.n+'</div>'+
-        '<p style="margin:9px 0 0;font-size:13px;color:rgb(var(--c-mut))">'+s.w+'</p></div>';
-    }).join("")+'</div>';
+    '<p style="margin:0;font-size:13px;color:rgb(var(--c-mut))">Already drawn live, above &mdash; '+
+    'the discrepancy-resolution branch off the Shared verification gate in the CDE flow diagram, '+
+    'the same '+DISCREPANCY_STEPS.length+' steps, click-through rather than a static list.</p>'+
+    '<button type="button" class="btn" style="margin-top:10px" data-jump-tab="data" data-jump-el="cdeFlow" data-jump-selectds="3">Walk the discrepancy branch &rarr;</button>';
   document.getElementById("rolloutCards").innerHTML=ROLLOUT.map(function(r){
     return '<div class="pcard"><div class="ph-n">'+r.ph+'</div><h3>'+r.n+'</h3>'+
       '<p style="margin:0;font-size:13px;color:rgb(var(--c-mut))">'+r.w+'</p></div>';
@@ -5625,6 +5725,24 @@ window.addEventListener("click",function(e){
     q.value=x.dataset.explore.replace(/\s*&mdash;.*$/,"").replace(/\s*—.*$/,"");
     renderGlossary(q.value);
     q.focus();
+    return;
+  }
+  // Cross-tab (and same-tab) jump links (engagement/interactivity upgrade, 2026-08-2x) —
+  // delegated the same way as data-help/data-explore above, since these are also added
+  // dynamically across render functions. Two data-attribute special cases, kept data-driven
+  // rather than inline onclick= (this file's own established convention throughout):
+  // data-jump-actstale="1" mutates state.actFilter before renderActions() runs (redrawCharts(),
+  // called by activateTab(), does NOT touch the Actions table — same reason jumpToAction() above
+  // calls renderActions() explicitly rather than trusting the tab switch to pick up the flag);
+  // data-jump-selectds="<idx>" opens the CDE flow diagram at a specific DS_NODES story-beat
+  // instead of its default position.
+  var j=e.target.closest("[data-jump-tab]");
+  if(j){
+    closeHelp();
+    var pre=null;
+    if(j.dataset.jumpActstale) pre=function(){ state.actFilter="Stale"; renderActions(); };
+    else if(j.dataset.jumpSelectds!==undefined) pre=function(){ selectDS(+j.dataset.jumpSelectds); };
+    jumpToEl(j.dataset.jumpTab,j.dataset.jumpEl,pre);
     return;
   }
   if(e.target.closest("#helpPopClose")){ closeHelp(); return; }
