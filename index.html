@@ -318,6 +318,11 @@ h4{font-size:.86rem;margin:0 0 5px}
   background-repeat:no-repeat;background-attachment:local,local,scroll,scroll;
   background-size:24px 100%,24px 100%,24px 100%,24px 100%}
 table{width:100%;border-collapse:collapse;font-size:12.8px}
+/* <caption> defaults to centered, large, bold in most browsers — restyled to read as a quiet
+   sub-label above the table (what this register is, its live row count and any active filter),
+   not a second heading competing with the <h2>/<h3> already sitting above the .tw wrapper. */
+.tw-caption{caption-side:top;text-align:left;font-size:11.5px;color:rgb(var(--c-mut));
+  font-weight:400;padding:9px 11px 0}
 th,td{text-align:right;padding:9px 11px;border-bottom:1px solid var(--c-line);
   font-variant-numeric:tabular-nums;white-space:normal}
 th{font:600 9.5px/1.3 ui-monospace,monospace;letter-spacing:.09em;text-transform:uppercase;
@@ -811,7 +816,11 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         </div>
         <div class="chart" id="mcChart" style="margin-top:10px"></div>
         <div class="outbox" id="mcStats"></div>
-        <p class="lede" id="mcRead" style="margin-top:12px;font-size:12.8px"></p>
+        <!-- aria-live on the narrative sentence below, not #mcStats itself — #mcStats' numbers
+             are tweened frame-by-frame (see tweenNum() in the script), and a live region on a
+             per-frame-updating element would spam a screen reader with every intermediate value
+             instead of announcing the settled result once (/stress-test brainstorm, 2026-08-20) -->
+        <p class="lede" id="mcRead" style="margin-top:12px;font-size:12.8px" aria-live="polite"></p>
         <details class="dbox" style="margin-top:16px">
           <summary>How this is actually computed</summary>
           <div id="mcMathBody"></div>
@@ -843,6 +852,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
       <div class="sec-h" style="margin-top:34px"><h2>Control account ledger</h2><span class="tag">drill-down</span></div>
       <p class="lede">A portfolio number is an average of things that are not average. Select any row.</p>
       <div class="tw"><table id="pkgTable">
+        <caption id="pkgCaption" class="tw-caption"></caption>
         <thead><tr><th scope="col">Package</th><th scope="col">BAC</th><th scope="col">EV</th>
           <th scope="col">AC</th><th scope="col">SPI</th><th scope="col">CPI</th><th scope="col">EAC</th>
           <th scope="col">VAC</th><th scope="col">Float</th><th scope="col">CPLI</th><th scope="col">Status</th></tr></thead>
@@ -2991,6 +3001,8 @@ function statusOf(r){
   return ["g","On track"];
 }
 function renderTable(){
+  document.getElementById("pkgCaption").textContent=
+    "Control-account ledger — "+rows.length+" accounts, live EVM figures per account.";
   document.getElementById("pkgBody").innerHTML=rows.map(function(r,i){
     var st=statusOf(r);
     return '<tr tabindex="0" role="button" aria-controls="drill" data-i="'+i+'" data-acc="'+r.id+'" aria-pressed="'+(i===state.pkg)+'">'+
@@ -3228,6 +3240,7 @@ function renderSchedDrift(){
 function renderContracts(){
   var cs=CONTRACTS.map(deriveContract);
   document.getElementById("contractTable").innerHTML=
+    '<caption class="tw-caption">Contract commercial register — '+cs.length+' contracts, live award and contingency figures per contract.</caption>'+
     '<thead><tr><th scope="col">Contract</th><th scope="col">Control accounts</th><th scope="col">Award</th>'+
     '<th scope="col">Approved COs</th><th scope="col">Pending trends</th><th scope="col">Alloc. contingency</th>'+
     '<th scope="col">Uncommitted reserve</th></tr></thead><tbody>'+
@@ -3789,6 +3802,7 @@ function renderFramework(){
   }).join("");
   var escFiring=firingEscalations();
   document.getElementById("escTable").innerHTML=
+    '<caption class="tw-caption">Escalation matrix — '+ESCALATION.length+' rules, '+escFiring.length+' firing right now.</caption>'+
     '<thead><tr><th scope="col">Status</th><th scope="col">Trigger</th><th scope="col">Owner</th><th scope="col">Action</th><th scope="col">Clock</th></tr></thead><tbody>'+
     ESCALATION.map(function(r){ var firing=escFiring.indexOf(r)!==-1;
       var esi=ESC_STATUS_ICON[firing?"firing":"dormant"];
@@ -4020,6 +4034,9 @@ function renderActions(){
   }).sort(function(a,b){ return actDays(b.due)-actDays(a.due); });
 
   document.getElementById("actTable").innerHTML=
+   '<caption class="tw-caption">Actions &amp; RAID register — '+
+   (state.actFilter==="All"? "showing all "+list.length+" items" : "filtered to \""+state.actFilter+"\", "+list.length+" of "+rows.length+" items")+
+   ', sorted by due date.</caption>'+
    '<thead><tr><th scope="col">ID</th><th scope="col">Type</th><th scope="col">Item</th>'+
    '<th scope="col">Owner</th><th scope="col">Due</th><th scope="col">Status</th></tr></thead><tbody>'+
    list.map(function(r){ var sm=STATUS_META[r.status];
@@ -4809,6 +4826,9 @@ function exitPresent(){
   document.getElementById("presentBar").hidden=true;
   if(presentPopup && !presentPopup.closed) presentPopup.close();
   presentPopup=null;
+  // return focus to the trigger, matching closeHelp()'s existing pattern — without this, focus
+  // is left on whatever was last inside the now-hidden presentBar (/stress-test brainstorm, 2026-08-20)
+  document.getElementById("presentBtn").focus();
 }
 function openPresentNotes(){
   if(!presentPopup || presentPopup.closed){
@@ -4898,6 +4918,8 @@ function exitTour(){
   state.touring=false;
   document.getElementById("tourBtn").setAttribute("aria-pressed","false");
   document.getElementById("tourBar").hidden=true;
+  // same focus-return as exitPresent() — matches closeHelp()'s existing pattern, not a new one
+  document.getElementById("tourBtn").focus();
 }
 
 /* =========================================================================

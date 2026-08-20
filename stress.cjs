@@ -42,7 +42,11 @@ function makeEl(id) {
     // .click() (e.g. the tab-bar's keydown handler) had never actually been exercised by any
     // test in this file; every prior test worked around it via fire() directly instead
     // (/stress-test finding, 2026-08-18).
-    click(){ fire(this, "click"); }, focus(){},
+    click(){ fire(this, "click"); },
+    // tracks whether/how-many-times .focus() was called — was a bare no-op before, which meant
+    // "does exitPresent()/exitTour() actually return focus to the trigger" was unobservable
+    // (/stress-test brainstorm, 2026-08-20)
+    _focusCount: 0, focus(){ this._focusCount++; },
     closest(){ return null; },
     querySelector(){ return makeEl(); }, querySelectorAll(){ return []; },
   };
@@ -1385,6 +1389,42 @@ ok(/id="tourBtn"[^>]*aria-keyshortcuts="ArrowLeft ArrowRight Escape"/.test(index
 // 6. scroll-edge gradient cue on wide table containers
 ok(indexSrc.includes("background-attachment:local,local,scroll,scroll"),
   "table containers carry the scroll-edge shadow cue (4-layer cover+shadow technique)");
+
+/* =========================================================================
+   D4.9 A11Y BRAINSTORM ROUND 2 (2026-08-20) — 3-item pass triaged from a
+   second pasted proposal doc, almost entirely redundant with D4.8 above.
+   ========================================================================= */
+console.log("== D4.9. a11y brainstorm pass 2 ==");
+// 1. table captions — live-computed, not typed, on the 4 register/log tables
+// pkgCaption is set via .textContent, not .innerHTML — has() checks the wrong field (_html) for
+// a textContent-set element, same gotcha class documented earlier this file
+ok(String(G.pkgCaption.textContent).includes(rows.length + " accounts"),
+  "ledger caption states the live account count", G.pkgCaption.textContent);
+has("actTable", "Actions &amp; RAID register", "actions register caption identifies the dataset");
+has("actTable", "showing all " + P.actions.length + " items", "actions caption states the live unfiltered count by default");
+has("contractTable", P.contracts.length + " contracts", "contract register caption states the live contract count");
+has("escTable", P.escalation.length + " rules", "escalation matrix caption states the live rule count");
+ok((indexSrc.match(/<caption class="tw-caption">/g) || []).length + (indexSrc.match(/<caption id="pkgCaption"/g) || []).length >= 4,
+  "at least 4 tables carry a <caption>", String((indexSrc.match(/<caption/g) || []).length));
+
+// 2. aria-live moved to the settled narrative sentence, not the per-frame-tweened stat grid
+ok(indexSrc.includes('id="mcRead" style="margin-top:12px;font-size:12.8px" aria-live="polite"'),
+  "Monte Carlo's narrative sentence (#mcRead), not the tweened #mcStats grid, carries aria-live");
+ok(!/id="mcStats"[^>]*aria-live/.test(indexSrc),
+  "#mcStats itself does NOT carry aria-live (would spam a screen reader every animation frame)");
+
+// 3. focus returns to the trigger button on mode exit, matching closeHelp()'s existing pattern
+try {
+  fire(G.presentBtn, "click"); // enter
+  const before = G.presentBtn._focusCount;
+  fire(G.presentBtn, "click"); // exit
+  ok(G.presentBtn._focusCount === before + 1, "exitPresent() returns focus to presentBtn");
+  fire(G.tourBtn, "click"); // enter
+  const beforeTour = G.tourBtn._focusCount;
+  fire(G.tourBtn, "click"); // exit
+  ok(G.tourBtn._focusCount === beforeTour + 1, "exitTour() returns focus to tourBtn");
+  fire(G["t-over"], "click"); // leave tab state clean for later sections
+} catch (e) { ok(false, "focus-return on mode exit", e.message); }
 
 /* =========================================================================
    D5. RESUME-INSIGHT MODULES — baseline bridge, change pricing, TIA, stakeholders
