@@ -1053,6 +1053,15 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         history: the win probability and legal-cost figures below, which this section states plainly rather
         than dressing up as program data.</p>
       <div class="card" style="margin-top:15px" id="drbEmv"></div>
+      <div class="card" style="margin-top:15px">
+        <div class="slider"><label for="sDrbP">DRB win probability (owner)</label><input type="range" id="sDrbP" min="0" max="1" step="0.01"><span class="tab-num mono" id="vDrbP"></span></div>
+        <div class="slider"><label for="sDrbLegal">DRB / legal cost $M</label><input type="range" id="sDrbLegal" min="0" max="3" step="0.05"><span class="tab-num mono" id="vDrbLegal"></span></div>
+        <p class="lede" style="font-size:12.5px;margin:10px 0 4px">Illustrative assumptions only &mdash;
+          dragging these never changes DRB_ASSUMPTIONS itself, the same structural separation the delta
+          above is computed from. Watch Option B (escalate) against Option A (settle) across the full
+          range: B never dips below A, at any win probability or legal cost.</p>
+        <div class="chart" id="drbChart"></div>
+      </div>
     </div>
   </section>
 
@@ -3935,6 +3944,44 @@ function renderDrbEmv(){
     'or not, comes out worse. The '+sgn(e.delta)+' delta above is the real, computed cost of that asymmetry, '+
     'not a dramatic number chosen to look interesting &mdash; it is what the framing itself implies.</p>';
 }
+/* The interactive slider + chart (Phase 5, engagement/interactivity upgrade, 2026-08-20) — never
+   mutates DRB_ASSUMPTIONS itself (same structural separation renderDrbEmv() above already keeps);
+   the sliders drive local read-only display state only, initialized FROM DRB_ASSUMPTIONS once at
+   page load. deriveDrbEmv() is linear in pOwnerWins (a convex combination plus a constant), so the
+   whole curve is defined by its two endpoints — no iterative machinery needed. Line A (settle) is
+   flat at settleTotal, independent of both sliders; Line B (escalate) runs from
+   contractorBranch+legalCost at p=0 down to settleTotal+legalCost at p=1 — since
+   contractorBranch > settleTotal by construction (the contractor's ask exceeds the independent
+   estimate) and legalCost >= 0, B's minimum (at p=1) is still >= A everywhere, which is exactly
+   the "escalating can never beat settling" finding renderDrbEmv()'s prose already states — this
+   chart makes it visible across the whole range instead of asserting it at one point. */
+function renderDrbSlider(){
+  var p=+document.getElementById("sDrbP").value, legal=+document.getElementById("sDrbLegal").value;
+  document.getElementById("vDrbP").textContent=pct(p,0);
+  document.getElementById("vDrbLegal").textContent=m(legal);
+  var e=deriveDrbEmv(PROGRAM.coPendingValue,PROGRAM.coProposedPending,p,legal);
+  var bAtP0=e.contractorBranch+legal, bAtP1=e.settleTotal+legal;
+  var W=560,H=190, padL=54,padR=18,padT=16,padB=30;
+  var yMin=e.settleTotal, yMax=bAtP0, rg=(yMax-yMin)||1;
+  function xS(pv){ return padL+pv*(W-padL-padR); }
+  function yS(v){ return padT+(yMax-v)/rg*(H-padT-padB); }
+  var s='<line x1="'+padL+'" y1="'+yS(e.settleTotal)+'" x2="'+(W-padR)+'" y2="'+yS(e.settleTotal)+
+    '" style="stroke:rgb(var(--c-ok));stroke-width:2"/>'+
+    '<text x="'+(W-padR)+'" y="'+(yS(e.settleTotal)-6)+'" text-anchor="end" font-size="10" style="fill:rgb(var(--c-ok))">Option A &mdash; settle ('+m(e.settleTotal)+')</text>'+
+    '<line x1="'+xS(0)+'" y1="'+yS(bAtP0)+'" x2="'+xS(1)+'" y2="'+yS(bAtP1)+
+    '" style="stroke:rgb(var(--c-bad));stroke-width:2"/>'+
+    '<text x="'+xS(0)+'" y="'+(yS(bAtP0)-8)+'" text-anchor="start" font-size="10" style="fill:rgb(var(--c-bad))">Option B &mdash; escalate</text>'+
+    '<line x1="'+xS(p)+'" y1="'+yS(e.drbTotal)+'" x2="'+xS(p)+'" y2="'+(H-padB)+
+    '" style="stroke:rgb(var(--c-mut));stroke-width:1;stroke-dasharray:2 2"/>'+
+    '<circle cx="'+xS(p)+'" cy="'+yS(e.drbTotal)+'" r="4.5" style="fill:rgb(var(--c-bad));stroke:rgb(var(--c-bg));stroke-width:1.5"/>'+
+    '<text x="'+xS(0)+'" y="'+(H-padB+18)+'" text-anchor="start" font-size="9.5" style="fill:rgb(var(--c-mut))">0% owner wins</text>'+
+    '<text x="'+xS(1)+'" y="'+(H-padB+18)+'" text-anchor="end" font-size="9.5" style="fill:rgb(var(--c-mut))">100% owner wins</text>'+
+    '<text x="'+xS(p)+'" y="'+(H-padB+18)+'" text-anchor="middle" font-size="9.5" font-weight="600" style="fill:rgb(var(--c-ink))">'+pct(p,0)+'</text>';
+  document.getElementById("drbChart").innerHTML=svg(W,H,s,
+    "Option A is a flat line at "+m(e.settleTotal)+" regardless of win probability or legal cost. "+
+    "Option B runs from "+m(bAtP0)+" at 0% owner-win probability down to "+m(bAtP1)+" at 100%, but never "+
+    "crosses below Option A. The marker shows the current slider position at "+m(e.drbTotal)+".");
+}
 
 /* The math explainer — exposure = P_BAND[p] x cost, where P_BAND maps the register's 1-5
    qualitative probability score to a percentage. Named deliberately NOT p/5: mapping P5 to
@@ -6074,6 +6121,11 @@ body.addEventListener("keydown",function(e){
   // renderWhatIf's own `immediate` param truthy on every drag tick too, silently defeating the
   // debounce above (caught by test, not by reading the code — /stress-test, 2026-08-20).
   document.getElementById(id).addEventListener("input",function(){ renderWhatIf(); }); });
+// DRB EMV sliders (Phase 5, engagement/interactivity upgrade, 2026-08-20) — same plain-closure
+// wrapping as the What-If sliders just above, for the same reason (renderDrbSlider takes no
+// params that Event-is-truthy could corrupt, but matching the established idiom here anyway).
+["sDrbP","sDrbLegal"].forEach(function(id){
+  document.getElementById(id).addEventListener("input",function(){ renderDrbSlider(); }); });
 // confidence-percentile slider (brainstorm-mode upgrade, 2026-08-21) — same split as the What-If
 // sliders: the marker's position updates immediately (visual feedback while dragging), the
 // contingency-required callout is debounced (same Event-is-truthy pitfall, same plain-closure fix).
@@ -6175,6 +6227,9 @@ renderMcConfCallout();
 renderWaterfall(); renderWaterfallMath(); renderBaseline(); renderEac(); renderCont(); renderTable();
 renderEacTrend(); renderFcastTable(); renderGbmDiffusion(); renderCashflow();
 renderGantt(); renderSchedule(); renderRisk(); renderDrbEmv(); renderContracts(); renderDelivery(); renderFramework(); renderActions(); renderActionsMath();
+document.getElementById("sDrbP").value=DRB_ASSUMPTIONS.pOwnerWins;
+document.getElementById("sDrbLegal").value=DRB_ASSUMPTIONS.legalCost;
+renderDrbSlider();
 renderDataStrategy();
 renderMcFilter(); syncMcView(); renderMcMath(); renderScen(); renderPrint();
 renderArch(); renderGuards(); renderStatControl(); renderZscoreMath(); renderEwmaControl(); renderEwmaMath(); renderIngestGuards();

@@ -1946,6 +1946,50 @@ has("coDefenseNote", "different", "the connecting note frames the 3 rows as diff
   // is still exactly right (a shared-selector collision would have corrupted it already).
   has("coDefense", "$48.9M", "#coDefense's own content is unaffected by the adjacent DRB EMV section");
 }
+// DRB EMV interactive slider + chart (Phase 5, engagement/interactivity upgrade, 2026-08-20) —
+// same doctrine as above: independently recompute from literal inputs, never trust the app's own
+// deriveDrbEmv() math a second time without cross-checking it.
+{
+  ["sDrbP", "sDrbLegal", "vDrbP", "vDrbLegal", "drbChart"].forEach(id =>
+    ok(idsA.includes(id), "markup contains #" + id));
+  // String(...) on both sides — this stub's .value setter doesn't coerce a number to a string
+  // the way a real <input> DOM does, matching the same G.guardCountLede/textContent workaround
+  // already established elsewhere in this file (found via a real contradicted assertion, not assumed).
+  ok(String(G.sDrbP.value) === String(P.drbAssumptions.pOwnerWins) && String(G.sDrbLegal.value) === String(P.drbAssumptions.legalCost),
+    "sliders initialize FROM DRB_ASSUMPTIONS's live values, not hardcoded", `${G.sDrbP.value}/${G.sDrbLegal.value}`);
+  const savedP = P.drbAssumptions.pOwnerWins, savedLegal = P.drbAssumptions.legalCost;
+  // the sliders must never mutate DRB_ASSUMPTIONS itself — the same structural separation
+  // renderDrbEmv() above already keeps (its own drift-guard block asserts this too).
+  ok(P.drbAssumptions.pOwnerWins === savedP && P.drbAssumptions.legalCost === savedLegal,
+    "DRB_ASSUMPTIONS is untouched before any slider interaction (sanity baseline)");
+  try {
+    G.sDrbP.value = "0.20"; fire(G.sDrbP, "input");
+    ok(P.drbAssumptions.pOwnerWins === savedP, "dragging the win-probability slider does NOT mutate DRB_ASSUMPTIONS.pOwnerWins", String(P.drbAssumptions.pOwnerWins));
+    const settleTotal = P.program.coPendingValue, proposedPending = P.program.coProposedPending, legal = savedLegal;
+    const drbAt20 = 0.20 * settleTotal + 0.80 * proposedPending + legal;
+    has("drbChart", drbAt20.toFixed(1), "chart's aria-label states the recomputed total at the new slider position");
+    ok(G.vDrbP.textContent === "20%", "the % readout reflects the new slider value", String(G.vDrbP.textContent));
+    // endpoints: independently recompute B(p=0) and B(p=1) from the literal formula, matching what
+    // the chart's own caption states, never by calling deriveDrbEmv() and trusting its own math twice.
+    const bAtP0 = proposedPending + legal, bAtP1 = settleTotal + legal;
+    has("drbChart", bAtP0.toFixed(1), "chart's aria-label states Option B's p=0 endpoint, independently recomputed");
+    has("drbChart", bAtP1.toFixed(1), "chart's aria-label states Option B's p=1 endpoint, independently recomputed");
+    has("drbChart", settleTotal.toFixed(1), "chart's aria-label states Option A's flat value (the real settle total)");
+    // regression guard on the structural finding, sampled across a real slider drag range —
+    // independently recomputed, not read back from the app's own e.drbTotal.
+    [0, 0.25, 0.5, 0.75, 1].forEach(p => {
+      const b = p * settleTotal + (1 - p) * proposedPending + legal;
+      ok(b >= settleTotal, `chart regression guard: Option B (p=${p}) never dips below Option A`, b.toFixed(3));
+    });
+    G.sDrbLegal.value = "0"; fire(G.sDrbLegal, "input");
+    ok(P.drbAssumptions.legalCost === savedLegal, "dragging the legal-cost slider does NOT mutate DRB_ASSUMPTIONS.legalCost", String(P.drbAssumptions.legalCost));
+    ok(G.vDrbLegal.textContent === "$0.0M", "the legal-cost readout reflects the new slider value", String(G.vDrbLegal.textContent));
+  } catch (e) { ok(false, "DRB slider interaction", e.message); }
+  // restore to the real defaults so no later assertion in this file reads a leftover slider state
+  G.sDrbP.value = String(savedP); G.sDrbLegal.value = String(savedLegal); fire(G.sDrbLegal, "input");
+  ok(P.drbAssumptions.pOwnerWins === savedP && P.drbAssumptions.legalCost === savedLegal,
+    "post-test sanity: DRB_ASSUMPTIONS is STILL untouched after every slider interaction above");
+}
 // TIA register ties to float and milestones
 has("tiaReg", "D-02", "delay register lists the tunnel event");
 has("tiaReg", "+40d", "tunnel delay day-count matches CP-201 negative float");
