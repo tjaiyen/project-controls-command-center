@@ -1593,7 +1593,8 @@ var RISKS = [
    crew's weekly burn rate against a standard. Raw inputs per week are actual $/hr and idle share;
    everything else (variance, weekly overrun, idle-attributable dollars) is derived. Tied to the
    same tunnel package and the same ground-condition root cause already carried by R-01 and
-   NCR-2026-014 — one underlying problem, three different instruments looking at it. */
+   NCR-2026-014 — one underlying problem, now five different instruments looking at it (this one,
+   the risk register, the quality NCR, float erosion rate, and the schedule-drift trend). */
 var CPH_CELLS=[
  {id:"cph-201",name:"Tunnel liner &amp; excavation crew",pkg:"CP-201",crewSize:14,hrsPerWeek:56,baseline:2450,
   /* reworkLinked (brainstorm-mode upgrade, 2026-08-21): an explicit per-week flag, not a runtime
@@ -3636,7 +3637,7 @@ function renderSchedDrift(){
      'The projected revenue-service date has slipped further out in <b style="color:rgb(var(--c-ink))">every one of the last '+
      deltas.length+' reporting periods</b> — a schedule that is still finding its true finish, not one holding a recovered date.':
      'The projected date has moved both directions across these periods, consistent with a schedule that has stabilized rather than one still sliding.')+
-   ' Driven by the same tunnel condition carried by R-01, NCR-2026-014 and the crew cost-per-hour spike on the Delivery tab &mdash; one root cause showing up in four different instruments.</p>';
+   ' Driven by the same tunnel condition carried by R-01, NCR-2026-014, the crew cost-per-hour spike on the Delivery tab, and the Critical Float Erosion Rate above &mdash; one root cause showing up in five different instruments.</p>';
   bars("schedDriftBars",deltas.map(function(d){ return {id:d.m,v:d.delta,c:d.delta>0?"var(--c-pill-r)":"var(--c-pill-g)"}; }),days);
 }
 /* Critical float erosion rate (megaproject-controls-doc upgrade, 2026-08-22) — exact clone of
@@ -4030,9 +4031,9 @@ var PRESENT_BEATS_FULL=[
    "“A dashboard that always says green isn't checking anything. This one just failed, live.”",
    "Let the moment land. Don't rush to the next tab."]},
  {label:"Connective tissue",tab:"act",notes:[
-   "One root cause — CP-201 tunnel ground conditions — shows up in four instruments.",
-   "Risk register (R-01) + quality NCR (NCR-2026-014) + crew cost-per-hour + schedule forecast drift.",
-   "Not five reports that disagree — one story told four ways."]},
+   "One root cause — CP-201 tunnel ground conditions — shows up in five instruments.",
+   "Risk register (R-01) + quality NCR (NCR-2026-014) + crew cost-per-hour + float erosion rate + schedule forecast drift.",
+   "Not six reports that disagree — one story told five ways."]},
  {label:"Own the gap",tab:"fw",notes:[
    "Say it before they ask: no live CPM schedule ownership during execution.",
    "Schedule experience is upstream — bid-stage duration modeling, not years running P6.",

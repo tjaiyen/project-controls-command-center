@@ -2914,6 +2914,21 @@ ok(otakSrc.includes("R2026-11") && otakSrc.includes("verified 19&nbsp;Aug&nbsp;2
    F. COMPLIANCE SWEEPS
    ========================================================================= */
 console.log("== F. sweeps ==");
+// "N instruments" consistency tripwire (2026-08-20 /interview-doc review finding) — the CP-201
+// root-cause narrative is repeated in 3 user-facing places (revenue-service drift, float erosion,
+// presenter-notes), and adding Critical Float Erosion Rate as a 5th instrument bumped one of the
+// three from "four" to "five" without the other two being updated — caught not by this file's own
+// tests, but by an independent reviewer cross-checking the interview-prep docs against the live
+// page. Pins the count so the next new instrument can't repeat the same silent 2-of-3 drift.
+{
+  // one regex, not two: an earlier draft concatenated a second, overlapping pattern and double-
+  // counted the one mention both patterns matched — caught by running this exact check and getting
+  // 4 instead of the predicted 3, not assumed correct after writing it.
+  const instrumentMentions = indexSrc.match(/one root cause[^.]*?(four|five|six) (different )?instruments?/gi) || [];
+  ok(instrumentMentions.length === 3, "exactly 3 user-facing 'N instruments' mentions found (update this count if a 4th is intentionally added)", String(instrumentMentions.length));
+  const counts = instrumentMentions.map(s => (s.match(/four|five|six/i) || [""])[0].toLowerCase());
+  ok(counts.every(c => c === counts[0]), "all 'N instruments' mentions agree on the same number", JSON.stringify(counts));
+}
 // mcParams() reuse tripwire (2026-08-20 /stress-test finding) — today's live CPI data (0.865-1.042)
 // can never distinguish the clamped mcParams() formula from the unclamped duplicate that used to
 // live in renderMcMath()/renderMcOneRun(), so a regression back to hand-rolled Math.max(0.78,...)
