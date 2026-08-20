@@ -717,6 +717,13 @@ const MC = P.mc;
 ok(!!MC && MC.n === 4000, "monte carlo exposed with 4,000 runs");
 ok(MC.p10 < MC.p50 && MC.p50 < MC.p80, "P10 < P50 < P80",
    MC.p10.toFixed(1) + " / " + MC.p50.toFixed(1) + " / " + MC.p80.toFixed(1));
+// P95 tail-risk stat (advanced-quant upgrade, 2026-08-23) — independent re-derivation via a raw
+// array index, not by calling mcQuantile() a second time and trusting it.
+ok(MC.p80 < MC.p95, "P80 < P95", MC.p80.toFixed(1) + " / " + MC.p95.toFixed(1));
+ok(MC.p95 === MC.sims[Math.floor(0.95 * MC.sims.length)],
+  "P95 matches an independent index into the raw sorted sims array", MC.p95.toFixed(2));
+has("mcStats", "P95 (tail risk)", "MC stats render the new P95 tile");
+has("mcStats", m(MC.p95), "MC stats render the live P95 value");
 ok(MC.p50 > 1270 && MC.p50 < 1330, "P50 plausible vs point forecast 1303.7", MC.p50.toFixed(1));
 ok(MC.pOver > 0.9, "P(overrun) high given CPI 0.956", MC.pOver.toFixed(3));
 ok(MC.pBust > 0 && MC.pBust <= 1, "P(bust) a probability", MC.pBust.toFixed(3));
@@ -899,9 +906,12 @@ ok(indexSrc.includes('data-help="referenceclass"'), "reference-class callout car
   ok(!G.mcChart._html.includes("NaN"), "degenerate all-locked chart has no NaN (lo===hi axis-padding guard fires)");
   ok((G.mcChart._html.match(/<rect/g) || []).length === 26, "degenerate case still renders a full 26-bin histogram, just a single spike");
   const eacStr = m(T.eac);
-  ok(G.mcStats._html.includes(eacStr), "pre-registered: with every account locked, P10/P50/P80 all collapse to T.eac exactly", eacStr);
+  ok(G.mcStats._html.includes(eacStr), "pre-registered: with every account locked, P10/P50/P80/P95 all collapse to T.eac exactly", eacStr);
+  // 3->4 (advanced-quant upgrade, 2026-08-23): P95 was added to #mcStats, and a degenerate
+  // (zero-variance) distribution collapses P95 to the same single value too — a deliberate,
+  // correct update to this count, not a pinned-geometry violation.
   const p10Count = (G.mcStats._html.match(new RegExp(eacStr.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g")) || []).length;
-  ok(p10Count === 3, "P10, P50, and P80 are all that same single value (3 occurrences), not just one of them", String(p10Count));
+  ok(p10Count === 4, "P10, P50, P80, and P95 are all that same single value (4 occurrences), not just one of them", String(p10Count));
 
   // restore to the default all-uncertain state for any later assertions in this file
   rows.forEach(r => clickPkg(r.id));
@@ -1056,6 +1066,47 @@ ok(G.arch._html.includes("fct_control_account") && G.arch._html.includes("integr
     "exactly one row per week (6 weeks of CPH history)", String((G.aiStatControl._html.match(/class="rowbar"/g) || []).length));
   ok((G.aiStatControl._html.match(/>PASS</g) || []).length === 6 && (G.aiStatControl._html.match(/>FLAG</g) || []).length === 0,
     "all 6 weeks render PASS, none FLAG — matches the independently-confirmed zero-anomaly result");
+}
+// EWMA control chart (advanced-quant upgrade, 2026-08-23) — same real series as the z-score
+// check above, independently recomputed from the literal series in this file, never via
+// P.deriveEwma() and trusting it.
+{
+  const series = [2495, 2560, 2710, 3020, 3340, 3180];
+  const n = series.length;
+  const mean = series.reduce((a, b) => a + b, 0) / n;
+  const sd = Math.sqrt(series.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / n);
+  const lambda = 0.20, L = 2.7;
+  let ewma = mean;
+  const points = series.map((v, i) => {
+    ewma = lambda * v + (1 - lambda) * ewma;
+    const t = i + 1;
+    const width = L * sd * Math.sqrt((lambda / (2 - lambda)) * (1 - Math.pow(1 - lambda, 2 * t)));
+    return { ewma, ucl: mean + width, lcl: mean - width, flag: Math.abs(ewma - mean) > width };
+  });
+  const real = P.deriveEwma(series);
+  ok(points.every((p, i) => Math.abs(p.ewma - real.points[i].ewma) < 1e-6 && Math.abs(p.ucl - real.points[i].ucl) < 1e-6),
+    "deriveEwma() matches an independent recomputation of the full EWMA path and dynamic control limits from the literal series");
+  ok(Math.abs(points[0].ewma - 2806.33) < 0.01 && Math.abs(points[5].ewma - 2963.76) < 0.01,
+    "pre-registered: EWMA at week 1 is ~2806.33, at week 6 is ~2963.76", points.map(p => p.ewma.toFixed(2)).join(","));
+  const flags = points.filter(p => p.flag).length;
+  ok(flags === 0, "pre-registered: this series genuinely has zero EWMA breaches at λ=0.20, L=2.7 — a real null result, matching the z-score check's own direction, not manufactured");
+  ok(idsA.includes("aiEwmaControl"), "markup contains #aiEwmaControl");
+  has("aiEwmaControl", "GREEN — 0 breaches", "the control explicitly states the true zero-breach verdict");
+  // check the HTML entity form (&lambda;), not a literal Greek character — this checks the raw
+  // _html string, same as every other has() call in this file.
+  has("aiEwmaControl", "&lambda;=0.2", "the smoothing parameter λ is stated in the rendered control");
+  has("aiEwmaControl", "L=2.7", "the control-limit width L is stated in the rendered control");
+  ok((G.aiEwmaControl._html.match(/class="rowbar"/g) || []).length === 6, "exactly one row per week");
+  ok((G.aiEwmaControl._html.match(/>PASS</g) || []).length === 6 && (G.aiEwmaControl._html.match(/>FLAG</g) || []).length === 0,
+    "all 6 weeks render PASS, none FLAG — matches the independently-confirmed zero-breach result");
+  // the "moved net, not monotonically" claim — verify it's actually true before trusting the
+  // rendered prose says so (this exact false-monotonicity claim was caught and fixed while
+  // building this feature, not assumed correct on the first draft).
+  ok(points[1].ewma < points[0].ewma && points[2].ewma < points[1].ewma, "pre-registered: the EWMA genuinely dips in weeks 2-3, confirming the rendered prose's 'not monotonically' claim is accurate, not a stale leftover from a since-fixed draft");
+  // the EWMA section's own self-distinguishing lede is STATIC markup above #aiEwmaControl, not
+  // inside its rendered innerHTML — check indexSrc, not G.aiEwmaControl._html (the same
+  // static-markup-vs-rendered-innerHTML boundary this file has hit, and documented, before).
+  ok(indexSrc.includes("catching persistent drift, not just outliers"), "the EWMA section's own static lede is genuinely distinct wording from the z-score section's, not a copy-paste");
 }
 // ingestion validation (megaproject-controls-doc upgrade, 2026-08-22) — a raw-record check,
 // distinct from the GUARDS reconciliation gate above. Independently re-derive both checks from
@@ -1707,6 +1758,41 @@ ok((G.coDefense._html.match(/tab-num" style="color:rgb\(var\(--c-mut\)\)">&mdash
   "the EMV row's Proposed/Defended cells render an explicit em-dash, not a computed number (no comparability to fabricate)");
 has("coDefenseNote", m(P.totals.contRemaining), "the connecting note states the live remaining-contingency figure the 3 lenses share");
 has("coDefenseNote", "different", "the connecting note frames the 3 rows as different kinds of exposure, not 3 estimates of one quantity");
+// DRB EMV decision tree (advanced-quant upgrade, 2026-08-23) — independently recompute from the
+// literal real values (18.6, 21.4) and the literal illustrative assumption values (0.55, 0.75),
+// never via P.deriveDrbEmv() and reapplying its own formula.
+{
+  ok(idsA.includes("drbEmv"), "markup contains #drbEmv");
+  const settleTotal = P.program.coPendingValue, proposedPending = P.program.coProposedPending;
+  const pOwnerWins = P.drbAssumptions.pOwnerWins, legalCost = P.drbAssumptions.legalCost;
+  ok(settleTotal === 18.6 && proposedPending === 21.4 && pOwnerWins === 0.55 && legalCost === 0.75,
+    "pre-registered: the 4 inputs driving this decision tree are the exact real/illustrative values the plan specified", `${settleTotal}/${proposedPending}/${pOwnerWins}/${legalCost}`);
+  const drbTotal = pOwnerWins * settleTotal + (1 - pOwnerWins) * proposedPending + legalCost;
+  const delta = drbTotal - settleTotal;
+  ok(Math.abs(drbTotal - 20.61) < 0.001, "pre-registered: EMV(escalate) is $20.61M against these real+illustrative inputs", drbTotal.toFixed(4));
+  ok(Math.abs(delta - 2.01) < 0.001, "pre-registered: the delta is +$2.01M", delta.toFixed(4));
+  const real = P.deriveDrbEmv(settleTotal, proposedPending, pOwnerWins, legalCost);
+  ok(Math.abs(real.drbTotal - drbTotal) < 1e-9 && Math.abs(real.delta - delta) < 1e-9,
+    "deriveDrbEmv() matches an independent recomputation from the literal inputs");
+  // the structural finding — a genuine algebraic property of this framing, not asserted blindly:
+  // ownerBranch is defined equal to settleTotal, so any convex combination of it with a LARGER
+  // contractorBranch, plus a positive legal cost, can never fall below settleTotal.
+  ok(legalCost > 0, "legalCost is genuinely positive (required for the 'can never beat' structural finding to hold)");
+  ok(proposedPending > settleTotal, "pre-registered: the contractor's ask exceeds the settle price (required for the 'can never beat' finding to hold)");
+  for (const p of [0, 0.25, 0.5, 0.75, 1.0]) {
+    const testDrb = p * settleTotal + (1 - p) * proposedPending + legalCost;
+    ok(testDrb >= settleTotal, `structural finding holds at pOwnerWins=${p}: EMV(escalate) >= settle price`, testDrb.toFixed(3));
+  }
+  has("drbEmv", "$18.6M", "renders the real settle total");
+  has("drbEmv", "$20.6M", "renders the computed DRB EMV total");
+  has("drbEmv", "can never beat", "the structural finding is stated in prose, not just left as two bare numbers");
+  has("drbEmv", "55%", "renders the illustrative owner-win probability");
+  has("drbEmv", "45%", "renders the illustrative contractor-win probability");
+  // #coDefense's own table must be untouched by renderDrbEmv() — both already ran once during
+  // the same init sequence by this point in the suite; re-confirm the existing coDefense marker
+  // is still exactly right (a shared-selector collision would have corrupted it already).
+  has("coDefense", "$48.9M", "#coDefense's own content is unaffected by the adjacent DRB EMV section");
+}
 // TIA register ties to float and milestones
 has("tiaReg", "D-02", "delay register lists the tunnel event");
 has("tiaReg", "+40d", "tunnel delay day-count matches CP-201 negative float");
@@ -1846,6 +1932,50 @@ console.log("== D5.3. forecast model (actual vs plan) ==");
   ok(fa[fa.length - 1].errPct > 0.04, "most recent period is a genuine, larger miss (>4%) — the method didn't see the tunnel acceleration coming",
     (fa[fa.length - 1].errPct * 100).toFixed(2) + "%");
   has("fcastTable", "Average absolute error", "forecast-accuracy table shows a summary error rate");
+}
+// B2. Cost diffusion (GBM) — construction-controls-math-doc upgrade, 2026-08-23. Independently
+// recompute all 5 log-returns + the t-based CI from the LITERAL series (AC_HISTORY's 5 hand-authored
+// points + the live actual), never by calling P.deriveGbmParams() and reapplying its own formula.
+{
+  const acVals = [610.0, 655.0, 698.0, 738.0, 776.0, P.totals.ac];
+  const n = acVals.length - 1; // 5 log-returns from 6 levels
+  const logReturns = [];
+  for (let j = 1; j < acVals.length; j++) logReturns.push(Math.log(acVals[j] / acVals[j - 1]));
+  const rbar = logReturns.reduce((a, b) => a + b, 0) / n;
+  const sigmaHatMle = Math.sqrt(logReturns.reduce((a, b) => a + Math.pow(b - rbar, 2), 0) / n);
+  const muHatMle = rbar + 0.5 * sigmaHatMle * sigmaHatMle;
+  const sUnbiased = Math.sqrt(logReturns.reduce((a, b) => a + Math.pow(b - rbar, 2), 0) / (n - 1));
+  const seRbar = sUnbiased / Math.sqrt(n);
+  const tCrit90 = 2.132; // Student's t, df=4 (n-1=4 for these 5 log-returns), 90% two-sided — same
+                         // hardcoded constant as index.html's deriveGbmParams(), valid only for this
+                         // one real 6-point series (Simplicity First — no general t-table for one call site).
+  const ciLowRbar = rbar - tCrit90 * seRbar, ciHighRbar = rbar + tCrit90 * seRbar;
+
+  const g = P.deriveGbmParams(P.acHistorySeries().map(p => p.ac));
+  ok(g.n === n, "deriveGbmParams() sees the same 5 log-returns from the same 6-point series", String(g.n));
+  ok(Math.abs(g.rbar - rbar) < 1e-9 && Math.abs(g.sigmaHatMle - sigmaHatMle) < 1e-9 &&
+     Math.abs(g.muHatMle - muHatMle) < 1e-9 && Math.abs(g.ciLowRbar - ciLowRbar) < 1e-9 &&
+     Math.abs(g.ciHighRbar - ciHighRbar) < 1e-9,
+    "deriveGbmParams() matches an independent MLE + t-CI recomputation from the literal AC series",
+    "rbar=" + rbar.toFixed(6) + " sigma=" + sigmaHatMle.toFixed(6) + " CI=[" + ciLowRbar.toFixed(6) + "," + ciHighRbar.toFixed(6) + "]");
+  ok(Math.abs(rbar - 0.0681) < 0.001, "pre-registered: mean log-return is ~6.81%/period", pct(rbar, 2));
+  ok(Math.abs(sigmaHatMle - 0.0174) < 0.001, "pre-registered: MLE volatility is ~1.74%/period", pct(sigmaHatMle, 2));
+  const ciHalfWidthPct = (ciHighRbar - ciLowRbar) / 2 / rbar;
+  ok(ciHalfWidthPct > 0.25, "pre-registered: the 90% CI half-width is >25% of the point estimate itself — the concrete number behind the 'too thin to trust' caveat, not just the phrase", (ciHalfWidthPct * 100).toFixed(1) + "%");
+
+  ok(idsA.includes("costGbm"), "markup contains #costGbm");
+  has("costGbm", "too thin to trust", "GBM card states the small-sample caveat");
+  has("costGbm", pct(muHatMle, 2), "GBM card shows the formatted drift figure matching the independent recomputation");
+  has("costGbm", pct(sigmaHatMle, 2), "GBM card shows the formatted volatility figure matching the independent recomputation");
+  has("costGbm", pct(ciLowRbar, 2) + " to " + pct(ciHighRbar, 2), "GBM card shows the formatted 90% CI matching the independent recomputation");
+  // load-bearing position check: the caveat sentence must render BEFORE the numeric mu-hat tile —
+  // a plain text-presence check (has()) wouldn't catch a regression that buries the caveat below
+  // the numbers, since has() only confirms the text exists somewhere in the card.
+  const caveatIdx = G.costGbm._html.indexOf("too thin to trust");
+  const muValIdx = G.costGbm._html.indexOf(pct(muHatMle, 2));
+  ok(caveatIdx >= 0 && muValIdx >= 0 && caveatIdx < muValIdx,
+    "the small-sample caveat renders BEFORE the numeric mu-hat tile, not as a trailing footnote", "caveat@" + caveatIdx + " value@" + muValIdx);
+  ok(!/stochastic tcpi/i.test(G.costGbm._html), "tripwire: 'Stochastic TCPI' does not appear in the GBM card — confirms that explicitly-declined scope decision still holds");
 }
 // C. Monthly cash flow — derived from the SAME pvA/acA arrays the S-curve already renders
 {

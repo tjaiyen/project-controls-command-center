@@ -803,6 +803,8 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
             actually was. This is expected to be wrong sometimes &mdash; a scorecard that is never wrong is
             not measuring anything.</p>
           <div class="tw" style="min-width:0"><table id="fcastTable"></table></div></div>
+        <div class="card"><h3>Cost diffusion &mdash; drift &amp; volatility</h3>
+          <div id="costGbm"></div></div>
       </div>
       <div class="card" style="margin-top:15px"><h3>Monthly spend rate &mdash; planned vs. actual</h3>
         <p class="lede" style="font-size:12.5px;margin-top:5px">Everything else on this tab is cumulative,
@@ -1028,6 +1030,13 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
           principles. Pending change is carried in the forecast at the independent estimate, not the ask.</p>
         <div class="tw" style="min-width:0"><table id="coDefense"></table></div>
         <p class="lede" id="coDefenseNote" style="font-size:12.5px;margin-top:11px"></p></div>
+
+      <div class="sec-h" style="margin-top:34px"><h2>Settlement decision &mdash; direct vs. Dispute Review Board</h2><span class="tag">expected monetary value</span></div>
+      <p class="lede">Real: the pending change population above &mdash; $18.6M carried at the independent estimate,
+        $21.4M the contractor is asking for. Illustrative, not derived from this program&rsquo;s own settlement
+        history: the win probability and legal-cost figures below, which this section states plainly rather
+        than dressing up as program data.</p>
+      <div class="card" style="margin-top:15px" id="drbEmv"></div>
     </div>
   </section>
 
@@ -1149,6 +1158,15 @@ join dim_control_account b using (package_id)</pre></div>
         real, continuously-updating series, run honestly against the one real (if small) series this
         dashboard has.</p>
       <div class="card" style="margin-top:12px" id="aiStatControl"></div>
+
+      <div class="sec-h" style="margin-top:30px"><h3>EWMA control chart &mdash; catching persistent drift, not just outliers</h3></div>
+      <p class="lede">The check above flags any single point beyond &plusmn;2.5 standard deviations of the
+        series mean &mdash; blind to a small, persistent drift that never individually crosses that line. An
+        Exponentially Weighted Moving Average (EWMA) tracks the whole trend instead, weighting recent points
+        more heavily, so a steady creep still shows up even when no single week is itself an outlier. Same
+        real series as the check above (CP-201's weekly crew cost-per-hour) &mdash; a second, complementary
+        lens on it, not a replacement.</p>
+      <div class="card" style="margin-top:12px" id="aiEwmaControl"></div>
 
       <div class="sec-h" style="margin-top:30px"><h3>Ingestion validation &mdash; not the same thing as the gate above</h3></div>
       <p class="lede">The integrity gate above re-derives already-accepted totals and compares them &mdash;
@@ -1467,6 +1485,15 @@ var PROGRAM = {
   coProposedApproved:48.9, coProposedPending:21.4
 };
 
+/* Illustrative DRB-negotiation inputs (advanced-quant upgrade, 2026-08-23) — deliberately kept in
+   their OWN object, structurally separate from PROGRAM above (which holds only real ledger
+   fields), not just labeled illustrative in prose. Round, generic values: pOwnerWins=0.55 is a
+   plausible "independent estimates prevail somewhat more often than not" assumption from general
+   DRB-outcome experience, not a fact about THIS program's own settlement history (which this
+   program has none of yet — the pending population above hasn't gone to a DRB). legalCost=0.75
+   ($M) is an order-of-magnitude estimate for a claim this size. */
+var DRB_ASSUMPTIONS = {pOwnerWins:0.55, legalCost:0.75};
+
 /* id, name, bac, pv, ev, ac, commit, float(d), cpRem(d), actsPlanned, actsDone, ernHrs, actHrs */
 var PKGS = [
  {id:"CP-101",n:"Guideway &mdash; north alignment", bac:248.0,pv:186.0,ev:179.4,ac:191.9,commit:214.6,float: 22,cpRem:240,actsP:214,actsD:201,ernH:286000,actH:297000},
@@ -1609,6 +1636,71 @@ function deriveZScores(series,threshold){
   return {mean:mean,sd:sd,threshold:threshold,
     points:series.map(function(v,i){ var z=sd?(v-mean)/sd:0;
       return {i:i,v:v,z:z,flag:Math.abs(z)>threshold}; })};
+}
+/* EWMA control chart (advanced-quant upgrade, 2026-08-23) — same real series as deriveZScores()
+   above, a different, complementary lens: a per-point z-score is blind to a small drift that
+   never individually crosses the threshold, but a weighted moving average tracks the whole
+   trend. lambda/L are standard SPC PARAMETER CHOICES (the smoothing weight and the control-limit
+   width), not derived data — labeled as such in the render, not asserted as coming from this
+   program's own history. Dynamic control limits widen from period 1 (matching the EWMA's own
+   initial uncertainty) and converge toward lambda/(2-lambda) as t grows — the standard formula,
+   not an approximation. */
+function deriveEwma(series,lambda,L){
+  lambda=lambda||0.20; L=L||2.7;
+  var n=series.length, mean=series.reduce(function(a,b){return a+b;},0)/n;
+  var variance=series.reduce(function(a,b){return a+Math.pow(b-mean,2);},0)/n;
+  var sd=Math.sqrt(variance);
+  var ewma=mean, points=[];
+  series.forEach(function(v,i){
+    ewma=lambda*v+(1-lambda)*ewma;
+    var t=i+1;
+    var width=L*sd*Math.sqrt((lambda/(2-lambda))*(1-Math.pow(1-lambda,2*t)));
+    points.push({i:i,v:v,ewma:ewma,ucl:mean+width,lcl:mean-width,flag:Math.abs(ewma-mean)>width});
+  });
+  return {mean:mean,sd:sd,lambda:lambda,L:L,points:points};
+}
+/* EMV decision tree: settle now vs. escalate to a Dispute Review Board (advanced-quant upgrade,
+   2026-08-23). The two real dollar inputs (pendingValue, proposedPending) come straight from
+   PROGRAM; pOwnerWins/legalCost come from DRB_ASSUMPTIONS, kept structurally separate on purpose.
+   ownerBranch is DEFINED as equal to settleTotal (a DRB affirming the independent estimate
+   settles at that same estimate) — this is not an oversight, it is the reason the structural
+   finding below is actually true: since drbTotal is a convex combination of settleTotal and
+   proposedPending (which is > settleTotal) plus a positive legalCost, drbTotal can never be less
+   than settleTotal for any pOwnerWins in [0,1]. */
+function deriveDrbEmv(pendingValue,proposedPending,pOwnerWins,legalCost){
+  var settleTotal=pendingValue;
+  var ownerBranch=pendingValue, contractorBranch=proposedPending;
+  var pContractorWins=1-pOwnerWins;
+  var drbTotal=pOwnerWins*ownerBranch+pContractorWins*contractorBranch+legalCost;
+  return {settleTotal:settleTotal,ownerBranch:ownerBranch,contractorBranch:contractorBranch,
+    pOwnerWins:pOwnerWins,pContractorWins:pContractorWins,legalCost:legalCost,
+    drbTotal:drbTotal,delta:drbTotal-settleTotal};
+}
+/* Geometric Brownian Motion log-return MLE (advanced-quant upgrade, 2026-08-23) — real arithmetic
+   on real data (the 6-point AC_HISTORY+live series), but n=6 (5 log-returns) is genuinely too
+   thin to trust as a fitted forecasting model; that limitation is the actual finding this
+   function exists to surface, not something to paper over. Population-variance MLE for sigma
+   (n divisor, the textbook MLE estimator); unbiased sample stdev (n-1 divisor) for the confidence
+   interval on the mean log-return, using the correct Student's t distribution at df=n-1 (NOT a
+   z-approximation, which would understate the true uncertainty at this sample size — the whole
+   point of this section is not to understate that uncertainty). Deliberately does NOT compute a
+   "Stochastic TCPI" (P(required efficiency achievable)) — that would mean trusting this same
+   fragile sigma a second time, plus a further undocumented assumption linking AC-diffusion
+   volatility to a different quantity (remaining-work efficiency), compounding one flagged-as-thin
+   estimate into a second, less-grounded one. Declined this round, not silently dropped. */
+function deriveGbmParams(vals){
+  var n=vals.length-1; // n log-returns from n+1 levels
+  var logReturns=[];
+  for(var i=1;i<vals.length;i++) logReturns.push(Math.log(vals[i]/vals[i-1]));
+  var rbar=logReturns.reduce(function(a,b){return a+b;},0)/n;
+  var sigmaHatMle=Math.sqrt(logReturns.reduce(function(a,b){return a+Math.pow(b-rbar,2);},0)/n);
+  var muHatMle=rbar+0.5*sigmaHatMle*sigmaHatMle;
+  var sUnbiased=Math.sqrt(logReturns.reduce(function(a,b){return a+Math.pow(b-rbar,2);},0)/(n-1));
+  var seRbar=sUnbiased/Math.sqrt(n);
+  var tCrit90=2.132; // Student's t, df=4 (n-1=4 for the 5 log-returns in this program's real series), 90% two-sided
+  return {n:n,logReturns:logReturns,rbar:rbar,sigmaHatMle:sigmaHatMle,muHatMle:muHatMle,
+    sUnbiased:sUnbiased,seRbar:seRbar,tCrit90:tCrit90,
+    ciLowRbar:rbar-tCrit90*seRbar,ciHighRbar:rbar+tCrit90*seRbar};
 }
 
 /* Conventional qualitative probability bands. A naive p/5 would map P5 to 100% —
@@ -2774,6 +2866,31 @@ function renderEacTrend(){
     '<div><div class="k">vs. $1.0M/month threshold</div><div class="v '+(overThreshold?"ba":"ok")+'">'+
     (overThreshold?"Breached":"Within threshold")+'</div></div>';
 }
+/* Cost diffusion (advanced-quant upgrade, 2026-08-23) — the caveat sentence is the card's FIRST
+   element, above every numeric tile, on purpose: this is real arithmetic on real data, but n=6
+   is too thin to trust as a forecasting model, and that limitation needs to be the most visible
+   part of the card, not a footnote after the numbers have already made an impression. */
+function renderGbmDiffusion(){
+  var g=deriveGbmParams(acHistorySeries().map(function(p){ return p.ac; }));
+  document.getElementById("costGbm").innerHTML=
+    '<p style="margin:0 0 12px;font-size:12.5px"><b style="color:rgb(var(--c-bad))">Only '+g.n+
+    ' log-returns behind this &mdash; too thin to trust as a fitted forecast.</b> '+
+    '<span style="color:rgb(var(--c-mut))">The 90% confidence interval below is wide enough to make that '+
+    'concrete: its half-width is roughly a quarter of the point estimate itself. The numbers are real '+
+    'arithmetic on this program&rsquo;s real actual-cost history; the honest caveat is what n=6 can and '+
+    'cannot support, not that the arithmetic is wrong.</span></p>'+
+    '<div style="display:flex;gap:22px;flex-wrap:wrap">'+
+    [["Drift &mu;&#770; (MLE)",pct(g.muHatMle,2)+"/period",""],
+     ["Volatility &sigma;&#770; (MLE)",pct(g.sigmaHatMle,2)+"/period",""],
+     ["90% CI, mean log-return",pct(g.ciLowRbar,2)+" to "+pct(g.ciHighRbar,2),"ba"]
+    ].map(function(r){ return '<div><div class="k" style="font:600 9.5px/1.3 ui-monospace,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgb(var(--c-mut))">'+
+      r[0]+'</div><div class="v '+r[2]+'" style="margin-top:5px;font:600 .95rem/1.2 inherit">'+r[1]+'</div></div>'; }).join("")+
+    '</div>'+
+    '<p style="margin:12px 0 0;font-size:11.5px;color:rgb(var(--c-mut))">Fit via Maximum Likelihood Estimation '+
+    'to '+g.n+' monthly log-returns of this program&rsquo;s own actual-cost history (population-variance MLE '+
+    'for &sigma;&#770;; the confidence interval uses the unbiased sample variance and Student&rsquo;s t at '+
+    'df='+(g.n-1)+', not a z-approximation, which would understate the true uncertainty at this sample size).</p>';
+}
 function renderFcastTable(){
   var rows2=forecastAccuracy();
   document.getElementById("fcastTable").innerHTML=
@@ -2924,6 +3041,7 @@ function computeMc(uncertainIds){
   }
   sims.sort(function(a,b){return a-b;});
   return {n:N, sims:sims, p10:mcQuantile(sims,0.10), p50:mcQuantile(sims,0.50), p80:mcQuantile(sims,0.80),
+    p95:mcQuantile(sims,0.95),
     pOver:sims.filter(function(v){return v>T.bac;}).length/N,
     pBust:sims.filter(function(v){return v>T.bac+T.contRemaining;}).length/N};
 }
@@ -3043,10 +3161,11 @@ function tweenNum(el,from,to,formatFn,duration){
 }
 var mcStatsPrev=null;
 function renderMcStatsRead(){
-  var cur={p10:activeMc.p10,p50:activeMc.p50,p80:activeMc.p80,pOver:activeMc.pOver,pBust:activeMc.pBust};
+  var cur={p10:activeMc.p10,p50:activeMc.p50,p80:activeMc.p80,p95:activeMc.p95,pOver:activeMc.pOver,pBust:activeMc.pBust};
   document.getElementById("mcStats").innerHTML=
    [["P10",m(activeMc.p10),""],["P50 (median)",m(activeMc.p50),activeMc.p50>T.bac?"ba":"ok"],
     ["P80",m(activeMc.p80),"ba"],
+    ["P95 (tail risk)",m(activeMc.p95),"ba"],
     ["P(overrun)",pct(activeMc.pOver,0),activeMc.pOver>0.5?"ba":"ok"],
     ["P(bust: budget + contingency)",pct(activeMc.pBust,0),activeMc.pBust>0.5?"ba":"wa"]
    ].map(function(r){ return '<div><div class="k">'+r[0]+'</div><div class="v '+r[2]+'">'+r[1]+'</div></div>'; }).join("");
@@ -3054,7 +3173,7 @@ function renderMcStatsRead(){
   // re-renders this too, but activeMc's own numbers don't change on that toggle — no tween needed)
   if(mcStatsPrev){
     var cells=document.querySelectorAll("#mcStats .v");
-    var specs=[["p10",m],["p50",m],["p80",m],["pOver",function(v){return pct(v,0);}],["pBust",function(v){return pct(v,0);}]];
+    var specs=[["p10",m],["p50",m],["p80",m],["p95",m],["pOver",function(v){return pct(v,0);}],["pBust",function(v){return pct(v,0);}]];
     specs.forEach(function(s,i){
       if(mcStatsPrev[s[0]]!==cur[s[0]]) tweenNum(cells[i],mcStatsPrev[s[0]],cur[s[0]],s[1],380);
     });
@@ -3666,6 +3785,28 @@ function renderRisk(){
     'and negotiated (approved), changes still being negotiated (pending), and unpriced future risk that hasn&rsquo;t '+
     'become a change order yet (EMV). They belong on one page because all three draw against the same '+
     'contingency pool &mdash; <b style="color:rgb(var(--c-ink))">'+m(T.contRemaining)+'</b> remaining.';
+}
+/* Settlement decision — direct vs. DRB (advanced-quant upgrade, 2026-08-23). Does not touch
+   #coDefense's own table/rows above; a clearly-separate, additive section. */
+function renderDrbEmv(){
+  var e=deriveDrbEmv(PROGRAM.coPendingValue,PROGRAM.coProposedPending,
+    DRB_ASSUMPTIONS.pOwnerWins,DRB_ASSUMPTIONS.legalCost);
+  document.getElementById("drbEmv").innerHTML=
+    '<div style="display:flex;gap:22px;flex-wrap:wrap;margin-bottom:14px">'+
+    [["Option A — settle now",m(e.settleTotal),""],
+     ["Option B — escalate to DRB (EMV)",m(e.drbTotal),"ba"],
+     ["Delta (B vs. A)",sgn(e.delta),"ba"]
+    ].map(function(r){ return '<div><div class="k" style="font:600 9.5px/1.3 ui-monospace,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgb(var(--c-mut))">'+
+      r[0]+'</div><div class="v '+r[2]+'" style="margin-top:5px;font:600 .98rem/1.2 inherit">'+r[1]+'</div></div>'; }).join("")+
+    '</div>'+
+    '<p style="margin:0;font-size:12.5px;color:rgb(var(--c-mut))">Option B weights an owner-success branch '+
+    '(DRB affirms the independent estimate, '+m(e.ownerBranch)+') at '+pct(e.pOwnerWins,0)+' against a '+
+    'contractor-success branch (DRB awards the full ask, '+m(e.contractorBranch)+') at '+pct(e.pContractorWins,0)+
+    ', plus a flat '+m(e.legalCost)+' DRB/legal cost. <b style="color:rgb(var(--c-ink))">Because the owner-success '+
+    'branch settles at the same estimate as Option A, escalating can never beat settling here</b> &mdash; the best '+
+    'DRB can do is tie (if the owner wins outright and legal costs were zero); every other outcome, weighted '+
+    'or not, comes out worse. The '+sgn(e.delta)+' delta above is the real, computed cost of that asymmetry, '+
+    'not a dramatic number chosen to look interesting &mdash; it is what the framing itself implies.</p>';
 }
 
 /* The math explainer — exposure = P_BAND[p] x cost, where P_BAND maps the register's 1-5
@@ -4609,8 +4750,34 @@ function renderStatControl(){
    (flags? "The flagged week"+(flags>1?"s":"")+" would warrant a look before this posts to the ledger."
      : "No week crosses the threshold — a genuine, honestly-computed null result, not a placeholder.")+'</p>';
 }
-/* Same visual family as renderGuards()/renderStatControl() above — a sibling check, not new
-   chrome. Megaproject-controls-doc upgrade, 2026-08-22. */
+/* Same visual family as renderStatControl() above — a sibling, complementary check, not new
+   chrome. Advanced-quant upgrade, 2026-08-23. */
+function renderEwmaControl(){
+  var series=CPH_CELLS[0].weeks.map(function(w){ return w.actual; });
+  var e=deriveEwma(series);
+  var flags=e.points.filter(function(p){ return p.flag; }).length;
+  var first=e.points[0], last=e.points[e.points.length-1];
+  var gapFirst=first.ucl-first.ewma, gapLast=last.ucl-last.ewma;
+  document.getElementById("aiEwmaControl").innerHTML=
+   '<div class="gate"><b>EWMA control chart &middot; '+e.points.length+' weeks scored, &lambda;='+e.lambda+' L='+e.L+'</b>'+
+   '<span class="pill '+(flags?"r":"g")+'">'+(flags? flags+" BREACHED":"GREEN — 0 breaches")+'</span></div>'+
+   e.points.map(function(p,i){
+     var w=CPH_CELLS[0].weeks[i];
+     return '<div class="rowbar" style="grid-template-columns:1fr auto 64px;cursor:default">'+
+       '<span style="font-size:12.5px">'+w.w+'</span>'+
+       '<span class="tab-num mono" style="font-size:11.5px;color:rgb(var(--c-mut))">EWMA '+usd(p.ewma)+'/hr &middot; UCL '+usd(p.ucl)+'</span>'+
+       '<span style="text-align:right"><span class="pill '+(p.flag?"r":"g")+'">'+(p.flag?"FLAG":"PASS")+'</span></span></div>';
+   }).join("")+
+   '<p style="margin:11px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">&lambda;='+e.lambda+' and L='+e.L+
+   ' are standard SPC parameter choices (a ~3&sigma;-equivalent control-limit width), not derived from this '+
+   'program&rsquo;s own history. '+
+   (flags? "The breached week"+(flags>1?"s":"")+" would warrant a look."
+     : "No week breaches its dynamic control limit — a genuine null result, same direction as the check above, not a manufactured disagreement.")+
+   ' The EWMA moved '+usd(last.ewma-first.ewma)+'/hr net over the six weeks (not monotonically &mdash; it dipped '+
+   'in weeks 2&ndash;3 before rising), and its gap to the upper control limit narrowed from '+usd(gapFirst)+
+   '/hr at week 1 to '+usd(gapLast)+'/hr by week 6 &mdash; the kind of persistent-drift signal a per-point z-score '+
+   'alone would not surface.</p>';
+}
 function renderIngestGuards(){
   var res=INGEST_GUARDS.map(function(g){ var r=g.run(); return {n:g.n,pass:r[0],detail:r[1]}; });
   var fails=res.filter(function(r){return !r.pass;}).length;
@@ -5644,11 +5811,11 @@ document.getElementById("sConf").value=String(Math.round(state.mcConfidence*100)
 document.getElementById("vConf").textContent="P"+Math.round(state.mcConfidence*100);
 renderMcConfCallout();
 renderWaterfall(); renderWaterfallMath(); renderBaseline(); renderEac(); renderCont(); renderTable();
-renderEacTrend(); renderFcastTable(); renderCashflow();
-renderGantt(); renderSchedule(); renderRisk(); renderContracts(); renderDelivery(); renderFramework(); renderActions();
+renderEacTrend(); renderFcastTable(); renderGbmDiffusion(); renderCashflow();
+renderGantt(); renderSchedule(); renderRisk(); renderDrbEmv(); renderContracts(); renderDelivery(); renderFramework(); renderActions();
 renderDataStrategy();
 renderMcFilter(); syncMcView(); renderMcMath(); renderScen(); renderPrint();
-renderArch(); renderGuards(); renderStatControl(); renderIngestGuards();
+renderArch(); renderGuards(); renderStatControl(); renderEwmaControl(); renderIngestGuards();
 renderGlossary("");
 document.getElementById("sCpi").value=T.cpi;
 document.getElementById("sSpi").value=T.spi;
@@ -5666,7 +5833,8 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   wbs:WBS,gates:GATES,gate5Checks:GATE5_CHECKS,glNodes:GL_NODES,glCaption:glCaption,glNodeState:glNodeState,
   contracts:CONTRACTS,deriveContract:deriveContract,
   portfolioRows:portfolioRows,fundingTier:fundingTier,
-  cphCells:CPH_CELLS,deriveCph:deriveCph,deriveZScores:deriveZScores,ingestGuards:INGEST_GUARDS,
+  cphCells:CPH_CELLS,deriveCph:deriveCph,deriveZScores:deriveZScores,deriveEwma:deriveEwma,ingestGuards:INGEST_GUARDS,
+  deriveDrbEmv:deriveDrbEmv,drbAssumptions:DRB_ASSUMPTIONS,deriveGbmParams:deriveGbmParams,
   deriveEarnedSchedule:deriveEarnedSchedule,
   risks:RISKS,pBand:P_BAND,tweenNum:tweenNum,mcQuantile:mcQuantile,
   eacTrendSeries:eacTrendSeries,eacDriftVelocity:eacDriftVelocity,acHistorySeries:acHistorySeries,forecastAccuracy:forecastAccuracy,
