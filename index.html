@@ -85,7 +85,14 @@ a{color:rgb(var(--c-accent))}
 .bar-in{max-width:1180px;margin:0 auto;padding:9px 20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
 #presentBtn[aria-pressed="true"]{background:rgb(var(--c-accent) / .18);border-color:rgb(var(--c-accent))}
 .tsize{display:flex;align-items:center;gap:6px;border:1px solid var(--c-line);border-radius:8px;padding:2px}
-.tsize .btn{padding:5px 9px;font:700 13px/1 inherit;min-height:0}
+.tsize .btn{padding:5px 9px;font:700 13px/1 inherit;min-height:0;position:relative}
+/* invisible hit-area expander — same 44px touch-target fix as .help-ic::before (/stress-test
+   finding, 2026-08-20: this control shipped with min-height:0, live-measured at 27x36.7px, undercutting
+   the file's own 34px .btn baseline with no compensating hit-slop). Safe at this spacing — unlike the
+   .pdots case above, the button on either side of this one is either a full-size .btn (themeBtn, 12px+
+   away) or the non-interactive label span between the two tsize buttons, so growing the tap target here
+   can't land on the wrong control the way two adjacent small dots would. */
+.tsize .btn::before{content:"";position:absolute;top:50%;left:50%;width:44px;height:44px;transform:translate(-50%,-50%)}
 .tsize .btn:disabled{opacity:.35;cursor:default}
 .tsize #textSizeLabel{font-size:10.5px;color:rgb(var(--c-mut));min-width:3.6em;text-align:center}
 .present-bar{background:rgb(var(--c-accent) / .10);border-top:1px solid rgb(var(--c-accent) / .3)}
@@ -237,8 +244,21 @@ h4{font-size:.86rem;margin:0 0 5px}
    / ~2.6:1 light, and the muted sub-text couldn't clear 4.5:1 at any dim level that still looked
    dimmed. Fading the background/border/sparkline only, while text stays at its normal full-color
    rules, keeps every ratio at 6.5:1+ in both themes (verified by direct computation) while still
-   reading as visually de-emphasized next to a live card. */
-.kpi.dim{background:rgb(var(--c-card) / .45);border-color:rgb(var(--c-line) / .5)}
+   reading as visually de-emphasized next to a live card.
+   Second /stress-test pass (2026-08-20) found two more real problems with that fix and closes
+   both here: (1) border-color was `rgb(var(--c-line) / .5)`, but --c-line is ALREADY a complete
+   rgb(...)-with-alpha value (unlike --c-card/--c-ink, which are bare triplets) — double-wrapping
+   it in a second rgb() is invalid, and per spec an invalid var()-substituted value on a
+   non-inherited property computes to that property's initial value (currentColor for
+   border-color), not a cascade fallback. Measured live: dim cards were rendering with a bright
+   --c-ink border, MORE prominent than a live card's, exactly backwards from the intent. Fixed by
+   using --c-line directly, matching every other usage of it in this file.
+   (2) The background-alpha fade alone is nearly invisible in light theme — --c-card (255,255,255)
+   and the page background (248,250,252) sit too close together for any alpha blend between them
+   to read as a visible change, a problem the dark theme's more separated tokens don't have.
+   filter:saturate() is a theme-independent fix: it visibly mutes a card regardless of how close
+   its own background sits to the page background in either theme. */
+.kpi.dim{background:rgb(var(--c-card) / .45);border-color:var(--c-line);filter:saturate(.55)}
 .kpi.dim::before{opacity:.35}
 .kpi.dim .spark{opacity:.35}
 .kpi .top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
@@ -785,8 +805,15 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         <div class="slider"><label for="sCpi">Cost index</label><input type="range" id="sCpi" min="0.80" max="1.20" step="0.005"><span class="tab-num mono" id="vCpi"></span></div>
         <div class="slider"><label for="sSpi">Schedule index</label><input type="range" id="sSpi" min="0.80" max="1.20" step="0.005"><span class="tab-num mono" id="vSpi"></span></div>
         <div class="slider"><label for="sCont">Contingency $M</label><input type="range" id="sCont" min="0" max="300" step="1"><span class="tab-num mono" id="vCont"></span></div>
-        <div class="outbox" id="whatIfOut" aria-live="polite"></div>
-        <p class="lede" id="whatIfRead" style="margin-top:12px;font-size:12.8px"></p>
+        <!-- aria-live on the narrative sentence below, not #whatIfOut itself — same reasoning as
+             #mcRead/#mcStats above, but this control genuinely needs the debounce that one didn't:
+             MC's trigger is a discrete filter change (already a single settled action), while these
+             3 range sliders fire many 'input' events per drag, so #whatIfRead's own DOM write is
+             debounced to the drag settling (see whatIfReadTimer below), not just excluding #whatIfOut
+             from the live region (/stress-test finding, 2026-08-20: this one was missed the first
+             time around — confirmed live, 20 rapid slider events = 20 announcements before this fix) -->
+        <div class="outbox" id="whatIfOut"></div>
+        <p class="lede" id="whatIfRead" style="margin-top:12px;font-size:12.8px" aria-live="polite"></p>
         <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
           <button class="btn" id="resetWhatIf" type="button">Reset to actuals</button>
           <button class="btn" id="saveScen" type="button">Save scenario</button>
@@ -2564,8 +2591,11 @@ function computeWhatIf(cpi,spi,cont){
     cover:(cont-PROGRAM.contingencyDrawn)/(Math.abs(Math.min(0,vac))+T.riskExposure),
     slip:(1/spi-1)*(MT-ME)};
 }
-var whatIfPrev=null;
-function renderWhatIf(){
+var whatIfPrev=null, whatIfReadTimer=null;
+// immediate=true skips the debounce below — used by the two discrete, single-shot callers
+// (page-init and the Reset button) so #whatIfRead isn't left blank for 400ms after either;
+// the debounce only needs to guard the 3 range sliders' continuous 'input' event stream.
+function renderWhatIf(immediate){
   var cpi=+document.getElementById("sCpi").value, spi=+document.getElementById("sSpi").value,
       cont=+document.getElementById("sCont").value;
   document.getElementById("vCpi").textContent=idx(cpi);
@@ -2585,13 +2615,21 @@ function renderWhatIf(){
      return '<div><div class="k">'+r[0]+'</div><div class="v '+r[2]+(changed?" wi-flash":"")+'">'+r[1]+'</div></div>'; }).join("");
   whatIfPrev=rows.map(function(r){ return r[1]; });
   var gap=w.tcpi-cpi;
-  document.getElementById("whatIfRead").innerHTML =
+  var whatIfReadHtml =
     "At a cost index of <b style='color:rgb(var(--c-ink))'>"+idx(cpi)+"</b> the program lands at <b style='color:rgb(var(--c-ink))'>"+
     m(w.eac)+"</b>. To finish at budget the remaining work would have to run at <b style='color:rgb(var(--c-ink))'>"+idx(w.tcpi)+
     "</b> — a gap of "+idx(Math.abs(gap))+(gap>0.10?
       ". A gap above 0.10 is treated as unrecoverable in practice; this is the point where a controls manager stops promising recovery and starts the re-baseline conversation."
       : gap>0? ". That is recoverable, but only with a named change in how the work is executed — not with optimism."
       : ". The program can absorb the remaining work at current efficiency.");
+  // #whatIfRead carries aria-live (see its own comment above) — the numbers/whatIfOut grid above
+  // stay instant for sighted users, but writing to a live-announced element on every slider tick
+  // during a drag would spam a screen reader, so this one write is debounced to the drag settling.
+  clearTimeout(whatIfReadTimer);
+  if(immediate) document.getElementById("whatIfRead").innerHTML=whatIfReadHtml;
+  else whatIfReadTimer=setTimeout(function(){
+    document.getElementById("whatIfRead").innerHTML=whatIfReadHtml;
+  },400);
 }
 var SCEN=[];
 function renderScen(){
@@ -3956,6 +3994,9 @@ function actionsForKpi(kpiId){
 }
 function jumpToAction(id){
   state.kpi=null; renderDetail();
+  // matches the #kboard click handler / closeDetail's own pattern — without this, a KPI card
+  // left aria-expanded="true" after navigating away via its own "jump to action" link (/stress-test, 2026-08-20)
+  syncKpiAriaExpanded();
   activateTab("act");
   state.actFilter="All"; state.act=id; renderActions();
   setTimeout(function(){
@@ -4814,21 +4855,27 @@ function goToBeat(i){
 }
 function switchPresentSet(set){ state.presentSet=set; goToBeat(0); }
 function enterPresent(){
-  if(state.touring) exitTour();
+  // pass skipFocus=true here: this is an internal mutual-exclusion call, not the user exiting
+  // Tour mode, so it must not steal focus onto tourBtn — enterPresent() below focuses presentBtn
+  // itself once entry is complete (/stress-test, 2026-08-20: without this, entering Present while
+  // Tour was active left focus stranded on the just-abandoned tourBtn, not the mode actually entered)
+  if(state.touring) exitTour(true);
   state.presenting=true; state.beatIdx=0;
   document.getElementById("presentBtn").setAttribute("aria-pressed","true");
   document.getElementById("presentBar").hidden=false;
   goToBeat(0);
+  document.getElementById("presentBtn").focus();
 }
-function exitPresent(){
+function exitPresent(skipFocus){
   state.presenting=false;
   document.getElementById("presentBtn").setAttribute("aria-pressed","false");
   document.getElementById("presentBar").hidden=true;
   if(presentPopup && !presentPopup.closed) presentPopup.close();
   presentPopup=null;
   // return focus to the trigger, matching closeHelp()'s existing pattern — without this, focus
-  // is left on whatever was last inside the now-hidden presentBar (/stress-test brainstorm, 2026-08-20)
-  document.getElementById("presentBtn").focus();
+  // is left on whatever was last inside the now-hidden presentBar (/stress-test brainstorm, 2026-08-20).
+  // skipFocus is set only by enterTour()'s internal mutual-exclusion call — see its comment.
+  if(!skipFocus) document.getElementById("presentBtn").focus();
 }
 function openPresentNotes(){
   if(!presentPopup || presentPopup.closed){
@@ -4907,19 +4954,23 @@ function goToTourStop(i){
   }
 }
 function enterTour(){
-  if(state.presenting) exitPresent();
+  // skipFocus=true, same reasoning as enterPresent()'s call to exitTour(true) above — this is
+  // mutual exclusion, not a user-initiated exit, so it must not steal focus onto presentBtn
+  if(state.presenting) exitPresent(true);
   state.touring=true; state.tourIdx=0;
   document.getElementById("tourBtn").setAttribute("aria-pressed","true");
   document.getElementById("tourBar").hidden=false;
   goToTourStop(0);
   fvClear();
+  document.getElementById("tourBtn").focus();
 }
-function exitTour(){
+function exitTour(skipFocus){
   state.touring=false;
   document.getElementById("tourBtn").setAttribute("aria-pressed","false");
   document.getElementById("tourBar").hidden=true;
-  // same focus-return as exitPresent() — matches closeHelp()'s existing pattern, not a new one
-  document.getElementById("tourBtn").focus();
+  // same focus-return as exitPresent() — matches closeHelp()'s existing pattern, not a new one.
+  // skipFocus is set only by enterPresent()'s internal mutual-exclusion call — see its comment.
+  if(!skipFocus) document.getElementById("tourBtn").focus();
 }
 
 /* =========================================================================
@@ -4932,6 +4983,12 @@ var mq=window.matchMedia("(prefers-color-scheme: dark)");
 // instead of hooking every event that could change the header's height (zoom level, mobile
 // button-wrap, entering/exiting Presentation/Tour Mode) individually, which is fewer places for
 // this to silently drift out of sync than manually re-measuring at each one
+// No fallback measurement path if ResizeObserver is unsupported — accepted, not overlooked
+// (/stress-test, 2026-08-20): every evergreen browser has shipped it since 2019-2020, the CSS
+// above already has a static var(--header-h,60px) default, and a manual re-measure-on-every-
+// event fallback is exactly the fragile "more places to drift out of sync" approach the comment
+// above already rejected in favor of ResizeObserver — adding it back as a fallback would just
+// reintroduce that failure mode for a browser gap this file has no other reason to support.
 if(typeof ResizeObserver!=="undefined"){
   var headerEl=document.querySelector(".bar");
   if(headerEl) new ResizeObserver(function(){
@@ -5149,12 +5206,16 @@ body.addEventListener("keydown",function(e){
   var tr=e.target.closest("tr"); if(!tr) return; e.preventDefault(); select(+tr.dataset.i); });
 
 ["sCpi","sSpi","sCont"].forEach(function(id){
-  document.getElementById(id).addEventListener("input",renderWhatIf); });
+  // NOT addEventListener("input",renderWhatIf) directly — a listener always receives the native
+  // Event object as its first argument, which is truthy, so passed straight through it would make
+  // renderWhatIf's own `immediate` param truthy on every drag tick too, silently defeating the
+  // debounce above (caught by test, not by reading the code — /stress-test, 2026-08-20).
+  document.getElementById(id).addEventListener("input",function(){ renderWhatIf(); }); });
 document.getElementById("resetWhatIf").addEventListener("click",function(){
   document.getElementById("sCpi").value=T.cpi;
   document.getElementById("sSpi").value=T.spi;
   document.getElementById("sCont").value=PROGRAM.contingency;
-  renderWhatIf();
+  renderWhatIf(true);
 });
 document.getElementById("saveScen").addEventListener("click",function(){
   SCEN.push(computeWhatIf(+document.getElementById("sCpi").value,
@@ -5183,7 +5244,12 @@ if(!fvVisited()){
    choice already is. Same try/catch guard as fvVisited/fvClear (no localStorage in the
    stress.cjs stub, can throw in private browsing) — a read/write failure just means the choice
    doesn't stick between visits, never a crash. */
-var TEXT_ZOOM_LEVELS=[1,1.25,1.5], TEXT_ZOOM_LABELS=["Normal","Large","Larger"];
+/* one array of {zoom,label} pairs, not two parallel arrays indexed by the same integer —
+   /stress-test finding, 2026-08-20: this file has already fixed the exact "two things indexed
+   by position, silently desync if one is edited without the other" bug class multiple times
+   (ESCALATION/KPI_ESCALATION, MILES, DISCREPANCY_STEPS, BASELINE — see their own comments) and
+   this control shipped with a fresh instance of it. Pairing zoom+label together closes it. */
+var TEXT_ZOOM=[{zoom:1,label:"Normal"},{zoom:1.25,label:"Large"},{zoom:1.5,label:"Larger"}];
 /* Live-browser probe (not assumed) found that html{zoom:...} double-scales every position:fixed
    element's own JS-assigned left/top: e.clientX/getBoundingClientRect() already report TRUE
    viewport pixels (matching window.innerWidth, confirmed unaffected by zoom), but a fixed
@@ -5193,13 +5259,13 @@ var TEXT_ZOOM_LEVELS=[1,1.25,1.5], TEXT_ZOOM_LABELS=["Normal","Large","Larger"];
    confirmed by direct measurement (446px target rendered at true 446px only after /1.25).
    Affects every JS-computed position:fixed left/top in this file — the 4 chart tooltips and the
    inline-term-help popover. */
-function curZoom(){ return TEXT_ZOOM_LEVELS[state.textSize]; }
+function curZoom(){ return TEXT_ZOOM[state.textSize].zoom; }
 function applyTextSize(){
-  state.textSize=Math.max(0,Math.min(TEXT_ZOOM_LEVELS.length-1,state.textSize));
-  document.documentElement.style.setProperty("--text-zoom",TEXT_ZOOM_LEVELS[state.textSize]);
-  document.getElementById("textSizeLabel").textContent=TEXT_ZOOM_LABELS[state.textSize];
+  state.textSize=Math.max(0,Math.min(TEXT_ZOOM.length-1,state.textSize));
+  document.documentElement.style.setProperty("--text-zoom",TEXT_ZOOM[state.textSize].zoom);
+  document.getElementById("textSizeLabel").textContent=TEXT_ZOOM[state.textSize].label;
   document.getElementById("textDownBtn").disabled=state.textSize===0;
-  document.getElementById("textUpBtn").disabled=state.textSize===TEXT_ZOOM_LEVELS.length-1;
+  document.getElementById("textUpBtn").disabled=state.textSize===TEXT_ZOOM.length-1;
   try{ if(window.localStorage) window.localStorage.setItem("pccTextSize",String(state.textSize)); }catch(e){}
 }
 try{
@@ -5241,7 +5307,7 @@ renderGlossary("");
 document.getElementById("sCpi").value=T.cpi;
 document.getElementById("sSpi").value=T.spi;
 document.getElementById("sCont").value=PROGRAM.contingency;
-renderWhatIf();
+renderWhatIf(true);
 wireDetailsAnimation();
 wireAccountHighlight();
 renderScurveScrub(); // after renderGantt() above, so the Gantt reference marker is correct on first paint too
@@ -5263,7 +5329,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   gloss:GLOSS,findGloss:findGloss,
   miles:MILES,delays:DELAYS,spark:SPARK,baseline:BASELINE,guards:GUARDS,escPat:ESC_PAT,
   mcParams:mcParams,triang:triang,dsStep:dsStep,
-  textZoomLevels:TEXT_ZOOM_LEVELS,textZoomLabels:TEXT_ZOOM_LABELS,applyTextSize:applyTextSize,curZoom:curZoom};
+  textZoom:TEXT_ZOOM,applyTextSize:applyTextSize,curZoom:curZoom};
 })();
 </script>
 </body>

@@ -28,7 +28,7 @@ function makeEl(id) {
     // minimal CSSStyleDeclaration-like stub — just enough to back setProperty/getPropertyValue
     // (index.html's text-size control calls these on document.documentElement.style)
     // setProperty coerces to String, matching real CSSStyleDeclaration behavior — the app passes
-    // a number (TEXT_ZOOM_LEVELS[i]) here, and a stub that stored it un-coerced would make a
+    // a number (TEXT_ZOOM[i].zoom) here, and a stub that stored it un-coerced would make a
     // string-comparison test fail for the wrong reason (stub fidelity, not an app bug)
     style: { _props: {}, setProperty(n, v) { this._props[n] = String(v); }, getPropertyValue(n) { return this._props[n] || ""; }, removeProperty(n) { delete this._props[n]; } },
     dataset: {}, _listeners: {}, _attrs: {},
@@ -59,7 +59,10 @@ function fire(el, type, ev) {
   (el._listeners[type] || []).forEach(fn => fn.call(el, ev || { target: makeEl() }));
 }
 
-function runPage(src) {
+// lsSeed: optional {key: value} to pre-seed window.localStorage with before eval — lets a caller
+// test index.html's own read-on-init path (textSize persistence) instead of only regex-checking
+// that the read is try/catch-guarded (/stress-test coverage gap, 2026-08-20).
+function runPage(src, lsSeed) {
   const registry = {};
   const documentStub = {
     documentElement: makeEl("html"),
@@ -89,7 +92,17 @@ function runPage(src) {
       const popup = { closed: false, focus(){}, close(){ this.closed = true; }, document: popupDoc };
       this._lastPopup = popup; // so tests can inspect what got opened, without needing the page's own reference
       return popup;
-    } };
+    },
+    // minimal localStorage stub, only populated when a caller passes lsSeed — omitted entirely
+    // (stays undefined) by default, matching every other runPage() caller's existing environment
+    // where window.localStorage was never present, so the app's own `if(window.localStorage)`
+    // guards keep behaving exactly as already tested elsewhere.
+    localStorage: lsSeed ? {
+      _store: Object.assign({}, lsSeed),
+      getItem(k){ return k in this._store ? this._store[k] : null; },
+      setItem(k, v){ this._store[k] = String(v); },
+      removeItem(k){ delete this._store[k]; },
+    } : undefined };
   global.getComputedStyle = () => ({ getPropertyValue: () => "0 0 0" });
   const m = src.match(/<script>([\s\S]*)<\/script>/);
   let err = null;
@@ -1297,8 +1310,14 @@ ok((G.pkgBody._html.match(/data-i="/g) || []).length === rows.length,
    D4.7 TEXT-SIZE CONTROL (brainstorm 2026-08-20) — inclusive text-size feature
    ========================================================================= */
 console.log("== D4.7. text-size control ==");
-ok(P.textZoomLevels.length === 3 && P.textZoomLabels.length === 3,
-  "3 text-size steps defined", P.textZoomLevels.join(","));
+ok(P.textZoom.length === 3, "3 text-size steps defined", P.textZoom.map((t) => t.zoom).join(","));
+// /stress-test finding (2026-08-20): this shipped as two parallel arrays (TEXT_ZOOM_LEVELS/
+// TEXT_ZOOM_LABELS) indexed by the same integer — the exact "desyncs silently if one array is
+// edited without the other" bug class already fixed elsewhere in this file (ESCALATION, MILES,
+// DISCREPANCY_STEPS, BASELINE). Consolidated into one array of {zoom,label} pairs; this
+// structural check is what makes that consolidation actually mean something, not just cosmetic.
+ok(P.textZoom.every((t) => typeof t.zoom === "number" && typeof t.label === "string"),
+  "every text-size step is one {zoom,label} pair, not two separately-indexable arrays");
 ok(P.state.textSize === 0, "text size starts at Normal (step 0)");
 try {
   ok(G.textDownBtn.disabled === true, "A− is disabled at the floor (Normal)");
@@ -1323,7 +1342,7 @@ try {
   // not just the disabled attribute the stub doesn't enforce)
   fire(G.textUpBtn, "click");
   ok(P.state.textSize === 2, "state.textSize clamps at the ceiling even if A+ fires again", String(P.state.textSize));
-  ok(P.textZoomLevels[P.state.textSize] === 1.5, "clamped state still indexes a real zoom level, no undefined");
+  ok(P.textZoom[P.state.textSize].zoom === 1.5, "clamped state still indexes a real {zoom,label} pair, no undefined");
 
   fire(G.textDownBtn, "click");
   fire(G.textDownBtn, "click");
@@ -1372,8 +1391,12 @@ ok(/\.kpi\.dim\{background:rgb\(var\(--c-card\) \/ \.45\)/.test(indexSrc),
 // 3. Sticky table headers, tracked via --header-h
 ok(indexSrc.includes(".tw table th{position:sticky;top:var(--header-h,60px);z-index:5}"),
   "table column headers are sticky, offset below the real (measured) header height");
+// honesty correction (/stress-test coverage finding, 2026-08-20): this label used to read
+// "--header-h IS tracked live via ResizeObserver" as if verified — it's actually a source-text
+// presence check (this stub has no layout engine to resize), not proof the observer fires. See
+// D4.10 #6 below for the fuller accepted-limitation note.
 ok(indexSrc.includes("new ResizeObserver") && indexSrc.includes('--header-h'),
-  "--header-h is tracked live via ResizeObserver, not a single guessed pixel value that could drift out of sync with zoom/mobile-wrap/mode changes");
+  "source contains a ResizeObserver wired to --header-h (source-text check only — the observer actually firing is live-browser-only coverage, not exercised by this stub)");
 
 // 4. scope="row" on the ledger, actions register, and contract table's identifying column
 has("pkgBody", '<th scope="row">', "control-account ledger rows use a real row header, not just a first td");
@@ -1425,6 +1448,139 @@ try {
   ok(G.tourBtn._focusCount === beforeTour + 1, "exitTour() returns focus to tourBtn");
   fire(G["t-over"], "click"); // leave tab state clean for later sections
 } catch (e) { ok(false, "focus-return on mode exit", e.message); }
+
+/* =========================================================================
+   D4.10 STRESS-TEST FIXES ROUND 2 (2026-08-20) — a second, scoped stress-test
+   pass over just the D4.7-D4.9 work above, per TJ's own explicit choice
+   ("work since the last full stress-test"). Reviewed adversarially (self +
+   3 independent background reviewers), each finding below empirically
+   verified before being accepted as real — see index.html's own comments
+   at each fix site for the full reasoning.
+   ========================================================================= */
+console.log("== D4.10. stress-test fixes round 2 ==");
+
+// 1. .kpi.dim border-color — the old rule double-wrapped --c-line (already a complete rgb()
+// value) in a second rgb(...), which is invalid CSS; live getComputedStyle confirmed it computed
+// to near-white (the currentColor fallback for an invalid non-inherited property), not a faded
+// line. Fixed to reference --c-line directly, plus filter:saturate() as a theme-independent
+// backup signal — the light-theme background-alpha fade alone was found nearly invisible, since
+// --c-card and the page background sit too close together there for any alpha blend to read.
+ok(!/\.kpi\.dim\{[^}]*border-color:rgb\(var\(--c-line\)/.test(indexSrc),
+  "the invalid double-wrapped border-color:rgb(var(--c-line)/...) is gone from .kpi.dim");
+ok(/\.kpi\.dim\{[^}]*border-color:var\(--c-line\)/.test(indexSrc),
+  ".kpi.dim now references --c-line directly, matching its ~20 other correct usages in this file");
+ok(/\.kpi\.dim\{[^}]*filter:saturate\(\.55\)/.test(indexSrc),
+  "a theme-independent saturate() filter backs up the alpha fade for light theme");
+// live-browser getComputedStyle confirmed (not just source-text): a dim card's computed
+// borderColor now matches a live card's (both rgba(6,182,212,0.2) in dark theme), not the
+// broken rgb(241,245,249) the invalid rule produced before this fix.
+
+// 2. Present/Tour mutual-exclusion focus-jump — entering one mode while the other was active used
+// to leave focus stranded on the just-abandoned trigger (the internal exitTour()/exitPresent()
+// call), not the mode actually entered. exitPresent()/exitTour() now take a skipFocus param, set
+// only by the other's internal mutual-exclusion call.
+try {
+  fire(G.tourBtn, "click"); // enter tour (real user action — should focus tourBtn)
+  const tourFocusAfterEnter = G.tourBtn._focusCount;
+  ok(tourFocusAfterEnter > 0, "entering Tour focuses tourBtn");
+  fire(G.presentBtn, "click"); // mutual exclusion: internally exits tour, enters present
+  ok(G.presentBtn._focusCount > 0, "entering Present while Touring ends with focus on presentBtn");
+  ok(G.tourBtn._focusCount === tourFocusAfterEnter,
+    "the internal exitTour() call during that transition does NOT also re-focus tourBtn (skipFocus)");
+  const presentFocusAfterEnter = G.presentBtn._focusCount;
+  fire(G.tourBtn, "click"); // mutual exclusion the other way: internally exits present, enters tour
+  ok(G.tourBtn._focusCount > tourFocusAfterEnter, "entering Tour while Presenting ends with focus on tourBtn");
+  ok(G.presentBtn._focusCount === presentFocusAfterEnter,
+    "the internal exitPresent() call during that transition does NOT also re-focus presentBtn (skipFocus)");
+  const tourFocusBeforeRealExit = G.tourBtn._focusCount;
+  fire(G.tourBtn, "click"); // genuine user-initiated exit this time, not mutual exclusion
+  ok(G.tourBtn._focusCount > tourFocusBeforeRealExit, "a real user-initiated exitTour() still focuses tourBtn");
+} catch (e) { ok(false, "Present/Tour mutual-exclusion focus", e.message); }
+
+// 3. jumpToAction() now syncs aria-expanded — previously left a stale aria-expanded="true" on a
+// KPI card after navigating away from it via its own "jump to action" link. This stub's
+// querySelectorAll always returns [], so syncKpiAriaExpanded()'s actual DOM write is unobservable
+// here (same documented limitation as D4.8 #1 above) — this confirms jumpToAction() calls it at
+// all (a real live-browser check already confirmed the DOM effect: aria-expanded true -> false).
+ok(/function jumpToAction\(id\)\{\s*state\.kpi=null; renderDetail\(\);\s*\/\/[^\n]*\n\s*\/\/[^\n]*\n\s*syncKpiAriaExpanded\(\);/.test(indexSrc),
+  "jumpToAction() calls syncKpiAriaExpanded() right after clearing state.kpi, matching closeDetail's own pattern");
+
+// 4. #whatIfOut/#whatIfRead aria-live — the value grid (rewritten on every slider tick) must not
+// be a live region; the settled prose sentence carries it instead, debounced to the drag settling
+// (not a straight port of the #mcRead pattern — that control's trigger is a discrete, already-
+// settled filter change, these 3 range sliders fire many continuous 'input' events per drag).
+ok(!/id="whatIfOut" aria-live/.test(indexSrc),
+  "#whatIfOut no longer carries aria-live (would spam a screen reader on every slider tick)");
+ok(/id="whatIfRead"[^>]*aria-live="polite"/.test(indexSrc),
+  "#whatIfRead (the settled narrative) carries aria-live instead");
+// checks for the actual wired fix, not the absence of the old pattern's literal text — that
+// negative check false-failed against its own explanatory comment two lines above the real fix,
+// which quotes the exact broken pattern by name as a "don't do this" example (caught by running
+// this test, not by reading it — the same "verify behavior" lesson the bug itself demonstrates).
+ok(indexSrc.includes('document.getElementById(id).addEventListener("input",function(){ renderWhatIf(); });'),
+  "the slider listeners wrap renderWhatIf in a plain closure, not passed directly — a listener " +
+  "always receives the native Event object as its first arg, which is truthy, so passed straight " +
+  "through it would make every real drag tick take the immediate branch and defeat the debounce");
+ok((indexSrc.match(/renderWhatIf\(true\)/g) || []).length === 2,
+  "exactly the 2 legitimate discrete callers (page-init, Reset button) pass immediate=true — not the sliders");
+try {
+  G.whatIfRead._html = "sentinel-unwritten";
+  fire(G.sCpi, "input"); // exercises the real wired listener, not a direct renderWhatIf() call
+  ok(G.whatIfRead._html === "sentinel-unwritten",
+    "a slider 'input' tick does NOT write #whatIfRead synchronously — confirms the debounce path runs, not the immediate one");
+} catch (e) { ok(false, "what-if debounce (sync non-write check)", e.message); }
+// live-browser probe (not just this synchronous check) confirmed the full debounce behavior:
+// 20 rapid input ticks over ~300ms produced 0 writes to #whatIfRead during the drag and exactly 1
+// write ~400ms after the last tick — this harness has no fake-timer support to reproduce that
+// timing test itself, so the settle-and-fire half is accepted as live-browser-only coverage.
+
+// 5. .tsize .btn touch targets — undersized (27x36.7px live-measured) with no compensating hit
+// area, unlike every other small control in this file. Live-browser elementFromPoint() confirmed
+// a point 20px above the visible button (previously a dead zone) now resolves to the button.
+ok(/\.tsize \.btn\{[^}]*position:relative\}/.test(indexSrc),
+  ".tsize .btn is position:relative (required for its own ::before hit-slop to anchor correctly)");
+ok(/\.tsize \.btn::before\{content:"";position:absolute;top:50%;left:50%;width:44px;height:44px/.test(indexSrc),
+  ".tsize .btn carries the same 44px invisible hit-slop pattern as .help-ic/.help-pop-close");
+
+// 6. ResizeObserver fallback — accepted as a stated limitation, not silently dropped (see the
+// comment directly above the ResizeObserver guard in index.html for the full reasoning).
+ok(indexSrc.includes("No fallback measurement path if ResizeObserver is unsupported — accepted, not overlooked"),
+  "the missing ResizeObserver fallback is an explicit, documented accepted limitation, not an unaddressed gap");
+// honesty correction to the D4.8 #3 assertion above (/stress-test coverage finding, 2026-08-20):
+// that check's own label calls this "tracked live via ResizeObserver", which is true of the code,
+// but the check itself only greps source text for "new ResizeObserver" + "--header-h" — it does
+// not and cannot exercise the observer firing (this stub's DOM has no real layout engine to
+// resize). Real behavioral coverage for that mechanism is live-browser only, same division of
+// labor already established for D5.8's SMIL-pulse and D11's wireDetailsAnimation checks below.
+
+// 7. curZoom() — zero test coverage before this pass despite being the mechanism the position:
+// fixed compensation fix (round-1 text-size build) depends on. Confirms it reads live state, not
+// a captured-at-definition-time snapshot.
+ok(P.curZoom() === 1, "curZoom() returns 1 at Normal (state.textSize===0)");
+fire(G.textUpBtn, "click");
+ok(P.curZoom() === 1.25, "curZoom() reflects state.textSize after advancing to Large (1)");
+fire(G.textDownBtn, "click"); // leave text-size state clean for later sections
+ok(P.curZoom() === 1, "curZoom() back to 1 after returning to Normal");
+
+// (item 8, textSize localStorage persistence, deliberately lives at the very end of this file —
+// runPage() repoints global.document/global.window on every call, and this harness's eval() runs
+// in that same shared global scope as every closure already captured by the FIRST index.html eval
+// above (const R = runPage(indexSrc)), so calling runPage() again here — even just to seed
+// localStorage for a second, isolated read — silently breaks every later fire()-driven test that
+// touches those closures (D7 presentation mode, D8 KPI drawer, D9/D9.1, D10, D11 all did when this
+// was first tried mid-file — caught by actually running the suite, not by reading the code first).
+// otak.html's own runPage(otakSrc) call already follows this same rule safely, by living at the
+// very end already — item 8 sits right after it, for the same reason.)
+
+// 9. scope="row" per table — the D4.8 #4 check above only asserts a whole-file aggregate count
+// (>=3), which a table that happens to lose its own scope="row" while another table gains an
+// unrelated one could pass by coincidence. Check each of the 3 targeted tables individually.
+ok((G.pkgBody._html.match(/<th scope="row"/g) || []).length === rows.length,
+  "ledger table: exactly one scope=row per control-account row", String((G.pkgBody._html.match(/<th scope="row"/g) || []).length));
+ok((G.contractTable._html.match(/<th scope="row"/g) || []).length === P.contracts.length,
+  "contract register: exactly one scope=row per contract row", String((G.contractTable._html.match(/<th scope="row"/g) || []).length));
+ok((G.actTable._html.match(/<th scope="row"/g) || []).length === P.actions.length,
+  "actions register: exactly one scope=row per action row (default 'All' filter)", String((G.actTable._html.match(/<th scope="row"/g) || []).length));
 
 /* =========================================================================
    D5. RESUME-INSIGHT MODULES — baseline bridge, change pricing, TIA, stakeholders
@@ -2340,6 +2496,32 @@ ok(!/twelve[\s-]?input/i.test(indexSrc) && !/twelve[\s-]?input/i.test(fs.readFil
 }
 ok(!/55 checks/.test(indexSrc), "no stale '55 checks' pipeline claim in index.html");
 ok((indexSrc.match(/54 checks/g) || []).length >= 2, "'54 checks' (the verified pipeline count) appears in index.html");
+
+/* =========================================================================
+   G. TEXT-SIZE LOCALSTORAGE PERSISTENCE (2026-08-20) — deliberately runs LAST.
+   Previously only regex-checked that the read/write were try/catch-guarded, never that the
+   read-clamp-apply path actually works end to end. runPage()'s optional lsSeed lets a second,
+   isolated eval pre-seed window.localStorage before the page's own init code runs — but runPage()
+   repoints global.document/global.window on every call, corrupting any already-evaluated closure
+   from an EARLIER runPage() call that a later fire()-driven test still relies on. This is placed
+   after every other fire()-based test in this file (index.html's and otak.html's alike) for
+   exactly that reason — see the note left at D4.10's original item 8 slot for how this was found.
+   ========================================================================= */
+console.log("== G. text-size localStorage persistence ==");
+{
+  const R2 = runPage(indexSrc, { pccTextSize: "1" });
+  ok(!R2.err, "second index.html eval (localStorage seed test) ran without runtime errors", R2.err && R2.err.message);
+  const P2 = R2.win.__PCC__;
+  ok(!!P2 && P2.state.textSize === 1, "a saved pccTextSize=1 is read and applied on init (Large)", P2 && String(P2.state.textSize));
+}
+{
+  const R3 = runPage(indexSrc, { pccTextSize: "99" });
+  const P3 = R3.win.__PCC__;
+  // applyTextSize()'s own clamp (Math.max(0,Math.min(TEXT_ZOOM.length-1,state.textSize))) — an
+  // out-of-range saved value (e.g. from a future version with more steps) must clamp, not crash
+  // or index past the array into undefined.
+  ok(!!P3 && P3.state.textSize === 2, "an out-of-range saved value clamps to the ceiling on init, not undefined/NaN", P3 && String(P3.state.textSize));
+}
 
 console.log("\n" + pass + " passed, " + fail + " failed");
 process.exit(fail ? 1 : 0);
