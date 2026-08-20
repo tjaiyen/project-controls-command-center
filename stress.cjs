@@ -1336,6 +1336,57 @@ ok(/try\{\s*var savedTextSize=window\.localStorage/.test(indexSrc),
   "the saved-size read on init is also try/catch-guarded");
 
 /* =========================================================================
+   D4.8 A11Y BRAINSTORM (2026-08-20) — 6-item pass triaged from a pasted
+   proposal doc: half was already built, this covers what genuinely wasn't.
+   ========================================================================= */
+console.log("== D4.8. a11y brainstorm pass ==");
+// 1. KPI board: aria-expanded/aria-controls on cards, aria-live on the dimNote summary
+has("kboard", 'aria-controls="kdetail"', "KPI cards declare which drawer they control");
+try {
+  var firstKpi = P.kpis[0];
+  fire(G.kboard, "click", { target: { closest: (sel) => (sel === "[data-kpi]" ? { dataset: { kpi: firstKpi.id } } : null) } });
+  ok(P.state.kpi === firstKpi.id, "clicking a KPI card sets state.kpi (drives its aria-expanded true)");
+  has("kdetail", firstKpi.name, "the drawer renderDetail() populates matches the clicked card");
+  // syncKpiAriaExpanded() queries #kboard [data-kpi] via querySelectorAll, which always returns []
+  // in this stub (documented harness limitation) — the real assertion here is that calling it with
+  // zero matched elements is a silent no-op, not a crash; the actual attribute-update is only
+  // observable in the live-browser pass.
+  fire(G.kboard, "click", { target: { closest: (sel) => (sel === "[data-kpi]" ? { dataset: { kpi: firstKpi.id } } : null) } });
+  ok(P.state.kpi === null, "clicking the same card again closes it (toggles state.kpi back to null)");
+} catch (e) { ok(false, "KPI board aria-expanded click", e.message); }
+ok(indexSrc.includes('aria-live="polite"') && /id="dimNote" aria-live="polite"/.test(indexSrc),
+  "dimNote (the phase-dim summary) is a live region baked into its own template, not added after the fact (would be lost on re-render otherwise)");
+ok(indexSrc.includes("function syncKpiAriaExpanded"),
+  "a dedicated sync function updates aria-expanded directly (matching the help-ic pattern) instead of a full board re-render for a state toggle this small");
+
+// 2. Dimmed KPI card contrast fix — verify the blanket opacity is gone and text keeps its own color
+ok(!indexSrc.includes(".kpi.dim{opacity:.4}"),
+  "the old blanket-opacity dim rule (measured ~3.3:1 dark / ~2.6:1 light, below WCAG AA) is gone");
+ok(/\.kpi\.dim\{background:rgb\(var\(--c-card\) \/ \.45\)/.test(indexSrc),
+  "dimming now fades the background specifically (verified by direct computation to stay 6.5:1+ with full-color text), not text+background together");
+
+// 3. Sticky table headers, tracked via --header-h
+ok(indexSrc.includes(".tw table th{position:sticky;top:var(--header-h,60px);z-index:5}"),
+  "table column headers are sticky, offset below the real (measured) header height");
+ok(indexSrc.includes("new ResizeObserver") && indexSrc.includes('--header-h'),
+  "--header-h is tracked live via ResizeObserver, not a single guessed pixel value that could drift out of sync with zoom/mobile-wrap/mode changes");
+
+// 4. scope="row" on the ledger, actions register, and contract table's identifying column
+has("pkgBody", '<th scope="row">', "control-account ledger rows use a real row header, not just a first td");
+ok((indexSrc.match(/scope="row"/g) || []).length >= 3,
+  "scope=row used on at least the 3 targeted tables (ledger, contracts, actions)", String((indexSrc.match(/scope="row"/g) || []).length));
+
+// 5. aria-keyshortcuts on the two mode-toggle buttons
+ok(idsA.includes("presentBtn") && /id="presentBtn"[^>]*aria-keyshortcuts="N P Escape"/.test(indexSrc),
+  "Present button declares its N/P/Escape shortcuts");
+ok(/id="tourBtn"[^>]*aria-keyshortcuts="ArrowLeft ArrowRight Escape"/.test(indexSrc),
+  "Tour button declares its arrow-key/Escape shortcuts");
+
+// 6. scroll-edge gradient cue on wide table containers
+ok(indexSrc.includes("background-attachment:local,local,scroll,scroll"),
+  "table containers carry the scroll-edge shadow cue (4-layer cover+shadow technique)");
+
+/* =========================================================================
    D5. RESUME-INSIGHT MODULES — baseline bridge, change pricing, TIA, stakeholders
    ========================================================================= */
 console.log("== D5. baseline / change pricing / TIA / stakeholders ==");

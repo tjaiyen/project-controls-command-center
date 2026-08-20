@@ -232,7 +232,15 @@ h4{font-size:.86rem;margin:0 0 5px}
   text-align:left;width:100%;font:inherit;color:inherit;display:block}
 .kpi:hover{transform:translateY(-2px);box-shadow:var(--c-elev);border-color:rgb(var(--c-accent) / .45)}
 .kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--rag,transparent)}
-.kpi.dim{opacity:.4}
+/* dimming a "not meaningful this phase" card used to fade the WHOLE card (text included) via a
+   blanket opacity — measured contrast (/stress-test, 2026-08-20): ink-on-card fell to ~3.3:1 dark
+   / ~2.6:1 light, and the muted sub-text couldn't clear 4.5:1 at any dim level that still looked
+   dimmed. Fading the background/border/sparkline only, while text stays at its normal full-color
+   rules, keeps every ratio at 6.5:1+ in both themes (verified by direct computation) while still
+   reading as visually de-emphasized next to a live card. */
+.kpi.dim{background:rgb(var(--c-card) / .45);border-color:rgb(var(--c-line) / .5)}
+.kpi.dim::before{opacity:.35}
+.kpi.dim .spark{opacity:.35}
 .kpi .top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
 .kpi .abbr{font:600 10px/1.4 ui-monospace,monospace;letter-spacing:.1em;color:rgb(var(--c-mut))}
 .kpi .fam{font:600 9px/1.5 ui-monospace,monospace;letter-spacing:.08em;text-transform:uppercase;
@@ -296,12 +304,36 @@ h4{font-size:.86rem;margin:0 0 5px}
 .ok{color:var(--c-pill-g)} .wa{color:var(--c-pill-a)} .ba{color:var(--c-pill-r)} .inf{color:var(--c-pill-i)}
 
 /* tables */
-.tw{overflow-x:auto;margin-top:14px;border:1px solid var(--c-line);border-radius:11px}
+.tw{overflow-x:auto;margin-top:14px;border:1px solid var(--c-line);border-radius:11px;
+  /* scroll-edge shadow cue — the classic 4-layer technique (2 "cover" layers that scroll WITH
+     the content, masking 2 shadow layers that stay fixed to the viewport-relative edge; at
+     scroll position 0 the left cover exactly hides the left shadow, so it only appears once
+     there's actually more content to the left/right to scroll to). Every .tw here sits directly
+     on the page background (never nested inside a .card), so --c-bg is the right cover color. */
+  background:
+    linear-gradient(to right, rgb(var(--c-bg)) 0, rgb(var(--c-bg) / 0) 24px) 0 0/100% 100%,
+    linear-gradient(to left, rgb(var(--c-bg)) 0, rgb(var(--c-bg) / 0) 24px) 100% 0/100% 100%,
+    linear-gradient(to right, rgb(0 0 0 / .28), rgb(0 0 0 / 0) 24px) 0 0,
+    linear-gradient(to left, rgb(0 0 0 / .28), rgb(0 0 0 / 0) 24px) 100% 0;
+  background-repeat:no-repeat;background-attachment:local,local,scroll,scroll;
+  background-size:24px 100%,24px 100%,24px 100%,24px 100%}
 table{width:100%;border-collapse:collapse;font-size:12.8px}
 th,td{text-align:right;padding:9px 11px;border-bottom:1px solid var(--c-line);
   font-variant-numeric:tabular-nums;white-space:normal}
 th{font:600 9.5px/1.3 ui-monospace,monospace;letter-spacing:.09em;text-transform:uppercase;
   color:rgb(var(--c-mut));background:rgb(var(--c-card))}
+/* sticky column headers on long registers (Risk, Actions, contracts, the 8-account ledger) —
+   th already carries a solid background (above), so this is a 2-line addition, not a new rule.
+   --header-h tracks the sticky header's real height (base bar + an active present/tour bar, if
+   any) via a ResizeObserver, so the offset stays correct across zoom levels, mobile wrapping,
+   and mode toggles instead of a single guessed pixel value. */
+.tw table th{position:sticky;top:var(--header-h,60px);z-index:5}
+/* row-header cells (scope="row" on a table's identifying first column — control account ID,
+   action ID, contract ID) need the general th{} rule above reset back to a normal body-data
+   look: that rule is styled for the sticky COLUMN headers (small uppercase mono label), wrong
+   for a row's own id/name cell, which should read like any other data cell. */
+tbody th[scope="row"]{position:static;font:inherit;text-transform:none;letter-spacing:normal;
+  color:inherit;background:transparent;text-align:left}
 th:first-child,td:first-child{text-align:left;white-space:normal}
 /* nowrap is the exception now, not the default (/stress-test finding, 2026-08-19: fixed-width
    tables forced every wide table into horizontal scroll — a table now shrinks to fit its column
@@ -521,8 +553,8 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
       <span class="pill i" id="ddBadge">data date &mdash;</span>
       <a class="btn" href="architecture.html" style="text-decoration:none;display:inline-flex;align-items:center">Architecture map</a>
       <button class="btn" id="printBtn" type="button">Print brief</button>
-      <button class="btn" id="tourBtn" type="button" aria-pressed="false">Take the tour<span class="fv-badge" id="fvBadge">&#10148; new here? start here</span></button>
-      <button class="btn" id="presentBtn" type="button" aria-pressed="false">Present</button>
+      <button class="btn" id="tourBtn" type="button" aria-pressed="false" aria-keyshortcuts="ArrowLeft ArrowRight Escape">Take the tour<span class="fv-badge" id="fvBadge">&#10148; new here? start here</span></button>
+      <button class="btn" id="presentBtn" type="button" aria-pressed="false" aria-keyshortcuts="N P Escape">Present</button>
       <button class="btn" id="themeBtn" type="button">Theme</button>
       <div class="tsize" role="group" aria-label="Text size">
         <button class="btn" id="textDownBtn" type="button" aria-label="Decrease text size">A&minus;</button>
@@ -2010,7 +2042,7 @@ function renderFilters(){
     var n = f==="All"? scoped.length : scoped.filter(function(k){return k.fam===f;}).length;
     return '<button class="btn'+(state.fam===f?" on":"")+'" data-fam="'+f+'" aria-pressed="'+(state.fam===f)+'">'+
       f+' <span class="mono" style="opacity:.6">'+n+'</span></button>';
-  }).join("") + '<span style="font-size:12px;color:rgb(var(--c-mut));margin-left:6px" id="dimNote"></span>';
+  }).join("") + '<span style="font-size:12px;color:rgb(var(--c-mut));margin-left:6px" id="dimNote" aria-live="polite"></span>';
 }
 
 function renderBoard(){
@@ -2018,6 +2050,7 @@ function renderBoard(){
   document.getElementById("kboard").innerHTML = list.map(function(k,i){
     var rag=k.rag(), live=k.ph.indexOf(state.phase)>=0, ragWord=RAG_WORD[rag]||rag;
     return '<button class="kpi'+(live?"":" dim")+'" data-kpi="'+k.id+'" style="--rag:'+RAG[rag]+';animation-delay:'+(i*35)+'ms" '+
+      'aria-expanded="'+(state.kpi===k.id)+'" aria-controls="kdetail" '+
       'aria-label="'+k.name+', '+k.val().replace(/<[^>]*>/g,"")+', '+ragWord+'">'+
       '<div class="top"><span class="abbr">'+k.abbr+'</span><span class="fam">'+k.fam+'</span></div>'+
       '<div class="val">'+k.val()+'<span class="trend" aria-hidden="true">'+ragWord+'</span></div>'+
@@ -2961,7 +2994,7 @@ function renderTable(){
   document.getElementById("pkgBody").innerHTML=rows.map(function(r,i){
     var st=statusOf(r);
     return '<tr tabindex="0" role="button" aria-controls="drill" data-i="'+i+'" data-acc="'+r.id+'" aria-pressed="'+(i===state.pkg)+'">'+
-      '<td><span class="mono" style="color:rgb(var(--c-code))">'+r.id+'</span> &nbsp;'+r.n+'</td>'+
+      '<th scope="row"><span class="mono" style="color:rgb(var(--c-code))">'+r.id+'</span> &nbsp;'+r.n+'</th>'+
       '<td class="tab-num">'+m(r.bac)+'</td><td class="tab-num">'+m(r.ev)+'</td><td class="tab-num">'+m(r.ac)+'</td>'+
       '<td class="tab-num '+(r.spi<0.95?"ba":r.spi<0.99?"wa":"ok")+'">'+idx(r.spi)+'</td>'+
       '<td class="tab-num '+(r.cpi<0.95?"ba":r.cpi<0.99?"wa":"ok")+'">'+idx(r.cpi)+'</td>'+
@@ -3198,8 +3231,8 @@ function renderContracts(){
     '<thead><tr><th scope="col">Contract</th><th scope="col">Control accounts</th><th scope="col">Award</th>'+
     '<th scope="col">Approved COs</th><th scope="col">Pending trends</th><th scope="col">Alloc. contingency</th>'+
     '<th scope="col">Uncommitted reserve</th></tr></thead><tbody>'+
-    cs.map(function(c){ return '<tr style="cursor:default"><td>'+c.title+
-      '<div class="mono" style="font-size:10.5px;color:rgb(var(--c-mut))">'+c.id+'</div></td>'+
+    cs.map(function(c){ return '<tr style="cursor:default"><th scope="row">'+c.title+
+      '<div class="mono" style="font-size:10.5px;color:rgb(var(--c-mut))">'+c.id+'</div></th>'+
       '<td class="mono" style="font-size:11.5px">'+c.pkgs.join(", ")+'</td>'+
       '<td class="tab-num">'+m(c.award)+'</td><td class="tab-num">'+m(c.approvedCO)+'</td>'+
       '<td class="tab-num">'+m(c.pendingTrends)+'</td><td class="tab-num">'+m(c.allocContingency)+'</td>'+
@@ -3991,7 +4024,7 @@ function renderActions(){
    '<th scope="col">Owner</th><th scope="col">Due</th><th scope="col">Status</th></tr></thead><tbody>'+
    list.map(function(r){ var sm=STATUS_META[r.status];
      return '<tr data-act="'+r.id+'" tabindex="0" role="button" aria-controls="actDrill" aria-pressed="'+(state.act===r.id)+'" class="'+(r.stale?"stale-glow":"")+'" style="cursor:pointer'+(state.act===r.id?';background:rgb(var(--c-accent) / .08)':'')+'">'+
-     '<td class="mono" style="font-size:11.5px">'+r.id+'</td>'+
+     '<th scope="row" class="mono" style="font-size:11.5px;font-weight:400;text-align:left">'+r.id+'</th>'+
      '<td style="font-size:11.5px;white-space:nowrap">'+typeIcon(r.type)+r.type+'</td>'+
      '<td style="white-space:normal">'+r.title+(r.stale?' <span class="pill a" style="margin-left:5px">stale</span>':'')+'</td>'+
      '<td style="font-size:12px">'+r.owner+'</td>'+
@@ -4872,6 +4905,17 @@ function exitTour(){
    ========================================================================= */
 var root=document.documentElement, themeBtn=document.getElementById("themeBtn");
 var mq=window.matchMedia("(prefers-color-scheme: dark)");
+// tracks the sticky header's real rendered height (base bar + an active present/tour bar) into
+// --header-h, so sticky table headers (above) offset correctly below it — a ResizeObserver
+// instead of hooking every event that could change the header's height (zoom level, mobile
+// button-wrap, entering/exiting Presentation/Tour Mode) individually, which is fewer places for
+// this to silently drift out of sync than manually re-measuring at each one
+if(typeof ResizeObserver!=="undefined"){
+  var headerEl=document.querySelector(".bar");
+  if(headerEl) new ResizeObserver(function(){
+    document.documentElement.style.setProperty("--header-h",headerEl.offsetHeight+"px");
+  }).observe(headerEl);
+}
 // themeBtn's sibling toggles (tourBtn/presentBtn) both declare aria-pressed="false" in markup so
 // they're announced as toggle buttons from first render — themeBtn had no aria-pressed at all
 // until the first click (/stress-test finding, 2026-08-19); set it once at init to match.
@@ -5019,13 +5063,21 @@ document.getElementById("audienceFilters").addEventListener("click",function(e){
   state.audience=b.dataset.aud; state.fam="All";
   renderAudienceFilters(); renderFilters(); renderBoard();
 });
+function syncKpiAriaExpanded(){
+  // direct attribute toggle, not a full renderBoard() re-render, for a state change this small —
+  // matches the existing help-ic pattern (openHelp/closeHelp toggle aria-expanded the same way)
+  Array.prototype.forEach.call(document.querySelectorAll("#kboard [data-kpi]"),function(btn){
+    btn.setAttribute("aria-expanded",String(btn.dataset.kpi===state.kpi));
+  });
+}
 document.getElementById("kboard").addEventListener("click",function(e){
   var b=e.target.closest("[data-kpi]"); if(!b) return;
   state.kpi = state.kpi===b.dataset.kpi? null : b.dataset.kpi;
   renderDetail();
+  syncKpiAriaExpanded();
 });
 document.getElementById("kdetail").addEventListener("click",function(e){
-  if(e.target.id==="closeDetail"){ state.kpi=null; renderDetail(); return; }
+  if(e.target.id==="closeDetail"){ state.kpi=null; renderDetail(); syncKpiAriaExpanded(); return; }
   var b=e.target.closest("[data-jump]"); if(b) jumpToAction(b.dataset.jump);
 });
 document.getElementById("invCard").addEventListener("click",function(e){
