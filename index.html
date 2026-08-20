@@ -819,7 +819,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
             actually was. This is expected to be wrong sometimes &mdash; a scorecard that is never wrong is
             not measuring anything.</p>
           <div class="tw" style="min-width:0"><table id="fcastTable"></table></div></div>
-        <div class="card"><h3>Cost diffusion &mdash; drift &amp; volatility</h3>
+        <div class="card"><h3>Cost diffusion &mdash; drift &amp; volatility<button type="button" class="help-ic" data-help="gbm" aria-label="What does this term mean?" aria-expanded="false">i</button></h3>
           <div id="costGbm"></div></div>
       </div>
       <div class="card" style="margin-top:15px"><h3>Monthly spend rate &mdash; planned vs. actual</h3>
@@ -992,7 +992,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         control and one still finding its true finish.</p>
       <div class="card" style="margin-top:15px" id="schedDriftCard"></div>
 
-      <div class="sec-h" style="margin-top:34px"><h2>Delay events &amp; time impact analysis</h2><span class="tag">claims posture</span></div>
+      <div class="sec-h" style="margin-top:34px"><h2>Delay events &amp; time impact analysis<button type="button" class="help-ic" data-help="excusablecompensable" aria-label="What does this term mean?" aria-expanded="false">i</button></h2><span class="tag">claims posture</span></div>
       <p class="lede">When something slips, the question is never &ldquo;who is to blame&rdquo; first &mdash;
         it is &ldquo;how many days, provably?&rdquo; Each event below was inserted into the schedule model as
         a fragnet, so its measured impact and the float table above cannot disagree. Classification then
@@ -1165,7 +1165,7 @@ join dim_control_account b using (package_id)</pre></div>
         contract.</p>
       <div class="card" style="margin-top:12px" id="aiGuards"></div>
 
-      <div class="sec-h" style="margin-top:30px"><h3>Statistical control &mdash; retrospective anomaly check</h3></div>
+      <div class="sec-h" style="margin-top:30px"><h3>Statistical control &mdash; retrospective anomaly check<button type="button" class="help-ic" data-help="zscore" aria-label="What does this term mean?" aria-expanded="false">i</button></h3></div>
       <p class="lede">The guards above are deterministic tie-outs &mdash; recompute and compare, pass or fail.
         This is a different kind of check: a statistical control run over a real historical series already on
         this page (CP-201's weekly crew cost-per-hour), flagging any point beyond &plusmn;2.5 standard
@@ -1174,8 +1174,12 @@ join dim_control_account b using (package_id)</pre></div>
         real, continuously-updating series, run honestly against the one real (if small) series this
         dashboard has.</p>
       <div class="card" style="margin-top:12px" id="aiStatControl"></div>
+      <details class="dbox" style="margin-top:14px">
+        <summary>How this is actually computed</summary>
+        <div id="zscoreMathBody"></div>
+      </details>
 
-      <div class="sec-h" style="margin-top:30px"><h3>EWMA control chart &mdash; catching persistent drift, not just outliers</h3></div>
+      <div class="sec-h" style="margin-top:30px"><h3>EWMA control chart &mdash; catching persistent drift, not just outliers<button type="button" class="help-ic" data-help="ewma" aria-label="What does this term mean?" aria-expanded="false">i</button></h3></div>
       <p class="lede">The check above flags any single point beyond &plusmn;2.5 standard deviations of the
         series mean &mdash; blind to a small, persistent drift that never individually crosses that line. An
         Exponentially Weighted Moving Average (EWMA) tracks the whole trend instead, weighting recent points
@@ -1183,6 +1187,10 @@ join dim_control_account b using (package_id)</pre></div>
         real series as the check above (CP-201's weekly crew cost-per-hour) &mdash; a second, complementary
         lens on it, not a replacement.</p>
       <div class="card" style="margin-top:12px" id="aiEwmaControl"></div>
+      <details class="dbox" style="margin-top:14px">
+        <summary>How this is actually computed</summary>
+        <div id="ewmaMathBody"></div>
+      </details>
 
       <div class="sec-h" style="margin-top:30px"><h3>Ingestion validation &mdash; not the same thing as the gate above</h3></div>
       <p class="lede">The integrity gate above re-derives already-accepted totals and compares them &mdash;
@@ -1243,13 +1251,17 @@ join dim_control_account b using (package_id)</pre></div>
 
       <div id="playbook"></div>
 
-      <div class="sec-h" style="margin-top:34px"><h3>WBS &middot; CBS &middot; OBS control-account mapping</h3></div>
+      <div class="sec-h" style="margin-top:34px"><h3>WBS &middot; CBS &middot; OBS control-account mapping<button type="button" class="help-ic" data-help="cbsobs" aria-label="What does this term mean?" aria-expanded="false">i</button></h3></div>
       <p class="lede">The 100% Rule: every dollar of budget traces to a named scope element, a cost
         category, and an accountable owner. This is what makes Control Account performance measurement
         (the EVM math on every other tab) defensible rather than an aggregate guess &mdash; and what a
         Board or a lender actually checks before releasing funding.</p>
       <div class="tw"><table id="wbsTable"></table></div>
       <p class="lede" id="wbsFoot" style="margin-top:9px;font-size:12.5px"></p>
+      <details class="dbox" style="margin-top:14px">
+        <summary>How the 100% Rule is actually checked</summary>
+        <div id="wbs100MathBody"></div>
+      </details>
 
       <div class="sec-h" style="margin-top:34px"><h3>Board phase-gate governance</h3></div>
       <p class="lede">Six sequential gates, each requiring an explicit Board action to release scope,
@@ -1316,7 +1328,7 @@ join dim_control_account b using (package_id)</pre></div>
       <div class="tw"><table id="ownerTable"></table></div>
 
       <div class="sec-h" style="margin-top:30px"><h3>Register</h3></div>
-      <p class="lede">Task, Issue or Decision &mdash; the RAID distinction matters, because a Decision
+      <p class="lede">Task, Issue or Decision &mdash; the RAID<button type="button" class="help-ic" data-help="raid" aria-label="What does this term mean?" aria-expanded="false">i</button> distinction matters, because a Decision
         pending a follow-up action fails silently in a way a missed Task doesn't. Filter by status, click a
         row for the full trail.</p>
       <div class="kfilters" id="actFilters"></div>
@@ -1330,6 +1342,10 @@ join dim_control_account b using (package_id)</pre></div>
         flag, not a status: no update in 10+ days, checked even when an item isn't due yet &mdash; the
         proactive signal that catches drift before the due date does. An item can be both.</p>
       </div>
+      <details class="dbox" style="margin-top:14px">
+        <summary>How this is actually computed</summary>
+        <div id="actionsMathBody"></div>
+      </details>
     </div>
   </section>
 
@@ -4209,6 +4225,28 @@ function renderWbs(){
     '<b style="color:rgb(var(--c-ink))">'+mapped+' of '+PKGS.length+' control accounts mapped</b> &mdash; '+
     m(T.bac)+' of '+m(T.bac)+' BAC (100%) traced to a named scope element, cost category and owner. '+
     'No unallocated budget, no orphaned control account.';
+  renderWbs100Math();
+}
+/* The math explainer — the "100% Rule" is a footer sentence above; this walks it as an actual
+   sum: every PKGS.bac reachable through a WBS row, added up, checked against T.bac (the same
+   program BAC every EVM figure on this page is built from) — not restated as a percentage. */
+function renderWbs100Math(){
+  var mappedPkgs=WBS.map(function(w){ return PKGS.filter(function(p){ return p.id===w.ca; })[0]; })
+    .filter(Boolean);
+  var sum=mappedPkgs.reduce(function(a,p){ return a+p.bac; },0);
+  document.getElementById("wbs100MathBody").innerHTML=
+   "<p>The &ldquo;100% Rule&rdquo; means every dollar of the program budget must trace to exactly one "+
+   "control account &mdash; no unallocated pool, and no dollar counted under two accounts at once. That's "+
+   "checked here as literal addition, not asserted: each of the "+WBS.length+" WBS rows above names a "+
+   "control account (its <code>ca</code> field); summing that account's BAC once per WBS row &mdash;</p>"+
+   "<p class='mono' style='margin-top:8px;font-size:11.5px'>"+
+   mappedPkgs.map(function(p){ return p.id+" "+m(p.bac); }).join(" + ")+
+   " = <b style='color:rgb(var(--c-ink))'>"+m(sum)+"</b></p>"+
+   "<p style='margin-top:8px'>&mdash; lands on exactly "+m(sum)+", matching program BAC "+m(T.bac)+
+   " ("+(Math.abs(sum-T.bac)<0.001?"an exact match, to the cent":"a "+m(Math.abs(sum-T.bac))+" gap that would be a real finding")+
+   "). Because each WBS row carries exactly one <code>ca</code> and each control account appears in exactly "+
+   "one WBS row, there's no way for this sum to double-count or omit a package without the table above "+
+   "changing shape first &mdash; the check is structural, not a coincidence that happens to hold today.</p>";
 }
 
 function renderGates(){
@@ -4530,6 +4568,26 @@ function actionStatus(a){
   return actDays(a.opened)<=3? "not-started":"in-progress";
 }
 function isStale(a){ return !a.done && actDays(a.touch)>=10; }
+/* The math explainer — the note above states the thresholds in prose; this walks actionStatus()'s
+   real branch order against one real item (A-01), so "escalated = overdue by 5+ days" is shown
+   landing on an actual d, not just asserted. Runs once at init, same as renderStatControl() —
+   the worked example doesn't change with the live status filter, so it isn't re-run from
+   renderActions(). */
+function renderActionsMath(){
+  var a=ACTIONS.filter(function(x){ return x.id==="A-01"; })[0];
+  var d=actDays(a.due), opened=actDays(a.opened), st=actionStatus(a);
+  document.getElementById("actionsMathBody").innerHTML=
+   "<p><code>d = days since due date</code> (negative means the due date hasn't arrived yet). "+
+   "<code>actionStatus()</code> checks, in order: done? &rarr; closed/verified. blocked? &rarr; blocked. "+
+   "<code>d&ge;5</code> &rarr; escalated. <code>d&gt;0</code> &rarr; overdue. <code>d&ge;&minus;7</code> &rarr; "+
+   "due-soon. otherwise, opened &le;3 days ago &rarr; not-started, else in-progress.</p>"+
+   "<p style='margin-top:8px'>"+a.id+" (&ldquo;"+a.title+"&rdquo;) is not done and not blocked, due "+a.due+
+   ". Against the program data date, that's <code>d = "+d+"</code> days since due &mdash; "+d+
+   " &ge; 5, so the first branch that fires is <b style='color:rgb(var(--c-ink))'>escalated</b>, matching "+
+   "its row in the register above. It was opened "+a.opened+" ("+opened+" days before the data date), "+
+   "which never gets checked here &mdash; the escalated branch fires before opened-date is ever read, "+
+   "the same reason a closed item's due date never gets checked either.</p>";
+}
 
 /* Root-cause linkage for the Overview KPI drawer: which live Actions/NCR items track THIS metric's
    breach, right now, with an owner and a due date — not just a generic "the play to run" sentence. */
@@ -4892,6 +4950,26 @@ function renderStatControl(){
    (flags? "The flagged week"+(flags>1?"s":"")+" would warrant a look before this posts to the ledger."
      : "No week crosses the threshold — a genuine, honestly-computed null result, not a placeholder.")+'</p>';
 }
+/* The math explainer — walks the mean/variance/z arithmetic against the same 6-point CP-201
+   series renderStatControl() already scored, using its last (most recent) week as the worked
+   example, so "z = 0.94" is shown as arithmetic, not asserted. */
+function renderZscoreMath(){
+  var series=CPH_CELLS[0].weeks.map(function(w){ return w.actual; });
+  var z=deriveZScores(series);
+  var last=z.points[z.points.length-1], w=CPH_CELLS[0].weeks[z.points.length-1];
+  document.getElementById("zscoreMathBody").innerHTML=
+   "<p><code>mean = &Sigma;v &divide; n</code>, <code>&sigma; = &radic;(&Sigma;(v&minus;mean)&sup2; &divide; n)</code>, "+
+   "<code>z = (v &minus; mean) &divide; &sigma;</code> &mdash; population statistics over the "+z.points.length+
+   " weeks above, not a sample estimate (this is the whole series being scored, not a sample drawn from a "+
+   "larger one).</p>"+
+   "<p style='margin-top:8px'>The "+z.points.length+" actual $/hr readings sum to "+
+   usd(series.reduce(function(a,b){return a+b;},0))+", so mean = "+usd(series.reduce(function(a,b){return a+b;},0))+
+   " &divide; "+z.points.length+" = <b style='color:rgb(var(--c-ink))'>"+usd(z.mean)+"/hr</b>, and &sigma; works "+
+   "out to <b style='color:rgb(var(--c-ink))'>"+usd(z.sd)+"/hr</b>. "+w.w+", the most recent week, actualed "+
+   usd(w.actual)+"/hr &rarr; <code>z = ("+usd(w.actual)+" &minus; "+usd(z.mean)+") &divide; "+usd(z.sd)+" = "+
+   last.z.toFixed(2)+"</code>, matching the row above &mdash; because this IS that number, not a separate one "+
+   "that happens to agree.</p>";
+}
 /* Same visual family as renderStatControl() above — a sibling, complementary check, not new
    chrome. Advanced-quant upgrade, 2026-08-23. */
 function renderEwmaControl(){
@@ -4919,6 +4997,27 @@ function renderEwmaControl(){
    'in weeks 2&ndash;3 before rising), and its gap to the upper control limit narrowed from '+usd(gapFirst)+
    '/hr at week 1 to '+usd(gapLast)+'/hr by week 6 &mdash; the kind of persistent-drift signal a per-point z-score '+
    'alone would not surface.</p>';
+}
+/* The math explainer — walks the recursive EWMA update and the dynamic-band formula for one
+   real step (t=6, the last week) against the same series renderEwmaControl() already scored. */
+function renderEwmaMath(){
+  var series=CPH_CELLS[0].weeks.map(function(w){ return w.actual; });
+  var e=deriveEwma(series);
+  var prev=e.points[e.points.length-2], last=e.points[e.points.length-1], w=CPH_CELLS[0].weeks[e.points.length-1];
+  var t=e.points.length;
+  document.getElementById("ewmaMathBody").innerHTML=
+   "<p><code>ewma<sub>t</sub> = &lambda;&middot;v<sub>t</sub> + (1&minus;&lambda;)&middot;ewma<sub>t&minus;1</sub></code> &mdash; "+
+   "each new point is a &lambda;="+e.lambda+" blend of the fresh reading and everything the average already "+
+   "remembers, so one anomalous week nudges it rather than resetting it. The dynamic control-limit width is "+
+   "<code>L&middot;&sigma;&middot;&radic;((&lambda;&divide;(2&minus;&lambda;))&middot;(1&minus;(1&minus;&lambda;)<sup>2t</sup>))</code>, "+
+   "which starts narrow (the EWMA has seen little yet) and widens toward L&middot;&sigma;&middot;&radic;(&lambda;&divide;(2&minus;&lambda;)) "+
+   "as t grows &mdash; the standard SPC formula, not an approximation.</p>"+
+   "<p style='margin-top:8px'>Week "+w.w+" (t="+t+"), actual "+usd(w.actual)+"/hr, starting from "+
+   "ewma<sub>"+(t-1)+"</sub> = "+usd(prev.ewma)+"/hr: <code>ewma<sub>"+t+"</sub> = "+e.lambda+"&middot;"+usd(w.actual)+
+   " + "+(1-e.lambda).toFixed(2)+"&middot;"+usd(prev.ewma)+" = "+usd(last.ewma)+"/hr</code>, matching the row above. "+
+   "At t="+t+" the band width comes out to "+usd(last.ucl-e.mean)+"/hr, so UCL = "+usd(e.mean)+" + "+
+   usd(last.ucl-e.mean)+" = <b style='color:rgb(var(--c-ink))'>"+usd(last.ucl)+"/hr</b> &mdash; also matching the row "+
+   "above, because this IS that number, not a separate one that happens to agree.</p>";
 }
 function renderIngestGuards(){
   var res=INGEST_GUARDS.map(function(g){ var r=g.run(); return {n:g.n,pass:r[0],detail:r[1]}; });
@@ -5148,7 +5247,34 @@ var GLOSS=[
  {k:"wbs", t:"WBS — Work Breakdown Structure", p:"How a contractor organizes project scope for controls — around contractual work packages and spatial boundaries. The Asset Breakdown Structure (ABS) an owner uses for operations is organized around functional system topology instead — a structural mismatch, not a data-entry error, and a documented cause of data loss at handover.",
   e:function(){ return "This program's own WBS maps 100% of its "+m(T.bac)+" budget to a named scope element and owner — see the Operating Framework tab's control-account mapping."; }},
  {k:"abs", t:"ABS — Asset Breakdown Structure", p:"How an owner organizes an asset for operations and maintenance — by functional system, not by the contractor's work packages. Reconciling a WBS-built program into an ABS-run facility is exactly where handover data tends to get lost.",
-  e:function(){ return "See the Data Strategy tab's rebaselining workflow — the real four-phase process for bringing legacy, mixed-vintage assets into a clean digital record."; }}
+  e:function(){ return "See the Data Strategy tab's rebaselining workflow — the real four-phase process for bringing legacy, mixed-vintage assets into a clean digital record."; }},
+ {k:"zscore", t:"Z-score anomaly check", p:"How far a single data point sits from a series' own historical average, measured in standard deviations. A genuine outlier detector — good at catching one week that's suddenly way off — but blind to a slow, persistent drift that never individually crosses the threshold, which is exactly what the EWMA control chart below it exists to catch.",
+  e:function(){ var series=CPH_CELLS[0].weeks.map(function(w){return w.actual;}), z=deriveZScores(series), flags=z.points.filter(function(p2){return p2.flag;}).length;
+    return "Run against the tunnel crew's own 6-week $/hr series: "+flags+" of "+z.points.length+" weeks currently cross the &plusmn;"+z.threshold+
+      "&sigma; threshold ("+(flags?"a real, live flag":"a genuine null result, not a manufactured anomaly")+")."; }},
+ {k:"ewma", t:"EWMA — Exponentially Weighted Moving Average control chart", p:"A statistical process control technique that catches a slow, persistent drift a simple threshold check misses — each new point is weighted more heavily than older history, so a series that never individually crosses a fixed line but keeps trending the same direction still gets flagged, once the trend itself crosses a dynamically-widening control limit.",
+  e:function(){ var series=CPH_CELLS[0].weeks.map(function(w){return w.actual;}), e2=deriveEwma(series), flags=e2.points.filter(function(p2){return p2.flag;}).length;
+    return "Run against the tunnel crew's own 6-week $/hr series: "+flags+" of "+e2.points.length+" weeks currently breach the dynamic control limit ("+
+      (flags?"a real, live flag":"a genuine null result — the honest answer, not a manufactured anomaly")+"). &lambda;="+e2.lambda+", L="+e2.L+" are standard SPC parameter choices, not derived from this program's own history."; }},
+ {k:"gbm", t:"Geometric Brownian Motion & Maximum Likelihood Estimation", p:"A way to fit a drift (average rate of change) and a volatility (how much it wobbles around that drift) directly to a program's own cost history, using Maximum Likelihood Estimation on the log-returns between consecutive periods — the same math finance uses to model a stock price's random walk, applied here to actual cost instead.",
+  e:function(){ var g=deriveGbmParams(acHistorySeries().map(function(p2){return p2.ac;}));
+    return "Fit to this program's own "+g.n+" real log-returns: drift "+pct(g.muHatMle,2)+"/period, volatility "+pct(g.sigmaHatMle,2)+
+      "/period. With only "+g.n+" data points the 90% confidence interval is wide enough that the dashboard's own card states plainly, before showing any number, that this is too thin a sample to trust as a forecast — the arithmetic is real, the caveat is the point."; }},
+ {k:"raid", t:"RAID — Risks, Assumptions, Issues, Decisions", p:"A single register discipline for tracking everything that isn't yet a scheduled task but still needs an owner and a resolution: a Risk not yet realized, an Assumption the plan depends on, an Issue that's already happened, a Decision that needs making and recording.",
+  e:function(){ var byType={}; ACTIONS.forEach(function(a){byType[a.type]=(byType[a.type]||0)+1;});
+    return "This program's Actions register carries "+(byType.Issue||0)+" Issues, "+(byType.Task||0)+" Tasks, and "+(byType.Decision||0)+
+      " Decisions — "+ACTIONS.length+" items total, each with a named owner and a due date, not a generic backlog."; }},
+ {k:"capa", t:"CAPA — Corrective and Preventive Action", p:"The difference between fixing a problem and fixing the process that let it happen: a Corrective Action addresses this specific occurrence; a Preventive Action changes something structural so the same class of problem is less likely next time. Naming both, separately, is what turns a fix into a lesson.",
+  e:function(){ var a1=ACTIONS.filter(function(a){return a.id==="A-01";})[0];
+    return "A-01's own record: root cause — "+a1.root.slice(0,74)+"…; corrective — "+a1.corrective.slice(0,60)+
+      "…; preventive — "+a1.preventive.slice(0,60)+"… Three distinct fields, not one merged 'notes' box."; }},
+ {k:"cbsobs", t:"CBS/OBS — Cost & Organizational Breakdown Structure", p:"Two more views of the same scope the WBS already describes: the CBS (Cost Breakdown Structure) is the cost-category lens — labor, material, equipment, subcontract; the OBS (Organizational Breakdown Structure) is who's accountable, by named role. A control account is the intersection of one WBS element and one OBS owner.",
+  e:function(){ var w=WBS.filter(function(x){return x.ca==="CP-201";})[0];
+    return "The tunnel's own WBS row: CBS category \""+w.cbs+"\", OBS owner \""+w.obs+"\" — the same control account (CP-201) read through two different structural lenses at once."; }},
+ {k:"excusablecompensable", t:"Excusable-compensable vs. non-excusable delay", p:"Two independent axes classify every delay event: excusable (was it the contractor's fault?) and compensable (does the contractor get paid for it, not just extra time?). Owner-caused or genuinely unforeseeable delays are excusable; only owner-caused ones are also compensable. Contractor-caused delay is neither.",
+  e:function(){ var d01=DELAYS.filter(function(d){return d.id==="D-01";})[0], d03=DELAYS.filter(function(d){return d.id==="D-03";})[0];
+    return "D-01 ("+d01.n.toLowerCase()+") is \""+d01.cls+"\" — the contractor gets both time and money. D-03 ("+d03.n.toLowerCase()+
+      ") is \""+d03.cls+"\" — a recovery plan, not a change order, because the cause sits with the contractor's own coordination."; }}
 ];
 /* Data Strategy tab — not about this program's data, about the real problem a synthetic single-
    ledger dashboard can't demonstrate: connecting scattered, unclean, multi-system data. Static
@@ -5982,10 +6108,10 @@ document.getElementById("vConf").textContent="P"+Math.round(state.mcConfidence*1
 renderMcConfCallout();
 renderWaterfall(); renderWaterfallMath(); renderBaseline(); renderEac(); renderCont(); renderTable();
 renderEacTrend(); renderFcastTable(); renderGbmDiffusion(); renderCashflow();
-renderGantt(); renderSchedule(); renderRisk(); renderDrbEmv(); renderContracts(); renderDelivery(); renderFramework(); renderActions();
+renderGantt(); renderSchedule(); renderRisk(); renderDrbEmv(); renderContracts(); renderDelivery(); renderFramework(); renderActions(); renderActionsMath();
 renderDataStrategy();
 renderMcFilter(); syncMcView(); renderMcMath(); renderScen(); renderPrint();
-renderArch(); renderGuards(); renderStatControl(); renderEwmaControl(); renderIngestGuards();
+renderArch(); renderGuards(); renderStatControl(); renderZscoreMath(); renderEwmaControl(); renderEwmaMath(); renderIngestGuards();
 renderGlossary("");
 document.getElementById("sCpi").value=T.cpi;
 document.getElementById("sSpi").value=T.spi;

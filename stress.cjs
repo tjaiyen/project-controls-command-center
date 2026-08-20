@@ -1126,6 +1126,18 @@ ok(G.arch._html.includes("fct_control_account") && G.arch._html.includes("integr
     "exactly one row per week (6 weeks of CPH history)", String((G.aiStatControl._html.match(/class="rowbar"/g) || []).length));
   ok((G.aiStatControl._html.match(/>PASS</g) || []).length === 6 && (G.aiStatControl._html.match(/>FLAG</g) || []).length === 0,
     "all 6 weeks render PASS, none FLAG — matches the independently-confirmed zero-anomaly result");
+  // the new "how this is actually computed" dbox (Phase 3, 2026-08-20) walks the last (most
+  // recent) week's arithmetic — reuse the same independently-derived mean/sd/z above, formatted
+  // the same way usd() rounds in the live app, rather than trusting the rendered panel's own math.
+  {
+    const usdL = v => (v < 0 ? "−" : "") + "$" + Math.round(Math.abs(v)).toLocaleString("en-US");
+    const lastZ = zs[zs.length - 1];
+    has("zscoreMathBody", "z = (v", "z-score math panel states the formula");
+    has("zscoreMathBody", usdL(mean) + "/hr", "z-score math panel states the independently-derived mean");
+    has("zscoreMathBody", usdL(sd) + "/hr", "z-score math panel states the independently-derived σ");
+    has("zscoreMathBody", "z = (" + usdL(series[series.length - 1]) + " &minus; " + usdL(mean) + ") &divide; " + usdL(sd) + " = " + lastZ.toFixed(2),
+      "z-score math panel's worked-week arithmetic matches an independent recomputation");
+  }
 }
 // EWMA control chart (advanced-quant upgrade, 2026-08-23) — same real series as the z-score
 // check above, independently recomputed from the literal series in this file, never via
@@ -1167,6 +1179,19 @@ ok(G.arch._html.includes("fct_control_account") && G.arch._html.includes("integr
   // inside its rendered innerHTML — check indexSrc, not G.aiEwmaControl._html (the same
   // static-markup-vs-rendered-innerHTML boundary this file has hit, and documented, before).
   ok(indexSrc.includes("catching persistent drift, not just outliers"), "the EWMA section's own static lede is genuinely distinct wording from the z-score section's, not a copy-paste");
+  // the new "how this is actually computed" dbox (Phase 3, 2026-08-20) walks the recursive
+  // update and the dynamic band width for t=6 — reuse the same independently-derived points above.
+  {
+    const usdL = v => (v < 0 ? "−" : "") + "$" + Math.round(Math.abs(v)).toLocaleString("en-US");
+    const last = points[points.length - 1], prev = points[points.length - 2];
+    has("ewmaMathBody", "ewma<sub>t</sub> = &lambda;&middot;v<sub>t</sub>", "EWMA math panel states the recursive-update formula");
+    has("ewmaMathBody",
+      "ewma<sub>6</sub> = 0.2&middot;" + usdL(series[series.length - 1]) + " + 0.80&middot;" + usdL(prev.ewma) + " = " + usdL(last.ewma) + "/hr",
+      "EWMA math panel's t=6 update arithmetic matches an independent recomputation");
+    has("ewmaMathBody",
+      "UCL = " + usdL(mean) + " + " + usdL(last.ucl - mean) + " = <b style='color:rgb(var(--c-ink))'>" + usdL(last.ucl) + "/hr</b>",
+      "EWMA math panel's t=6 band-width arithmetic matches an independent recomputation");
+  }
 }
 // ingestion validation (megaproject-controls-doc upgrade, 2026-08-22) — a raw-record check,
 // distinct from the GUARDS reconciliation gate above. Independently re-derive both checks from
@@ -1295,11 +1320,47 @@ ok(exCount === glossAll, "every glossary term carries a worked example");
 has("glossList", "1,160", "BEI example uses live activity count 1,160");
 has("glossList", "$52.6M", "contingency example uses live remaining balance");
 has("glossList", "1.42", "TRIR example recomputes to 1.42");
+// 6 new glossary entries (engagement/interactivity upgrade, 2026-08-2x, Phase 3) — each checked
+// against an independent recomputation from raw exposed data (ACTIONS/WBS/DELAYS filtered
+// directly), except EWMA/GBM which quote deriveEwma()/deriveGbmParams() — both already
+// independently re-derived elsewhere in this file from their own literal series, so re-testing
+// their formula math a third time here would be redundant; this test's real job is confirming the
+// glossary entry correctly surfaces those already-trusted values, not re-deriving them again.
+{
+  const cphSeries = P.cphCells[0].weeks.map(w => w.actual);
+  const zReal = P.deriveZScores(cphSeries);
+  const zFlags = zReal.points.filter(p => p.flag).length;
+  has("glossList", zFlags + " of " + zReal.points.length + " weeks", "z-score glossary example states the real breach count against the real week count");
+  const ewmaReal = P.deriveEwma(cphSeries);
+  const ewmaFlags = ewmaReal.points.filter(p => p.flag).length;
+  has("glossList", ewmaFlags + " of " + ewmaReal.points.length + " weeks", "EWMA glossary example states the real breach count against the real week count");
+  has("glossList", "&lambda;=" + ewmaReal.lambda, "EWMA glossary example states the real lambda parameter");
+  const gbmReal = P.deriveGbmParams(P.acHistorySeries().map(pt => pt.ac));
+  has("glossList", pct(gbmReal.muHatMle, 2), "GBM glossary example states the real drift figure");
+  has("glossList", pct(gbmReal.sigmaHatMle, 2), "GBM glossary example states the real volatility figure");
+  const byType = {};
+  P.actions.forEach(a => { byType[a.type] = (byType[a.type] || 0) + 1; });
+  has("glossList", (byType.Issue || 0) + " Issues, " + (byType.Task || 0) + " Tasks, and " + (byType.Decision || 0) + " Decisions",
+    "RAID glossary example states the real per-type counts, independently tallied from the raw ACTIONS array");
+  const a1 = P.actions.filter(a => a.id === "A-01")[0];
+  ok(G.glossList._html.includes(a1.root.slice(0, 74)) && G.glossList._html.includes(a1.corrective.slice(0, 60)) && G.glossList._html.includes(a1.preventive.slice(0, 60)),
+    "CAPA glossary example quotes A-01's real root/corrective/preventive fields verbatim, independently sliced from the raw ACTIONS array");
+  const wbs201 = P.wbs.filter(w => w.ca === "CP-201")[0];
+  ok(G.glossList._html.includes(wbs201.cbs) && G.glossList._html.includes(wbs201.obs),
+    "CBS/OBS glossary example names CP-201's real CBS category and OBS owner, independently filtered from the raw WBS array");
+  const d01 = P.delays.filter(d => d.id === "D-01")[0], d03 = P.delays.filter(d => d.id === "D-03")[0];
+  ok(G.glossList._html.includes(d01.cls) && G.glossList._html.includes(d03.cls),
+    "excusable/compensable glossary example contrasts D-01's and D-03's real classification strings, independently filtered from the raw DELAYS array");
+}
 try {
   G.glossQ.value = "contingency";
   fire(G.glossQ, "input");
   const n = (G.glossList._html.match(/class="gcard"/g) || []).length;
-  ok(n >= 1 && n <= 3, "glossary filter narrows to matching terms", String(n));
+  // 3->4 (engagement/interactivity upgrade, 2026-08-2x): the new CAPA glossary entry quotes A-01's
+  // real preventive-action field verbatim, which itself happens to start with "Contingency release
+  // is now gated..." — a genuine, real data collision (found by running this exact assertion and
+  // getting 4 instead of the old <=3, not assumed), not a bug to fix in either direction.
+  ok(n >= 1 && n <= 4, "glossary filter narrows to matching terms", String(n));
   has("glossList", "Contingency", "filter keeps the contingency term");
   G.glossQ.value = "";
   fire(G.glossQ, "input");
@@ -2175,6 +2236,19 @@ ok(P.wbs.length === 8, "exactly 8 WBS rows, one per control account", String(P.w
 }
 has("wbsTable", "CTE-WBS-101", "WBS table renders row CTE-WBS-101");
 has("wbsFoot", "8 of 8 control accounts mapped", "WBS footer states full 100% Rule coverage");
+// the new "how the 100% Rule is actually checked" dbox (Phase 3, 2026-08-20) — independently
+// sum every PKGS.bac reachable through a WBS row, matching m()'s own $M-with-1-decimal format.
+{
+  const mL = v => { const s = Math.abs(v).toFixed(1).split("."); return (v < 0 ? "−" : "") + "$" + s[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",") + "." + s[1] + "M"; };
+  const mappedPkgs = P.wbs.map(w => P.rows.filter(p => p.id === w.ca)[0]).filter(Boolean);
+  ok(mappedPkgs.length === 8, "all 8 WBS rows resolve to a real PKGS entry, independently joined");
+  const sum = mappedPkgs.reduce((a, p) => a + p.bac, 0);
+  ok(Math.abs(sum - T.bac) < 0.001, "independently-summed WBS-mapped BAC exactly equals program T.bac (the 100% Rule genuinely holds, not just asserted)", sum + " vs " + T.bac);
+  has("wbs100MathBody", "100% Rule", "100%-Rule math panel names the rule it's proving");
+  mappedPkgs.forEach(p => has("wbs100MathBody", p.id + " " + mL(p.bac), "100%-Rule math panel's running sum includes " + p.id + "'s live BAC"));
+  has("wbs100MathBody", mL(sum), "100%-Rule math panel's summed total matches the independent recomputation");
+  has("wbs100MathBody", "an exact match, to the cent", "100%-Rule math panel states the true exact-match verdict, not a hedged one");
+}
 ok(P.gates.length === 7, "7 gate rows, one per phase", String(P.gates.length));
 ok(P.gates.filter(g => g.hardStop).length === 1 && P.gates.filter(g => g.hardStop)[0].k === "proc",
   "exactly one hard-stop gate, at Gate 5 (Baseline Establishment)");
@@ -2351,6 +2425,23 @@ ok(P.actions.length === 17, "exactly 17 action items", String(P.actions.length))
   Object.keys(expected).forEach(k =>
     ok(counts[k] === expected[k], "status count " + k + " = " + expected[k], String(counts[k])));
   ok(rows.filter(r => r.status !== "verified" && r.status !== "closed").length === 16, "16 of 17 open");
+  // the new "how this is actually computed" dbox (Phase 3, 2026-08-20) walks actionStatus()'s
+  // branch order against A-01 — independently recompute d from raw ISO dates (Date math, never
+  // via the app's own actDays()), matching the same "don't trust the app's own math" doctrine.
+  {
+    const a1 = P.actions.filter(a => a.id === "A-01")[0];
+    const ASOF = Date.UTC(2026, 6, 31);
+    const d = Math.round((ASOF - Date.parse(a1.due + "T00:00:00Z")) / 86400000);
+    const opened = Math.round((ASOF - Date.parse(a1.opened + "T00:00:00Z")) / 86400000);
+    ok(d === 21, "independently-recomputed A-01 d (days since due) is 21", String(d));
+    ok(d >= 5, "pre-registered: 21 >= 5, so A-01 genuinely lands in the escalated branch");
+    ok(P.actionStatus(a1) === "escalated", "A-01's actual actionStatus() result matches the independent branch prediction");
+    has("actionsMathBody", "d&ge;5", "actions math panel states the escalated threshold");
+    has("actionsMathBody", "d = " + d, "actions math panel's worked d matches the independent recomputation");
+    has("actionsMathBody", a1.due, "actions math panel names A-01's real due date");
+    has("actionsMathBody", "(" + opened + " days before the data date)", "actions math panel's worked opened-days matches the independent recomputation");
+    has("actionsMathBody", "escalated</b>", "actions math panel states the true escalated verdict");
+  }
   // Tier 2: type-icon badges on the register table — one distinct icon per Type value
   const typeCounts = {};
   rows.forEach(r => { typeCounts[r.type] = (typeCounts[r.type] || 0) + 1; });
@@ -2729,14 +2820,17 @@ console.log("== D9.1. the CDE flow diagram (data strategy) ==");
    (returns the active tab to "over" at the end, since D9 above left "data" active)
    ========================================================================= */
 console.log("== D10. inline term help ==");
-ok(P.gloss.length === 31, "GLOSS grew to 31 entries (25 original + cde/ids/wbs/abs + referenceclass + fundingtier)", String(P.gloss.length));
-["cde", "ids", "wbs", "abs"].forEach(k => {
+ok(P.gloss.length === 38, "GLOSS grew to 38 entries (31 prior + zscore/ewma/gbm/raid/capa/cbsobs/excusablecompensable, engagement/interactivity upgrade, 2026-08-2x)", String(P.gloss.length));
+["cde", "ids", "wbs", "abs", "zscore", "ewma", "gbm", "raid", "capa", "cbsobs", "excusablecompensable"].forEach(k => {
   const g = P.findGloss(k);
   ok(!!g && typeof g.p === "string" && g.p.length > 0, "findGloss resolves new term '" + k + "'");
   ok(typeof g.e() === "string" && g.e().length > 0, "'" + k + "' example function returns text");
 });
 ok(P.findGloss("does-not-exist") === undefined, "findGloss returns undefined for an unknown key");
-["wbs", "abs", "cde", "ids", "cpli", "fundingtier"].forEach(k =>
+// capa has no inline icon on purpose (Phase 3 scope call, 2026-08-20) — its worked example is
+// already fully covered above via the D4 glossary block and the findGloss resolution just above;
+// an icon isn't needed for a term to be a real, tested glossary entry.
+["wbs", "abs", "cde", "ids", "cpli", "fundingtier", "zscore", "ewma", "gbm", "raid", "cbsobs", "excusablecompensable"].forEach(k =>
   ok(indexSrc.includes('data-help="' + k + '"'), "help icon markup present for '" + k + "'"));
 try {
   // getBoundingClientRect: openHelp() positions the popover from it; every real DOM element has
@@ -2861,10 +2955,11 @@ ok(/\.finished\.then\(/.test(indexSrc) && !/\.onfinish=/.test(indexSrc),
   // first run of this exact check)
   const markupOnly = indexSrc.slice(0, indexSrc.indexOf("<script>"));
   const detailsCount = (markupOnly.match(/<details class="dbox"/g) || []).length;
-  // 7 as of the tracking-Gantt build (2026-08-19), up from 6 — updated here, not just to make
-  // the count pass, since a stale expectation is exactly the kind of thing this check exists to
-  // catch on the NEXT panel added after this one.
-  ok(detailsCount === 7, "exactly 7 details.dbox panels exist for this to wire", String(detailsCount));
+  // 11 as of the engagement/interactivity round (2026-08-20), up from 7 — 4 new panels added
+  // (zscore math, EWMA math, the 100% Rule sum, actionStatus() thresholds). Updated here, not
+  // just to make the count pass, since a stale expectation is exactly the kind of thing this
+  // check exists to catch on the NEXT panel added after this one.
+  ok(detailsCount === 11, "exactly 11 details.dbox panels exist for this to wire", String(detailsCount));
 }
 
 // Extended growup/draw-in (2026-08-19) — source-level only, same stub limitation as above;
