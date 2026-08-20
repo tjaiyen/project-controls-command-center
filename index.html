@@ -23,6 +23,7 @@
   --c-pill-g:#34D399; --c-pill-a:#F59E0B; --c-pill-r:#FCA5A5; --c-pill-i:#93C5FD;
   --c-line:rgb(6 182 212 / .20); --c-grid:rgb(148 163 184 / .16);
   --c-elev:0 10px 34px rgb(0 0 0 / .34);
+  --text-zoom:1;
 }
 @media (prefers-color-scheme: light){
   :root{
@@ -52,7 +53,16 @@
 }
 
 *{box-sizing:border-box}
-html{scroll-behavior:smooth}
+/* text-size control (brainstorm 2026-08-20): 172 of this file's 174 font-size declarations are
+   fixed px, not rem, so a browser's own "minimum font size" accessibility setting typically can't
+   override them, and a lot of that text sits at 10-13px — genuinely small for a low-vision
+   visitor, especially one landing on this link cold with no reason to think to reach for browser
+   zoom themselves. `zoom` on the true document root (not a nested wrapper) scales text, spacing,
+   AND click targets together and keeps pointer-event coordinates consistent with the scaled
+   layout — the same mechanism real browser zoom already uses, which this page has to tolerate
+   correctly either way. Live-browser verified: the 4 tap-to-reveal chart tooltips (mouse-
+   coordinate-positioned) still land correctly at 125%/150%. */
+html{scroll-behavior:smooth;zoom:var(--text-zoom)}
 @media (prefers-reduced-motion: reduce){
   html{scroll-behavior:auto}
   *{animation-duration:.001ms !important;transition-duration:.001ms !important}
@@ -74,6 +84,10 @@ a{color:rgb(var(--c-accent))}
   backdrop-filter:blur(10px);border-bottom:1px solid var(--c-line)}
 .bar-in{max-width:1180px;margin:0 auto;padding:9px 20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
 #presentBtn[aria-pressed="true"]{background:rgb(var(--c-accent) / .18);border-color:rgb(var(--c-accent))}
+.tsize{display:flex;align-items:center;gap:6px;border:1px solid var(--c-line);border-radius:8px;padding:2px}
+.tsize .btn{padding:5px 9px;font:700 13px/1 inherit;min-height:0}
+.tsize .btn:disabled{opacity:.35;cursor:default}
+.tsize #textSizeLabel{font-size:10.5px;color:rgb(var(--c-mut));min-width:3.6em;text-align:center}
 .present-bar{background:rgb(var(--c-accent) / .10);border-top:1px solid rgb(var(--c-accent) / .3)}
 .present-bar-in{max-width:1180px;margin:0 auto;padding:8px 20px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12.5px}
 .present-bar .pnum{font:600 10.5px/1 ui-monospace,monospace;color:rgb(var(--c-code));flex:none}
@@ -510,6 +524,11 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
       <button class="btn" id="tourBtn" type="button" aria-pressed="false">Take the tour<span class="fv-badge" id="fvBadge">&#10148; new here? start here</span></button>
       <button class="btn" id="presentBtn" type="button" aria-pressed="false">Present</button>
       <button class="btn" id="themeBtn" type="button">Theme</button>
+      <div class="tsize" role="group" aria-label="Text size">
+        <button class="btn" id="textDownBtn" type="button" aria-label="Decrease text size">A&minus;</button>
+        <span class="mono" id="textSizeLabel" aria-live="polite">Normal</span>
+        <button class="btn" id="textUpBtn" type="button" aria-label="Increase text size">A+</button>
+      </div>
     </div>
   </div>
   <div id="presentBar" class="present-bar" hidden></div>
@@ -1899,7 +1918,7 @@ function sparkline(series, ragColor){
    7. RENDERERS
    ========================================================================= */
 var state = {phase:"con", fam:"All", audience:"pcm", kpi:null, pkg:2, actFilter:"All", act:null,
-  presenting:false, presentSet:"full", beatIdx:0, touring:false, tourIdx:0, tab:"over", mcView:"hist",
+  presenting:false, presentSet:"full", beatIdx:0, touring:false, tourIdx:0, textSize:0, tab:"over", mcView:"hist",
   mcIncluded:rows.map(function(r){ return r.id; })};
 
 function renderPhases(){
@@ -2189,8 +2208,8 @@ function renderScurve(){
     tip.innerHTML="<b>Month "+(j+1)+"</b>PV "+m(pvA[j])+"<br>EV "+m(evA[j])+"<br>AC "+m(acA[j])+
       "<br>CPI "+idx(evA[j]/acA[j])+" · SPI "+idx(evA[j]/pvA[j]);
     tip.classList.add("on");
-    tip.style.left=Math.min(e.clientX+14,window.innerWidth-262)+"px";
-    tip.style.top=Math.min(e.clientY+14,window.innerHeight-130)+"px";
+    tip.style.left=Math.min(e.clientX+14,window.innerWidth-262)/curZoom()+"px";
+    tip.style.top=Math.min(e.clientY+14,window.innerHeight-130)/curZoom()+"px";
   }
   host.addEventListener("mousemove",scurveTip);
   host.addEventListener("click",scurveTip);
@@ -2355,8 +2374,8 @@ function renderWaterfall(){
       tip.innerHTML="<b>"+b.r.id+"</b>"+b.r.n.replace(/&amp;/g,"&")+"<br>VAC "+sgn(b.r.vac)+"<br>"+share;
     }
     tip.classList.add("on");
-    tip.style.left=Math.min(e.clientX+14,window.innerWidth-262)+"px";
-    tip.style.top=Math.min(e.clientY+14,window.innerHeight-130)+"px";
+    tip.style.left=Math.min(e.clientX+14,window.innerWidth-262)/curZoom()+"px";
+    tip.style.top=Math.min(e.clientY+14,window.innerHeight-130)/curZoom()+"px";
   }
   host.addEventListener("mousemove",waterfallTip);
   host.addEventListener("click",waterfallTip);
@@ -3052,8 +3071,8 @@ function renderGantt(){
     tip.innerHTML="<b>"+d.r.id+"</b>"+d.r.n.replace(/&amp;/g,"&")+"<br>Baseline-implied finish "+fmtDate(d.base)+
       "<br>Forecast finish "+fmtDate(d.fcst)+"<br>"+pct(d.r.pct,0)+" complete &middot; "+days(d.r.float)+" float";
     tip.classList.add("on");
-    tip.style.left=Math.min(e.clientX+14,window.innerWidth-262)+"px";
-    tip.style.top=Math.min(e.clientY+14,window.innerHeight-130)+"px";
+    tip.style.left=Math.min(e.clientX+14,window.innerWidth-262)/curZoom()+"px";
+    tip.style.top=Math.min(e.clientY+14,window.innerHeight-130)/curZoom()+"px";
   }
   host.addEventListener("mousemove",ganttTip);
   host.addEventListener("click",ganttTip);
@@ -3218,8 +3237,8 @@ function renderRisk(){
     tornTip.innerHTML="<b>"+k.id+"</b>"+k.n+"<br>P"+k.p+" ("+Math.round(P_BAND[k.p]*100)+"%) &times; "+m(k.cost)+
       "<br>= "+m(k.exp)+" exposure";
     tornTip.classList.add("on");
-    tornTip.style.left=Math.min(e.clientX+14,window.innerWidth-262)+"px";
-    tornTip.style.top=Math.min(e.clientY+14,window.innerHeight-130)+"px";
+    tornTip.style.left=Math.min(e.clientX+14,window.innerWidth-262)/curZoom()+"px";
+    tornTip.style.top=Math.min(e.clientY+14,window.innerHeight-130)/curZoom()+"px";
   }
   tornHost.addEventListener("mousemove",tornTipFn);
   tornHost.addEventListener("click",tornTipFn);
@@ -4658,7 +4677,7 @@ function openHelp(key, anchorEl){
   // mostly or entirely off-screen with no visible feedback (found by /stress-test, 2026-08-18)
   var top=(r.bottom+8+popH>vh)? Math.max(8,r.top-popH-8) : r.bottom+8;
   var left=Math.min(r.left,(window.innerWidth||1200)-296);
-  el.style.top=Math.max(8,top)+"px"; el.style.left=Math.max(8,left)+"px";
+  el.style.top=Math.max(8,top)/curZoom()+"px"; el.style.left=Math.max(8,left)/curZoom()+"px";
   // move focus into the dialog itself (not straight to a button) so a keyboard/AT user hears its
   // accessible name and content before reaching its two actions — otherwise Tab from the trigger
   // skips over it entirely, since it sits last in the DOM (/stress-test finding, 2026-08-18)
@@ -5086,6 +5105,36 @@ if(!fvVisited()){
   var tourBtnEl=document.getElementById("tourBtn");
   if(tourBtnEl) tourBtnEl.classList.add("first-visit");
 }
+/* text-size control — three steps (Normal/Large/Larger), persisted the same way the theme
+   choice already is. Same try/catch guard as fvVisited/fvClear (no localStorage in the
+   stress.cjs stub, can throw in private browsing) — a read/write failure just means the choice
+   doesn't stick between visits, never a crash. */
+var TEXT_ZOOM_LEVELS=[1,1.25,1.5], TEXT_ZOOM_LABELS=["Normal","Large","Larger"];
+/* Live-browser probe (not assumed) found that html{zoom:...} double-scales every position:fixed
+   element's own JS-assigned left/top: e.clientX/getBoundingClientRect() already report TRUE
+   viewport pixels (matching window.innerWidth, confirmed unaffected by zoom), but a fixed
+   element's inline left/top px VALUE gets re-multiplied by the ancestor zoom at render time —
+   so a tooltip positioned at clientX+14 rendered at (clientX+14)*zoom, drifting further from the
+   click point at every step up. Dividing by curZoom() before assignment exactly compensates;
+   confirmed by direct measurement (446px target rendered at true 446px only after /1.25).
+   Affects every JS-computed position:fixed left/top in this file — the 4 chart tooltips and the
+   inline-term-help popover. */
+function curZoom(){ return TEXT_ZOOM_LEVELS[state.textSize]; }
+function applyTextSize(){
+  state.textSize=Math.max(0,Math.min(TEXT_ZOOM_LEVELS.length-1,state.textSize));
+  document.documentElement.style.setProperty("--text-zoom",TEXT_ZOOM_LEVELS[state.textSize]);
+  document.getElementById("textSizeLabel").textContent=TEXT_ZOOM_LABELS[state.textSize];
+  document.getElementById("textDownBtn").disabled=state.textSize===0;
+  document.getElementById("textUpBtn").disabled=state.textSize===TEXT_ZOOM_LEVELS.length-1;
+  try{ if(window.localStorage) window.localStorage.setItem("pccTextSize",String(state.textSize)); }catch(e){}
+}
+try{
+  var savedTextSize=window.localStorage&&window.localStorage.getItem("pccTextSize");
+  if(savedTextSize!==null&&savedTextSize!==undefined) state.textSize=+savedTextSize||0;
+}catch(e){}
+applyTextSize();
+document.getElementById("textDownBtn").addEventListener("click",function(){ state.textSize--; applyTextSize(); });
+document.getElementById("textUpBtn").addEventListener("click",function(){ state.textSize++; applyTextSize(); });
 document.getElementById("glossQ").addEventListener("input",function(){ renderGlossary(this.value); });
 window.addEventListener("scroll",function(){ document.getElementById("tip").classList.remove("on"); },{passive:true});
 
@@ -5139,7 +5188,8 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   guardrails:GUARDRAILS,discrepancySteps:DISCREPANCY_STEPS,rollout:ROLLOUT,dsNodes:DS_NODES,dsCaption:dsCaption,
   gloss:GLOSS,findGloss:findGloss,
   miles:MILES,delays:DELAYS,spark:SPARK,baseline:BASELINE,guards:GUARDS,escPat:ESC_PAT,
-  mcParams:mcParams,triang:triang,dsStep:dsStep};
+  mcParams:mcParams,triang:triang,dsStep:dsStep,
+  textZoomLevels:TEXT_ZOOM_LEVELS,textZoomLabels:TEXT_ZOOM_LABELS,applyTextSize:applyTextSize,curZoom:curZoom};
 })();
 </script>
 </body>

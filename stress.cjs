@@ -25,7 +25,13 @@ function ok(cond, label, extra) {
 function makeEl(id) {
   const el = {
     id: id || "", _html: "", textContent: "", value: "0", hidden: false,
-    style: {}, dataset: {}, _listeners: {}, _attrs: {},
+    // minimal CSSStyleDeclaration-like stub — just enough to back setProperty/getPropertyValue
+    // (index.html's text-size control calls these on document.documentElement.style)
+    // setProperty coerces to String, matching real CSSStyleDeclaration behavior — the app passes
+    // a number (TEXT_ZOOM_LEVELS[i]) here, and a stub that stored it un-coerced would make a
+    // string-comparison test fail for the wrong reason (stub fidelity, not an app bug)
+    style: { _props: {}, setProperty(n, v) { this._props[n] = String(v); }, getPropertyValue(n) { return this._props[n] || ""; }, removeProperty(n) { delete this._props[n]; } },
+    dataset: {}, _listeners: {}, _attrs: {},
     classList: { add(){}, remove(){}, toggle(){}, contains(){ return false; } },
     addEventListener(t, fn){ (this._listeners[t] = this._listeners[t] || []).push(fn); },
     removeEventListener(){},
@@ -1282,6 +1288,52 @@ has("pkgFoot", m(T.eac), "totals row's EAC matches the live portfolio total");
 has("pkgFoot", sgn(T.vac), "totals row's VAC matches the live portfolio total");
 ok((G.pkgBody._html.match(/data-i="/g) || []).length === rows.length,
   "one clickable row per control account in the ledger table");
+
+/* =========================================================================
+   D4.7 TEXT-SIZE CONTROL (brainstorm 2026-08-20) — inclusive text-size feature
+   ========================================================================= */
+console.log("== D4.7. text-size control ==");
+ok(P.textZoomLevels.length === 3 && P.textZoomLabels.length === 3,
+  "3 text-size steps defined", P.textZoomLevels.join(","));
+ok(P.state.textSize === 0, "text size starts at Normal (step 0)");
+try {
+  ok(G.textDownBtn.disabled === true, "A− is disabled at the floor (Normal)");
+  ok(G.textUpBtn.disabled === false, "A+ is enabled at the floor");
+  ok(G.textSizeLabel.textContent === "Normal", "label reads Normal at step 0");
+
+  fire(G.textUpBtn, "click");
+  ok(P.state.textSize === 1, "A+ advances to step 1 (Large)");
+  ok(G.textSizeLabel.textContent === "Large", "label updates to Large");
+  ok(document.documentElement.style.getPropertyValue("--text-zoom") === "1.25",
+    "--text-zoom CSS var is set to 1.25 for Large");
+  ok(G.textDownBtn.disabled === false, "A− re-enables once past the floor");
+
+  fire(G.textUpBtn, "click");
+  ok(P.state.textSize === 2, "A+ advances to step 2 (Larger)");
+  ok(G.textSizeLabel.textContent === "Larger", "label updates to Larger");
+  ok(document.documentElement.style.getPropertyValue("--text-zoom") === "1.5",
+    "--text-zoom CSS var is set to 1.5 for Larger");
+  ok(G.textUpBtn.disabled === true, "A+ is disabled at the ceiling (Larger)");
+
+  // clicking A+ again at the ceiling must not overshoot the array (applyTextSize's own clamp,
+  // not just the disabled attribute the stub doesn't enforce)
+  fire(G.textUpBtn, "click");
+  ok(P.state.textSize === 2, "state.textSize clamps at the ceiling even if A+ fires again", String(P.state.textSize));
+  ok(P.textZoomLevels[P.state.textSize] === 1.5, "clamped state still indexes a real zoom level, no undefined");
+
+  fire(G.textDownBtn, "click");
+  fire(G.textDownBtn, "click");
+  ok(P.state.textSize === 0, "two A− clicks return to Normal");
+  fire(G.textDownBtn, "click");
+  ok(P.state.textSize === 0, "state.textSize clamps at the floor even if A− fires again at 0");
+  ok(document.documentElement.style.getPropertyValue("--text-zoom") === "1",
+    "--text-zoom returns to 1 at Normal");
+} catch (e) { ok(false, "text-size control interaction", e.message); }
+// try/catch guard, same discipline as fvVisited/fvClear (no localStorage in this stub)
+ok(/try\{\s*if\(window\.localStorage\) window\.localStorage\.setItem\("pccTextSize"/.test(indexSrc),
+  "applyTextSize() try/catches the localStorage write, same guard as the first-visit cue");
+ok(/try\{\s*var savedTextSize=window\.localStorage/.test(indexSrc),
+  "the saved-size read on init is also try/catch-guarded");
 
 /* =========================================================================
    D5. RESUME-INSIGHT MODULES — baseline bridge, change pricing, TIA, stakeholders

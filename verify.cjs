@@ -10,7 +10,10 @@ if (!m) { console.error("no script block found"); process.exit(1); }
 function makeEl(id) {
   const el = {
     id: id || "", _html: "", textContent: "", value: "0", hidden: false,
-    style: {}, dataset: {},
+    // minimal setProperty/getPropertyValue stub — index.html's text-size control calls these on
+    // document.documentElement.style (same fix as stress.cjs's own DOM stub)
+    style: { _props: {}, setProperty(n, v) { this._props[n] = String(v); }, getPropertyValue(n) { return this._props[n] || ""; }, removeProperty(n) { delete this._props[n]; } },
+    dataset: {},
     classList: { add(){}, remove(){}, toggle(){}, contains(){ return false; } },
     addEventListener(){}, removeEventListener(){},
     setAttribute(){}, getAttribute(){ return null; },
