@@ -147,6 +147,21 @@ ok(indexSrc.includes('aria-controls="p-over"'), "tab aria-controls present");
 // files, 0 overflow) — this is the static tripwire so the fix can't silently regress.
 ok(/\.grid>\*\{min-width:0\}/.test(indexSrc), "index.html: grid items have min-width:0 (mobile overflow guard)");
 ok(/\.grid2>\*\{min-width:0\}/.test(otakSrc), "otak.html: grid items have min-width:0 (mobile overflow guard)");
+// Same overflow-guard class, a sibling layout pattern (.rowbar, not .grid) — found live by a
+// /stress-test visual pass at 320px, 2026-08-2x: several .rowbar rows (GUARDS/z-score/EWMA/
+// ingestion-guard's inline "1fr auto 64px" override, and the base rule's own 72px last column
+// against a wide value like "1.42 (bench 2.20)") forced real, reproduced page-level horizontal
+// scroll on the AI & Data and Delivery tabs specifically (64px and 4px respectively) — confirmed
+// via direct browser measurement (scrollWidth>clientWidth), not assumed. min-width:0 alone
+// wasn't enough (the un-clipped nowrap text still visually bled past its own box and contributed
+// to the page's scrollWidth) — overflow:hidden;text-overflow:ellipsis was also required. Scoped
+// to .tab-num/.mono specifically (the columns this file's own rule already marks nowrap), not a
+// blanket .rowbar>* — a first draft used the blanket selector and, live-verified at 320px, broke
+// the plain-text label column (meant to wrap normally) into a one-word-per-line mess with a
+// mid-word ellipsis, worse than the bug it fixed. Both the bug and this fix's own first-draft
+// regression were caught by live browser measurement, not assumed correct from reading the CSS.
+ok(/\.rowbar>\.tab-num,\.rowbar>\.mono\{min-width:0;overflow:hidden;text-overflow:ellipsis\}/.test(indexSrc),
+  "index.html: rowbar .tab-num/.mono items have the same min-width:0 + overflow:hidden overflow guard (mobile), scoped to nowrap columns only");
 
 // Table no-horizontal-scroll fix (2026-08-19, user-reported: "I want to see the entire component
 // at once"). Same class of guard as above — real width-fitting behavior needs a real layout
@@ -1053,6 +1068,36 @@ ok(String(G.guardCountLede.textContent) === String(guardPasses + guardFails),
   "guardCountLede span reflects the live GUARDS.length (same count already verified above via " +
   "actual rendered PASS/FAIL rows), not the original hardcoded 27",
   String(G.guardCountLede.textContent));
+// The "Compliance sweep" GUARDS entry reads document.body.textContent — this stub's
+// documentStub has no .body property at all, so that guard's own `(document.body&&
+// document.body.textContent)||""` always short-circuits to "" here, meaning it silently ALWAYS
+// reports PASS in this harness regardless of its real logic. This is exactly how a real
+// /stress-test VISUAL pass on the live page (2026-08-2x) found this guard genuinely FAILING —
+// two allowlisted citations (Sound Transit's Primavera P6 spec requirement, otak.html's
+// design-build quote) were false-flagged with no allowlist at all, plus document.body.textContent
+// concatenating two adjacent SVG <text> labels with no inserted whitespace produced an accidental
+// "dbe" substring collision — while `node stress.cjs` reported clean the whole time. Test the
+// guard's actual regex+allowlist logic directly (same pattern as deriveEarnedSchedule()'s
+// parameterized edge-case tests above) rather than trusting the stub's silent no-op.
+{
+  const complianceGuard = P.guards.filter(g => /Compliance sweep/.test(g.n))[0];
+  ok(!!complianceGuard, "the Compliance sweep guard exists in GUARDS");
+  const savedBody = global.document.body;
+  try {
+    global.document.body = { textContent: "prime contractors to schedule in Oracle Primavera P6 — Section 01 32 13.25" };
+    ok(complianceGuard.run()[0] === true, "Compliance sweep: the allowlisted Primavera P6 citation does not false-flag");
+    global.document.body = { textContent: "sibling sections 01 32 13.10/.15/.20 cover larger and design-build contracts" };
+    ok(complianceGuard.run()[0] === true, "Compliance sweep: the allowlisted design-build citation does not false-flag");
+    global.document.body = { textContent: "bid-stage duration modeling, not years running P6." };
+    ok(complianceGuard.run()[0] === true, "Compliance sweep: the allowlisted presenter-notes 'not years running P6' disclaimer does not false-flag (missed on the first pass at this fix — found only by re-scanning the REAL live page text after, not by trusting a hand-picked synthetic-string list)");
+    global.document.body = { textContent: "logged & promotedbecomes a known pattern" };
+    ok(complianceGuard.run()[0] === true, "Compliance sweep: the real live-page 'dbe' substring collision (two adjacent SVG <text> labels concatenated with no whitespace) no longer false-flags");
+    global.document.body = { textContent: "TJ has DBE certification and 10 years running Primavera P6 himself" };
+    ok(complianceGuard.run()[0] === false, "pre-registered: a genuine fabricated-credential claim is still caught — the fix narrowed false positives, not the real check");
+  } finally {
+    global.document.body = savedBody;
+  }
+}
 ok(G.arch._html.includes("fct_control_account") && G.arch._html.includes("integrity gate"),
    "architecture diagram renders pipeline stages");
 // statistical control (brainstorm-mode upgrade, 2026-08-21): a genuinely different check from
@@ -2887,7 +2932,12 @@ console.log("== F. sweeps ==");
   // prediction (B35), not assumed safe. The two mcParams(r) presence checks above are the ones
   // empirically confirmed (same probe) to fail correctly on the pre-fix code.
 }
-const FAB = /P6|Primavera|MS Project|HeavyBid|AGTEK|Bluebeam|92%|Design-Build|DBE|PE licen/i;
+// P6/DBE are word-boundaried — 2026-08-2x /stress-test finding: the live in-page twin of this
+// sweep (index.html's "Compliance sweep" guard) false-matched "dbe" as a bare substring inside
+// document.body.textContent's un-whitespaced concatenation of two adjacent SVG <text> labels
+// ("...promoted"+"becomes..."). indexSrc (raw source) doesn't have that specific collision today,
+// but the same short-acronym fragility is latent here too — hardened defensively, not reactively.
+const FAB = /\bP6\b|Primavera|MS Project|HeavyBid|AGTEK|Bluebeam|92%|Design-Build|\bDBE\b|PE licen/i;
 const SAN = /mawl|dagir|izlid|kiji|minirva|glare|milr/i;
 // Approved exceptions, stripped before the sweep so any OTHER appearance of the banned term
 // still gets caught — the sweep exists to catch false CLAIMS, not to ban a word outright.

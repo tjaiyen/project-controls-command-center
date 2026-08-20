@@ -441,6 +441,22 @@ tfoot td{font-weight:600;border-top:1px solid rgb(var(--c-accent) / .40);border-
 .rowbar{display:grid;grid-template-columns:106px 1fr 72px;gap:10px;align-items:center;
   padding:7px 0;border-bottom:1px solid var(--c-line);font-size:12.3px}
 .rowbar:last-child{border-bottom:none}
+/* Grid items default to min-width:auto (their own content's natural width as a floor), which a
+   fixed-px or auto track does NOT override — several .rowbar instances pair a wide nowrap
+   .tab-num/mono value with a narrow assigned column (e.g. the GUARDS/z-score/EWMA/ingestion-
+   guard rows' inline "1fr auto 64px" override, or the base rule's own 72px last column against a
+   long value like "1.42 (bench 2.20)"), and at narrow mobile widths that natural width wins,
+   forcing the whole page into horizontal scroll — the exact same class of bug .grid>*{min-width:0}
+   above already fixes for two-column grids, recurring here in a sibling layout pattern that never
+   got the same treatment (found live, by a /stress-test visual pass at 320px, 2026-08-2x; zero
+   visual change at any width wide enough that the content already fit). Scoped to .tab-num/.mono
+   specifically, NOT every .rowbar child — a first draft of this fix used a blanket .rowbar>*
+   selector and, live-verified at 320px, broke the plain-text label column instead: those spans
+   are meant to wrap normally (no white-space:nowrap), and min-width:0 shrank that column so hard
+   the label wrapped one short word per line with a mid-word ellipsis, which was worse than the
+   bug it fixed. .tab-num/.mono already carry white-space:nowrap (this file's own established
+   rule) — they're the only columns actually at risk, and the only ones this now targets. */
+.rowbar>.tab-num,.rowbar>.mono{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .track{position:relative;height:10px;border-radius:5px;background:rgb(var(--c-mut) / .14)}
 .track i{position:absolute;top:0;height:10px;border-radius:5px;display:block;transition:width .5s ease}
 .track .zero{position:absolute;top:-3px;bottom:-3px;width:1px;background:rgb(var(--c-mut) / .55)}
@@ -740,7 +756,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
              any percentile from the same 4,000-run Monte Carlo simulation the cone already draws
              from, rather than only the 3 fixed points. Reuses the exact .slider/range-input
              pattern the What-If sliders already use, not new styling. -->
-        <div class="slider" style="margin-top:10px"><label for="sConf">Confidence (P__)</label>
+        <div class="slider" style="margin-top:10px"><label for="sConf">Confidence</label>
           <input type="range" id="sConf" min="50" max="95" step="1"><span class="tab-num mono" id="vConf"></span></div>
         <div class="outbox" id="mcConfOut"></div>
         <p class="lede" id="scurveRead" style="margin-top:11px;font-size:12.8px"></p>
@@ -4654,9 +4670,31 @@ var GUARDS=[
    var T2=[["P",6],["Prim","avera"],["MS","Project"],["Heavy","Bid"],["AG","TEK"],
            ["Blue","beam"],["9","2","%"],["Design-","Build"],["D","B","E"],["PE li","cen"]]
      .map(function(p){return p.join("");});
-   var rx=new RegExp(T2.join("|"),"i");
+   // Word-boundary the two bare short acronym-style terms — indices 0 and 8 above, identified
+   // by position rather than by re-typing the literal fragment-assembled strings here (same
+   // self-tripping concern the fragment-assembly itself already guards against) — found live,
+   // by a /stress-test visual pass, that document.body.textContent concatenates adjacent DOM
+   // text nodes with NO inserted whitespace (unlike the raw HTML source stress.cjs's own sweep
+   // checks), so two unrelated SVG <text> labels ("...promoted" + "becomes a known pattern")
+   // collided into one run-on string and false-matched a 3-letter fragment as a bare substring.
+   // The other terms have their own internal punctuation/spacing and aren't at risk the same way.
+   var rx=new RegExp(T2.map(function(t,i){ return (i===0||i===8) ? "\\b"+t+"\\b" : t; }).join("|"),"i");
    var t=(document.body&&document.body.textContent)||"";
-   return [!rx.test(t), "live text scanned"];}},
+   // Same approved-exception allowlist as the repository-level stress.cjs sweep (FAB_APPROVED)
+   // — real, cited content (the Schedule tab's Sound Transit spec citation naming its contractors'
+   // required scheduling tool; otak.html's quote of Otak's own site about its own delivery
+   // method), not a claim about TJ's own experience. This live guard had no allowlist at all
+   // until this fix, so it always failed on the real page — same /stress-test visual pass,
+   // 2026-08-2x.
+   // stress.cjs's 4th FAB_APPROVED entry (the otak.html delivery-method quote) lives in a
+   // separate document this guard's own document.body never contains — not needed here. (Note
+   // for future edits to this block: document.body.textContent includes this whole script
+   // block's own source text, comments included — the fragment-assembly above exists for
+   // exactly that reason, so any new comment near this guard must stay clear of the bare
+   // trigger substrings too, not just the rendered prose.)
+   var approved=["Oracle Primavera P6","cover larger and design-build","not years running P6"];
+   var stripped=approved.reduce(function(a,p){return a.split(p).join("");},t);
+   return [!rx.test(stripped), "live text scanned"];}},
  {n:"Monte Carlo reproducible: fresh run with the fixed seed lands on the same P50", run:function(){
    var rnd=lcg(20260731), sims=[],i,j;
    for(i=0;i<4000;i++){ var e=0;
