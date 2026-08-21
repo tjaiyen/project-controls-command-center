@@ -30,7 +30,7 @@ anywhere in this repository. The method is the content, not the numbers.
 
 | | |
 |---|---|
-| Primary file | `index.html` — 6,507 lines, one file, no build step |
+| Primary file | `index.html` — 6,547 lines, one file, no build step |
 | Top-level JS functions | 176 (not re-audited this round — see §18 gap note) |
 | Tabs | 11 |
 | KPIs (with formula/threshold/phase/source/play each) | 20 |
@@ -44,10 +44,10 @@ anywhere in this repository. The method is the content, not the numbers.
 | Contracts | 6 |
 | Risks | 6 |
 | Delay events | 4 |
-| `stress.cjs` test assertions | 1,306, all passing |
+| `stress.cjs` test assertions | 1,320, all passing |
 | Companion pages | `otak.html` (fit brief), `architecture.html` (static pipeline map) |
 | Hosting | GitHub Pages, served directly from `main`, zero build |
-| Git history | 91 commits |
+| Git history | 92 commits |
 
 Current EVM tie-out (verify live in the browser console via `__PCC__.totals`, or `node verify.cjs`):
 
@@ -211,7 +211,7 @@ Beyond the core EVM block, three more derivation families exist:
 | 8 | **Operating Framework** (`fw`) | Phase playbook, the WBS/CBS/OBS control-account mapping (with a worked "100% Rule" proof), Board phase-gate governance with a live Gate-5 hard stop, escalation matrix, a live Working-Backward/inversion worked example, reporting cadence, stakeholder interface map, the 20-metric KPI reference library. |
 | 9 | **Actions** (`act`) | A RAID/CAPA register with proactive staleness detection, owner accountability rollup, a worked-math accordion for `actionStatus()`'s threshold logic. |
 | 10 | **Glossary** (`gloss`) | 50 terms, each with a live-computed worked example, filterable by search — the same content the inline "i" help icons pull from site-wide. |
-| 11 | **Data Strategy** (`data`) | A real-world plan for connecting scattered, multi-system data — ISO 19650 CDE staging architecture as an interactive flow diagram (§8), automated guardrails, a discrepancy-resolution decision flow folded into that same diagram, proactive error recovery. |
+| 11 | **Data Strategy** (`data`) | A real-world plan for connecting scattered, multi-system data — ISO 19650 CDE staging architecture as an interactive flow diagram (§8), a 4-tile IDS guardrail status grid with a genuinely live 2-check ingestion-validation panel embedded in it, automated guardrails, a discrepancy-resolution decision flow folded into that same diagram, a Category/Trigger/Routing proactive-error-recovery table, a Dual-Stack Parity card citing this program's own real, live CPI against the actual SQL that independently re-derives it. |
 
 Plus, outside the tab body: **Presentation Mode** (a scripted 2-set walkthrough with presenter
 notes), a **10-stop guided Tour**, a **printable executive brief**, light/dark **Theme** toggle, and
@@ -261,6 +261,18 @@ Everything below is a real DOM interaction, independently covered by `stress.cjs
   also now carries that same question as a native `title` tooltip. A cross-reference button jumps
   to and flashes the Schedule tab's `schedDriftCard`, the existing "one root cause, five
   instruments" story — reusing `data-jump-tab`/`data-jump-el`, not a new nav mechanism.
+- **Data Strategy tab UI/UX round** (`GUARDRAILS` grid, `RECOVERY_ROWS` table, dual-stack parity
+  card): the 4 IDS guardrail categories restyled from a plain table into a `.ledgerGrid` tile grid
+  (same pattern as the six-KPI-families card above), with the one genuinely live, IDS-shaped check
+  this ledger has (`INGEST_GUARDS`, 2 checks) embedded directly in Tile 2 — `renderIngestGuards()`
+  was generalized to take a target-element id so both this tab and the AI & Data tab's own panel
+  share one implementation, not a copy. The "Proactive error recovery" section's 3 prose boxes
+  became a Category/Trigger/Routing table, same real categories, no invented SLA numbers. A new
+  Dual-Stack Parity card cites this program's own live `T.cpi` next to the literal SQL line from
+  `pipeline/models/fct_control_account.sql` that independently re-derives it, plus the real,
+  reproducible `python3 pipeline/run_pipeline.py` command — a "here's the receipt" callout, not a
+  fabricated live-polling badge (the tab's own guardrail-count tripwire in `renderDataStrategy()`
+  explicitly notes there's no live multi-system feed to poll on this synthetic build).
 - **12 `<details class="dbox">` "how this is actually computed" accordions** — each walks a
   worked example against real data (S-curve PV formula, waterfall bridge, Gantt forecast-finish,
   CPLI driving-path arithmetic, risk exposure, Monte Carlo per-run formula, crew cost-per-hour
@@ -311,9 +323,9 @@ matches an independent recomputation, not just that *a* number is present.
 
 ## 11. Testing & verification
 
-**`stress.cjs`** (1,300 assertions, all passing) — stubs the DOM, loads `index.html`'s script
+**`stress.cjs`** (1,320 assertions, all passing) — stubs the DOM, loads `index.html`'s script
 verbatim into that stub, and exercises it exactly like a user would: every tab switch, every
-filter, every drawer, every slider drag, every keyboard interaction. 32 labeled sections:
+filter, every drawer, every slider drag, every keyboard interaction. 34 labeled sections:
 
 ```
 A. static structure          B/B2. runtime + portfolio tab       C. narrative vs. data
@@ -482,8 +494,9 @@ Named explicitly, not silently dropped — from the most recent engagement/inter
    checks" text (2 locations) was resynced to 28 on 2026-08-20, but the structural risk — nothing
    catches the *next* drift automatically — is unchanged; still an open gap, just not a stale one.
 4. ~~**`README.md`'s own stated counts lag behind this document**~~ — **Resolved 2026-08-20** (and
-   re-synced again 2026-08-21 after this round's six-families card): 1,306 assertions / 50 glossary
-   terms / 28-check integrity gate, matching §2 as of this writing.
+   re-synced twice more on 2026-08-21, after the six-families card and again after this Data
+   Strategy UI/UX round): 1,320 assertions / 50 glossary terms / 28-check integrity gate, matching
+   §2 as of this writing.
 5. **The eleven-input ledger card is new this round** (2026-08-20) and only covers the Overview
    tab's own `PKGS` provenance — it does not touch or resolve gap #2 above (the risk register still
    has no independent drill-down drawer of its own).
@@ -493,6 +506,14 @@ Named explicitly, not silently dropped — from the most recent engagement/inter
    pre-existing mismatch this round didn't introduce or investigate). One real function,
    `renderFamiliesGrid()`, was added this round. Left un-reconciled rather than guessed at — a
    wrong "fixed" number would be worse than a flagged stale one.
+7. **The Data Strategy tab's tile grid, live ingestion panel, recovery table, and parity card were
+   verified via DOM-content extraction in a real browser (correct real values, zero console
+   errors), not via a scrolled screenshot** (2026-08-21) — the session's browser tool's `scroll`
+   action was flaky mid-session (a stale tab's viewport collapsed to `innerWidth:0`, inflating
+   every element's layout height; a fresh tab fixed it, but the `scroll`/`computer` action then
+   timed out repeatedly on that fresh tab too). Content correctness is confirmed; a full scrolled
+   visual screenshot of the new tab content is not. Worth a follow-up screenshot pass next session
+   rather than treated as done.
 
 ---
 
@@ -505,7 +526,7 @@ carried over from memory or an earlier pass:
 - Array counts (`KPIS.length`, `GUARDS.length`, etc.): read live via `window.__PCC__` in a running
   browser instance, not grepped/estimated from source (a source-text grep for KPI category labels
   initially over-counted by 2, caught by cross-checking against the live array).
-- Test counts: a fresh `node stress.cjs` run (`1306 passed, 0 failed`) and `node verify.cjs`
+- Test counts: a fresh `node stress.cjs` run (`1320 passed, 0 failed`) and `node verify.cjs`
   (tie-out matches §2 exactly).
 - The "54 checks" pipeline-parity claim: **actually executed**, not assumed from prose — installed
   `duckdb` into a throwaway venv, ran `pipeline/run_pipeline.py` fresh, confirmed 54/54 PASS and
@@ -522,8 +543,17 @@ carried over from memory or an earlier pass:
   grepped. The 6 family help-icons, the 6 filter-button `title` tooltips, and the cross-reference
   jump button (`data-jump-tab="sched" data-jump-el="schedDriftCard"`) were each exercised live —
   clicked, its resulting popover/tab-state read back, not just asserted to exist in markup.
+- **2026-08-21 Data Strategy UI/UX round**: every real check name/copy cited in this round's
+  brainstorm plan was read directly from source before being reused (`GUARDS`' 28 check names
+  read to confirm they're this dashboard's own math-consistency proofs, not IDS-shaped raw-data
+  checks — the reason the tile grid embeds `INGEST_GUARDS` instead of a fabricated per-tier
+  pass-rate). The parity card's cited SQL line was grepped verbatim from `pipeline/models/
+  fct_control_account.sql`, not paraphrased. All 4 new elements (tile grid, embedded live ingest
+  panel, recovery table, parity card) were checked live in a real browser for correct real values
+  and zero console errors (§18 gap #7 notes the one verification step not completed this round —
+  a full scrolled screenshot, blocked by browser-tool flakiness, not a code defect).
 
 Generated 2026-08-20, against the tip of the eleven-input-ledger-card engagement round; extended
-2026-08-21 for the six-KPI-families card round (see git log for exact commits — each document
-update was written before its own round's commit lands, per the project's "verify, then document"
-ordering).
+2026-08-21 for the six-KPI-families card round, and extended again 2026-08-21 for the Data
+Strategy tab UI/UX round (see git log for exact commits — each document update was written before
+its own round's commit lands, per the project's "verify, then document" ordering).

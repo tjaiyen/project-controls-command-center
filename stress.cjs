@@ -171,9 +171,12 @@ ok(/\.rowbar>\.tab-num,\.rowbar>\.mono\{min-width:0;overflow:hidden;text-overflo
 // with 0 page-level overflow at any width tested (down to 375px mobile, where these specific
 // dense tables still need scroll — a card-layout redesign, not a CSS fix, stated as a known,
 // accepted limitation rather than silently dropped).
+// guardrailTable -> recoveryTable (2026-08-21): the Data Strategy UI/UX round replaced the
+// guardrail table with a .ledgerGrid tile grid (no longer a <table>, so this min-width tripwire
+// doesn't apply to it), and introduced one new real <table> — #recoveryTable — in its place.
 ok(!/table\{width:100%;border-collapse:collapse;font-size:12\.8px;min-width:800px\}/.test(indexSrc),
   "the global table min-width:800px floor (root cause of forced horizontal scroll) is gone");
-["portTable", "contractTable", "wbsTable", "gateTable", "stakeMap", "libTable", "guardrailTable"].forEach(id =>
+["portTable", "contractTable", "wbsTable", "gateTable", "stakeMap", "libTable", "recoveryTable"].forEach(id =>
   ok(!new RegExp('id="' + id + '"[^>]*style="min-width:\\d+px"').test(indexSrc),
     "#" + id + " no longer carries a fixed min-width forcing scroll"));
 ok(/th,td\{text-align:right;padding:9px 11px;border-bottom:1px solid var\(--c-line\);\s*font-variant-numeric:tabular-nums;white-space:normal\}/.test(indexSrc),
@@ -2801,18 +2804,53 @@ function TABS_CHECK() {
 ok(P.guardrails.length === 4, "4 guardrail types defined", String(P.guardrails.length));
 ok(P.discrepancySteps.length === 5, "5-step discrepancy-resolution flow defined", String(P.discrepancySteps.length));
 ok(P.rollout.length === 3, "3-phase rollout defined", String(P.rollout.length));
-has("guardrailTable", "Entity / schema check", "guardrail table renders the entity/schema check");
-has("guardrailTable", "Cross-system reconciliation", "guardrail table renders cross-system reconciliation check");
-has("guardrailTable", "IDS", "guardrail table ties checks back to the real IDS standard");
+has("guardrailGrid", "Entity / schema check", "guardrail grid renders the entity/schema check");
+has("guardrailGrid", "Cross-system reconciliation", "guardrail grid renders cross-system reconciliation check");
+has("guardrailGrid", "IDS", "guardrail grid ties checks back to the real IDS standard");
 // concrete circuit-breaker examples enriching the entity/schema and range/restriction rows
 // (harvested from the "Operating Architecture" doc triage — named violation types, not new logic)
-has("guardrailTable", "orphan-activity violation", "entity/schema example names the orphan-activity violation");
-has("guardrailTable", "commitment-floor violation", "range/restriction example names the commitment-floor violation");
-has("guardrailTable", "negative actual cost", "range/restriction example covers negative-actuals as an impossible state");
+has("guardrailGrid", "orphan-activity violation", "entity/schema example names the orphan-activity violation");
+has("guardrailGrid", "commitment-floor violation", "range/restriction example names the commitment-floor violation");
+has("guardrailGrid", "negative actual cost", "range/restriction example covers negative-actuals as an impossible state");
 // Tier 2: one icon badge per guardrail row (4 categories, all "info" tint — a parallel
 // taxonomy, not a severity ladder)
-ok((G.guardrailTable._html.match(/class="ticon i"/g) || []).length === 4,
-  "guardrail table renders exactly 4 category icon badges", String((G.guardrailTable._html.match(/class="ticon i"/g) || []).length));
+ok((G.guardrailGrid._html.match(/class="ticon i"/g) || []).length === 4,
+  "guardrail grid renders exactly 4 category icon badges", String((G.guardrailGrid._html.match(/class="ticon i"/g) || []).length));
+// UI/UX upgrade round (2026-08-21): guardrail table -> 4-tile status grid, reusing the
+// .ledgerGrid/.ledger-item pattern from the Overview six-KPI-families card; each tile carries
+// a real "Tier N" label matching the GUARDRAILS array's own order (Entity/schema=1,
+// Range/restriction=2, Cross-system=3, Freshness=4).
+ok(/Tier 1[\s\S]*Tier 2[\s\S]*Tier 3[\s\S]*Tier 4/.test(G.guardrailGrid._html),
+  "guardrail grid labels all 4 tiles Tier 1 through Tier 4, in GUARDRAILS' own order");
+ok(G.guardrailGrid._html.includes('class="ledger-item"'), "guardrail grid reuses the existing .ledger-item card pattern, not a new one");
+// Tile 2 (Range/restriction) embeds the one genuinely live, IDS-shaped check this ledger has —
+// INGEST_GUARDS — rather than a fabricated pass-rate for all 4 tiers. renderIngestGuards() was
+// generalized to take a target id (was hardcoded to #aiIngestGuards) so both call sites share
+// one implementation, not a copy.
+has("dsIngestGuards", "No negative actual cost anywhere", "the live ingestion-validation panel embedded in tile 2 shows its first real check");
+has("dsIngestGuards", "EV", "the live ingestion-validation panel embedded in tile 2 shows its second real check");
+ok(/class="pill g"/.test(G.dsIngestGuards._html), "the embedded live ingestion panel shows a real PASS pill, not narrated text");
+ok(G.aiIngestGuards._html.includes("No negative actual cost anywhere"),
+  "the AI & Data tab's own #aiIngestGuards panel (the pre-existing call site) still renders correctly after renderIngestGuards() was generalized to take a target id");
+// Proactive error recovery: 3 prose dboxes -> a Category/Trigger/Routing table, same categories
+// and phrasing already established on this tab, no invented SLA hours (unlike the source
+// blueprint's own version of this table).
+has("recoveryTable", "Circuit breaker", "recovery table names the circuit-breaker category");
+has("recoveryTable", "Quarantine", "recovery table names the quarantine category");
+has("recoveryTable", "Self-healing", "recovery table names the self-healing category");
+has("recoveryTable", "Gate 5 hard stop", "recovery table's circuit-breaker row still ties back to this dashboard's own Gate 5, not just the source doc's generic framing");
+ok(RECOVERY_ROWS_LEN() === 3, "RECOVERY_ROWS has exactly 3 categories (circuit breaker / quarantine / self-healing)", String(RECOVERY_ROWS_LEN()));
+function RECOVERY_ROWS_LEN() { const m = indexSrc.match(/var RECOVERY_ROWS=\[([\s\S]*?)\n\];/); return m ? (m[1].match(/\{t:/g) || []).length : -1; }
+// Dual-stack parity card: cites the real live T.cpi value (the same number the Overview KPI
+// board shows), independently re-derived, not a fabricated freshness/parity badge — pre-
+// registered per verify.md B35: the card's own cited figure must equal the live T.cpi this
+// session's stress harness itself computes from raw PKGS, not a hand-typed guess.
+ok(G.parityLede._html.includes(idx(T.cpi)),
+  "the dual-stack parity card cites this program's own real, live CPI value", G.parityLede._html);
+ok(G.paritySql._html.includes("as cpi") && G.paritySql._html.includes("nullif(m.ac, 0)"),
+  "the parity card quotes the real SQL line from pipeline/models/fct_control_account.sql verbatim, not a paraphrase");
+ok(indexSrc.includes("python3 pipeline/run_pipeline.py"),
+  "the parity card cites the real, reproducible pipeline command");
 // these three are static HTML baked into the page, never JS-rendered into #p-data's innerHTML —
 // check the raw source directly (same pattern as the other static-content checks in this file),
 // not has(), which only sees content actually assigned via .innerHTML at runtime.

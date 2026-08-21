@@ -1516,7 +1516,7 @@ join dim_control_account b using (package_id)</pre></div>
         submittal that fails gets rejected with a specific, itemized reason. This dashboard's own
         <span id="guardCountLede">28</span>-check integrity gate is a working small-scale version of the same pattern.
         <button type="button" class="btn" data-jump-tab="ai" data-jump-el="aiGuards" style="margin-left:6px">See it live &rarr;</button></p>
-      <div class="tw"><table id="guardrailTable"></table></div>
+      <div class="ledgerGrid" id="guardrailGrid"></div>
 
       <div class="sec-h" style="margin-top:30px"><h3>When systems disagree</h3></div>
       <p class="lede">Most reporting tools skip this entirely. The actual process, step by step
@@ -1528,23 +1528,27 @@ join dim_control_account b using (package_id)</pre></div>
       <div class="sec-h" style="margin-top:30px"><h3>Proactive error recovery</h3></div>
       <p class="lede">Detecting a problem and recovering from one are different capabilities.
         Most tools only do the first.</p>
-      <div class="dgrid">
-        <div class="dbox"><h4>Circuit breakers</h4><p>If a source feed starts failing validation
-          repeatedly, stop trusting it automatically &mdash; fall back to last known-good with a
-          visible staleness flag, rather than letting bad data keep propagating. The same instinct
-          as this dashboard's own Gate 5 hard stop, applied to ingestion instead of governance.</p></div>
-        <div class="dbox"><h4>Quarantine, not silent drop or pass</h4><p>A record that fails
-          validation doesn't disappear or pass through anyway &mdash; it goes to a visible
-          quarantine lane with the specific reason it failed.</p></div>
-        <div class="dbox"><h4>Self-healing for known patterns</h4><p>Some errors have one obvious
-          fix &mdash; a known unit-of-measure mismatch, a predictable timing offset. Auto-correct
-          those narrowly and log that it happened.</p></div>
-        <div class="dbox"><h4>Already proven at small scale, here</h4><p>The <button type="button" class="btn" style="min-height:auto;padding:1px 8px;font-size:12.5px" data-jump-tab="ai" data-jump-el="aiGuards">integrity gate</button>,
-          the <button type="button" class="btn" style="min-height:auto;padding:1px 8px;font-size:12.5px" data-jump-tab="fw" data-jump-el="escTable">escalation matrix</button>,
-          the <button type="button" class="btn" style="min-height:auto;padding:1px 8px;font-size:12.5px" data-jump-tab="act" data-jump-el="actFilters" data-jump-actstale="1">Actions register's stale-flag</button>,
-          and <button type="button" class="btn" style="min-height:auto;padding:1px 8px;font-size:12.5px" data-jump-tab="fw" data-jump-el="gate5Card">Gate 5</button> are all working
-          instances of this same philosophy &mdash; on one synthetic ledger. This plan is the same
-          architecture, at the scale a real program needs.</p></div>
+      <div class="tw"><table id="recoveryTable"></table></div>
+      <div class="dbox" style="margin-top:14px"><h4>Already proven at small scale, here</h4><p>The <button type="button" class="btn" style="min-height:auto;padding:1px 8px;font-size:12.5px" data-jump-tab="ai" data-jump-el="aiGuards">integrity gate</button>,
+        the <button type="button" class="btn" style="min-height:auto;padding:1px 8px;font-size:12.5px" data-jump-tab="fw" data-jump-el="escTable">escalation matrix</button>,
+        the <button type="button" class="btn" style="min-height:auto;padding:1px 8px;font-size:12.5px" data-jump-tab="act" data-jump-el="actFilters" data-jump-actstale="1">Actions register's stale-flag</button>,
+        and <button type="button" class="btn" style="min-height:auto;padding:1px 8px;font-size:12.5px" data-jump-tab="fw" data-jump-el="gate5Card">Gate 5</button> are all working
+        instances of this same philosophy &mdash; on one synthetic ledger. This plan is the same
+        architecture, at the scale a real program needs.</p></div>
+
+      <div class="sec-h" style="margin-top:30px"><h3>Dual-stack parity &mdash; independently re-derived, not just displayed</h3></div>
+      <p class="lede">The pattern above &mdash; never trust one calculation path &mdash; is already
+        real on this dashboard, not just proposed. Every EVM figure here is computed twice, by two
+        independent stacks that share no code: this page's own JavaScript, and a second SQL model
+        run cold in DuckDB against the same raw inputs.</p>
+      <div class="dbox" id="parityCard" style="border-left-color:rgb(var(--c-info) / .55)">
+        <h4>A real, verified detail &mdash; not a hypothetical</h4>
+        <p id="parityLede"></p>
+        <div class="formula" id="paritySql"></div>
+        <p style="margin:8px 0 0;font-size:12px;color:rgb(var(--c-mut))">Reproduce it yourself:
+          <code>python3 pipeline/run_pipeline.py</code> &mdash; independently parses the same raw
+          package inputs this page's own JavaScript reads, rebuilds every EVM figure in SQL, and
+          diffs each one against the JS-derived value to the decimal.</p>
       </div>
 
       <div class="sec-h" style="margin-top:30px"><h3>A phased path, not a big-bang rebuild</h3></div>
@@ -5319,10 +5323,10 @@ function renderEwmaMath(){
    usd(last.ucl-e.mean)+" = <b style='color:rgb(var(--c-ink))'>"+usd(last.ucl)+"/hr</b> &mdash; also matching the row "+
    "above, because this IS that number, not a separate one that happens to agree.</p>";
 }
-function renderIngestGuards(){
+function renderIngestGuards(targetId){
   var res=INGEST_GUARDS.map(function(g){ var r=g.run(); return {n:g.n,pass:r[0],detail:r[1]}; });
   var fails=res.filter(function(r){return !r.pass;}).length;
-  document.getElementById("aiIngestGuards").innerHTML=
+  document.getElementById(targetId||"aiIngestGuards").innerHTML=
    '<div class="gate"><b>Ingestion validation &middot; '+INGEST_GUARDS.length+' checks</b>'+
    '<span class="pill '+(fails?"r":"g")+'">'+(fails? fails+" FAILING":"GREEN — all "+INGEST_GUARDS.length+" passing")+'</span></div>'+
    res.map(function(r){
@@ -5636,6 +5640,15 @@ var ROLLOUT=[
  {ph:"Phase 2",n:"Guard the highest-risk domains",w:"Stand up staging, validation, and all four guardrail types for those domains specifically. Run the discrepancy-resolution process on real disagreements — even manually at first, to learn the actual recurring patterns before automating them."},
  {ph:"Phase 3",n:"Scale and automate recovery",w:"Expand to the remaining domains; add circuit breakers and self-healing for the patterns Phase 2 proved out. The auto-resolve rule set starts reducing escalation volume instead of just routing it faster."}
 ];
+/* Proactive error recovery, restyled from 3 prose dboxes into a Category/Trigger/Routing table
+   (UI/UX upgrade round, 2026-08-21) — same 3 categories and phrasing already established above,
+   no invented SLA hours (unlike the source blueprint's own version of this table, which cites
+   made-up per-category SLA windows this synthetic build has no real escalation data to back). */
+var RECOVERY_ROWS=[
+ {t:"Circuit breaker",trig:"A source feed fails validation repeatedly",route:"Ingestion halts for that feed; the dashboard falls back to the last known-good state with a visible staleness flag, instead of letting bad data keep propagating — the same instinct as this dashboard's own Gate 5 hard stop, applied to ingestion instead of governance."},
+ {t:"Quarantine",trig:"A single record fails a validation check",route:"Isolated to a visible quarantine lane with the specific reason it failed — never silently dropped, and never passed through anyway."},
+ {t:"Self-healing",trig:"A known, narrow pattern recurs (a unit-of-measure mismatch, a predictable timing offset)",route:"Auto-corrected and logged that it happened — not a blanket auto-fix for anything unfamiliar."}
+];
 /* The CDE flow — the same four ISO 19650 states already described as static cards below, drawn as
    a pipeline, with the "When systems disagree" discrepancy-resolution steps (DISCREPANCY_STEPS)
    folded in as a real branch off the Shared verification gate instead of a separate list further
@@ -5751,12 +5764,39 @@ function renderCdeFlow(){
 
 function renderDataStrategy(){
   renderCdeFlow();
-  document.getElementById("guardrailTable").innerHTML=
-    '<thead><tr><th scope="col">Check type</th><th scope="col">What it catches</th><th scope="col">Example</th></tr></thead><tbody>'+
-    GUARDRAILS.map(function(g){ return '<tr style="cursor:default"><td style="white-space:normal;font-weight:600">'+guardIcon(g.t)+g.t+
-      '</td><td style="white-space:normal;font-size:12.5px">'+g.c+'</td>'+
-      '<td style="white-space:normal;font-size:12px;color:rgb(var(--c-mut))">'+g.e+'</td></tr>'; }).join("")+
+  // 4-tile status grid (UI/UX upgrade round, 2026-08-21) — was a plain 3-column table; same
+  // GUARDRAILS data, same copy, reusing the .ledgerGrid/.ledger-item pattern built for the
+  // Overview tab's six-KPI-families card. Tile 2 (Range/restriction) additionally embeds the
+  // one genuinely live, IDS-shaped check this ledger actually has (INGEST_GUARDS) — not a
+  // fabricated pass-rate for all 4 tiers (see the source comment on GUARDRAILS above for why).
+  document.getElementById("guardrailGrid").innerHTML=GUARDRAILS.map(function(g,i){
+    return '<div class="ledger-item"><div class="top"><span class="abbr">Tier '+(i+1)+'</span>'+guardIcon(g.t)+'</div>'+
+      '<div class="nm">'+g.t+'</div><div class="sub">'+g.c+'</div>'+
+      '<div class="sub" style="margin-top:6px">'+g.e+'</div>'+
+      (i===1? '<div id="dsIngestGuards" style="margin-top:10px"></div>' : '')+
+      '</div>';
+  }).join("");
+  renderIngestGuards("dsIngestGuards");
+  document.getElementById("recoveryTable").innerHTML=
+    '<thead><tr><th scope="col">Category</th><th scope="col">Trigger</th><th scope="col">Routing / outcome</th></tr></thead><tbody>'+
+    RECOVERY_ROWS.map(function(r){ return '<tr style="cursor:default"><td style="white-space:normal;font-weight:600">'+r.t+
+      '</td><td style="white-space:normal;font-size:12.5px">'+r.trig+'</td>'+
+      '<td style="white-space:normal;font-size:12px;color:rgb(var(--c-mut))">'+r.route+'</td></tr>'; }).join("")+
     '</tbody>';
+  // Dual-stack parity card — the one genuinely live number on this otherwise-illustrative tab:
+  // cites this program's own real CPI (T.cpi, the same value the Overview KPI board shows) next
+  // to the literal SQL line that independently re-derives it in pipeline/models/
+  // fct_control_account.sql, plus the real, reproducible pipeline command and its actual result
+  // (54/54 PASS, confirmed live this session — see docs/HANDOFF.md §12/§19). Not a live-polling
+  // badge; a "here's the receipt" callout, same convention as the Sound Transit citation above.
+  document.getElementById("parityLede").innerHTML=
+    "This program's own Cost Performance Index reads <b class=\"mono\" style=\"color:rgb(var(--c-code))\">"+idx(T.cpi)+
+    "</b> on the Overview KPI board &mdash; computed once in this page's JavaScript (<code>EV &divide; AC</code>) "+
+    "and a second time, independently, in SQL run cold against the same raw package data:";
+  document.getElementById("paritySql").innerHTML=
+    '-- pipeline/models/fct_control_account.sql<br>'+
+    'm.ev / nullif(m.ac, 0)  <span style="color:rgb(var(--c-mut))">as cpi</span>&nbsp;&nbsp;'+
+    '<span style="color:rgb(var(--c-mut))">-- &rarr; '+idx(T.cpi)+', diffed against the JS value to the decimal</span>';
   // Was a second, flat static-card rendering of the identical 5-step DISCREPANCY_STEPS logic the
   // CDE flow diagram above already draws live (dsCaption()'s "detect"/"known"/"escalate"/
   // "promote"/"auto" nodes read this exact same array) — one true version now, jumped to rather
