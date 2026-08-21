@@ -30,23 +30,23 @@ anywhere in this repository. The method is the content, not the numbers.
 
 | | |
 |---|---|
-| Primary file | `index.html` — 6,269 lines, one file, no build step |
-| Top-level JS functions | 169 |
+| Primary file | `index.html` — 6,447 lines, one file, no build step |
+| Top-level JS functions | 176 |
 | Tabs | 11 |
 | KPIs (with formula/threshold/phase/source/play each) | 20 |
 | JS integrity-gate checks (`GUARDS`) | 28, re-run on every page load |
 | Ingestion-validation checks (`INGEST_GUARDS`) | 2 |
 | SQL/DuckDB parity checks (`pipeline/run_pipeline.py`) | 54, independently verified this session — see §12 |
-| Glossary terms (each with a live-computed worked example) | 38 |
+| Glossary terms (each with a live-computed worked example) | 44 |
 | Actions/RAID register items | 17 (6 Issue, 10 Task, 1 Decision) |
 | Control accounts / packages | 8 |
 | Contracts | 6 |
 | Risks | 6 |
 | Delay events | 4 |
-| `stress.cjs` test assertions | 1,279, all passing |
+| `stress.cjs` test assertions | 1,300, all passing |
 | Companion pages | `otak.html` (fit brief), `architecture.html` (static pipeline map) |
 | Hosting | GitHub Pages, served directly from `main`, zero build |
-| Git history | 87 commits |
+| Git history | 89 commits |
 
 Current EVM tie-out (verify live in the browser console via `__PCC__.totals`, or `node verify.cjs`):
 
@@ -144,7 +144,9 @@ browser's dev console to independently sanity-check a number.
 | `CONTRACTS` | 6 | Award value, approved/pending change, contingency allocation, per contract | Risk & Change tab's commercial register (a third axis, distinct from control accounts) |
 | `ACTIONS` | 17 | RAID register: Issue/Task/Decision, owner, opened/due/touch dates, root/corrective/preventive fields | Actions tab |
 | `CPH_CELLS` | 1 crew, 6 weeks | Crew cost-per-hour history for CP-201's tunnel crew | Delivery tab, AI & Data's z-score/EWMA control charts |
-| `GLOSS` | 38 | Term/definition/live-computed worked example, each independently traceable to real data | Glossary tab + every inline "i" help icon site-wide |
+| `GLOSS` | 44 | Term/definition/live-computed worked example, each independently traceable to real data | Glossary tab + every inline "i" help icon site-wide |
+| `LEDGER_INPUTS` | 11 | Name/abbr/description/live-computed worked example, one per raw `PKGS` field — human-facing metadata for the ledger card, not a second copy of the data itself | Overview tab's ledger card |
+| `KPI_LEDGER` / `KPI_LEDGER_MIXED` / `KPI_LEDGER_NONE` | 14 / 3 / 6 | Which raw ledger fields actually feed each KPI, stated honestly — pure-ledger, mixed with another register, or not ledger-derived at all | KPI drawer's "Computed from the ledger" / "Not from the ledger" box |
 | `PROGRAM` | 32 fields | Everything not per-package: contingency, funding, safety (TRIR), RFI aging, subcontractor turnaround, change-order pipeline | Cost, Schedule, Delivery, Risk & Change tabs |
 | `DRB_ASSUMPTIONS` | `{pOwnerWins: 0.55, legalCost: 0.75}` | Illustrative-only assumptions for the settle-vs-escalate decision tree — never mutated by the interactive slider (§8) | Risk & Change tab |
 | `DS_NODES` / `GL_NODES` / `ARCH_NODES` | 12 / 13 / 12 | The three story-navigator flow diagrams' node lists (see §8) | Data Strategy, Operating Framework, AI & Data tabs |
@@ -198,7 +200,7 @@ Beyond the core EVM block, three more derivation families exist:
 
 | # | Tab (id) | What's on it |
 |---|---|---|
-| 1 | **Overview** (`over`) | The 20-KPI board with drill-down detail (formula/threshold/source/play per card), a live root-cause-to-owner trace, a five-chapter guided story walkthrough with tab-jumping evidence links, an executive summary. |
+| 1 | **Overview** (`over`) | The 20-KPI board with drill-down detail (formula/threshold/source/play per card, plus a "computed from the ledger" / "not from the ledger" provenance box, honestly stated per KPI), a live root-cause-to-owner trace, the eleven-input ledger card (all 11 raw fields, a per-package inspector, and a live "change one input, watch the KPIs move" demo — reads a local snapshot, never mutates the real ledger), a five-chapter guided story walkthrough with tab-jumping evidence links, an executive summary. |
 | 2 | **Portfolio** (`port`) | Agency-level rollup across 4 lines of business — one reads live off this program's own totals (never duplicated, `GUARDS`-checked), three are summary-only illustrative peers. |
 | 3 | **Cost** (`cost`) | EVM S-curve + variance bridge, an estimate-to-budget baseline bridge reconciled to the ledger, four-method EAC, a forecast-reliability section (EAC trend, forecast-accuracy scorecard, monthly cash flow), what-if forecasting with 3 live sliders + scenario comparison, Monte Carlo completion distribution (4,000 runs, seeded/reproducible), the cost-diffusion (GBM) card. |
 | 4 | **Schedule** (`sched`) | DCMA-style schedule health (CPLI/BEI/float erosion), a Gantt-style bar with baseline vs. forecast, a fragnet-based delay & TIA register tied to package float, revenue-service forecast drift, statistical control charts (z-score + EWMA) over crew cost-per-hour. |
@@ -207,7 +209,7 @@ Beyond the core EVM block, three more derivation families exist:
 | 7 | **AI & Data** (`ai`) | The pipeline architecture diagram (now interactive — §8), the SQL model, a live 28-check integrity gate + 2 ingestion-validation checks, statistical control (z-score/EWMA) with worked-math accordions, and AI narrative generation under a verification contract (§10). |
 | 8 | **Operating Framework** (`fw`) | Phase playbook, the WBS/CBS/OBS control-account mapping (with a worked "100% Rule" proof), Board phase-gate governance with a live Gate-5 hard stop, escalation matrix, a live Working-Backward/inversion worked example, reporting cadence, stakeholder interface map, the 20-metric KPI reference library. |
 | 9 | **Actions** (`act`) | A RAID/CAPA register with proactive staleness detection, owner accountability rollup, a worked-math accordion for `actionStatus()`'s threshold logic. |
-| 10 | **Glossary** (`gloss`) | 38 terms, each with a live-computed worked example, filterable by search — the same content the inline "i" help icons pull from site-wide. |
+| 10 | **Glossary** (`gloss`) | 44 terms, each with a live-computed worked example, filterable by search — the same content the inline "i" help icons pull from site-wide. |
 | 11 | **Data Strategy** (`data`) | A real-world plan for connecting scattered, multi-system data — ISO 19650 CDE staging architecture as an interactive flow diagram (§8), automated guardrails, a discrepancy-resolution decision flow folded into that same diagram, proactive error recovery. |
 
 Plus, outside the tab body: **Presentation Mode** (a scripted 2-set walkthrough with presenter
@@ -236,19 +238,26 @@ Everything below is a real DOM interaction, independently covered by `stress.cjs
   underlying numbers, not just a highlight.
 - **3 independent drill-down drawers** — KPI root-cause (Overview), crew cost-per-hour
   idle/rework/baseline attribution (Delivery), Actions row detail (Actions).
+- **1 ledger-card demo slider** (Overview: Actual Cost, per selected package) — recomputes CPI/EAC/
+  VAC live from a local snapshot of the selected `PKGS` entry; never touches the real ledger, and
+  `stress.cjs` independently re-derives its expected output rather than calling the app's own
+  formula. Min/max are built outward from the package's real AC in whole step multiples specifically
+  so the baseline value always lands exactly on the slider's own step grid — an earlier version
+  independently rounded min/max and let a real browser's step-snapping silently drift the "reset"
+  value off the true figure, caught only by live-browser verification, not by the test suite alone.
 - **4 sliders on the What-If model** (Cost tab: CPI, SPI, contingency $M) + **2 sliders on the DRB
   EMV decision tree** (Risk & Change: win probability, legal cost) — the DRB sliders drive local
   display state only and never mutate `DRB_ASSUMPTIONS`; a small SVG chart makes the "escalating
   can never beat settling" structural finding visible across the whole probability range instead
   of asserting it as one static delta.
-- **38-term glossary** with live search filter, plus a click-driven inline "i" help icon next to
+- **44-term glossary** with live search filter, plus a click-driven inline "i" help icon next to
   jargon anywhere on the page — both read from the same `GLOSS` array, so there's one source of
   truth for every definition.
-- **11 `<details class="dbox">` "how this is actually computed" accordions** — each walks a
+- **12 `<details class="dbox">` "how this is actually computed" accordions** — each walks a
   worked example against real data (S-curve PV formula, waterfall bridge, Gantt forecast-finish,
   CPLI driving-path arithmetic, risk exposure, Monte Carlo per-run formula, crew cost-per-hour
   weekly overrun, z-score arithmetic, EWMA recursive update, the WBS "100% Rule" as literal
-  addition, `actionStatus()`'s branch order).
+  addition, `actionStatus()`'s branch order, the per-package ledger inspector).
 - **10-stop guided Tour**, **2-set Presentation Mode** with a presenter-notes popup, **printable
   executive brief** — all reuse the live data, never a separately-authored summary.
 - **Cross-account hover-highlight** on the S-curve/waterfall/Gantt.
@@ -294,7 +303,7 @@ matches an independent recomputation, not just that *a* number is present.
 
 ## 11. Testing & verification
 
-**`stress.cjs`** (1,279 assertions, all passing) — stubs the DOM, loads `index.html`'s script
+**`stress.cjs`** (1,300 assertions, all passing) — stubs the DOM, loads `index.html`'s script
 verbatim into that stub, and exercises it exactly like a user would: every tab switch, every
 filter, every drawer, every slider drag, every keyboard interaction. 32 labeled sections:
 
@@ -464,8 +473,12 @@ Named explicitly, not silently dropped — from the most recent engagement/inter
    ties them together the way `GUARDS`/`stress.cjs` tie the ledger together. Its own stale "27
    checks" text (2 locations) was resynced to 28 on 2026-08-20, but the structural risk — nothing
    catches the *next* drift automatically — is unchanged; still an open gap, just not a stale one.
-4. ~~**`README.md`'s own stated counts lag behind this document**~~ — **Resolved 2026-08-20.**
-   Synced to 1,279 assertions / 38 glossary terms / 28-check integrity gate, matching §2.
+4. ~~**`README.md`'s own stated counts lag behind this document**~~ — **Resolved 2026-08-20** (and
+   re-synced the same day after the ledger-card round bumped the counts again): 1,300 assertions /
+   44 glossary terms / 28-check integrity gate, matching §2 as of this writing.
+5. **The eleven-input ledger card is new this round** (2026-08-20) and only covers the Overview
+   tab's own `PKGS` provenance — it does not touch or resolve gap #2 above (the risk register still
+   has no independent drill-down drawer of its own).
 
 ---
 
@@ -478,13 +491,19 @@ carried over from memory or an earlier pass:
 - Array counts (`KPIS.length`, `GUARDS.length`, etc.): read live via `window.__PCC__` in a running
   browser instance, not grepped/estimated from source (a source-text grep for KPI category labels
   initially over-counted by 2, caught by cross-checking against the live array).
-- Test counts: a fresh `node stress.cjs` run (`1279 passed, 0 failed`) and `node verify.cjs`
+- Test counts: a fresh `node stress.cjs` run (`1300 passed, 0 failed`) and `node verify.cjs`
   (tie-out matches §2 exactly).
 - The "54 checks" pipeline-parity claim: **actually executed**, not assumed from prose — installed
   `duckdb` into a throwaway venv, ran `pipeline/run_pipeline.py` fresh, confirmed 54/54 PASS and
-  the portfolio totals matching the JS side to the decimal.
+  the portfolio totals matching the JS side to the decimal (re-confirmed this round; the ledger
+  card touches no `PKGS` value, so the portfolio totals are unchanged from the prior pass).
 - Tab list, node lists, delay classifications, contract IDs, program identity: read live from
   `window.__PCC__` in a running browser session, cross-checked against the rendered nav.
+- The ledger-card demo's own numbers were live-browser tested, not just stub-tested — a real
+  step-snapping bug (§8) was caught this way after the Node test stub passed cleanly on the same
+  code, which is the concrete reason this document keeps insisting on live verification over
+  trusting a green test run alone.
 
-Generated 2026-08-20, against commit `a9b14b9` (the tip of the just-completed
-connect-the-dots/tooltip-parity/glossary/pipeline-diagram/DRB-slider engagement round).
+Generated 2026-08-20, against the tip of the eleven-input-ledger-card engagement round (see git log
+for the exact commit — this document is written before that commit lands, per the project's own
+"verify, then document" ordering).

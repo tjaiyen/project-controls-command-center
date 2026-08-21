@@ -2896,7 +2896,7 @@ console.log("== D9.1. the CDE flow diagram (data strategy) ==");
    (returns the active tab to "over" at the end, since D9 above left "data" active)
    ========================================================================= */
 console.log("== D10. inline term help ==");
-ok(P.gloss.length === 38, "GLOSS grew to 38 entries (31 prior + zscore/ewma/gbm/raid/capa/cbsobs/excusablecompensable, engagement/interactivity upgrade, 2026-08-2x)", String(P.gloss.length));
+ok(P.gloss.length === 44, "GLOSS grew to 44 entries (38 prior + commit/cpRem/actsP/actsD/ernH/actH, ledger-card upgrade, 2026-08-20)", String(P.gloss.length));
 ["cde", "ids", "wbs", "abs", "zscore", "ewma", "gbm", "raid", "capa", "cbsobs", "excusablecompensable"].forEach(k => {
   const g = P.findGloss(k);
   ok(!!g && typeof g.p === "string" && g.p.length > 0, "findGloss resolves new term '" + k + "'");
@@ -3031,11 +3031,11 @@ ok(/\.finished\.then\(/.test(indexSrc) && !/\.onfinish=/.test(indexSrc),
   // first run of this exact check)
   const markupOnly = indexSrc.slice(0, indexSrc.indexOf("<script>"));
   const detailsCount = (markupOnly.match(/<details class="dbox"/g) || []).length;
-  // 11 as of the engagement/interactivity round (2026-08-20), up from 7 — 4 new panels added
-  // (zscore math, EWMA math, the 100% Rule sum, actionStatus() thresholds). Updated here, not
-  // just to make the count pass, since a stale expectation is exactly the kind of thing this
-  // check exists to catch on the NEXT panel added after this one.
-  ok(detailsCount === 11, "exactly 11 details.dbox panels exist for this to wire", String(detailsCount));
+  // 12 as of the ledger-card upgrade (2026-08-20), up from 11 — 1 new panel added (the
+  // per-package ledger inspector on the Overview tab). Updated here, not just to make the count
+  // pass, since a stale expectation is exactly the kind of thing this check exists to catch on
+  // the NEXT panel added after this one.
+  ok(detailsCount === 12, "exactly 12 details.dbox panels exist for this to wire", String(detailsCount));
 }
 
 // Extended growup/draw-in (2026-08-19) — source-level only, same stub limitation as above;
@@ -3151,6 +3151,78 @@ function tipContent(hostId, i) {
 }
 ok(indexSrc.includes("host._barsItems=items; host._barsTipFmt=tipFmt;"), "bars() stashes items/tipFmt on the host element, not a closure — the documented fix for the stale-closure class of bug (source-text tripwire, mirrors this file's other such guards)");
 ok(indexSrc.includes("heatHost._gridRisks=gridRisks;"), "heat map tooltip stashes gridRisks on the host element for the same reason, not closed over directly — probe-verified during authoring (a first draft closed over it directly and would have gone stale on a second renderRisk() call)");
+
+/* =========================================================================
+   D13. LEDGER CARD — the eleven-input ledger, Overview tab (2026-08-20)
+   ========================================================================= */
+console.log("== D13. ledger card ==");
+{
+  fire(G["t-over"], "click");
+  ok(P.ledgerInputs.length === 11, "LEDGER_INPUTS has exactly 11 entries", String(P.ledgerInputs.length));
+  ok(P.pkgs.length === 8, "PKGS (now exposed on __PCC__) still has its real 8 packages", String(P.pkgs.length));
+
+  // every ledger-item abbr actually renders in the grid, and every one has a resolvable glossary entry
+  const missingAbbr = P.ledgerInputs.filter(li => !G.ledgerGrid._html.includes(li.abbr));
+  ok(missingAbbr.length === 0, "every one of the 11 ledger-item abbreviations renders in #ledgerGrid", missingAbbr.map(x => x.abbr).join(","));
+  const missingGloss = P.ledgerInputs.filter(li => !P.findGloss(li.key));
+  ok(missingGloss.length === 0, "every one of the 11 ledger inputs resolves to a real GLOSS entry (no dangling data-help key)", missingGloss.map(x => x.key).join(","));
+
+  // per-package inspector: independently count PKGS rows against the rendered table body rows
+  const tbodyRows = (G.ledgerInspector._html.match(/<tr style="cursor:default">/g) || []).length;
+  ok(tbodyRows === P.pkgs.length, "ledger inspector renders exactly one row per real control account", String(tbodyRows));
+  ok(G.ledgerInspector._html.includes("CP-101") && G.ledgerInspector._html.includes("CP-701"), "ledger inspector includes both the first and last real package ids");
+
+  // KPI_LEDGER provenance map — spot-check both branches independently against the KPIS array's
+  // own already-stated `src` field, not against the map's own self-consistency
+  ok(JSON.stringify(P.kpiLedger.cpi) === JSON.stringify(["ev", "ac"]), "KPI_LEDGER maps CPI to exactly EV, AC");
+  ok(JSON.stringify(P.kpiLedger.spi) === JSON.stringify(["ev", "pv"]), "KPI_LEDGER maps SPI to exactly EV, PV");
+  ok(!P.kpiLedger.msv && !!P.kpiLedgerNone.msv, "MSV correctly has NO ledger-provenance entry (it's the milestone log) and IS in the none-map");
+  ok(!P.kpiLedger.trir && !!P.kpiLedgerNone.trir, "TRIR correctly has NO ledger-provenance entry (it's the safety log) and IS in the none-map");
+  ok(!!P.kpiLedgerMixed.ccr, "CCR is correctly flagged as mixed provenance (ledger fields + contingency/risk registers), not claimed as pure ledger");
+
+  // opening a pure-ledger KPI's drawer shows the provenance box with the right field names
+  fire(G.kboard, "click", { target: { closest: () => ({ dataset: { kpi: "cpi" } }) } });
+  has("kdetail", "Computed from the ledger", "cpi drawer shows the ledger-provenance box");
+  has("kdetail", "EV, AC", "cpi drawer names its real, independently-checked ledger fields (EV, AC)");
+  fire(G.kboard, "click", { target: { closest: () => ({ dataset: { kpi: "cpi" } }) } });
+
+  // opening a non-ledger KPI's drawer shows the honest "not from the ledger" box instead
+  fire(G.kboard, "click", { target: { closest: () => ({ dataset: { kpi: "msv" } }) } });
+  has("kdetail", "Not from the ledger", "msv drawer honestly states it is NOT ledger-derived");
+  fire(G.kboard, "click", { target: { closest: () => ({ dataset: { kpi: "msv" } }) } });
+
+  // the live demo — independently computed expected values (B27/B35: pre-registered before
+  // writing this test, via a standalone script, not derived by calling the app's own functions).
+  // 199.9, not 200 — CP-101's slider grid is built outward from its own real AC (191.9) in 0.5
+  // steps, so 199.9 is the actual on-grid point nearest 200; a real <input type="range"> silently
+  // snaps an off-grid .value to its nearest step (200 -> 199.9 here), and this Node stub does NOT
+  // model that snapping, so testing against literal 200 would silently pass here while showing a
+  // DIFFERENT number in every real browser — caught only by live-browser verification, not by this
+  // suite alone. For CP-101 (bac=248.0, ev=179.4) at AC=$199.9M: CPI=0.897, EAC=$276.3M, VAC=−$28.3M
+  G.ledgerAc.value = "199.9";
+  fire(G.ledgerAc, "input");
+  has("ledgerDemoOut", "0.897", "ledger demo: independently-computed CPI at AC=$199.9M matches the rendered value");
+  has("ledgerDemoOut", "276.3", "ledger demo: independently-computed EAC at AC=$199.9M matches the rendered value");
+  has("ledgerDemoOut", "28.3", "ledger demo: independently-computed |VAC| at AC=$199.9M matches the rendered value");
+
+  // the core correctness promise: dragging the demo slider must NEVER mutate the real ledger —
+  // re-check the real package's own ac field and the real portfolio CPI are both untouched
+  ok(P.pkgs[0].ac === 191.9, "dragging the ledger demo slider left the REAL PKGS[0].ac untouched (191.9)", String(P.pkgs[0].ac));
+  ok(Math.abs(P.totals.cpi - 0.956) < 0.001, "dragging the ledger demo slider left the REAL portfolio CPI untouched (~0.956)", String(P.totals.cpi));
+
+  // reset button restores the slider to the real package's own actual AC, not an arbitrary
+  // default — numeric coercion on read (+value), not a strict string match: the stub's plain
+  // `value` property doesn't auto-coerce to string on assignment the way a real <input> element
+  // does, and a strict "===" here would fail on stub representation, not an app bug.
+  fire(G.ledgerDemoReset, "click");
+  ok(+G.ledgerAc.value === 191.9, "reset button restores the demo slider to CP-101's real AC (191.9), not a hardcoded default", String(G.ledgerAc.value));
+
+  // switching the demo package via the select updates the baseline correctly (CP-201's real ac
+  // is 205.1 — independently read off the raw PKGS array, not derived)
+  G.ledgerPkgSelect.value = "CP-201";
+  fire(G.ledgerPkgSelect, "change", { target: G.ledgerPkgSelect });
+  ok(+G.ledgerAc.value === 205.1, "switching the demo package to CP-201 resets the slider to ITS real AC (205.1)", String(G.ledgerAc.value));
+}
 
 /* =========================================================================
    E. otak.html — runtime + internal consistency

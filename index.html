@@ -234,6 +234,14 @@ h4{font-size:.86rem;margin:0 0 5px}
 /* KPI board */
 .kfilters{display:flex;gap:7px;flex-wrap:wrap;margin-top:18px;align-items:center}
 .kboard{display:grid;grid-template-columns:repeat(auto-fill,minmax(238px,1fr));gap:12px;margin-top:15px}
+.ledgerGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.ledger-item{background:rgb(var(--c-bg));border:1px solid var(--c-line);border-radius:9px;padding:11px 12px}
+.ledger-item .top{display:flex;align-items:center;justify-content:space-between}
+.ledger-item .abbr{font:600 10.5px/1 ui-monospace,monospace;letter-spacing:.06em;color:rgb(var(--c-accent))}
+.ledger-item .nm{font:600 12.6px/1.3 inherit;margin-top:6px}
+.ledger-item .sub{font-size:11.3px;color:rgb(var(--c-mut));margin-top:3px;line-height:1.4}
+.ledgerDemo{background:rgb(var(--c-bg));border:1px solid var(--c-line);border-radius:9px;padding:14px 16px;margin-top:10px}
+.ledgerDemo select{background:rgb(var(--c-card));color:inherit;border:1px solid var(--c-line);border-radius:7px;padding:6px 9px;font:inherit;margin-bottom:10px}
 .kpi{background:rgb(var(--c-card));border:1px solid var(--c-line);border-radius:11px;padding:14px 15px 13px;
   position:relative;overflow:hidden;transition:transform .16s,box-shadow .16s,border-color .16s;cursor:pointer;
   text-align:left;width:100%;font:inherit;color:inherit;display:block}
@@ -672,6 +680,33 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         <div style="display:flex;gap:8px;align-items:center;margin-top:14px;flex-wrap:wrap">
           <button class="btn on" id="storyTourBtn" type="button">Start the tour &rarr;</button>
         </div>
+      </div>
+
+      <div class="sec-h" style="margin-top:34px"><h2>The eleven-input ledger</h2>
+        <span class="tag">the foundation everything below is computed from</span></div>
+      <p class="lede">Eleven raw, uncomputed numbers per control account &mdash; the whole ledger.
+        Every KPI on this board, every chart on the other ten tabs, is calculated live from these at
+        render time. Nothing is typed twice, and nothing here is decorative.</p>
+      <div class="card" id="ledgerCard">
+        <div class="eyebrow">Control-account ledger &middot; <code>PKGS</code></div>
+        <div class="ledgerGrid" id="ledgerGrid"></div>
+
+        <div class="sec-h" style="margin-top:22px"><h4>Try it &mdash; change one input, watch the KPIs move</h4></div>
+        <p style="margin:0 0 12px;font-size:12.8px;color:rgb(var(--c-mut));max-width:70ch">
+          Pick a package, drag its Actual Cost. This reads a local copy of that one package &mdash;
+          nothing else on the page moves, because only the real ledger above drives the real board.</p>
+        <div class="ledgerDemo">
+          <select id="ledgerPkgSelect" aria-label="Control account for the demo"></select>
+          <div class="slider"><label for="ledgerAc">Actual Cost ($M)</label>
+            <input type="range" id="ledgerAc" step="0.5"><span class="tab-num mono" id="ledgerAcVal"></span></div>
+          <div class="estats" id="ledgerDemoOut" style="margin-top:10px"></div>
+          <button class="btn" id="ledgerDemoReset" type="button" style="margin-top:10px">Reset</button>
+        </div>
+
+        <details class="dbox" style="margin-top:18px">
+          <summary>Every control account's own 11 raw values</summary>
+          <div id="ledgerInspector" style="margin-top:10px"></div>
+        </details>
       </div>
 
       <div class="phases" id="phases" role="group" aria-label="Program phase"></div>
@@ -1563,6 +1598,36 @@ var PKGS = [
  {id:"CP-701",n:"Systems integration &amp; testing",bac: 46.0,pv: 13.8,ev: 13.1,ac: 13.5,commit: 15.0,float:  0,cpRem:300,actsP: 42,actsD: 34,ernH: 26000,actH: 27000}
 ];
 
+/* The eleven-input ledger, described for humans (Overview-tab ledger card upgrade, 2026-08-20) —
+   same fields as PKGS above, one entry per raw input, each with a live-computed worked example
+   (never a hand-typed number, same discipline as GLOSS below). CP-101 (rows[0]) is the
+   worked-example package throughout, matching the vault prep's own worked examples so the two
+   never disagree on which package or which numbers they're citing. */
+var LEDGER_INPUTS=[
+ {key:"bac",abbr:"BAC",n:"Budget at Completion",d:"The total baseline cost allocated to the control account.",
+  ex:function(){var p=rows[0]; return p.id+" is baselined at "+m(p.bac)+"."; }},
+ {key:"pv",abbr:"PV",n:"Planned Value",d:"The budgeted cost of work scheduled to be completed by the data date.",
+  ex:function(){var p=rows[0]; return p.id+" should have "+m(p.pv)+" of work done by now."; }},
+ {key:"ev",abbr:"EV",n:"Earned Value",d:"The budgeted cost of the work actually accomplished to date.",
+  ex:function(){var p=rows[0]; return p.id+" has actually earned "+m(p.ev)+" of that work."; }},
+ {key:"ac",abbr:"AC",n:"Actual Cost",d:"The actual expenditures incurred to date.",
+  ex:function(){var p=rows[0]; return p.id+" has spent "+m(p.ac)+" to get there."; }},
+ {key:"commit",abbr:"Commit",n:"Commitments",d:"Contracted and committed dollar values assigned to the package.",
+  ex:function(){var p=rows[0]; return p.id+" carries "+m(p.commit)+" in commitments."; }},
+ {key:"float",abbr:"Float",n:"Total Float",d:"Available slack calendar days before impacting the overall finish date.",
+  ex:function(){var p=rows[0]; return p.id+" carries "+p.float+"d of total float."; }},
+ {key:"cpRem",abbr:"CP Rem",n:"Remaining Critical-Path Duration",d:"The remaining calendar days along the critical/driving path.",
+  ex:function(){var p=rows[0]; return p.id+" has "+p.cpRem+"d left on its own driving path."; }},
+ {key:"actsP",abbr:"Acts Planned",n:"Baseline Activity Count",d:"Planned number of activities baseline-scheduled to finish by the data date.",
+  ex:function(){var p=rows[0]; return "The baseline says "+p.actsP+" activities should be done on "+p.id+" by now."; }},
+ {key:"actsD",abbr:"Acts Done",n:"Completed Activity Count",d:"The actual count of activities fully finished by the data date.",
+  ex:function(){var p=rows[0]; return p.actsD+" activities are actually done on "+p.id+"."; }},
+ {key:"ernH",abbr:"Earned Hrs",n:"Earned Hours",d:"Budgeted labor/crew hours credited for completed work.",
+  ex:function(){var p=rows[0]; return p.id+" has earned "+num(p.ernH)+" crew-hours of credit."; }},
+ {key:"actH",abbr:"Actual Hrs",n:"Actual Hours",d:"Real field/crew hours expended to date.",
+  ex:function(){var p=rows[0]; return "Crews actually logged "+num(p.actH)+" hours to get there."; }}
+];
+
 var MILES = [
  {n:"Utilities relocation complete", base:"31 Aug 2026", fc:"05 Oct 2026", d: 35},
  {n:"Tunnel excavation complete",    base:"30 Sep 2026", fc:"18 Nov 2026", d: 49},
@@ -2202,6 +2267,38 @@ var KPIS = [
  act:"Above benchmark is not a reporting problem, it is an exposure problem: incident-pattern review by package, and check whether the pattern sits where float is negative. Acceleration pressure and incident rate travel together."}
 ];
 
+/* Ledger provenance per KPI (Overview-tab ledger card upgrade, 2026-08-20) — which of the 11 raw
+   ledger inputs actually feed each KPI, stated honestly rather than claimed uniformly: several
+   KPIs (MSV, Risk Exposure, COR, PCE, RFI, TRIR) don't come from the ledger at all — they're the
+   milestone log, risk register, change log, or safety log, already named in that KPI's own `src`
+   field above. Three more (CDI, FDI, CCR) genuinely mix a ledger field with a separate register —
+   named as a mix, not claimed as pure ledger provenance they don't have. A KPI's absence from all
+   three maps below (float/TFE reads the ledger's own float field only) still resolves correctly:
+   the fallback in ledgerProvenanceDbox() below only omits the box, never asserts a wrong source. */
+var KPI_LEDGER={
+ cpi:["ev","ac"], cv:["ev","ac"], eac:["bac","ev","ac"], vac:["bac","ev","ac"], tcpi:["bac","ev","ac"],
+ cdi:["bac","ev"], fund:["bac","ac"],
+ spi:["ev","pv"], sv:["ev","pv"], cpli:["cpRem","float"], bei:["actsP","actsD"], float:["float"],
+ ccr:["bac","ev","ac"],
+ pf:["ernH","actH"]
+};
+var KPI_LEDGER_MIXED={cdi:"the contingency register",fund:"grant management / finance",ccr:"the contingency register and the priced risk register"};
+var KPI_LEDGER_NONE={msv:"the CPM schedule's milestone log",expo:"the priced risk register",cor:"the change management log",pce:"the change management log",rfi:"the document control system",trir:"the safety log"};
+function ledgerProvenanceDbox(k){
+  var fields=KPI_LEDGER[k.id];
+  if(fields){
+    var names=fields.map(function(f){ var li=LEDGER_INPUTS.filter(function(x){return x.key===f;})[0]; return li?li.abbr:f; }).join(", ");
+    var mixed=KPI_LEDGER_MIXED[k.id];
+    return '<div class="dbox"><h4>Computed from the ledger</h4><p>'+names+
+      (mixed?" — also draws on "+mixed+".":"")+
+      ' <button type="button" class="btn" data-jump-tab="over" data-jump-el="ledgerCard" style="min-height:auto;padding:1px 8px;font-size:12.5px">See the ledger &rarr;</button></p></div>';
+  }
+  var none=KPI_LEDGER_NONE[k.id];
+  if(none) return '<div class="dbox"><h4>Not from the ledger</h4><p>This one draws on '+none+
+    ', not the eleven-input control-account ledger — see &ldquo;System of record&rdquo; above.</p></div>';
+  return "";
+}
+
 /* =========================================================================
    5. SPARKLINE HISTORY — derived, not stored: a deterministic convergence
    from an early-program value to today's actual, so trends stay consistent
@@ -2252,7 +2349,60 @@ function sparkline(series, ragColor){
    ========================================================================= */
 var state = {phase:"con", fam:"All", audience:"pcm", kpi:null, pkg:2, actFilter:"All", act:null,
   presenting:false, presentSet:"full", beatIdx:0, touring:false, tourIdx:0, textSize:0, tab:"over", mcView:"hist",
-  mcIncluded:rows.map(function(r){ return r.id; }), cphDrill:false, mcConfidence:0.80};
+  mcIncluded:rows.map(function(r){ return r.id; }), cphDrill:false, mcConfidence:0.80, ledgerDemoPkg:"CP-101"};
+
+/* Ledger card (Overview-tab upgrade, 2026-08-20) — the 11 raw inputs, a per-package inspector, and
+   a live "change one input, watch the KPIs move" demo. The demo deliberately reads a LOCAL copy of
+   whichever package is selected (base.ev/base.ac/base.bac below) and never touches PKGS/rows/T —
+   the real ledger driving the real board stays exactly as it is regardless of what the demo slider
+   does, which is itself the point being demonstrated. */
+function renderLedgerGrid(){
+  document.getElementById("ledgerGrid").innerHTML = LEDGER_INPUTS.map(function(li){
+    return '<div class="ledger-item"><div class="top"><span class="abbr">'+li.abbr+'</span>'+
+      '<button type="button" class="help-ic" data-help="'+li.key+'" aria-label="What does this term mean?" aria-expanded="false">i</button></div>'+
+      '<div class="nm">'+li.n+'</div><div class="sub">'+li.d+'</div></div>';
+  }).join("");
+}
+function renderLedgerInspector(){
+  document.getElementById("ledgerInspector").innerHTML =
+    '<div class="tw"><table><thead><tr><th scope="col">Package</th>'+
+    LEDGER_INPUTS.map(function(li){ return '<th scope="col">'+li.abbr+'</th>'; }).join("")+
+    '</tr></thead><tbody>'+
+    PKGS.map(function(p){ return '<tr style="cursor:default"><td>'+p.id+'</td>'+
+      LEDGER_INPUTS.map(function(li){ var v=p[li.key];
+        return '<td class="tab-num">'+(typeof v==="number"&&Math.abs(v)>=1000?num(v):v)+'</td>'; }).join("")+
+      '</tr>'; }).join("")+
+    '</tbody></table></div>';
+}
+function ledgerDemoBase(){ return PKGS.filter(function(p){ return p.id===state.ledgerDemoPkg; })[0]; }
+function renderLedgerDemo(resetSlider){
+  var base=ledgerDemoBase(), slider=document.getElementById("ledgerAc");
+  if(resetSlider){
+    // min/max are built OUT from base.ac in whole step multiples, not independently rounded —
+    // a real <input type="range"> silently snaps .value to the nearest point on its own step
+    // grid (min + N*step), and an independently-rounded min (e.g. (base.ac*0.7).toFixed(1)) will
+    // usually put base.ac itself off-grid, so "Reset" would silently NOT restore the true value.
+    // Only caught by live-browser verification — the Node test stub doesn't model step-snapping
+    // at all, so this passed every automated assertion while being wrong on the actual page.
+    var step=0.5, halfSteps=Math.round(base.ac*0.3/step);
+    slider.min=(base.ac-halfSteps*step).toFixed(1); slider.max=(base.ac+halfSteps*step).toFixed(1); slider.step=step;
+    slider.value=base.ac;
+  }
+  var ac=+slider.value;
+  document.getElementById("ledgerAcVal").textContent=m(ac);
+  var cpi=base.ev/ac, eac=base.bac/cpi, vac=base.bac-eac;
+  document.getElementById("ledgerDemoOut").innerHTML=
+    [["CPI = EV ÷ AC",idx(cpi),cpi>=1?"ok":cpi>=0.95?"wa":"ba"],
+     ["EAC = BAC ÷ CPI",m(eac),eac<=base.bac?"ok":"ba"],
+     ["VAC = BAC − EAC",sgn(vac),vac>=0?"ok":"ba"]]
+    .map(function(r){ return '<div><div class="k">'+r[0]+'</div><div class="v '+r[2]+'">'+r[1]+'</div></div>'; }).join("");
+}
+function renderLedgerPkgSelect(){
+  var sel=document.getElementById("ledgerPkgSelect");
+  sel.innerHTML=PKGS.map(function(p){ return '<option value="'+p.id+'">'+p.id+'</option>'; }).join("");
+  sel.value=state.ledgerDemoPkg;
+}
+function renderLedgerCard(){ renderLedgerGrid(); renderLedgerInspector(); renderLedgerPkgSelect(); renderLedgerDemo(true); }
 
 function renderPhases(){
   document.getElementById("phases").innerHTML = PHASES.map(function(p,i){
@@ -2384,6 +2534,7 @@ function renderDetail(){
       '<div class="dbox"><h4>The play when it breaches</h4><p>'+k.act+'</p></div>'+
       '<div class="dbox"><h4>Thresholds</h4><p>'+k.th+'</p></div>'+
       '<div class="dbox"><h4>System of record</h4><p>'+k.src+'</p></div>'+
+      ledgerProvenanceDbox(k)+
     '</div>'+
     spiTCompanionDbox(k)+
     renderRootCause(k,rag)+
@@ -5305,6 +5456,18 @@ var GLOSS=[
   e:function(){ return m(PROGRAM.contingency)+" set aside, "+m(PROGRAM.contingencyDrawn)+" spent ("+pct(T.contDrawn,0)+"), "+m(T.contRemaining)+" left — while the program is "+pct(T.pct,0)+" complete. Here the reserve is being consumed slower than value is earned, which is the healthy direction; the forecast overrun of "+m(Math.abs(T.vac))+" against "+m(T.contRemaining)+" left is not."; }},
  {k:"float", t:"Total float", p:"How many days a piece of work can slip before it starts moving the final completion date. Positive float is breathing room. Zero means you are on the edge. Negative means the plan no longer fits in the time left.",
   e:function(){ return "The tunnel sits at "+days(G_TUN.float)+", utilities at "+days(G_UT.float)+". Those two packages are not just late — they are now setting the completion date themselves."; }},
+ {k:"commit", t:"Commitments", p:"Contracted and committed dollar values assigned to the control account — money the program is on the hook for even if it hasn't been invoiced yet. Distinct from Actual Cost, which is what has actually landed.",
+  e:function(){ var p=rows[0]; return p.id+" carries "+m(p.commit)+" in commitments against "+m(p.ac)+" spent so far — the gap between the two is exposure that hasn't hit the ledger as a real cost yet."; }},
+ {k:"cpRem", t:"Remaining Critical-Path Duration", p:"The remaining calendar days along that control account's own driving path — the raw duration input CPLI is built from, not a derived index itself.",
+  e:function(){ var p=rows[0]; return p.id+" has "+p.cpRem+" days left on its own driving path, with "+p.float+"d of float — the two combine into its CPLI of "+idx(p.cpli)+"."; }},
+ {k:"actsP", t:"Baseline Activity Count", p:"The number of activities the baseline schedule said would be finished by the data date — the denominator BEI is built from.",
+  e:function(){ var p=rows[0]; return "The baseline expected "+p.actsP+" activities done on "+p.id+" by now — the number Completed Activity Count is measured against."; }},
+ {k:"actsD", t:"Completed Activity Count", p:"The actual count of activities fully finished by the data date — counted as whole activities, not dollars, so a handful of expensive-but-incomplete tasks can't hide behind a healthy-looking budget.",
+  e:function(){ var p=rows[0]; return p.actsD+" of "+p.actsP+" activities are actually done on "+p.id+" — a BEI of "+idx(p.bei)+"."; }},
+ {k:"ernH", t:"Earned Hours", p:"Budgeted labor/crew hours credited for the work actually completed — the numerator Productivity Factor is built from.",
+  e:function(){ var p=rows[0]; return p.id+" has earned "+num(p.ernH)+" crew-hours of credit against "+num(p.actH)+" actually worked — a Productivity Factor of "+idx(p.pf)+"."; }},
+ {k:"actH", t:"Actual Hours", p:"Real field/crew hours expended to date — the denominator Productivity Factor is built from, and the number a superintendent can act on today, before it shows up as a dollar variance weeks later.",
+  e:function(){ var p=rows[0]; return "Crews logged "+num(p.actH)+" real hours on "+p.id+" to earn "+num(p.ernH)+" hours of credit."; }},
  {k:"cpli", t:"Critical path & CPLI", p:"The critical path is the chain of work that sets the finish date — delay any link and the whole program moves. CPLI (Critical Path Length Index) asks whether the remaining plan on that chain still fits: (days left + float) divided by days left. Under 1.00, the plan is arithmetically impossible without recovery.",
   e:function(){ return "The driving path runs through "+G_UT.id+": "+G_UT.cpRem+" days of critical work remain with "+days(G_UT.float)+" of float — CPLI "+idx(G_UT.cpli)+", meaning the plan must run faster than scheduled from tomorrow onward."; }},
  {k:"bei", t:"BEI — Baseline Execution Index", p:"A simple honesty counter: of the activities the plan said would be finished by now, how many actually are? Counts, not dollars — so big expensive tasks cannot hide small missed ones.",
@@ -6121,6 +6284,17 @@ body.addEventListener("keydown",function(e){
   // renderWhatIf's own `immediate` param truthy on every drag tick too, silently defeating the
   // debounce above (caught by test, not by reading the code — /stress-test, 2026-08-20).
   document.getElementById(id).addEventListener("input",function(){ renderWhatIf(); }); });
+
+// Ledger card demo (Overview-tab upgrade, 2026-08-20) — same not-a-bare-function-reference
+// wrapping as the sliders just above: renderLedgerDemo(resetSlider) would otherwise receive the
+// native (truthy) Event object as resetSlider on every drag tick, re-clamping min/max/value and
+// making the slider un-draggable past its own starting point.
+document.getElementById("ledgerAc").addEventListener("input",function(){ renderLedgerDemo(); });
+// reads the select by id, not event.target — matches this file's own established convention
+// (renderWhatIf() does the same for its three sliders) rather than trusting the event's target.
+document.getElementById("ledgerPkgSelect").addEventListener("change",function(){
+  state.ledgerDemoPkg=document.getElementById("ledgerPkgSelect").value; renderLedgerDemo(true); });
+document.getElementById("ledgerDemoReset").addEventListener("click",function(){ renderLedgerDemo(true); });
 // DRB EMV sliders (Phase 5, engagement/interactivity upgrade, 2026-08-20) — same plain-closure
 // wrapping as the What-If sliders just above, for the same reason (renderDrbSlider takes no
 // params that Event-is-truthy could corrupt, but matching the established idiom here anyway).
@@ -6217,6 +6391,7 @@ document.getElementById("mcViewCdf").addEventListener("click",function(){ state.
 
 /* init */
 renderExecSummary();
+renderLedgerCard();
 renderPhases(); renderStrip(); renderPortfolio(); renderAudienceFilters(); renderFilters(); renderBoard(); renderDetail();
 renderScurve(); renderScurveMath();
 document.getElementById("scurveScrub").max=String(MT);
@@ -6262,7 +6437,10 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   gloss:GLOSS,findGloss:findGloss,
   miles:MILES,delays:DELAYS,spark:SPARK,baseline:BASELINE,guards:GUARDS,escPat:ESC_PAT,
   mcParams:mcParams,triang:triang,dsStep:dsStep,
-  textZoom:TEXT_ZOOM,applyTextSize:applyTextSize,curZoom:curZoom};
+  textZoom:TEXT_ZOOM,applyTextSize:applyTextSize,curZoom:curZoom,
+  pkgs:PKGS,ledgerInputs:LEDGER_INPUTS,kpiLedger:KPI_LEDGER,kpiLedgerMixed:KPI_LEDGER_MIXED,
+  kpiLedgerNone:KPI_LEDGER_NONE,ledgerProvenanceDbox:ledgerProvenanceDbox,ledgerDemoBase:ledgerDemoBase,
+  renderLedgerDemo:renderLedgerDemo};
 })();
 </script>
 </body>
