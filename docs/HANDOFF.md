@@ -30,7 +30,7 @@ anywhere in this repository. The method is the content, not the numbers.
 
 | | |
 |---|---|
-| Primary file | `index.html` — 6,744 lines, one file, no build step |
+| Primary file | `index.html` — 6,783 lines, one file, no build step |
 | Top-level JS functions | 176 (not re-audited this round — see §18 gap note) |
 | Tabs | 11 |
 | KPIs (with formula/threshold/phase/source/play each) | 20 |
@@ -44,10 +44,10 @@ anywhere in this repository. The method is the content, not the numbers.
 | Contracts | 6 |
 | Risks | 6 |
 | Delay events | 4 |
-| `stress.cjs` test assertions | 1,380, all passing |
+| `stress.cjs` test assertions | 1,395, all passing |
 | Companion pages | `otak.html` (fit brief), `architecture.html` (static pipeline map) |
 | Hosting | GitHub Pages, served directly from `main`, zero build |
-| Git history | 99 commits |
+| Git history | 100 commits |
 
 Current EVM tie-out (verify live in the browser console via `__PCC__.totals`, or `node verify.cjs`):
 
@@ -201,7 +201,7 @@ Beyond the core EVM block, three more derivation families exist:
 
 | # | Tab (id) | What's on it |
 |---|---|---|
-| 1 | **Overview** (`over`) | A "Six lenses, not one blended score" card explaining what each of the 6 KPI families (Cost/Schedule/Risk/Change/Delivery/Compliance) actually asks and why it can't be folded into the others, directly above the 20-KPI board with drill-down detail (formula/threshold/source/play per card, plus a "computed from the ledger" / "not from the ledger" provenance box, honestly stated per KPI), a live root-cause-to-owner trace, the eleven-input ledger card (all 11 raw fields, a per-package inspector, and a live "change one input, watch the KPIs move" demo — reads a local snapshot, never mutates the real ledger), a 10-stop guided Tour with tab-jumping evidence links (§18 gap #8 — this doc previously called it "five-chapter," a stale phrase with no matching code), an executive summary. |
+| 1 | **Overview** (`over`) | A "Six lenses, not one blended score" card explaining what each of the 6 KPI families (Cost/Schedule/Risk/Change/Delivery/Compliance) actually asks and why it can't be folded into the others, a "Three layers, not one number" card naming this dashboard's own leading-telemetry / confirming-EVM / independent-assurance architecture for the first time (each layer real, already built, just never named as one system), directly above the 20-KPI board with drill-down detail (formula/threshold/source/play per card, plus a "computed from the ledger" / "not from the ledger" provenance box, honestly stated per KPI), a live root-cause-to-owner trace, the eleven-input ledger card (all 11 raw fields, a per-package inspector, and a live "change one input, watch the KPIs move" demo — reads a local snapshot, never mutates the real ledger), a 10-stop guided Tour with tab-jumping evidence links (§18 gap #8 — this doc previously called it "five-chapter," a stale phrase with no matching code), an executive summary. |
 | 2 | **Portfolio** (`port`) | Agency-level rollup across 4 lines of business — one reads live off this program's own totals (never duplicated, `GUARDS`-checked), three are summary-only illustrative peers. |
 | 3 | **Cost** (`cost`) | EVM S-curve + variance bridge, an estimate-to-budget baseline bridge reconciled to the ledger, four-method EAC, a forecast-reliability section (EAC trend, forecast-accuracy scorecard, monthly cash flow), what-if forecasting with 3 live sliders + scenario comparison, Monte Carlo completion distribution (10,000 runs, seeded/reproducible, a Triangular/PERT draw-shape toggle), the cost-diffusion (GBM) card. |
 | 4 | **Schedule** (`sched`) | DCMA-style schedule health — SPI, SPI(t)/Earned Schedule, CPLI, BEI, the full objective metric triad the DCMA 14-Point Assessment and ANSI/EIA-748 sit under, named explicitly (checks 13/14, with the other 12 stated as a real gap) — a Gantt-style bar with baseline vs. forecast, a fragnet-based delay & TIA register tied to package float, revenue-service forecast drift, statistical control charts (z-score + EWMA) over crew cost-per-hour. |
@@ -310,6 +310,21 @@ Everything below is a real DOM interaction, independently covered by `stress.cjs
   deliberately **not** cited anywhere — they trace to secondary sources the doc itself never
   appears to have independently verified, the same caution this project already applies to any
   AI-synthesized research (see the plan file's own grounding note).
+- **Three-layer architecture card** (Overview tab, `LAYERS`/`renderLayersGrid()`, 2026-08-21) — a
+  47-file research package's own Insight 4 named a real pattern this dashboard already implements
+  but had never stated as one architecture: leading telemetry (Delivery family's 3 indicators) →
+  confirming EVM/Earned Schedule (`schedTriad`'s 4 tiles) → independent computed assurance
+  (`GUARDS`/`INGEST_GUARDS`). Pure narrative synthesis — nothing new computed, every number read
+  live off the real arrays it names (`GUARDS.length`, `INGEST_GUARDS.length`), with a jump button
+  per layer to the real tab/element it describes. One candidate citation was dropped rather than
+  used: an attempt to independently verify a specific "20% faster / 75% fewer false alarms"
+  EWMA-on-Earned-Schedule finding via `WebFetch` against the primary PDF was inconclusive (the
+  fetch couldn't confirm the claim from the readable text), so the card states only what's true
+  and already verified about this dashboard's own real mechanisms, not an unconfirmed external
+  number. Also added: the Gate 5 card's existing prose now states the post-lock re-baselining
+  governance principle explicitly (a locked baseline should never move without the same
+  independent review the lock required) — narrative only, since no re-baseline event is modeled
+  on this synthetic ledger to gate against, stated honestly as a principle, not an enforced check.
 - **12 `<details class="dbox">` "how this is actually computed" accordions** — each walks a
   worked example against real data (S-curve PV formula, waterfall bridge, Gantt forecast-finish,
   CPLI driving-path arithmetic, risk exposure, Monte Carlo per-run formula, crew cost-per-hour
@@ -360,7 +375,7 @@ matches an independent recomputation, not just that *a* number is present.
 
 ## 11. Testing & verification
 
-**`stress.cjs`** (1,380 assertions, all passing) — stubs the DOM, loads `index.html`'s script
+**`stress.cjs`** (1,395 assertions, all passing) — stubs the DOM, loads `index.html`'s script
 verbatim into that stub, and exercises it exactly like a user would: every tab switch, every
 filter, every drawer, every slider drag, every keyboard interaction. 35 labeled sections:
 
@@ -537,9 +552,10 @@ Named explicitly, not silently dropped — from the most recent engagement/inter
    2026-08-21; **§18 gap #9 below adds the automated sync test this gap has been naming since
    2026-08-20** — that structural risk is now closed, not just the 3rd stale instance.
 4. ~~**`README.md`'s own stated counts lag behind this document**~~ — **Resolved 2026-08-20** (and
-   re-synced four more times on 2026-08-21 — the six-families card, the Data Strategy UI/UX round,
-   the Monte Carlo PERT draw-shape toggle, and the megaproject-controls-doc upgrade round): 1,380
-   assertions / 53 glossary terms / 28-check integrity gate, matching §2 as of this writing.
+   re-synced five more times on 2026-08-21 — the six-families card, the Data Strategy UI/UX round,
+   the Monte Carlo PERT draw-shape toggle, the megaproject-controls-doc upgrade round, and the Kimi
+   research-package round): 1,395 assertions / 53 glossary terms / 28-check integrity gate, matching
+   §2 as of this writing.
 5. **The eleven-input ledger card is new this round** (2026-08-20) and only covers the Overview
    tab's own `PKGS` provenance — it does not touch or resolve gap #2 above (the risk register still
    has no independent drill-down drawer of its own).
@@ -697,12 +713,30 @@ carried over from memory or an earlier pass:
   target was checked live in a real browser — the SPI(t) tile's real value (0.978, distinct from
   dollar-SPI's 0.968), the WBS table's real ABS tags, and the NCR card's real open-count/aging
   values and status pills, all with zero console errors and zero layout overflow.
+- **2026-08-21 Kimi research-package round**: a 47-file research package was triaged by reading
+  only its highest-value synthesis files (`plan.md`, its cross-dimension insight file, its own
+  cross-verification file, its own coherence-review file, and one research dimension in full) —
+  not all 47 files. Confirmed the package's own internal QA caught a real, still-unfixed factual
+  error in its own case-study chapter, reinforcing (not just repeating) the standing rule against
+  citing any case-study fact from downloaded research without independent primary-source
+  verification. The one idea this package's own research made most tempting — charting EWMA/SPC
+  on Earned Schedule/SPI(t) — was verified infeasible before being proposed: `deriveEarnedSchedule()`
+  is only ever called with no arguments (one current-state reading), and the only long-enough
+  arrays (`pvA`/`evA`/`acA`) are formula-generated interpolations this codebase's own comment
+  already calls "structurally meaningless" for statistical charting. Declined outright rather than
+  built. What shipped instead: a new "Three layers, not one number" card (Overview tab) naming a
+  real architecture this dashboard already had but never stated, and one sentence on the Gate 5
+  card naming the post-lock re-baselining governance principle. `node stress.cjs` run fresh
+  (`1395 passed, 0 failed`), `node verify.cjs` unchanged, and both new render targets checked live
+  in a real browser — the layer card's real, live counts (28-check gate, 2 ingestion checks), all
+  3 jump buttons confirmed to actually switch tabs, and the Gate 5 sentence's presence — zero
+  console errors, zero layout overflow.
 
 Generated 2026-08-20, against the tip of the eleven-input-ledger-card engagement round; extended
 2026-08-21 for the six-KPI-families card round, again 2026-08-21 for the Data Strategy tab UI/UX
 round, again 2026-08-21 for the "96→100" brainstorm round's Tier 0/1 items, again 2026-08-21 for
 the full-dashboard `/stress-test` visual pass, again 2026-08-21 for the Monte Carlo PERT
-draw-shape round, again 2026-08-21 for the Monte Carlo run-count round, and again 2026-08-21 for
-the megaproject-controls-doc upgrade round (see git log for exact commits — each document update
-was written before its own round's commit lands, per the project's "verify, then document"
-ordering).
+draw-shape round, again 2026-08-21 for the Monte Carlo run-count round, again 2026-08-21 for the
+megaproject-controls-doc upgrade round, and again 2026-08-21 for the Kimi research-package round
+(see git log for exact commits — each document update was written before its own round's commit
+lands, per the project's "verify, then document" ordering).

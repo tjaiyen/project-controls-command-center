@@ -235,14 +235,16 @@ h4{font-size:.86rem;margin:0 0 5px}
 .kfilters{display:flex;gap:7px;flex-wrap:wrap;margin-top:18px;align-items:center}
 .kboard{display:grid;grid-template-columns:repeat(auto-fill,minmax(238px,1fr));gap:12px;margin-top:15px}
 .ledgerGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
-/* All three .ledgerGrid instances (Data Strategy's 4-tile guardrail grid, Overview's six-KPI-
-   families grid, Overview's eleven-input ledger card) stack 1-column instead of the shared
-   auto-fill row layout above — each grid's own tiles carry uneven text length (a longer worked
-   example/description on some tiles than others), so an N-across row stretched every tile to the
-   tallest one's height and left large void space in the shorter ones. Scoped by id, not a change
-   to .ledgerGrid itself, in case a future .ledgerGrid instance genuinely has even-height content
-   and wants the auto-fill row layout back (TJ, 2026-08-21 + follow-up same day). */
-#guardrailGrid,#familiesGrid,#ledgerGrid{grid-template-columns:1fr}
+/* All .ledgerGrid instances (Data Strategy's 4-tile guardrail grid, Overview's six-KPI-families
+   grid, Overview's eleven-input ledger card, Overview's 3-tile leading/confirming/assurance
+   layers grid) stack 1-column instead of the shared auto-fill row layout above — each grid's own
+   tiles carry uneven text length (a longer worked example/description on some tiles than others),
+   so an N-across row stretched every tile to the tallest one's height and left large void space in
+   the shorter ones. Scoped by id, not a change to .ledgerGrid itself, in case a future .ledgerGrid
+   instance genuinely has even-height content and wants the auto-fill row layout back (TJ,
+   2026-08-21 + 2 follow-ups same day — applied proactively to layersGrid rather than waiting to be
+   asked a 4th time). */
+#guardrailGrid,#familiesGrid,#ledgerGrid,#layersGrid{grid-template-columns:1fr}
 .ledger-item{background:rgb(var(--c-bg));border:1px solid var(--c-line);border-radius:9px;padding:11px 12px}
 .ledger-item .top{display:flex;align-items:center;justify-content:space-between}
 .ledger-item .abbr{font:600 10.5px/1 ui-monospace,monospace;letter-spacing:.06em;color:rgb(var(--c-accent))}
@@ -730,6 +732,16 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
       <div class="card" id="familiesCard">
         <div class="ledgerGrid" id="familiesGrid"></div>
       </div>
+
+      <div class="sec-h" style="margin-top:34px"><h2>Three layers, not one number</h2>
+        <span class="tag">how this dashboard actually catches drift</span></div>
+      <p class="lede">These three groups already exist on this dashboard, each built independently
+        on its own tab &mdash; they've just never been named as one architecture before. Leading
+        telemetry moves first, weeks before the money does; confirming EVM/Earned-Schedule indices
+        say whether that's turning into a real cost or schedule problem; independent computed
+        assurance checks that every number in between is honest. A drift that only shows up in one
+        layer is worth watching; one that shows up in all three is the real thing.</p>
+      <div class="ledgerGrid" id="layersGrid"></div>
 
       <div class="sec-h" style="margin-top:34px"><h2>KPI board</h2><span class="tag" id="boardTag"></span></div>
       <p class="lede">Click any card for the formula, thresholds, data source and the play to run when it
@@ -2490,6 +2502,27 @@ function renderLedgerCard(){ renderLedgerGrid(); renderLedgerInspector(); render
    .ledgerGrid/.ledger-item visual pattern rather than inventing new CSS, since both are the same
    kind of thing: a taxonomy explained before the detail it organizes. KPI counts are read live off
    KPIS, never hand-typed. */
+/* The three-layer architecture (megaproject-controls-doc upgrade, 2026-08-21) — each layer was
+   already real and already shipped on its own tab before this round; this names them as one
+   coherent architecture for the first time, not a new mechanism. jumpTab/jumpEl reuse the same
+   data-jump-tab/data-jump-el delegated handler every other cross-reference button on this page
+   already uses. */
+var LAYERS=[
+ {n:"Layer 1 — Leading telemetry",jumpTab:"del",jumpEl:"ncrCard",
+  x:function(){ return "Moves weeks before the money does: Productivity Factor, RFI aging, and quality NCR aging — the Delivery family's own 3 indicators, none of them derived from cost or schedule."; }},
+ {n:"Layer 2 — Confirming EVM / Earned Schedule",jumpTab:"sched",jumpEl:"schedTriad",
+  x:function(){ return "Says whether drift is turning into a real cost or schedule problem: SPI, SPI(t), CPLI, and BEI — four numbers, four different failure modes, none of them fooled by spend rate alone."; }},
+ {n:"Layer 3 — Independent computed assurance",jumpTab:"ai",jumpEl:"aiGuards",
+  x:function(){ return "Checks that every number in the two layers above is honest before it's allowed to move: the "+GUARDS.length+"-check integrity gate plus "+INGEST_GUARDS.length+" ingestion-validation checks, both re-run against the live ledger on every load."; }}
+];
+function renderLayersGrid(){
+  document.getElementById("layersGrid").innerHTML = LAYERS.map(function(l){
+    return '<div class="ledger-item"><div class="top"><span class="abbr">'+l.n+'</span></div>'+
+      '<div class="sub">'+l.x()+' <button type="button" class="btn" style="min-height:auto;padding:1px 8px;font-size:12.5px;margin-top:4px" '+
+      'data-jump-tab="'+l.jumpTab+'" data-jump-el="'+l.jumpEl+'">See it live &rarr;</button></div></div>';
+  }).join("");
+}
+
 function renderFamiliesGrid(){
   document.getElementById("familiesGrid").innerHTML = KPI_FAMILIES.map(function(f){
     var n = KPIS.filter(function(k){ return k.fam===f.key; }).length;
@@ -4692,7 +4725,11 @@ function renderGates(){
     '<h3 style="margin:6px 0 3px">'+(fails?"BLOCKED &mdash; cannot advance to Gate 6":"CLEARED &mdash; eligible to advance to Gate 6")+'</h3>'+
     '<p class="lede" style="margin:0 0 12px;font-size:12.5px">Every check below runs against the live '+
     'ledger on every load, the same as the integrity gate on the AI &amp; Data tab. This is not a status a '+
-    'program office typed in &mdash; it is recomputed, and it can fail.</p>'+
+    'program office typed in &mdash; it is recomputed, and it can fail. The principle that matters as much '+
+    'as the lock itself: once cleared, this baseline should never move without the same independent review '+
+    'the lock required &mdash; unreviewed rebaselining is the documented mechanism by which a real overrun '+
+    'gets laundered back into &ldquo;on target.&rdquo; No re-baseline event is modeled on this synthetic '+
+    'ledger to gate against, so this is stated as the governing principle, not an enforced check.</p>'+
     res.map(function(r,i){ return '<div class="rowbar stagger" style="grid-template-columns:1fr auto;align-items:center;animation-delay:'+(i*140)+'ms">'+
       '<span style="font-size:12.5px">'+r.n+'</span>'+
       '<span class="pill '+(r.pass?"g":"r")+'" style="margin-left:10px">'+(r.pass?"PASS":"FAIL")+' &middot; '+r.detail+'</span></div>'; }).join("");
@@ -6683,6 +6720,7 @@ document.getElementById("mcDistPert").addEventListener("click",function(){ state
 renderExecSummary();
 renderLedgerCard();
 renderFamiliesGrid();
+renderLayersGrid();
 renderPhases(); renderStrip(); renderPortfolio(); renderAudienceFilters(); renderFilters(); renderBoard(); renderDetail();
 renderScurve(); renderScurveMath();
 document.getElementById("scurveScrub").max=String(MT);
@@ -6737,7 +6775,8 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   textZoom:TEXT_ZOOM,applyTextSize:applyTextSize,curZoom:curZoom,
   pkgs:PKGS,ledgerInputs:LEDGER_INPUTS,kpiLedger:KPI_LEDGER,kpiLedgerMixed:KPI_LEDGER_MIXED,
   kpiLedgerNone:KPI_LEDGER_NONE,ledgerProvenanceDbox:ledgerProvenanceDbox,ledgerDemoBase:ledgerDemoBase,
-  renderLedgerDemo:renderLedgerDemo,kpiFamilies:KPI_FAMILIES,renderFamiliesGrid:renderFamiliesGrid};
+  renderLedgerDemo:renderLedgerDemo,kpiFamilies:KPI_FAMILIES,renderFamiliesGrid:renderFamiliesGrid,
+  layers:LAYERS,renderLayersGrid:renderLayersGrid};
 })();
 </script>
 </body>

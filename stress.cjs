@@ -3464,6 +3464,41 @@ console.log("== D14. six KPI families card ==");
     "the six-lenses card's cross-reference button targets a real existing element (schedDriftCard), not a placeholder id");
 }
 
+console.log("== D15. three-layer architecture card (megaproject-controls-doc upgrade, 2026-08-21) ==");
+{
+  ok(P.layers.length === 3, "LAYERS has exactly 3 entries", String(P.layers.length));
+  P.layers.forEach(l => has("layersGrid", l.n, "layers grid renders the \"" + l.n + "\" tile"));
+
+  // Layer 3's counts are independently re-derived from the live GUARDS/INGEST_GUARDS arrays, not
+  // read back from the layer's own x() output and trusted against itself.
+  const layer3 = P.layers.filter(l => l.n.indexOf("Layer 3") === 0)[0];
+  has("layersGrid", P.guards.length + "-check integrity gate", "Layer 3 states the real, live GUARDS.length, not a hardcoded number");
+  has("layersGrid", P.ingestGuards.length + " ingestion-validation checks", "Layer 3 states the real, live INGEST_GUARDS.length, not a hardcoded number");
+  ok(layer3.x().indexOf(P.guards.length) >= 0, "Layer 3's own x() function output actually contains the live GUARDS.length value it renders");
+
+  // every layer's jump button targets a real, existing element — not a placeholder id
+  P.layers.forEach(l => ok(idsA.includes(l.jumpEl), "Layer \"" + l.n + "\"'s jump target #" + l.jumpEl + " exists in the real markup"));
+  ok(G.layersGrid._html.includes('data-jump-tab="del" data-jump-el="ncrCard"') &&
+     G.layersGrid._html.includes('data-jump-tab="sched" data-jump-el="schedTriad"') &&
+     G.layersGrid._html.includes('data-jump-tab="ai" data-jump-el="aiGuards"'),
+    "all 3 layer cross-reference buttons render with their real, specific rendered targets, not one shared placeholder");
+
+  // drift guards: Layer 1's "3 indicators" and Layer 2's "four numbers" claims, cross-checked
+  // against the real counts established elsewhere in this file (the D2.5/leading-indicator drift
+  // guard's own 3, and schedTriad's own 4-tile order assertion) — a 4th leading indicator or a
+  // 5th schedTriad tile added later without touching this card's own prose would fail here.
+  const layer1 = P.layers.filter(l => l.n.indexOf("Layer 1") === 0)[0];
+  const layer2 = P.layers.filter(l => l.n.indexOf("Layer 2") === 0)[0];
+  ok(["Productivity Factor", "RFI aging", "NCR aging"].every(s => layer1.x().indexOf(s) >= 0),
+    "Layer 1 names all 3 real leading indicators by name, matching the Delivery-family drift guard elsewhere in this file", layer1.x());
+  ok(["SPI, SPI(t), CPLI, and BEI", "four numbers"].every(s => layer2.x().indexOf(s) >= 0),
+    "Layer 2 names all 4 real schedTriad tiles and states the count as four, matching schedTriad's own real tile count", layer2.x());
+
+  // Gate 5 re-baselining governance sentence (item 2 of this round)
+  has("gate5Card", "should never move without the same independent review", "Gate 5 card states the post-lock re-baselining governance principle");
+  has("gate5Card", "No re-baseline event is modeled", "Gate 5 card honestly states this is a stated principle, not an enforced check on this synthetic ledger");
+}
+
 /* =========================================================================
    E. otak.html — runtime + internal consistency
    ========================================================================= */
