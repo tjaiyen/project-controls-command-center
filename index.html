@@ -807,7 +807,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         <div class="outbox" id="scurveScrubHud" style="margin-top:10px"></div>
         <!-- draggable confidence-percentile marker (brainstorm-mode upgrade, 2026-08-21) — purely
              additive to the existing, already-pinned P10-P80 prediction cone above; drag to pick
-             any percentile from the same 4,000-run Monte Carlo simulation the cone already draws
+             any percentile from the same 10,000-run Monte Carlo simulation the cone already draws
              from, rather than only the 3 fixed points. Reuses the exact .slider/range-input
              pattern the What-If sliders already use, not new styling. -->
         <div class="slider" style="margin-top:10px"><label for="sConf">Confidence</label>
@@ -911,7 +911,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
       </div>
 
       <div class="sec-h" style="margin-top:34px"><h2>The forecast is a distribution, not a point</h2><span class="tag">monte carlo</span></div>
-      <p class="lede">A single EAC pretends to a certainty the data does not contain. This runs 4,000
+      <p class="lede">A single EAC pretends to a certainty the data does not contain. This runs 10,000
         simulated completions: each control account&rsquo;s remaining work is priced at a future efficiency
         drawn around its observed CPI &mdash; downside wider than upside, because cost efficiency on capital
         work recovers slowly and degrades fast. Fixed seed, so the distribution is reproducible and testable.</p>
@@ -2818,7 +2818,7 @@ function renderScurve(){
     "Actual cost runs above earned value and the gap widens — that is the cost problem, "+m(Math.abs(T.cv))+
     " to date. Earned value runs below planned value — that is the schedule problem, "+m(Math.abs(T.sv))+
     ". The dashed tail projects "+m(T.eac)+" at completion against a "+m(T.bac)+" budget. The shaded "+
-    "fan around it isn't a second forecast — it's the same 4,000-run Monte Carlo simulation the Cost "+
+    "fan around it isn't a second forecast — it's the same "+MC.n.toLocaleString("en-US")+"-run Monte Carlo simulation the Cost "+
     "tab already runs, drawn here as a range instead of a single line: "+pct(MC.pOver,0)+
     " of simulated completions land above the "+m(T.bac)+" budget, spanning "+m(MC.p10)+" (P10) to "+
     m(MC.p80)+" (P80).";
@@ -3329,7 +3329,7 @@ function mcParams(r){
 function mcQuantile(sortedSims,p){ return sortedSims[Math.floor(p*sortedSims.length)]; }
 function computeMc(uncertainIds,dist){
   dist=dist||"triangular"; // default preserves every pre-existing call site's behavior unchanged
-  var rnd=lcg(20260731), N=4000, sims=[], i, j;
+  var rnd=lcg(20260731), N=10000, sims=[], i, j;
   for(i=0;i<N;i++){
     var e=0;
     for(j=0;j<rows.length;j++){ var r=rows[j];
@@ -3548,7 +3548,7 @@ function renderMcMath(){
     var alpha=1+4*(mode-aLow)/(bHigh-aLow), beta=1+4*(bHigh-mode)/(bHigh-aLow);
     // Unlike triang(u,...), PERT has no single-uniform inverse-CDF to hand-pick illustrative u
     // values from — its Beta/Gamma sampler consumes a variable number of draws per call. So these
-    // are 3 genuine fresh draws from a dedicated seeded stream (not derived from the 4,000-run
+    // are 3 genuine fresh draws from a dedicated seeded stream (not derived from the 10,000-run
     // MC's own sequence), illustrative in the same spirit as the triangular table above, not
     // three cherry-picked percentiles.
     var illRnd=lcg(7202602), draws=[0,1,2].map(function(){
@@ -3617,7 +3617,7 @@ function renderMcMath(){
 }
 
 /* One illustrative run, watched happening — every control account's draw, in order, summed to
-   one completion. A fresh seed per click (not the fixed 20260731 seed the 4,000-run distribution
+   one completion. A fresh seed per click (not the fixed 20260731 seed the 10,000-run distribution
    above uses) so repeat clicks visibly land in different places, the same way any two real
    simulated completions would. Reads rows/T/triang/lcg already in scope; writes nothing back
    into MC or the chart above. */
@@ -4449,7 +4449,7 @@ var PRESENT_BEATS_QUICK=[
    "New: funding-tier column — modeled on the real tiering exercise Sound Transit's board ran on ST3 in May 2026, not a reproduction of their criteria."]},
  {label:"Cost — EAC + Monte Carlo",tab:"cost",notes:[
    "Four real methods: current-efficiency-continues, remaining-work-at-budgeted-rate, cost-and-schedule-pressure-both, bottom-up.",
-   "Monte Carlo: 4,000 simulated completions, P10 / P50 / P80.",
+   "Monte Carlo: 10,000 simulated completions, P10 / P50 / P80.",
    "Honest sentence: not “we land at $X” but “there's an N% chance the funding line doesn't hold.”",
    "New: reference class forecasting box below Monte Carlo — Flyvbjerg's real base rates (rail 45%, fixed-link 34%, road 20% average overrun), a second lens, not a replacement."]},
  {label:"Schedule",tab:"sched",notes:[
@@ -5253,7 +5253,11 @@ var GUARDS=[
    return [!rx.test(stripped), "live text scanned"];}},
  {n:"Monte Carlo reproducible: fresh run with the fixed seed lands on the same P50", run:function(){
    var rnd=lcg(20260731), sims=[],i,j;
-   for(i=0;i<4000;i++){ var e=0;
+   // MC.n, not a hardcoded 4000 — a stale literal here silently comparing a differently-sized
+   // re-derivation against MC.p50 is exactly the drift this guard exists to catch (found live,
+   // 2026-08-21, when N was bumped 4000->10000 and this literal was the one hardcoded copy left
+   // behind — the guard correctly failed rather than silently passing on a stale premise).
+   for(i=0;i<MC.n;i++){ var e=0;
      for(j=0;j<rows.length;j++){ var r=rows[j], p2=mcParams(r);
        e+=r.ac+(r.bac-r.ev)/triang(rnd(),p2.lo,p2.hi,p2.mode); }
      sims.push(e); }
@@ -5487,7 +5491,7 @@ function renderNarr(){
    fig("revSvcSlip").shown+' against the contractual milestone. Recovery money spent anywhere else does not move the date.</p>'+
    '<p>The recovery arithmetic no longer supports optimism. Finishing on budget requires the remaining work to run at '+
    fig("tcpi").shown+' against a demonstrated '+fig("cpi").shown+' — a '+fig("tcpiGap").shown+' gap, above the 0.10 recoverability line — '+
-   'and 4,000 simulated completions put the probability of busting budget plus remaining contingency at '+fig("pBust").shown+'.</p>'+
+   'and '+MC.n.toLocaleString("en-US")+' simulated completions put the probability of busting budget plus remaining contingency at '+fig("pBust").shown+'.</p>'+
    '<p>'+fig("escFiring").shown+' escalation triggers are firing. The controls recommendation this cycle: stop forecasting recovery, '+
    'open the funding conversation while '+fig("contRemaining").shown+' of contingency remains, and commission the formal recovery '+
    'analysis on the driving path within 72 hours.</p>';
@@ -5538,13 +5542,13 @@ var TOUR_BEATS=[
   x:function(){ return "To land exactly on budget from here, every remaining dollar must perform at "+idx(T.tcpi)+
     " — the to-complete index. The program has actually been running at "+idx(T.cpi)+". When the required efficiency sits above the "+
     "demonstrated one, the budget is not a plan, it is a hope. The simulation says the same thing in another language: "+
-    pct(MC.pBust,0)+" of 4,000 simulated completions bust through budget plus the remaining "+m(T.contRemaining)+" of contingency."; }},
+    pct(MC.pBust,0)+" of "+MC.n.toLocaleString("en-US")+" simulated completions bust through budget plus the remaining "+m(T.contRemaining)+" of contingency."; }},
  {t:"Betting on the unknown", tab:"risk", anchor:"tornado",
   x:function(){ var top=RISKS.reduce(function(mx,k){ return P_BAND[k.p]*k.cost>P_BAND[mx.p]*mx.cost?k:mx; },RISKS[0]);
     return "Every risk on this register gets the same treatment: a probability band times a cost impact, nothing eyeballed. "+
     "Right now that comes to "+m(T.riskExposure)+" of exposure, and the single biggest slice is "+top.n.replace(/&amp;/g,"&")+
     " ("+top.id+") — the same tunnel already driving the schedule. Contingency has "+m(T.contRemaining)+" left to absorb it, a "+
-    "coverage ratio of "+idx(T.contCoverage)+". The simulation from the honesty test is the same math run 4,000 times instead of "+
+    "coverage ratio of "+idx(T.contCoverage)+". The simulation from the honesty test is the same math run "+MC.n.toLocaleString("en-US")+" times instead of "+
     "once: "+pct(MC.pBust,0)+" of those runs still bust the budget even after spending every dollar of what's left."; }},
  {t:"The people doing the work", tab:"del", anchor:"cphCard",
   x:function(){ return "Behind every dollar of actual cost is a crew, and a "+idx(T.pf)+" productivity factor program-wide means "+
@@ -5643,7 +5647,7 @@ var GLOSS=[
   e:function(){ var r01=RISKS.filter(function(x){return x.id==="R-01";})[0], r01exp=P_BAND[r01.p]*r01.cost;
     return m(T.riskExposure)+" across "+RISKS.length+" risks, and "+pct(r01exp/T.riskExposure,0)+" of it is one risk — tunnel ground conditions ("+m(r01exp)+"). Concentration, not count, is what leadership needs to see."; }},
  {k:"montecarlo", t:"Monte Carlo simulation", p:"Instead of one forecast, run the finish thousands of times, each time letting each package's remaining efficiency vary around what it has actually achieved. The result is a distribution: not \"the answer\" but the honest odds.",
-  e:function(){ return "4,000 runs here, fixed seed so it is reproducible. Median finish "+m(MC.p50)+"; "+pct(MC.pOver,0)+" of runs finish over budget; "+pct(MC.pBust,0)+" bust through budget plus all remaining contingency."; }},
+  e:function(){ return MC.n.toLocaleString("en-US")+" runs here, fixed seed so it is reproducible. Median finish "+m(MC.p50)+"; "+pct(MC.pOver,0)+" of runs finish over budget; "+pct(MC.pBust,0)+" bust through budget plus all remaining contingency."; }},
  {k:"referenceclass", t:"Reference class forecasting", p:"A different question from Monte Carlo above: not \"what does this program's own track record imply,\" but \"how have similar completed programs, elsewhere, actually turned out?\" Bent Flyvbjerg's database of 16,000+ megaprojects found rail projects average 45% real cost overrun, fixed-link (bridge/tunnel) 34%, road 20% — prevalent and predictable, not random. The fix is basing an estimate on that outcome distribution instead of a bottom-up build that quietly assumes this time is different.",
   e:function(){ return "This program's own Monte Carlo puts the median finish at "+m(MC.p50)+" ("+pct(MC.pOver,0)+" of runs over budget) — grounded in this ledger's own efficiency. Reference class forecasting is the complementary check: does that number also look plausible against the base rate for rail programs generally, not just this one's own history?"; }},
  {k:"pertdist", t:"Triangular vs. PERT (Beta-PERT)", p:"Two shapes for the same min/mode/max future-efficiency range each Monte Carlo run draws from. Triangular ramps linearly to the mode and back down — simple, closed-form, easy to reproduce by hand. PERT (Beta-PERT) is smoother and concentrates more probability mass near the mode, tapering its tails instead of ramping straight lines — the shape PMI/AACE guidance for 3-point estimates generally recommends, at the cost of needing a real Gamma/Beta sampler instead of a one-line formula.",

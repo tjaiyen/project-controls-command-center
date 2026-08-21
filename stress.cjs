@@ -739,7 +739,7 @@ try {
 console.log("== D2. monte carlo / scenarios / print ==");
 // monte carlo: deterministic, ordered, sane
 const MC = P.mc;
-ok(!!MC && MC.n === 4000, "monte carlo exposed with 4,000 runs");
+ok(!!MC && MC.n === 10000, "monte carlo exposed with 10,000 runs"); // 4000->10000, TJ's call, 2026-08-21
 ok(MC.p10 < MC.p50 && MC.p50 < MC.p80, "P10 < P50 < P80",
    MC.p10.toFixed(1) + " / " + MC.p50.toFixed(1) + " / " + MC.p80.toFixed(1));
 // P95 tail-risk stat (advanced-quant upgrade, 2026-08-23) — independent re-derivation via a raw
@@ -809,7 +809,7 @@ ok(indexSrc.includes('data-help="referenceclass"'), "reference-class callout car
   const aLow = Math.max(0.78, mcR.cpi - 0.08), bHigh = Math.max(aLow + 0.02, mcR.cpi + 0.06),
     mode = Math.max(aLow, Math.min(bHigh, mcR.cpi));
   has("mcMathBody", "AC + (BAC", "math panel states the per-run formula");
-  has("mcMathBody", "4000 runs", "math panel names the actual run count, not a stale number");
+  has("mcMathBody", "10000 runs", "math panel names the actual run count, not a stale number"); // 4000->10000, TJ's call, 2026-08-21
   has("mcMathBody", mcR.id, "math panel names the worked control account by id");
   ok(G.mcMathBody._html.includes(mcR.cpi.toFixed(3)), "math panel shows CP-201's actual live CPI");
   [0.10, 0.50, 0.90].forEach(u => {

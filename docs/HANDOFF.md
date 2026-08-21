@@ -30,7 +30,7 @@ anywhere in this repository. The method is the content, not the numbers.
 
 | | |
 |---|---|
-| Primary file | `index.html` — 6,668 lines, one file, no build step |
+| Primary file | `index.html` — 6,672 lines, one file, no build step |
 | Top-level JS functions | 176 (not re-audited this round — see §18 gap note) |
 | Tabs | 11 |
 | KPIs (with formula/threshold/phase/source/play each) | 20 |
@@ -47,7 +47,7 @@ anywhere in this repository. The method is the content, not the numbers.
 | `stress.cjs` test assertions | 1,352, all passing |
 | Companion pages | `otak.html` (fit brief), `architecture.html` (static pipeline map) |
 | Hosting | GitHub Pages, served directly from `main`, zero build |
-| Git history | 97 commits |
+| Git history | 98 commits |
 
 Current EVM tie-out (verify live in the browser console via `__PCC__.totals`, or `node verify.cjs`):
 
@@ -203,7 +203,7 @@ Beyond the core EVM block, three more derivation families exist:
 |---|---|---|
 | 1 | **Overview** (`over`) | A "Six lenses, not one blended score" card explaining what each of the 6 KPI families (Cost/Schedule/Risk/Change/Delivery/Compliance) actually asks and why it can't be folded into the others, directly above the 20-KPI board with drill-down detail (formula/threshold/source/play per card, plus a "computed from the ledger" / "not from the ledger" provenance box, honestly stated per KPI), a live root-cause-to-owner trace, the eleven-input ledger card (all 11 raw fields, a per-package inspector, and a live "change one input, watch the KPIs move" demo — reads a local snapshot, never mutates the real ledger), a 10-stop guided Tour with tab-jumping evidence links (§18 gap #8 — this doc previously called it "five-chapter," a stale phrase with no matching code), an executive summary. |
 | 2 | **Portfolio** (`port`) | Agency-level rollup across 4 lines of business — one reads live off this program's own totals (never duplicated, `GUARDS`-checked), three are summary-only illustrative peers. |
-| 3 | **Cost** (`cost`) | EVM S-curve + variance bridge, an estimate-to-budget baseline bridge reconciled to the ledger, four-method EAC, a forecast-reliability section (EAC trend, forecast-accuracy scorecard, monthly cash flow), what-if forecasting with 3 live sliders + scenario comparison, Monte Carlo completion distribution (4,000 runs, seeded/reproducible, a Triangular/PERT draw-shape toggle), the cost-diffusion (GBM) card. |
+| 3 | **Cost** (`cost`) | EVM S-curve + variance bridge, an estimate-to-budget baseline bridge reconciled to the ledger, four-method EAC, a forecast-reliability section (EAC trend, forecast-accuracy scorecard, monthly cash flow), what-if forecasting with 3 live sliders + scenario comparison, Monte Carlo completion distribution (10,000 runs, seeded/reproducible, a Triangular/PERT draw-shape toggle), the cost-diffusion (GBM) card. |
 | 4 | **Schedule** (`sched`) | DCMA-style schedule health (CPLI/BEI/float erosion), a Gantt-style bar with baseline vs. forecast, a fragnet-based delay & TIA register tied to package float, revenue-service forecast drift, statistical control charts (z-score + EWMA) over crew cost-per-hour. |
 | 5 | **Risk & Change** (`risk`) | A priced risk register (probability × impact heat map + sensitivity tornado chart), a contract commercial register (a third axis distinct from control accounts), change pipeline with proposed-vs-settled pricing defense, the settle-vs-DRB EMV decision tree with an **interactive slider + chart** (§8). |
 | 6 | **Delivery** (`del`) | Leading indicators (productivity factor by package), the crew cost-per-hour module with a drill-down into idle/rework/baseline attribution. |
@@ -641,10 +641,31 @@ carried over from memory or an earlier pass:
   triangular numbers, not an approximation. `node stress.cjs` run fresh (`1352 passed, 0 failed`)
   and `node verify.cjs` re-confirmed unchanged (zero `PKGS` values touched — this is a Monte Carlo
   sampler change, not a ledger change).
+- **2026-08-21 Monte Carlo run-count round (4,000 → 10,000)**: TJ asked directly why 4,000 over
+  10,000 — same honest-first pattern as the PERT question (`grep` found no documented rationale;
+  it was just the number implemented). Answered with a fresh empirical comparison (not just
+  theory): P50/P80/P95 move by roughly $0.1–0.3M across the entire 4,000→50,000 range on a
+  ~$1,300M portfolio — under 0.02%, invisible at the dashboard's own one-decimal display precision
+  — while PERT's per-draw cost is real (~2× triangular's). TJ chose 10,000 anyway; built it,
+  found a real regression doing so: the AI & Data tab's own "Monte Carlo reproducible" integrity
+  guard (`GUARDS`, `index.html` ~5254) independently re-simulates the run to cross-check `MC.p50`
+  and had its own hardcoded `4000` loop bound — bumping only `computeMc()`'s `N` without touching
+  this second, independent copy broke the guard correctly (comparing a 4,000-run re-derivation
+  against a 10,000-run canonical `MC.p50`), catching exactly the class of drift this guard exists
+  to catch. Fixed by reading `MC.n` instead of a literal, closing the drift risk permanently
+  rather than just patching the number — the same lesson this project already learned once from
+  the `architecture.html` "twenty-seven" bug. 10 other hardcoded "4,000" mentions across static
+  HTML, code comments, and narrative-generation strings were also found and fixed; the narrative
+  ones were converted to read `MC.n` live wherever they sat inside a render function already in
+  scope of `MC`, rather than hand-typing "10,000" as a second literal that could drift again.
+  `node stress.cjs` run fresh (`1352 passed, 0 failed`, including the fixed guard); live-browser
+  confirmed the PERT toggle recompute at N=10,000 still completes in ~22ms, well within an
+  instant-feeling interaction.
 
 Generated 2026-08-20, against the tip of the eleven-input-ledger-card engagement round; extended
 2026-08-21 for the six-KPI-families card round, again 2026-08-21 for the Data Strategy tab UI/UX
 round, again 2026-08-21 for the "96→100" brainstorm round's Tier 0/1 items, again 2026-08-21 for
-the full-dashboard `/stress-test` visual pass, and again 2026-08-21 for the Monte Carlo PERT
-draw-shape round (see git log for exact commits — each document update was written before its own
+the full-dashboard `/stress-test` visual pass, again 2026-08-21 for the Monte Carlo PERT
+draw-shape round, and again 2026-08-21 for the Monte Carlo run-count round (see git log for exact
+commits — each document update was written before its own
 round's commit lands, per the project's "verify, then document" ordering).
