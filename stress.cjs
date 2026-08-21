@@ -904,6 +904,23 @@ ok(indexSrc.includes('data-help="referenceclass"'), "reference-class callout car
     ok(G.mcMathBody._html.includes(m_(contrib)),
       "u=" + u.toFixed(2) + " draw's dollar contribution matches independent recomputation", m_(contrib));
   });
+  // Mode-vs-bounds clarification (brainstorm-mode round, 2026-08-21) — independently re-derived,
+  // not by calling the app's own boundsNote/mcParams(). Pre-registered: for CP-201 today the
+  // 0.78/lo+0.02 clamps in mcParams() are dormant (min observed CPI well above where they'd
+  // engage — the same standing fact the D2 block above already relies on), so mode should equal
+  // the account's raw EV/AC exactly, and the rendered down/up offsets should read 0.08/0.06.
+  {
+    const downOff = (mcR.cpi - aLow).toFixed(2), upOff = (bHigh - mcR.cpi).toFixed(2);
+    ok(mode === mcR.ev / mcR.ac, "pre-registered: CP-201's mode equals its raw EV/AC exactly (no clamp engaged today)", mode.toFixed(6) + " vs " + (mcR.ev / mcR.ac).toFixed(6));
+    ok(downOff === "0.08" && upOff === "0.06", "pre-registered: today's live down/up offsets are exactly 0.08/0.06", downOff + "/" + upOff);
+    has("mcMathBody", m_(mcR.ev).replace("$", "$") + " / " + m_(mcR.ac), "bounds note states CP-201's real EV/AC in dollars, not a hand-typed figure");
+    has("mcMathBody", "&minus;" + downOff + " / +" + upOff, "bounds note states the real, live-derived down/up offset, not a hardcoded 0.08/0.06 string");
+    has("mcMathBody", "computed", "bounds note calls the mode computed");
+    has("mcMathBody", "programmed rule", "bounds note calls the min/max bounds a programmed rule, distinct from the computed mode");
+    has("mcMathBody", "R-01", "bounds note cites this program's own real R-01 risk, not an invented example");
+    ok(P.risks.some(r => r.id === "R-01" && /ground conditions/i.test(r.n)), "R-01 cited by the bounds note is the real, existing ground-conditions risk in RISKS, not a coincidental id match");
+    has("mcMathBody", "Flyvbjerg", "bounds note ties the real-world QCRA calibration step to Flyvbjerg's already-cited base rates, not a new unverified citation");
+  }
 }
 
 // D2.2 — "run one simulated completion, live" stepper (2026-08-19)
@@ -1095,6 +1112,10 @@ ok(indexSrc.includes('data-help="referenceclass"'), "reference-class callout car
   has("mcMathBody", "Beta-PERT", "math explainer switches its own copy to describe PERT once it's active");
   ok(!G.mcMathBody._html.includes("the triangle is asymmetric on purpose"),
     "math explainer no longer carries triangular-specific prose once PERT is active — not a stale leftover sentence");
+  // The mode-vs-bounds clarification is shared prose (built once, spliced into both branches) —
+  // confirm it actually survived the toggle, not just the triangular-only path the D2.1 block above checks.
+  has("mcMathBody", "programmed rule", "bounds note still present after toggling to PERT (shared prose, not triangular-only)");
+  has("mcMathBody", "R-01", "bounds note's R-01 citation still present after toggling to PERT");
   has("mcMathBody", "&alpha;=", "math explainer states the actual computed alpha shape parameter");
   // pre-registered: PERT's mean pulls harder toward the mode than triangular's does for the same
   // asymmetric CP-201 range (downside 0.08 vs upside 0.06) — a real, checkable directional claim,

@@ -44,7 +44,7 @@ anywhere in this repository. The method is the content, not the numbers.
 | Contracts | 6 |
 | Risks | 6 |
 | Delay events | 4 |
-| `stress.cjs` test assertions | 1,396, all passing |
+| `stress.cjs` test assertions | 1,407, all passing |
 | Companion pages | `otak.html` (fit brief), `architecture.html` (static pipeline map) |
 | Hosting | GitHub Pages, served directly from `main`, zero build |
 | Git history | 100 commits |
@@ -375,7 +375,7 @@ matches an independent recomputation, not just that *a* number is present.
 
 ## 11. Testing & verification
 
-**`stress.cjs`** (1,396 assertions, all passing) — stubs the DOM, loads `index.html`'s script
+**`stress.cjs`** (1,407 assertions, all passing) — stubs the DOM, loads `index.html`'s script
 verbatim into that stub, and exercises it exactly like a user would: every tab switch, every
 filter, every drawer, every slider drag, every keyboard interaction. 35 labeled sections:
 
@@ -554,7 +554,7 @@ Named explicitly, not silently dropped — from the most recent engagement/inter
 4. ~~**`README.md`'s own stated counts lag behind this document**~~ — **Resolved 2026-08-20** (and
    re-synced six more times on 2026-08-21 — the six-families card, the Data Strategy UI/UX round,
    the Monte Carlo PERT draw-shape toggle, the megaproject-controls-doc upgrade round, the Kimi
-   research-package round, and the full-dashboard `/stress-test` pass): 1,396 assertions / 53
+   research-package round, and the full-dashboard `/stress-test` pass): 1,407 assertions / 53
    glossary terms / 28-check integrity gate, matching §2 as of this writing.
 5. **The eleven-input ledger card is new this round** (2026-08-20) and only covers the Overview
    tab's own `PKGS` provenance — it does not touch or resolve gap #2 above (the risk register still
@@ -765,13 +765,39 @@ carried over from memory or an earlier pass:
   was added to `stress.cjs` (§18 gap #11 has the full root-cause writeup). `node stress.cjs` run
   fresh after both fixes (`1396 passed, 0 failed` — 1395 baseline + 1 new guard), `node verify.cjs`
   unchanged (pure CSS + comment-date fixes, zero `PKGS` touched).
+- **2026-08-21 Monte Carlo mode-vs-bounds clarification (brainstorm mode)**: TJ asked for a
+  clarification distinguishing how the Monte Carlo `mode` (computed live from the ledger) differs
+  from the `min`/`max` bounds (a programmed rule applied around it), plus how a real capital
+  program would derive the same three numbers (monthly ERP actuals for the mode; a QRA/QCRA
+  workshop pricing risk-register items and value-engineering savings, stress-tested against
+  outside base rates, for the bounds). Every number and citation in the proposed text was checked
+  against the live code before writing anything: CP-201's real `EV`/`AC` ($178.4M/$205.1M) do
+  compute to CPI 0.870 exactly; `mcParams()`'s live −0.08/+0.06 offsets for CP-201 today do match
+  what was proposed; `R-01` is real, already in `RISKS`, and is in fact the ground-conditions risk
+  named; Flyvbjerg's +45% rail figure is real and already cited elsewhere on the page (`RCF_MULT`)
+  — reused, not re-asserted as a new claim. Added as one shared paragraph (`boundsNote`, computed
+  once in `renderMcMath()`) spliced into both the Triangular and PERT branches, since it's about
+  where the bounds come from, upstream of which shape draws from them — avoiding the duplicate-copy
+  trap this file has already caught twice this session. The down/up offset text is read live off
+  `r.cpi`/`aLow`/`bHigh` rather than hand-typed as "0.08"/"0.06," so it can't silently go stale the
+  way the architecture.html "twenty-seven checks" bug and the Monte Carlo 4000-run guard both did.
+  `node stress.cjs` run fresh (`1407 passed, 0 failed` — 1396 baseline + 11 new assertions,
+  including a pre-registered check that today's live offsets are exactly 0.08/0.06 and that R-01's
+  real title actually contains "ground conditions," not just a coincidental id match), one real
+  test bug caught and fixed in the same pass (a Unicode "−" in a new assertion didn't match the
+  page's literal `&minus;` HTML-entity text — this file's own established convention, confirmed by
+  grepping an existing `&minus;`-checking assertion elsewhere in the file), `node verify.cjs`
+  unchanged (pure narrative, zero `PKGS` touched), and both distribution branches checked live in a
+  real browser — the bounds note's exact live-computed numbers (0.790–0.930, mode 0.870,
+  −0.08/+0.06) confirmed present and byte-correct in the Triangular view, and confirmed to survive
+  the toggle into PERT view unchanged, zero console errors, zero layout overflow.
 
 Generated 2026-08-20, against the tip of the eleven-input-ledger-card engagement round; extended
 2026-08-21 for the six-KPI-families card round, again 2026-08-21 for the Data Strategy tab UI/UX
 round, again 2026-08-21 for the "96→100" brainstorm round's Tier 0/1 items, again 2026-08-21 for
 the full-dashboard `/stress-test` visual pass, again 2026-08-21 for the Monte Carlo PERT
 draw-shape round, again 2026-08-21 for the Monte Carlo run-count round, again 2026-08-21 for the
-megaproject-controls-doc upgrade round, again 2026-08-21 for the Kimi research-package round, and
-again 2026-08-21 for the second full-dashboard `/stress-test` pass (see git log for exact commits
-— each document update was written before its own round's commit lands, per the project's "verify,
-then document" ordering).
+megaproject-controls-doc upgrade round, again 2026-08-21 for the Kimi research-package round, again
+2026-08-21 for the second full-dashboard `/stress-test` pass, and again 2026-08-21 for the Monte
+Carlo mode-vs-bounds clarification (see git log for exact commits — each document update was
+written before its own round's commit lands, per the project's "verify, then document" ordering).

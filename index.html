@@ -3608,6 +3608,30 @@ function renderMcMath(){
   // mcParams() exists specifically to guard — bHigh could fall below aLow once CPI drops
   // low enough, the exact 0/0 landmine mcParams()'s own comment warns about.
   var p=mcParams(r), aLow=p.lo, bHigh=p.hi, mode=p.mode;
+  /* Mode-vs-bounds clarification (brainstorm-mode round, 2026-08-21) — shared across both
+     branches below since it's about where aLow/bHigh/mode themselves come from, upstream of
+     which distribution shape draws from them. The offsets are read live off r.cpi/aLow/bHigh
+     rather than hand-typed as "0.08"/"0.06" — mcParams()'s own comment already documents that
+     its 0.78 floor and lo+0.02 floor are real, dormant clamps; hardcoding the offset text would
+     silently go stale exactly the way this file has already caught twice this session (the
+     architecture.html "twenty-seven checks" bug, the Monte Carlo 4000-run guard). R-01 and the
+     Flyvbjerg +45% rail figure are both real and already cited elsewhere on this page (RISKS,
+     RCF_MULT) — reused here, not re-asserted as new facts. */
+  var downOff=(r.cpi-aLow).toFixed(2), upOff=(bHigh-r.cpi).toFixed(2);
+  var boundsNote='<p style="margin-top:8px">Where '+idx(aLow)+'&ndash;'+idx(bHigh)+' (mode '+idx(mode)+
+    ') itself comes from: the mode is <b style="color:rgb(var(--c-ink))">computed</b>, not chosen &mdash; '+
+    r.id+'&rsquo;s own observed <code>EV / AC</code> off the raw ledger ('+m(r.ev)+' / '+m(r.ac)+' = '+
+    idx(r.cpi)+'). The low and high bounds are a <b style="color:rgb(var(--c-ink))">programmed rule</b> '+
+    'applied around that computed mode &mdash; a fixed &minus;'+downOff+' / +'+upOff+' offset ('+
+    '<code>mcParams()</code>), not independently derived. On a real capital program the mode would still '+
+    'come from monthly ERP actuals and verified progress claims the same way; the bounds instead come from '+
+    'a periodic (often quarterly) Quantitative Cost Risk Assessment workshop, where estimators and '+
+    'discipline leads price specific unmitigated risks off the register &mdash; <b style="color:rgb(var(--c-ink))">'+
+    'R-01</b>, this program&rsquo;s own ground-conditions risk, is exactly that kind of line item &mdash; and '+
+    'evaluate value-engineering savings on the unearned scope, then stress-test the resulting range against '+
+    'outside base rates like Flyvbjerg&rsquo;s so it isn&rsquo;t narrower than what similar programs have '+
+    'actually shown. This dashboard&rsquo;s fixed offset is a simplified, honest stand-in for that process '+
+    '&mdash; illustrating the method, not claiming this exact spread was risk-priced.</p>';
   if(state.mcDist==="pert"){
     var alpha=1+4*(mode-aLow)/(bHigh-aLow), beta=1+4*(bHigh-mode)/(bHigh-aLow);
     // Unlike triang(u,...), PERT has no single-uniform inverse-CDF to hand-pick illustrative u
@@ -3637,6 +3661,7 @@ function renderMcMath(){
       draws.map(function(d,i){ return '<div><div class="k">draw '+(i+1)+'</div>'+
         '<div class="v">c = '+idx(d.c)+' &rarr; '+m(d.contrib)+'</div></div>'; }).join("")+
       '</div>'+
+      boundsNote+
       '<p style="margin-top:8px">PERT’s own textbook mean, <code>(min + 4&middot;mode + max) / 6</code>, works '+
       'out to <b style="color:rgb(var(--c-ink))">'+idx((aLow+4*mode+bHigh)/6)+'</b> for this account &mdash; pulled '+
       'toward the mode much harder than a straight average of the three bounds would be. Do this for all '+
@@ -3673,6 +3698,7 @@ function renderMcMath(){
     'draw lands it near the mode, not the optimistic edge &mdash; the triangle is asymmetric on purpose, so '+
     'recovery is possible but capped, never assumed. Do this for all '+rows.length+' control accounts and sum, '+
     MC.n+' times, and the distribution above is what falls out &mdash; not assumed, computed.</p>'+
+    boundsNote+
     '<p style="margin-top:8px">The run itself is reproducible: a fixed-seed generator (not '+
     '<code>Math.random()</code>) means the same '+MC.n+' draws happen in the same order every time this page '+
     'loads &mdash; a forecast a board can ask you to re-run and get the same answer back from. P10/P50/P80 '+
