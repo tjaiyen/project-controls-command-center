@@ -461,11 +461,11 @@ Named explicitly, not silently dropped — from the most recent engagement/inter
    detail); whether to extract a shared `renderDrillDrawer(config)` helper is a real question worth
    deciding once a 4th *and* 5th instance both exist, not mid-build on the 4th.
 3. **`architecture.html` and `index.html`'s `#arch` diagram can drift** (§13) — no automated check
-   ties them together the way `GUARDS`/`stress.cjs` tie the ledger together.
-4. **`README.md`'s own stated counts lag behind this document** as of this writing (it still says
-   "583 assertions" / "29 glossary terms" / "27-check integrity gate" — all now stale; this
-   document's §2 has the current, verified numbers). Worth a pass to sync `README.md` before
-   the next external reader relies on it.
+   ties them together the way `GUARDS`/`stress.cjs` tie the ledger together. Its own stale "27
+   checks" text (2 locations) was resynced to 28 on 2026-08-20, but the structural risk — nothing
+   catches the *next* drift automatically — is unchanged; still an open gap, just not a stale one.
+4. ~~**`README.md`'s own stated counts lag behind this document**~~ — **Resolved 2026-08-20.**
+   Synced to 1,279 assertions / 38 glossary terms / 28-check integrity gate, matching §2.
 
 ---
 

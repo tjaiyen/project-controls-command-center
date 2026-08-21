@@ -249,7 +249,7 @@ footer{margin-top:60px;padding-top:18px;border-top:1px solid var(--c-line);font-
   <g class="flow-node" tabindex="0" role="button" data-k="VFY" aria-label="Integrity gate">
     <rect x="660" y="430" width="200" height="140" rx="8" fill="rgb(6 182 212 / .06)" stroke="rgb(var(--c-code))" stroke-width="1.4"/>
     <text x="674" y="460" class="box-label" font-size="13" font-weight="700">Integrity gate</text>
-    <text x="674" y="480" class="box-sub" font-size="11">27 live checks (browser)</text>
+    <text x="674" y="480" class="box-sub" font-size="11">28 live checks (browser)</text>
     <text x="674" y="498" class="box-sub" font-size="11">+ 54-check SQL pipeline</text>
     <text x="674" y="516" class="box-sub" font-size="11">independent re-derivation,</text>
     <text x="674" y="534" class="box-sub" font-size="11">not a display of the same math</text>
@@ -375,7 +375,7 @@ footer{margin-top:60px;padding-top:18px;border-top:1px solid var(--c-line);font-
 
       <tr class="grp-row"><td colspan="5">Derivation &amp; verification</td></tr>
       <tr><td class="tag">DRV</td><td class="name">KPI board</td><td>20 metrics across cost, schedule, risk, change, delivery, and compliance.</td><td class="flow">the ledger</td><td class="flow">&rarr; gates, escalation, actions, dashboard</td></tr>
-      <tr><td class="tag">VFY</td><td class="name">Integrity gate</td><td>27 browser checks plus a separate 54-check SQL pipeline, independently re-deriving headline numbers to prove the two stacks agree.</td><td class="flow">the ledger, the KPI board</td><td class="flow">&rarr; gates the AI narrative</td></tr>
+      <tr><td class="tag">VFY</td><td class="name">Integrity gate</td><td>28 browser checks plus a separate 54-check SQL pipeline, independently re-deriving headline numbers to prove the two stacks agree.</td><td class="flow">the ledger, the KPI board</td><td class="flow">&rarr; gates the AI narrative</td></tr>
 
       <tr class="grp-row"><td colspan="5">Governance &amp; ownership</td></tr>
       <tr><td class="tag">GOV&#8209;1</td><td class="name">Phase gates</td><td>7 Board-authorized gates. Gate 5 carries a live hard stop &mdash; <span class="pill a">2 of 3 pass, today</span>.</td><td class="flow">the KPI board</td><td class="flow">&rarr; the dashboard</td></tr>
@@ -415,7 +415,7 @@ var NODE_INFO = [
  {k:"SRC-6", t:"Risk register", x:"Probability × impact per risk, with a named owner and mitigation. Origin point; feeds the ledger."},
  {k:"LDG", t:"The ledger", x:"Eleven raw inputs × eight control accounts. The one place any of the six sources are actually recorded — everything past this point is a formula. Takes in all six sources; feeds the KPI board, the integrity gate, and the executive brief."},
  {k:"DRV", t:"KPI board", x:"20 metrics across cost, schedule, risk, change, delivery, and compliance. Takes in the ledger; feeds phase gates, the escalation matrix, actions, and the dashboard."},
- {k:"VFY", t:"Integrity gate", x:"27 browser checks plus a separate 54-check SQL pipeline, independently re-deriving headline numbers to prove the two stacks agree. Takes in the ledger and the KPI board; gates the AI narrative draft."},
+ {k:"VFY", t:"Integrity gate", x:"28 browser checks plus a separate 54-check SQL pipeline, independently re-deriving headline numbers to prove the two stacks agree. Takes in the ledger and the KPI board; gates the AI narrative draft."},
  {k:"GOV-1", t:"Phase gates", x:"7 Board-authorized gates. Gate 5 carries a live hard stop — 2 of 3 checks pass, today. Takes in the KPI board; feeds the dashboard."},
  {k:"GOV-2", t:"Escalation matrix", x:"10 threshold rules; every one carries a named owner and a clock. Takes in the KPI board; feeds Actions / RAID."},
  {k:"ACT", t:"Actions / RAID", x:"17 tracked items. Every breached KPI resolves to one of these, or an honest “no item opened yet.” Takes in the escalation matrix and the KPI drill-down; feeds the dashboard."},
