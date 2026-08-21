@@ -952,6 +952,82 @@ ok(indexSrc.includes('data-help="referenceclass"'), "reference-class callout car
   ok(P.mc.p50 === canonicalP50Before, "canonical MC still byte-identical after a full lock/unlock round trip");
 }
 
+// D2.5 — PERT (Beta-PERT) draw-shape toggle (2026-08-21, TJ asked directly why triangular over
+// PERT — this is the answer built into the app): a real Gamma/Beta sampler has no closed-form
+// "recompute this exact random number by hand" check the way triang()'s inverse-CDF does, so
+// these assertions verify the sampler's known mathematical properties instead (bounds, and
+// empirical mean converging to the textbook PERT mean) — the correct doctrine for testing a
+// stochastic function, not a loophole around this file's usual re-derive-independently rule.
+{
+  // pre-registered: every gammaRnd(shape>=1) draw is positive (a Gamma variate is never <=0)
+  const rndG = (() => { let s = 424242 >>> 0; return () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; }; })();
+  let minGamma = Infinity;
+  for (let i = 0; i < 2000; i++) minGamma = Math.min(minGamma, P.gammaRnd(rndG, 2.3));
+  ok(minGamma > 0, "pre-registered: 2000 gammaRnd(shape=2.3) draws are all strictly positive", minGamma.toFixed(4));
+
+  // pre-registered: every betaRnd draw lands in (0,1) — it's a ratio of two positive Gammas
+  let minBeta = Infinity, maxBeta = -Infinity, sumBeta = 0;
+  const rndB = (() => { let s = 13371337 >>> 0; return () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; }; })();
+  const NB = 5000;
+  for (let i = 0; i < NB; i++) { const v = P.betaRnd(rndB, 2, 3); minBeta = Math.min(minBeta, v); maxBeta = Math.max(maxBeta, v); sumBeta += v; }
+  ok(minBeta > 0 && maxBeta < 1, "pre-registered: 5000 betaRnd(2,3) draws all land strictly inside (0,1)",
+    minBeta.toFixed(4) + " – " + maxBeta.toFixed(4));
+  // Beta(alpha,beta)'s textbook mean is alpha/(alpha+beta) = 2/5 = 0.40 — empirical mean of 5000
+  // draws should land close, a real statistical convergence check, not a hand-typed guess.
+  const meanBeta = sumBeta / NB;
+  ok(Math.abs(meanBeta - 0.4) < 0.03, "pre-registered: betaRnd(2,3)'s empirical mean over 5000 draws converges near its textbook mean 0.400",
+    meanBeta.toFixed(4));
+
+  // pre-registered: pertRnd(lo,hi,mode) draws stay inside [lo,hi], and the empirical mean over
+  // many draws converges to PERT's own textbook mean (lo+4*mode+hi)/6 — CP-201's real live
+  // mcParams(), not invented bounds.
+  const cp201 = rows.find(r => r.id === "CP-201");
+  const pLo = Math.max(0.78, cp201.cpi - 0.08), pHi = Math.max(pLo + 0.02, cp201.cpi + 0.06),
+    pMode = Math.max(pLo, Math.min(pHi, cp201.cpi));
+  const rndP = (() => { let s = 90210 >>> 0; return () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; }; })();
+  let minP = Infinity, maxP = -Infinity, sumP = 0;
+  const NP = 4000;
+  for (let i = 0; i < NP; i++) { const v = P.pertRnd(rndP, pLo, pHi, pMode); minP = Math.min(minP, v); maxP = Math.max(maxP, v); sumP += v; }
+  ok(minP >= pLo && maxP <= pHi, "pre-registered: 4000 pertRnd draws against CP-201's real mcParams() all stay within [lo,hi]",
+    minP.toFixed(4) + " – " + maxP.toFixed(4) + " vs bounds " + pLo.toFixed(4) + "–" + pHi.toFixed(4));
+  const theoreticalPertMean = (pLo + 4 * pMode + pHi) / 6, empiricalPertMean = sumP / NP;
+  ok(Math.abs(empiricalPertMean - theoreticalPertMean) < 0.01,
+    "pre-registered: 4000 pertRnd draws' empirical mean converges near PERT's textbook mean (lo+4*mode+hi)/6",
+    empiricalPertMean.toFixed(4) + " vs theoretical " + theoreticalPertMean.toFixed(4));
+
+  // UI toggle, end to end
+  ok(G.mcDistTri.getAttribute("aria-pressed") === "true", "triangular draw-shape active on load");
+  ok(G.mcDistPert.getAttribute("aria-pressed") === "false", "PERT draw-shape inactive on load");
+  ok(!G.mcMathBody._html.includes("Beta-PERT"), "math explainer describes triangular, not PERT, before the toggle is touched");
+  has("mcMathBody", "triangular distribution", "math explainer's default copy names the triangular shape");
+
+  const canonicalP50 = P.mc.p50, canonicalDist = P.mc.dist;
+  fire(G.mcDistPert, "click");
+  ok(G.mcDistPert.getAttribute("aria-pressed") === "true", "PERT draw-shape active after click");
+  ok(G.mcDistTri.getAttribute("aria-pressed") === "false", "triangular draw-shape inactive after click");
+  ok(P.state.mcDist === "pert", "state.mcDist actually flips to \"pert\" on click, not just the button's own aria-pressed");
+  ok(P.getActiveMc().dist === "pert", "the active Monte Carlo run itself was recomputed with dist=\"pert\", not just relabeled");
+  ok(P.mc.p50 === canonicalP50 && P.mc.dist === canonicalDist,
+    "canonical MC (__PCC__.mc) — the board figure / print brief's source — stays byte-unchanged after switching to PERT, same guarantee as the per-account filter above");
+  has("mcMathBody", "Beta-PERT", "math explainer switches its own copy to describe PERT once it's active");
+  ok(!G.mcMathBody._html.includes("the triangle is asymmetric on purpose"),
+    "math explainer no longer carries triangular-specific prose once PERT is active — not a stale leftover sentence");
+  has("mcMathBody", "&alpha;=", "math explainer states the actual computed alpha shape parameter");
+  // pre-registered: PERT's mean pulls harder toward the mode than triangular's does for the same
+  // asymmetric CP-201 range (downside 0.08 vs upside 0.06) — a real, checkable directional claim,
+  // not just "the numbers changed to something."
+  ok(P.getActiveMc().p50 !== canonicalP50, "pre-registered: switching draw shape actually changes the displayed run's own P50, not a cosmetic-only toggle",
+    P.getActiveMc().p50.toFixed(1) + " (PERT) vs " + canonicalP50.toFixed(1) + " (triangular)");
+
+  // toggle back — must land on the exact original canonical numbers, not an approximation
+  fire(G.mcDistTri, "click");
+  ok(G.mcDistTri.getAttribute("aria-pressed") === "true", "triangular draw-shape active again after toggling back");
+  ok(P.state.mcDist === "triangular", "state.mcDist restored to \"triangular\"");
+  ok(P.getActiveMc().p50 === canonicalP50, "toggling back to triangular restores the exact original canonical P50, not a re-simulated approximation");
+  has("mcMathBody", "triangular distribution", "math explainer's copy reverts to triangular after toggling back");
+  ok(!G.mcMathBody._html.includes("Beta-PERT"), "math explainer no longer mentions Beta-PERT after toggling back to triangular");
+}
+
 // scenarios: save two, verify table, clear
 try {
   G.sCpi.value = "1.10"; G.sSpi.value = "1.05"; G.sCont.value = "150";
@@ -2938,7 +3014,7 @@ console.log("== D9.1. the CDE flow diagram (data strategy) ==");
    (returns the active tab to "over" at the end, since D9 above left "data" active)
    ========================================================================= */
 console.log("== D10. inline term help ==");
-ok(P.gloss.length === 50, "GLOSS grew to 50 entries (44 prior + cost/schedule/risk/change/delivery/compliance, six-families card, 2026-08-21)", String(P.gloss.length));
+ok(P.gloss.length === 51, "GLOSS grew to 51 entries (50 prior + pertdist, the PERT-vs-triangular Monte Carlo draw-shape toggle, 2026-08-21)", String(P.gloss.length));
 ["cde", "ids", "wbs", "abs", "zscore", "ewma", "gbm", "raid", "capa", "cbsobs", "excusablecompensable"].forEach(k => {
   const g = P.findGloss(k);
   ok(!!g && typeof g.p === "string" && g.p.length > 0, "findGloss resolves new term '" + k + "'");

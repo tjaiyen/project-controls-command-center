@@ -926,6 +926,14 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
             <button class="btn" id="mcViewCdf" type="button" aria-pressed="false">Cumulative</button>
           </div>
         </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:10px">
+          <span class="eyebrow" style="margin:0">Draw shape</span>
+          <div role="group" aria-label="Future-efficiency draw shape" style="display:flex;gap:6px">
+            <button class="btn" id="mcDistTri" type="button" aria-pressed="true">Triangular</button>
+            <button class="btn" id="mcDistPert" type="button" aria-pressed="false">PERT</button>
+          </div>
+          <button type="button" class="help-ic" data-help="pertdist" aria-label="What does this term mean?" aria-expanded="false">i</button>
+        </div>
         <div class="chart" id="mcChart" style="margin-top:10px"></div>
         <div class="outbox" id="mcStats"></div>
         <!-- aria-live on the narrative sentence below, not #mcStats itself — #mcStats' numbers
@@ -2391,7 +2399,8 @@ function sparkline(series, ragColor){
    ========================================================================= */
 var state = {phase:"con", fam:"All", audience:"pcm", kpi:null, pkg:2, actFilter:"All", act:null,
   presenting:false, presentSet:"full", beatIdx:0, touring:false, tourIdx:0, textSize:0, tab:"over", mcView:"hist",
-  mcIncluded:rows.map(function(r){ return r.id; }), cphDrill:false, mcConfidence:0.80, ledgerDemoPkg:"CP-101"};
+  mcIncluded:rows.map(function(r){ return r.id; }), cphDrill:false, mcConfidence:0.80, ledgerDemoPkg:"CP-101",
+  mcDist:"triangular"};
 
 /* Ledger card (Overview-tab upgrade, 2026-08-20) — the 11 raw inputs, a per-package inspector, and
    a live "change one input, watch the KPIs move" demo. The demo deliberately reads a LOCAL copy of
@@ -3260,6 +3269,37 @@ function renderScen(){
 function lcg(seed){ var s=seed>>>0; return function(){ s=(Math.imul(s,1664525)+1013904223)>>>0; return s/4294967296; }; }
 function triang(u,a,b,c){ var fc=(c-a)/(b-a);
   return u<fc? a+Math.sqrt(u*(b-a)*(c-a)) : b-Math.sqrt((1-u)*(b-a)*(b-c)); }
+/* PERT (Beta-PERT) sampler — the distribution-choice question TJ asked directly (2026-08-21):
+   triang() above has a closed-form inverse-CDF (one uniform draw -> one value); Beta-PERT has no
+   such shortcut, so this needs a real Gamma/Beta sampler, not a one-liner. Standard construction:
+   Gaussian (Box-Muller) -> Gamma (Marsaglia-Tsang, the accepted standard method, >96% acceptance
+   so the rejection loop below terminates almost immediately in practice) -> Beta (ratio of two
+   Gammas) -> PERT (Beta scaled into [lo,hi] with the standard lambda=4 shape parameters). Each
+   function is independently testable against its own textbook property (gaussRnd ~ N(0,1); a
+   Beta(a,b) draw in [0,1]; a PERT draw's own mean converging to (lo+4*mode+hi)/6) — see stress.cjs. */
+function gaussRnd(rnd){ var u1=rnd(),u2=rnd(); return Math.sqrt(-2*Math.log(u1))*Math.cos(2*Math.PI*u2); }
+function gammaRnd(rnd,k){
+  if(k<1){ var u=rnd(); return gammaRnd(rnd,k+1)*Math.pow(u,1/k); } // Ahrens-Dieter boost for shape<1
+  var d=k-1/3, c=1/Math.sqrt(9*d);
+  for(;;){
+    var x,v;
+    do { x=gaussRnd(rnd); v=1+c*x; } while(v<=0);
+    v=v*v*v;
+    var u2=rnd();
+    if(u2<1-0.0331*x*x*x*x) return d*v;
+    if(Math.log(u2)<0.5*x*x+d*(1-v+Math.log(v))) return d*v;
+  }
+}
+function betaRnd(rnd,alpha,beta){ var x=gammaRnd(rnd,alpha), y=gammaRnd(rnd,beta); return x/(x+y); }
+function pertRnd(rnd,lo,hi,mode){
+  if(hi<=lo) return mode; // same degenerate-range guard mcParams() already floors against elsewhere
+  var alpha=1+4*(mode-lo)/(hi-lo), beta=1+4*(hi-mode)/(hi-lo);
+  return lo+betaRnd(rnd,alpha,beta)*(hi-lo);
+}
+/* One call site for "draw a future efficiency," so computeMc()/renderMcMath()/renderMcOneRun()
+   can't drift onto different distribution logic from each other — extracted the same round the
+   PERT option was added, mirroring mcParams()'s own "shared, not reimplemented" precedent above. */
+function mcDraw(rnd,p,dist){ return dist==="pert"? pertRnd(rnd,p.lo,p.hi,p.mode) : triang(rnd(),p.lo,p.hi,p.mode); }
 /* Shared min/mode/max for the future-efficiency draw — extracted (/stress-test finding,
    2026-08-19) after the reproducibility guard below was found reimplementing this inline without
    the same clamp, a second independent copy that could silently drift from the canonical one.
@@ -3287,7 +3327,8 @@ function mcParams(r){
    formula, now a shared top-level function so the new confidence slider can look up any arbitrary
    percentile from an already-sorted run array without duplicating this one-line lookup. */
 function mcQuantile(sortedSims,p){ return sortedSims[Math.floor(p*sortedSims.length)]; }
-function computeMc(uncertainIds){
+function computeMc(uncertainIds,dist){
+  dist=dist||"triangular"; // default preserves every pre-existing call site's behavior unchanged
   var rnd=lcg(20260731), N=4000, sims=[], i, j;
   for(i=0;i<N;i++){
     var e=0;
@@ -3298,9 +3339,12 @@ function computeMc(uncertainIds){
            0.08 of downside vs 0.06 of upside — recovery is capped because cost
            efficiency on capital work rarely improves far past its settled rate.
            mcParams() clamps min/mode/max together (see its own comment) so
-           min<=mode<max always holds, whatever the account's real CPI is. */
+           min<=mode<max always holds, whatever the account's real CPI is.
+           mcDraw() picks triangular (the closed-form default) or PERT (the
+           Beta-shaped alternative, per-tab toggle below) from one shared call
+           site, not a second copy of this branch. */
         var p=mcParams(r);
-        c=triang(rnd(), p.lo, p.hi, p.mode);
+        c=mcDraw(rnd,p,dist);
       } else {
         c=r.cpi; // locked to its current, observed efficiency — no draw, no uncertainty modeled
       }
@@ -3309,24 +3353,28 @@ function computeMc(uncertainIds){
     sims.push(e);
   }
   sims.sort(function(a,b){return a-b;});
-  return {n:N, sims:sims, p10:mcQuantile(sims,0.10), p50:mcQuantile(sims,0.50), p80:mcQuantile(sims,0.80),
+  return {n:N, sims:sims, dist:dist, p10:mcQuantile(sims,0.10), p50:mcQuantile(sims,0.50), p80:mcQuantile(sims,0.80),
     p95:mcQuantile(sims,0.95),
     pOver:sims.filter(function(v){return v>T.bac;}).length/N,
     pBust:sims.filter(function(v){return v>T.bac+T.contRemaining;}).length/N};
 }
 /* The canonical, full-uncertainty run — what the print brief, board figure, and every reference
    to "MC" elsewhere on this page mean unless the per-account toggle is explicitly showing
-   something narrower. Computed once, never mutated, never reassigned. */
+   something narrower. Computed once, never mutated, never reassigned. Always triangular — the
+   print brief and board figure stay on the default distribution regardless of what a reader is
+   mid-exploring with the PERT toggle below, same "board number never silently changes" guarantee
+   activeMc's own comment already states for the per-account filter. */
 var MC=computeMc(rows.map(function(r){ return r.id; }));
 /* The currently-displayed run — identical to MC (same object) until the per-account toggle
-   below locks at least one control account to its observed CPI, at which point it's a freshly
-   computed, separate simulation. Only the chart, its stats/read-out, the RCF comparison, and the
-   one-run stepper read this one; the print brief deliberately keeps reading MC directly, so a
-   board-facing number never silently changes because someone was mid-exploration with boxes
-   unchecked. */
+   below locks at least one control account to its observed CPI, or the distribution toggle picks
+   PERT, at which point it's a freshly computed, separate simulation. Only the chart, its
+   stats/read-out, the RCF comparison, and the one-run stepper read this one; the print brief
+   deliberately keeps reading MC directly, so a board-facing number never silently changes because
+   someone was mid-exploration with boxes unchecked or PERT selected. */
 var activeMc=MC;
 function recomputeActiveMc(){
-  activeMc = state.mcIncluded.length===rows.length ? MC : computeMc(state.mcIncluded);
+  activeMc = (state.mcIncluded.length===rows.length && state.mcDist==="triangular")
+    ? MC : computeMc(state.mcIncluded, state.mcDist);
 }
 /* Reference-class marker — Flyvbjerg's real, cited rail-project average overrun (+45%) applied
    to this program's own BAC, drawn on the same axis as the Monte Carlo run so the two lenses are
@@ -3485,7 +3533,10 @@ function renderMcRcf(){
 
 /* The math explainer — a live worked example against CP-201 (the tunnel package, the same
    thread the rest of the presentation follows), not a hypothetical. Every number here is read
-   off `rows` / `triang()` at render time. */
+   off `rows` / `triang()`/`pertRnd()` at render time, and the copy itself switches on
+   state.mcDist so it never describes a distribution other than the one activeMc actually used —
+   the triangular branch is byte-identical to the original copy (no behavior change when PERT
+   isn't selected); only the PERT branch is new. */
 function renderMcMath(){
   var r=rows.filter(function(x){ return x.id==="CP-201"; })[0];
   // Reuse the canonical mcParams() clamp (2026-08-20 /stress-test finding, real, dormant with
@@ -3493,6 +3544,45 @@ function renderMcMath(){
   // mcParams() exists specifically to guard — bHigh could fall below aLow once CPI drops
   // low enough, the exact 0/0 landmine mcParams()'s own comment warns about.
   var p=mcParams(r), aLow=p.lo, bHigh=p.hi, mode=p.mode;
+  if(state.mcDist==="pert"){
+    var alpha=1+4*(mode-aLow)/(bHigh-aLow), beta=1+4*(bHigh-mode)/(bHigh-aLow);
+    // Unlike triang(u,...), PERT has no single-uniform inverse-CDF to hand-pick illustrative u
+    // values from — its Beta/Gamma sampler consumes a variable number of draws per call. So these
+    // are 3 genuine fresh draws from a dedicated seeded stream (not derived from the 4,000-run
+    // MC's own sequence), illustrative in the same spirit as the triangular table above, not
+    // three cherry-picked percentiles.
+    var illRnd=lcg(7202602), draws=[0,1,2].map(function(){
+      var c=pertRnd(illRnd,aLow,bHigh,mode);
+      return {c:c, contrib:r.ac+(r.bac-r.ev)/c};
+    });
+    document.getElementById("mcMathBody").innerHTML=
+      '<p>Each of the '+MC.n+' runs prices every control account’s <em>remaining</em> work at a future '+
+      'efficiency drawn from a <b style="color:rgb(var(--c-ink))">Beta-PERT</b> distribution around that '+
+      'account’s own observed CPI &mdash; unlike the triangular option, PERT concentrates more probability '+
+      'mass near the mode and tapers its tails smoothly instead of ramping linearly, the shape PMI/AACE '+
+      'guidance for 3-point estimates generally recommends. For one run, each account still contributes '+
+      '<code>AC + (BAC&minus;EV) / c</code>, where <code>c</code> is that run’s draw.</p>'+
+      '<p style="margin-top:8px">Worked against <b style="color:rgb(var(--c-ink))">'+r.n.replace(/&amp;/g,"&")+
+      ' ('+r.id+')</b>, right now: CPI reads <b style="color:rgb(var(--c-ink))">'+idx(r.cpi)+'</b>, so the same '+
+      '<b style="color:rgb(var(--c-ink))">'+idx(aLow)+'</b>&ndash;<b style="color:rgb(var(--c-ink))">'+idx(bHigh)+
+      '</b> range (mode '+idx(mode)+') is reshaped into Beta(&alpha;='+alpha.toFixed(2)+', &beta;='+beta.toFixed(2)+
+      ') &mdash; the standard PERT &lambda;=4 construction (&alpha;=1+4&middot;(mode&minus;min)/(max&minus;min), '+
+      '&beta;=1+4&middot;(max&minus;mode)/(max&minus;min)). Three genuine draws from a Gamma-ratio Beta sampler '+
+      '(no single &ldquo;u percentile&rdquo; shortcut exists for this shape, unlike triangular):</p>'+
+      '<div class="outbox" style="margin-top:6px">'+
+      draws.map(function(d,i){ return '<div><div class="k">draw '+(i+1)+'</div>'+
+        '<div class="v">c = '+idx(d.c)+' &rarr; '+m(d.contrib)+'</div></div>'; }).join("")+
+      '</div>'+
+      '<p style="margin-top:8px">PERT’s own textbook mean, <code>(min + 4&middot;mode + max) / 6</code>, works '+
+      'out to <b style="color:rgb(var(--c-ink))">'+idx((aLow+4*mode+bHigh)/6)+'</b> for this account &mdash; pulled '+
+      'toward the mode much harder than a straight average of the three bounds would be. Do this for all '+
+      rows.length+' control accounts and sum, '+MC.n+' times, and the distribution above is what falls out.</p>'+
+      '<p style="margin-top:8px">The run itself is still reproducible: a fixed-seed generator (not '+
+      '<code>Math.random()</code>) means the same '+MC.n+' runs&rsquo; worth of Beta draws happen in the same order '+
+      'every time this page loads. P10/P50/P80 above are simply the values at the 10th/50th/80th position once all '+
+      MC.n+' outcomes are sorted low to high.</p>';
+    return;
+  }
   var draws=[0.10,0.50,0.90].map(function(u){
     var c=triang(u,aLow,bHigh,mode);
     return {u:u, c:c, contrib:r.ac+(r.bac-r.ev)/c};
@@ -3539,7 +3629,7 @@ function renderMcOneRun(){
     var uncertain=state.mcIncluded.indexOf(r.id)>=0;
     // same mcParams() reuse fix as renderMcMath() above — was an unclamped duplicate.
     var p=mcParams(r);
-    var c=uncertain? triang(rnd(), p.lo, p.hi, p.mode) : r.cpi;
+    var c=uncertain? mcDraw(rnd,p,state.mcDist) : r.cpi;
     var contrib=r.ac+(r.bac-r.ev)/c;
     total+=contrib;
     return {id:r.id, c:c, contrib:contrib, uncertain:uncertain};
@@ -5556,6 +5646,8 @@ var GLOSS=[
   e:function(){ return "4,000 runs here, fixed seed so it is reproducible. Median finish "+m(MC.p50)+"; "+pct(MC.pOver,0)+" of runs finish over budget; "+pct(MC.pBust,0)+" bust through budget plus all remaining contingency."; }},
  {k:"referenceclass", t:"Reference class forecasting", p:"A different question from Monte Carlo above: not \"what does this program's own track record imply,\" but \"how have similar completed programs, elsewhere, actually turned out?\" Bent Flyvbjerg's database of 16,000+ megaprojects found rail projects average 45% real cost overrun, fixed-link (bridge/tunnel) 34%, road 20% — prevalent and predictable, not random. The fix is basing an estimate on that outcome distribution instead of a bottom-up build that quietly assumes this time is different.",
   e:function(){ return "This program's own Monte Carlo puts the median finish at "+m(MC.p50)+" ("+pct(MC.pOver,0)+" of runs over budget) — grounded in this ledger's own efficiency. Reference class forecasting is the complementary check: does that number also look plausible against the base rate for rail programs generally, not just this one's own history?"; }},
+ {k:"pertdist", t:"Triangular vs. PERT (Beta-PERT)", p:"Two shapes for the same min/mode/max future-efficiency range each Monte Carlo run draws from. Triangular ramps linearly to the mode and back down — simple, closed-form, easy to reproduce by hand. PERT (Beta-PERT) is smoother and concentrates more probability mass near the mode, tapering its tails instead of ramping straight lines — the shape PMI/AACE guidance for 3-point estimates generally recommends, at the cost of needing a real Gamma/Beta sampler instead of a one-line formula.",
+  e:function(){ return "Right now this board is drawing from the "+(state.mcDist==="pert"?"PERT":"triangular")+" shape — toggle \"Draw shape\" above the chart to compare how the same "+rows.length+"-account uncertainty reshapes the distribution."; }},
  {k:"fundingtier", t:"Funding tier", p:"A portfolio-level question, distinct from whether a single line is on budget: if the total program had to absorb a real funding constraint, which lines get protected first and which are most exposed? Crosses two axes — how far along a line is (sunk cost and momentum make an early cut expensive to reverse) against whether it's spending efficiently — rather than reading off a single cost index.",
   e:function(){ var lines=portfolioRows(); return lines.map(function(l){ return l.name.replace(/&mdash;.*/,"").trim()+": "+fundingTier(l).tier; }).join(" · "); }},
  {k:"trir", t:"TRIR — Total Recordable Incident Rate", p:"The standard safety yardstick: recordable injuries per 200,000 hours worked — roughly 100 people working full time for a year. The one metric that can stop a job regardless of cost or schedule.",
@@ -6495,6 +6587,21 @@ window.addEventListener("scroll",function(){ document.getElementById("tip").clas
 function redrawCharts(){ renderScurve(); renderWaterfall(); renderCont(); renderRisk(); syncMcView(); renderGantt(); renderScurveScrub(); renderGateLine(); renderCdeFlow(); }
 document.getElementById("mcViewHist").addEventListener("click",function(){ state.mcView="hist"; syncMcView(); });
 document.getElementById("mcViewCdf").addEventListener("click",function(){ state.mcView="cdf"; syncMcView(); });
+/* Draw-shape toggle (triangular <-> PERT) — mirrors mcView's own set-state -> recompute -> re-
+   render sequence above. recomputeActiveMc() re-derives activeMc against the new distribution
+   (MC itself, the board-facing canonical run, never changes — see its own comment); syncMcView()
+   redraws the chart/stats off the new activeMc; renderMcMath() re-renders the math explainer,
+   which branches its own copy on state.mcDist so it never describes triangular while PERT is
+   actually active, or vice versa. */
+function syncMcDist(){
+  document.getElementById("mcDistTri").setAttribute("aria-pressed", String(state.mcDist==="triangular"));
+  document.getElementById("mcDistPert").setAttribute("aria-pressed", String(state.mcDist==="pert"));
+  recomputeActiveMc();
+  syncMcView();
+  renderMcMath();
+}
+document.getElementById("mcDistTri").addEventListener("click",function(){ state.mcDist="triangular"; syncMcDist(); });
+document.getElementById("mcDistPert").addEventListener("click",function(){ state.mcDist="pert"; syncMcDist(); });
 
 /* init */
 renderExecSummary();
@@ -6514,7 +6621,10 @@ document.getElementById("sDrbP").value=DRB_ASSUMPTIONS.pOwnerWins;
 document.getElementById("sDrbLegal").value=DRB_ASSUMPTIONS.legalCost;
 renderDrbSlider();
 renderDataStrategy();
-renderMcFilter(); syncMcView(); renderMcMath(); renderScen(); renderPrint();
+renderMcFilter();
+document.getElementById("mcDistTri").setAttribute("aria-pressed", String(state.mcDist==="triangular"));
+document.getElementById("mcDistPert").setAttribute("aria-pressed", String(state.mcDist==="pert"));
+syncMcView(); renderMcMath(); renderScen(); renderPrint();
 renderArch(); renderGuards(); renderStatControl(); renderZscoreMath(); renderEwmaControl(); renderEwmaMath(); renderIngestGuards();
 renderGlossary("");
 document.getElementById("sCpi").value=T.cpi;
@@ -6545,6 +6655,9 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   gloss:GLOSS,findGloss:findGloss,
   miles:MILES,delays:DELAYS,spark:SPARK,baseline:BASELINE,guards:GUARDS,escPat:ESC_PAT,
   mcParams:mcParams,triang:triang,dsStep:dsStep,
+  gaussRnd:gaussRnd,gammaRnd:gammaRnd,betaRnd:betaRnd,pertRnd:pertRnd,mcDraw:mcDraw,computeMc:computeMc,
+  recomputeActiveMc:recomputeActiveMc,syncMcDist:syncMcDist,renderMcMath:renderMcMath,
+  getActiveMc:function(){ return activeMc; },
   textZoom:TEXT_ZOOM,applyTextSize:applyTextSize,curZoom:curZoom,
   pkgs:PKGS,ledgerInputs:LEDGER_INPUTS,kpiLedger:KPI_LEDGER,kpiLedgerMixed:KPI_LEDGER_MIXED,
   kpiLedgerNone:KPI_LEDGER_NONE,ledgerProvenanceDbox:ledgerProvenanceDbox,ledgerDemoBase:ledgerDemoBase,

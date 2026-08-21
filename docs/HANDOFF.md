@@ -30,7 +30,7 @@ anywhere in this repository. The method is the content, not the numbers.
 
 | | |
 |---|---|
-| Primary file | `index.html` — 6,547 lines, one file, no build step |
+| Primary file | `index.html` — 6,668 lines, one file, no build step |
 | Top-level JS functions | 176 (not re-audited this round — see §18 gap note) |
 | Tabs | 11 |
 | KPIs (with formula/threshold/phase/source/play each) | 20 |
@@ -38,16 +38,16 @@ anywhere in this repository. The method is the content, not the numbers.
 | JS integrity-gate checks (`GUARDS`) | 28, re-run on every page load |
 | Ingestion-validation checks (`INGEST_GUARDS`) | 2 |
 | SQL/DuckDB parity checks (`pipeline/run_pipeline.py`) | 54, independently verified this session — see §12 |
-| Glossary terms (each with a live-computed worked example) | 50 |
+| Glossary terms (each with a live-computed worked example) | 51 |
 | Actions/RAID register items | 17 (6 Issue, 10 Task, 1 Decision) |
 | Control accounts / packages | 8 |
 | Contracts | 6 |
 | Risks | 6 |
 | Delay events | 4 |
-| `stress.cjs` test assertions | 1,329, all passing |
+| `stress.cjs` test assertions | 1,352, all passing |
 | Companion pages | `otak.html` (fit brief), `architecture.html` (static pipeline map) |
 | Hosting | GitHub Pages, served directly from `main`, zero build |
-| Git history | 92 commits |
+| Git history | 97 commits |
 
 Current EVM tie-out (verify live in the browser console via `__PCC__.totals`, or `node verify.cjs`):
 
@@ -203,7 +203,7 @@ Beyond the core EVM block, three more derivation families exist:
 |---|---|---|
 | 1 | **Overview** (`over`) | A "Six lenses, not one blended score" card explaining what each of the 6 KPI families (Cost/Schedule/Risk/Change/Delivery/Compliance) actually asks and why it can't be folded into the others, directly above the 20-KPI board with drill-down detail (formula/threshold/source/play per card, plus a "computed from the ledger" / "not from the ledger" provenance box, honestly stated per KPI), a live root-cause-to-owner trace, the eleven-input ledger card (all 11 raw fields, a per-package inspector, and a live "change one input, watch the KPIs move" demo — reads a local snapshot, never mutates the real ledger), a 10-stop guided Tour with tab-jumping evidence links (§18 gap #8 — this doc previously called it "five-chapter," a stale phrase with no matching code), an executive summary. |
 | 2 | **Portfolio** (`port`) | Agency-level rollup across 4 lines of business — one reads live off this program's own totals (never duplicated, `GUARDS`-checked), three are summary-only illustrative peers. |
-| 3 | **Cost** (`cost`) | EVM S-curve + variance bridge, an estimate-to-budget baseline bridge reconciled to the ledger, four-method EAC, a forecast-reliability section (EAC trend, forecast-accuracy scorecard, monthly cash flow), what-if forecasting with 3 live sliders + scenario comparison, Monte Carlo completion distribution (4,000 runs, seeded/reproducible), the cost-diffusion (GBM) card. |
+| 3 | **Cost** (`cost`) | EVM S-curve + variance bridge, an estimate-to-budget baseline bridge reconciled to the ledger, four-method EAC, a forecast-reliability section (EAC trend, forecast-accuracy scorecard, monthly cash flow), what-if forecasting with 3 live sliders + scenario comparison, Monte Carlo completion distribution (4,000 runs, seeded/reproducible, a Triangular/PERT draw-shape toggle), the cost-diffusion (GBM) card. |
 | 4 | **Schedule** (`sched`) | DCMA-style schedule health (CPLI/BEI/float erosion), a Gantt-style bar with baseline vs. forecast, a fragnet-based delay & TIA register tied to package float, revenue-service forecast drift, statistical control charts (z-score + EWMA) over crew cost-per-hour. |
 | 5 | **Risk & Change** (`risk`) | A priced risk register (probability × impact heat map + sensitivity tornado chart), a contract commercial register (a third axis distinct from control accounts), change pipeline with proposed-vs-settled pricing defense, the settle-vs-DRB EMV decision tree with an **interactive slider + chart** (§8). |
 | 6 | **Delivery** (`del`) | Leading indicators (productivity factor by package), the crew cost-per-hour module with a drill-down into idle/rework/baseline attribution. |
@@ -251,7 +251,7 @@ Everything below is a real DOM interaction, independently covered by `stress.cjs
   display state only and never mutate `DRB_ASSUMPTIONS`; a small SVG chart makes the "escalating
   can never beat settling" structural finding visible across the whole probability range instead
   of asserting it as one static delta.
-- **50-term glossary** with live search filter, plus a click-driven inline "i" help icon next to
+- **51-term glossary** with live search filter, plus a click-driven inline "i" help icon next to
   jargon anywhere on the page — both read from the same `GLOSS` array, so there's one source of
   truth for every definition.
 - **1 six-KPI-families card** (Overview: `KPI_FAMILIES`) — each of the 6 family tiles carries its
@@ -273,6 +273,19 @@ Everything below is a real DOM interaction, independently covered by `stress.cjs
   reproducible `python3 pipeline/run_pipeline.py` command — a "here's the receipt" callout, not a
   fabricated live-polling badge (the tab's own guardrail-count tripwire in `renderDataStrategy()`
   explicitly notes there's no live multi-system feed to poll on this synthetic build).
+- **Monte Carlo draw-shape toggle** (Cost tab: `mcDistTri`/`mcDistPert`, Triangular ↔ PERT) —
+  answers a question TJ asked directly (why triangular over PERT?) by building the alternative,
+  not just explaining the choice. `triang()`'s closed-form inverse-CDF has no PERT equivalent, so
+  PERT draws through a real Gamma (Marsaglia-Tsang, via a Box-Muller Gaussian) → Beta (ratio of two
+  Gammas) → PERT (Beta scaled into `[lo,hi]` with the standard λ=4 shape parameters) chain — see
+  `gaussRnd`/`gammaRnd`/`betaRnd`/`pertRnd` (all shared through one `mcDraw(rnd,p,dist)` call site
+  so `computeMc()`, the math explainer, and the one-run stepper can't drift onto different
+  distribution logic from each other). The canonical `MC` run (the print brief / board figure's
+  source) is always triangular regardless of the toggle — the same "board number never silently
+  changes" guarantee the per-account uncertainty filter already had. The math explainer
+  (`renderMcMath()`) branches its own copy on the active distribution so it never describes
+  triangular while PERT is actually selected, or vice versa — including the real, computed α/β
+  shape parameters and PERT's own textbook mean, not narrated numbers.
 - **12 `<details class="dbox">` "how this is actually computed" accordions** — each walks a
   worked example against real data (S-curve PV formula, waterfall bridge, Gantt forecast-finish,
   CPLI driving-path arithmetic, risk exposure, Monte Carlo per-run formula, crew cost-per-hour
@@ -323,7 +336,7 @@ matches an independent recomputation, not just that *a* number is present.
 
 ## 11. Testing & verification
 
-**`stress.cjs`** (1,329 assertions, all passing) — stubs the DOM, loads `index.html`'s script
+**`stress.cjs`** (1,352 assertions, all passing) — stubs the DOM, loads `index.html`'s script
 verbatim into that stub, and exercises it exactly like a user would: every tab switch, every
 filter, every drawer, every slider drag, every keyboard interaction. 35 labeled sections:
 
@@ -500,9 +513,9 @@ Named explicitly, not silently dropped — from the most recent engagement/inter
    2026-08-21; **§18 gap #9 below adds the automated sync test this gap has been naming since
    2026-08-20** — that structural risk is now closed, not just the 3rd stale instance.
 4. ~~**`README.md`'s own stated counts lag behind this document**~~ — **Resolved 2026-08-20** (and
-   re-synced twice more on 2026-08-21, after the six-families card and again after this Data
-   Strategy UI/UX round): 1,329 assertions / 50 glossary terms / 28-check integrity gate, matching
-   §2 as of this writing.
+   re-synced three more times on 2026-08-21 — the six-families card, the Data Strategy UI/UX round,
+   and the Monte Carlo PERT draw-shape toggle): 1,352 assertions / 51 glossary terms / 28-check
+   integrity gate, matching §2 as of this writing.
 5. **The eleven-input ledger card is new this round** (2026-08-20) and only covers the Overview
    tab's own `PKGS` provenance — it does not touch or resolve gap #2 above (the risk register still
    has no independent drill-down drawer of its own).
@@ -594,7 +607,7 @@ carried over from memory or an earlier pass:
   (nothing built, §18 correctly does not list this as resolved-this-round since nothing changed),
   and confirmed the "not years running P6" hedge the brief describes lives only in presenter notes,
   never on-page. `stress.cjs`'s new `E.1. architecture.html sync` section was run fresh
-  (`1329 passed, 0 failed`) and `node verify.cjs` re-confirmed the tie-out is unchanged (this
+  (`1352 passed, 0 failed`) and `node verify.cjs` re-confirmed the tie-out is unchanged (this
   round's edits touch zero `PKGS` values).
 - **2026-08-21 `/stress-test` full-dashboard visual pass**: all 11 tabs, both companion pages
   (`architecture.html`, `otak.html`), and the cross-tab overlays (10-stop Tour, Presentation Mode,
@@ -612,10 +625,26 @@ carried over from memory or an earlier pass:
   corroborating dual-review evidence; opened and closed within the same round §18 gap #10 (a
   testing-environment note, not a product gap, about the browser tool's own screenshot/scroll
   limitations found and root-caused this pass).
+- **2026-08-21 Monte Carlo PERT draw-shape round**: TJ asked directly why the Monte Carlo used
+  triangular over PERT — answered honestly first (`grep -n "PERT" index.html` returned nothing; it
+  was never a documented decision, just the distribution implemented), then built PERT as an
+  additive toggle rather than a silent swap. `gammaRnd`'s and `betaRnd`'s correctness were checked
+  against their own textbook statistical properties (a Gamma variate never ≤0; a Beta(2,3) draw's
+  empirical mean over 5,000 draws converges near its true mean 0.400; a `pertRnd` draw against
+  CP-201's real live `mcParams()` stays within bounds and its empirical mean over 4,000 draws
+  converges near PERT's own `(lo+4·mode+hi)/6` formula) — the correct verification doctrine for a
+  stochastic sampler, where "recompute the exact same random number by hand" doesn't apply the way
+  it does for `triang()`'s closed-form inverse-CDF. Live-browser confirmed: canonical `MC` stays
+  byte-identical after toggling to PERT (`dist:"triangular"` unchanged), the active run's own P50
+  genuinely shifts, the math explainer's copy switches to name Beta-PERT with real α/β values
+  instead of stale triangular-specific prose, and toggling back restores the exact original
+  triangular numbers, not an approximation. `node stress.cjs` run fresh (`1352 passed, 0 failed`)
+  and `node verify.cjs` re-confirmed unchanged (zero `PKGS` values touched — this is a Monte Carlo
+  sampler change, not a ledger change).
 
 Generated 2026-08-20, against the tip of the eleven-input-ledger-card engagement round; extended
 2026-08-21 for the six-KPI-families card round, again 2026-08-21 for the Data Strategy tab UI/UX
-round, again 2026-08-21 for the "96→100" brainstorm round's Tier 0/1 items, and again 2026-08-21
-for the full-dashboard `/stress-test` visual pass (see git log for exact commits — each document
-update was written before its own round's commit lands, per the project's "verify, then document"
-ordering).
+round, again 2026-08-21 for the "96→100" brainstorm round's Tier 0/1 items, again 2026-08-21 for
+the full-dashboard `/stress-test` visual pass, and again 2026-08-21 for the Monte Carlo PERT
+draw-shape round (see git log for exact commits — each document update was written before its own
+round's commit lands, per the project's "verify, then document" ordering).
