@@ -857,6 +857,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
             quote is a judgement about what the remaining work will behave like, and a controls manager
             should show the spread rather than pick one silently.</p>
           <div class="tw" style="min-width:0"><table id="eacTable"></table></div>
+          <div id="eacSpread"></div>
         </div>
         <div class="card">
           <h3>Contingency vs. progress</h3>
@@ -3161,6 +3162,32 @@ function renderEac(){
        '<td class="tab-num">'+m(e.v)+'</td>'+
        '<td class="tab-num '+(T.bac-e.v<0?"ba":"ok")+'">'+sgn(T.bac-e.v)+'</td></tr>';
    }).join("")+'</tbody>';
+  renderEacSpread();
+}
+/* Live method-divergence check (brainstorm-mode round, 2026-08-21) — the "act" field on this
+   card's own EAC KPI already says "publish the four-method spread... when methods diverge by
+   more than about 5%, that divergence is itself the finding" (KPIS, id:"eac"), but nothing on
+   the page ever actually computed that spread or checked it against 5% — asserted guidance, not
+   an enforced check, the exact gap a live read of this file found on inspection. This closes it:
+   the high/low methods and the spread itself are all read live off EACS, never a hardcoded
+   dollar figure or percentage, so a future change to any of the four formulas (or to the ledger
+   data itself) can't leave this narrative silently stale. Threshold is the single number the KPI
+   text itself already names (5%) — deliberately not a 3rd, unsourced middle band, since nothing
+   on this page has ever asserted an intermediate "watch" percentage. */
+function renderEacSpread(){
+  var vals=EACS.map(function(e){return e.v;});
+  var hiV=Math.max.apply(null,vals), loV=Math.min.apply(null,vals);
+  var hiM=EACS.filter(function(e){return e.v===hiV;})[0], loM=EACS.filter(function(e){return e.v===loV;})[0];
+  var spread=hiV-loV, spreadPct=spread/T.bac;
+  var zone = spreadPct<0.05 ? ["g","within the ~5% band — methods currently agree"]
+    : ["r","exceeds the ~5% band — this is the finding"];
+  document.getElementById("eacSpread").innerHTML=
+    '<p style="margin-top:10px;font-size:12.5px;color:rgb(var(--c-mut))">Spread across the four methods: '+
+    '<b style="color:rgb(var(--c-ink))">'+m(spread)+'</b> ('+hiM.n+' high, '+loM.n+' low) &mdash; '+
+    '<b style="color:rgb(var(--c-ink))">'+pct(spreadPct,1)+'</b> of BAC. <span class="pill '+zone[0]+'">'+zone[1]+
+    '</span> The four methods encode different assumptions about what caused the overrun &mdash; averaging '+
+    'them together would blend those assumptions into a number nobody actually believes, so this page '+
+    'shows the spread instead of picking one silently, exactly as the guidance above the table says to.</p>';
 }
 
 /* ---------- contingency vs progress ---------- */

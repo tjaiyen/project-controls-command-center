@@ -449,6 +449,29 @@ ok(G.tip._html.includes("Month 1"), "tapping the S-curve at month 0 (click, no p
 
 has("eacTable", "$1,303.7M", "EAC table: bottom-up $1,303.7M");
 has("eacTable", "$1,297.3M", "EAC table: BAC/CPI $1,297.3M");
+// Live method-divergence check (brainstorm-mode round, 2026-08-21) — closes a real gap TJ asked
+// about directly: the "eac" KPI's own act field ("publish the four-method spread... when methods
+// diverge by more than about 5%, that divergence is itself the finding") was pure narrative,
+// never actually computed anywhere. Independently re-derived from raw P.eacs/P.totals, never by
+// calling the app's own renderEacSpread(). Pre-registered: today's real spread is under 5% (the
+// four methods agree), so the "diverges" red branch should NOT be showing.
+{
+  const vals = P.eacs.map(e => e.v);
+  const hiV = Math.max(...vals), loV = Math.min(...vals);
+  const hiM = P.eacs.filter(e => e.v === hiV)[0], loM = P.eacs.filter(e => e.v === loV)[0];
+  const spread = hiV - loV, spreadPct = spread / P.totals.bac;
+  ok(hiM.n === "Cost and schedule pressure both" && loM.n === "Remaining work at budgeted rate",
+    "pre-registered: today's real high/low methods are \"cost+schedule pressure\" (highest) and \"remaining work at budgeted rate\" (lowest)",
+    hiM.n + " / " + loM.n);
+  ok(spreadPct < 0.05, "pre-registered: today's real method spread is under the 5% band (methods converge, not diverge)", (spreadPct * 100).toFixed(2) + "%");
+  has("eacSpread", hiM.n, "spread note names the real highest method by name, not a hardcoded label");
+  has("eacSpread", loM.n, "spread note names the real lowest method by name, not a hardcoded label");
+  const spreadStr = "$" + spread.toFixed(1).replace(/\B(?=(\d{3})+(?!\d))/g, ",") + "M";
+  has("eacSpread", spreadStr, "spread note states the real, live-derived dollar spread, not a hardcoded number");
+  ok(G.eacSpread._html.includes((spreadPct * 100).toFixed(1) + "%"), "spread note states the real, live-derived percent-of-BAC, not a hardcoded number");
+  ok(G.eacSpread._html.includes('class="pill g"'), "pre-registered: today's spread renders the GREEN (converge) pill, not the red (diverge) one");
+  has("eacSpread", "averaging", "spread note states why the four methods aren't blended into one number, not just that they aren't");
+}
 // user-reported layout finding (2026-08-19): "Estimate at completion" + "Contingency vs. progress"
 // sat in a 2-column grid.g2 that squeezed each to half-width at >=840px, cutting off the table/
 // chart. Confirmed live: at 1400px both cards now measure the SAME full width and stack, not

@@ -44,7 +44,7 @@ anywhere in this repository. The method is the content, not the numbers.
 | Contracts | 6 |
 | Risks | 6 |
 | Delay events | 4 |
-| `stress.cjs` test assertions | 1,407, all passing |
+| `stress.cjs` test assertions | 1,415, all passing |
 | Companion pages | `otak.html` (fit brief), `architecture.html` (static pipeline map) |
 | Hosting | GitHub Pages, served directly from `main`, zero build |
 | Git history | 100 commits |
@@ -375,7 +375,7 @@ matches an independent recomputation, not just that *a* number is present.
 
 ## 11. Testing & verification
 
-**`stress.cjs`** (1,407 assertions, all passing) — stubs the DOM, loads `index.html`'s script
+**`stress.cjs`** (1,415 assertions, all passing) — stubs the DOM, loads `index.html`'s script
 verbatim into that stub, and exercises it exactly like a user would: every tab switch, every
 filter, every drawer, every slider drag, every keyboard interaction. 35 labeled sections:
 
@@ -552,10 +552,10 @@ Named explicitly, not silently dropped — from the most recent engagement/inter
    2026-08-21; **§18 gap #9 below adds the automated sync test this gap has been naming since
    2026-08-20** — that structural risk is now closed, not just the 3rd stale instance.
 4. ~~**`README.md`'s own stated counts lag behind this document**~~ — **Resolved 2026-08-20** (and
-   re-synced six more times on 2026-08-21 — the six-families card, the Data Strategy UI/UX round,
+   re-synced seven more times on 2026-08-21 — the six-families card, the Data Strategy UI/UX round,
    the Monte Carlo PERT draw-shape toggle, the megaproject-controls-doc upgrade round, the Kimi
-   research-package round, and the full-dashboard `/stress-test` pass): 1,407 assertions / 53
-   glossary terms / 28-check integrity gate, matching §2 as of this writing.
+   research-package round, the full-dashboard `/stress-test` pass, and the EAC-spread live check):
+   1,415 assertions / 53 glossary terms / 28-check integrity gate, matching §2 as of this writing.
 5. **The eleven-input ledger card is new this round** (2026-08-20) and only covers the Overview
    tab's own `PKGS` provenance — it does not touch or resolve gap #2 above (the risk register still
    has no independent drill-down drawer of its own).
@@ -791,6 +791,28 @@ carried over from memory or an earlier pass:
   real browser — the bounds note's exact live-computed numbers (0.790–0.930, mode 0.870,
   −0.08/+0.06) confirmed present and byte-correct in the Triangular view, and confirmed to survive
   the toggle into PERT view unchanged, zero console errors, zero layout overflow.
+- **2026-08-21 EAC-spread live check**: TJ asked a plain question — "why are we not taking into
+  account the 4 [EAC] methods?" — which surfaced a real gap: the `eac` KPI's own `act:` field
+  already said "publish the four-method spread... when methods diverge by more than about 5%,
+  that divergence is itself the finding" (`KPIS`, `id:"eac"`), but nothing on the page ever
+  actually computed that spread or checked it against 5% — narrative guidance, never an enforced
+  check, the same "documented principle, not enforced" pattern already named honestly for the
+  Gate 5 re-baselining sentence two rounds back. TJ confirmed ("yes") after being shown the honest
+  answer (the 4 methods ARE shown side by side already, just never blended into the headline, and
+  the reason for that is methodological — the 4 methods encode different root-cause assumptions
+  that can't be meaningfully averaged) plus the live-checked fact that today's real spread
+  ($1,277.9M–$1,312.0M, ~2.75% of BAC) sits comfortably under the 5% threshold anyway. Built
+  `renderEacSpread()`, called from `renderEac()`, into a new `#eacSpread` div under the Cost tab's
+  EAC table: reads the real high/low methods and the real spread live off `EACS`/`T.bac` (never a
+  hardcoded dollar figure or percentage — the same anti-drift discipline as the Monte Carlo bounds
+  note above), renders a green/red pill against the single 5% threshold the KPI text already names
+  (deliberately not a 3rd, unsourced middle band). `node stress.cjs` run fresh (`1415 passed, 0
+  failed` — 1407 baseline + 8 new assertions, including a pre-registered check that today's real
+  high/low methods are "cost and schedule pressure both" / "remaining work at budgeted rate" and
+  that the rendered pill is green, not red), `node verify.cjs` unchanged (reads `EACS`/`T.bac`,
+  touches zero `PKGS` values), and live-browser confirmed the rendered text byte-for-byte —
+  "$34.1M ... 2.7% of BAC ... within the ~5% band" — with the green pill, zero console errors,
+  zero layout overflow.
 
 Generated 2026-08-20, against the tip of the eleven-input-ledger-card engagement round; extended
 2026-08-21 for the six-KPI-families card round, again 2026-08-21 for the Data Strategy tab UI/UX
@@ -798,6 +820,7 @@ round, again 2026-08-21 for the "96→100" brainstorm round's Tier 0/1 items, ag
 the full-dashboard `/stress-test` visual pass, again 2026-08-21 for the Monte Carlo PERT
 draw-shape round, again 2026-08-21 for the Monte Carlo run-count round, again 2026-08-21 for the
 megaproject-controls-doc upgrade round, again 2026-08-21 for the Kimi research-package round, again
-2026-08-21 for the second full-dashboard `/stress-test` pass, and again 2026-08-21 for the Monte
-Carlo mode-vs-bounds clarification (see git log for exact commits — each document update was
-written before its own round's commit lands, per the project's "verify, then document" ordering).
+2026-08-21 for the second full-dashboard `/stress-test` pass, again 2026-08-21 for the Monte Carlo
+mode-vs-bounds clarification, and again 2026-08-21 for the EAC-spread live check (see git log for
+exact commits — each document update was written before its own round's commit lands, per the
+project's "verify, then document" ordering).
