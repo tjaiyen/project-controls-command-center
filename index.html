@@ -235,13 +235,14 @@ h4{font-size:.86rem;margin:0 0 5px}
 .kfilters{display:flex;gap:7px;flex-wrap:wrap;margin-top:18px;align-items:center}
 .kboard{display:grid;grid-template-columns:repeat(auto-fill,minmax(238px,1fr));gap:12px;margin-top:15px}
 .ledgerGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
-/* Data Strategy's 4-tile guardrail grid, alone, stacks 1-column instead of the shared
-   auto-fill row layout above — its 4 tiles carry uneven text length per tier (Tier 1's example
-   runs much longer than Tier 3's), so a 4-across row stretched every tile to the tallest one's
-   height and left large void space in the shorter ones. Scoped to this one grid by id, not a
-   change to .ledgerGrid itself, so the Overview ledger card and six-KPI-families grid (both
-   genuinely even-height content) keep their existing auto-fill layout (TJ, 2026-08-21). */
-#guardrailGrid{grid-template-columns:1fr}
+/* All three .ledgerGrid instances (Data Strategy's 4-tile guardrail grid, Overview's six-KPI-
+   families grid, Overview's eleven-input ledger card) stack 1-column instead of the shared
+   auto-fill row layout above — each grid's own tiles carry uneven text length (a longer worked
+   example/description on some tiles than others), so an N-across row stretched every tile to the
+   tallest one's height and left large void space in the shorter ones. Scoped by id, not a change
+   to .ledgerGrid itself, in case a future .ledgerGrid instance genuinely has even-height content
+   and wants the auto-fill row layout back (TJ, 2026-08-21 + follow-up same day). */
+#guardrailGrid,#familiesGrid,#ledgerGrid{grid-template-columns:1fr}
 .ledger-item{background:rgb(var(--c-bg));border:1px solid var(--c-line);border-radius:9px;padding:11px 12px}
 .ledger-item .top{display:flex;align-items:center;justify-content:space-between}
 .ledger-item .abbr{font:600 10.5px/1 ui-monospace,monospace;letter-spacing:.06em;color:rgb(var(--c-accent))}
