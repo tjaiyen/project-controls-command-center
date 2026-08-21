@@ -44,7 +44,7 @@ anywhere in this repository. The method is the content, not the numbers.
 | Contracts | 6 |
 | Risks | 6 |
 | Delay events | 4 |
-| `stress.cjs` test assertions | 1,320, all passing |
+| `stress.cjs` test assertions | 1,329, all passing |
 | Companion pages | `otak.html` (fit brief), `architecture.html` (static pipeline map) |
 | Hosting | GitHub Pages, served directly from `main`, zero build |
 | Git history | 92 commits |
@@ -201,7 +201,7 @@ Beyond the core EVM block, three more derivation families exist:
 
 | # | Tab (id) | What's on it |
 |---|---|---|
-| 1 | **Overview** (`over`) | A "Six lenses, not one blended score" card explaining what each of the 6 KPI families (Cost/Schedule/Risk/Change/Delivery/Compliance) actually asks and why it can't be folded into the others, directly above the 20-KPI board with drill-down detail (formula/threshold/source/play per card, plus a "computed from the ledger" / "not from the ledger" provenance box, honestly stated per KPI), a live root-cause-to-owner trace, the eleven-input ledger card (all 11 raw fields, a per-package inspector, and a live "change one input, watch the KPIs move" demo — reads a local snapshot, never mutates the real ledger), a five-chapter guided story walkthrough with tab-jumping evidence links, an executive summary. |
+| 1 | **Overview** (`over`) | A "Six lenses, not one blended score" card explaining what each of the 6 KPI families (Cost/Schedule/Risk/Change/Delivery/Compliance) actually asks and why it can't be folded into the others, directly above the 20-KPI board with drill-down detail (formula/threshold/source/play per card, plus a "computed from the ledger" / "not from the ledger" provenance box, honestly stated per KPI), a live root-cause-to-owner trace, the eleven-input ledger card (all 11 raw fields, a per-package inspector, and a live "change one input, watch the KPIs move" demo — reads a local snapshot, never mutates the real ledger), a 10-stop guided Tour with tab-jumping evidence links (§18 gap #8 — this doc previously called it "five-chapter," a stale phrase with no matching code), an executive summary. |
 | 2 | **Portfolio** (`port`) | Agency-level rollup across 4 lines of business — one reads live off this program's own totals (never duplicated, `GUARDS`-checked), three are summary-only illustrative peers. |
 | 3 | **Cost** (`cost`) | EVM S-curve + variance bridge, an estimate-to-budget baseline bridge reconciled to the ledger, four-method EAC, a forecast-reliability section (EAC trend, forecast-accuracy scorecard, monthly cash flow), what-if forecasting with 3 live sliders + scenario comparison, Monte Carlo completion distribution (4,000 runs, seeded/reproducible), the cost-diffusion (GBM) card. |
 | 4 | **Schedule** (`sched`) | DCMA-style schedule health (CPLI/BEI/float erosion), a Gantt-style bar with baseline vs. forecast, a fragnet-based delay & TIA register tied to package float, revenue-service forecast drift, statistical control charts (z-score + EWMA) over crew cost-per-hour. |
@@ -323,9 +323,9 @@ matches an independent recomputation, not just that *a* number is present.
 
 ## 11. Testing & verification
 
-**`stress.cjs`** (1,320 assertions, all passing) — stubs the DOM, loads `index.html`'s script
+**`stress.cjs`** (1,329 assertions, all passing) — stubs the DOM, loads `index.html`'s script
 verbatim into that stub, and exercises it exactly like a user would: every tab switch, every
-filter, every drawer, every slider drag, every keyboard interaction. 34 labeled sections:
+filter, every drawer, every slider drag, every keyboard interaction. 35 labeled sections:
 
 ```
 A. static structure          B/B2. runtime + portfolio tab       C. narrative vs. data
@@ -397,10 +397,13 @@ exactly, and the portfolio totals match the JS-side tie-out in §2 to the decima
   current live posting before reuse, since job postings and TJ's own gap profile both change.
 - **`architecture.html`** (598 lines) — a **static, hand-verified snapshot** of the pipeline
   diagram, distinct from `index.html`'s own interactive `#arch` diagram (§8). The README already
-  flags this distinction explicitly ("A verified snapshot, not a live render"). Worth noting for a
-  future maintainer: these two diagrams can drift apart if one is updated and the other isn't —
-  there's no automated check tying them together the way `GUARDS`/`stress.cjs` tie the ledger
-  together. If the pipeline architecture changes again, update both by hand.
+  flags this distinction explicitly ("A verified snapshot, not a live render"). The diagram's own
+  *drawing* still has no automated check tying it to `index.html`'s `#arch` diagram — if the
+  pipeline architecture changes again, update both by hand. Its **prose counts** (20 KPIs, 28
+  guards, 54 SQL checks, 17 actions) are a different story: `stress.cjs`'s `E.1. architecture.html
+  sync` section now reads this file's own source the same way it already read `otak.html`'s, and
+  asserts those counts against `index.html`'s live arrays — added 2026-08-21 after a live, 3rd
+  stale "twenty-seven" instance was found in this file's own `aria-label` (§18 gap #3/#9).
 
 ---
 
@@ -491,11 +494,14 @@ Named explicitly, not silently dropped — from the most recent engagement/inter
    deciding once a 4th *and* 5th instance both exist, not mid-build on the 4th.
 3. **`architecture.html` and `index.html`'s `#arch` diagram can drift** (§13) — no automated check
    ties them together the way `GUARDS`/`stress.cjs` tie the ledger together. Its own stale "27
-   checks" text (2 locations) was resynced to 28 on 2026-08-20, but the structural risk — nothing
-   catches the *next* drift automatically — is unchanged; still an open gap, just not a stale one.
+   checks" text was resynced to 28 on 2026-08-20 in the 2 locations found *that day* — but a fresh
+   grep on 2026-08-21 found a **3rd** stale "twenty-seven" instance (the `#archSvg` `aria-label`)
+   that pass missed, proving the gap's own point: nothing catches drift automatically. Fixed
+   2026-08-21; **§18 gap #9 below adds the automated sync test this gap has been naming since
+   2026-08-20** — that structural risk is now closed, not just the 3rd stale instance.
 4. ~~**`README.md`'s own stated counts lag behind this document**~~ — **Resolved 2026-08-20** (and
    re-synced twice more on 2026-08-21, after the six-families card and again after this Data
-   Strategy UI/UX round): 1,320 assertions / 50 glossary terms / 28-check integrity gate, matching
+   Strategy UI/UX round): 1,329 assertions / 50 glossary terms / 28-check integrity gate, matching
    §2 as of this writing.
 5. **The eleven-input ledger card is new this round** (2026-08-20) and only covers the Overview
    tab's own `PKGS` provenance — it does not touch or resolve gap #2 above (the risk register still
@@ -514,6 +520,17 @@ Named explicitly, not silently dropped — from the most recent engagement/inter
    timed out repeatedly on that fresh tab too). Content correctness is confirmed; a full scrolled
    visual screenshot of the new tab content is not. Worth a follow-up screenshot pass next session
    rather than treated as done.
+8. ~~**`README.md`/`docs/HANDOFF.md` both called the Overview tab's guided narrative a
+   "five-chapter guided story walkthrough"**~~ — **Resolved 2026-08-21**: no 5-chapter array ever
+   existed in the code; the real feature is the 10-stop `TOUR_BEATS`. Caught in passing during the
+   "96→100" brainstorm round's exploration, not part of any requested item — surfaced and fixed
+   rather than smuggled in silently (coding-discipline.md).
+9. ~~**No automated check tying `architecture.html`'s prose counts to `index.html`'s live
+   arrays**~~ (§13, gap #3 above) — **Resolved 2026-08-21**: `stress.cjs` now reads
+   `architecture.html`'s source the same way it already reads `otak.html`'s, and asserts its
+   20-KPI / 28-guard / 17-action / 54-check prose matches the live counts. Directly motivated by
+   catching a real, live 3rd stale "twenty-seven" instance this same round (gap #3 above) that the
+   prior hand-edit pass missed.
 
 ---
 
@@ -552,8 +569,18 @@ carried over from memory or an earlier pass:
   panel, recovery table, parity card) were checked live in a real browser for correct real values
   and zero console errors (§18 gap #7 notes the one verification step not completed this round —
   a full scrolled screenshot, blocked by browser-tool flakiness, not a code defect).
+- **2026-08-21 "96→100" brainstorm round (Tier 0/1 items)**: three parallel Explore passes read the
+  live code before any brief item was accepted at face value — this is what caught the live
+  "twenty-seven" drift in `architecture.html`'s `aria-label` (fixed), confirmed `renderInversion()`
+  already builds the exact Gate-5→contingency-coverage→A-09 chain the brief asked for as new work
+  (nothing built, §18 correctly does not list this as resolved-this-round since nothing changed),
+  and confirmed the "not years running P6" hedge the brief describes lives only in presenter notes,
+  never on-page. `stress.cjs`'s new `E.1. architecture.html sync` section was run fresh
+  (`1329 passed, 0 failed`) and `node verify.cjs` re-confirmed the tie-out is unchanged (this
+  round's edits touch zero `PKGS` values).
 
 Generated 2026-08-20, against the tip of the eleven-input-ledger-card engagement round; extended
-2026-08-21 for the six-KPI-families card round, and extended again 2026-08-21 for the Data
-Strategy tab UI/UX round (see git log for exact commits — each document update was written before
-its own round's commit lands, per the project's "verify, then document" ordering).
+2026-08-21 for the six-KPI-families card round, again 2026-08-21 for the Data Strategy tab UI/UX
+round, and again 2026-08-21 for the "96→100" brainstorm round's Tier 0/1 items (see git log for
+exact commits — each document update was written before its own round's commit lands, per the
+project's "verify, then document" ordering).

@@ -14,6 +14,7 @@ const fs = require("fs");
 const DIR = __dirname + "/";
 const indexSrc = fs.readFileSync(DIR + "index.html", "utf8");
 const otakSrc = fs.readFileSync(DIR + "otak.html", "utf8");
+const archSrc = fs.readFileSync(DIR + "architecture.html", "utf8");
 
 let pass = 0, fail = 0;
 function ok(cond, label, extra) {
@@ -3341,6 +3342,34 @@ ok(otakSrc.includes(">If the") && otakSrc.includes("practice's scope touches Sou
 // claim right above it has — now matches
 ok(otakSrc.includes("R2026-11") && otakSrc.includes("verified 19&nbsp;Aug&nbsp;2026"),
   "the ST3 claim now carries a source citation + verified date, matching the East-Link claim's format");
+
+/* =========================================================================
+   E.1. ARCHITECTURE.HTML SYNC — closes the drift gap HANDOFF.md §13/§18#3
+   named explicitly: no automated check previously tied architecture.html's
+   own prose counts to index.html's live arrays. Same fs.readFileSync +
+   source-text pattern already established above for otak.html (E.), applied
+   to a second companion file. Motivated by a real, live 3rd stale
+   "twenty-seven" instance found this round (the #archSvg aria-label) that a
+   prior hand-edit pass missed — proof this class of drift is real, not
+   hypothetical (/stress-test discipline, 2026-08-21).
+   ========================================================================= */
+console.log("== E.1. architecture.html sync ==");
+ok(archSrc.includes("20 metrics, 6 families") && archSrc.includes("20 metrics across cost, schedule, risk, change, delivery, and compliance."),
+  "architecture.html's '20 metrics' prose is present in both the diagram box and the legend table");
+ok(P.kpis.length === 20, "index.html's live KPIS array actually has 20 entries, matching architecture.html's claim", String(P.kpis.length));
+ok(archSrc.includes("28 live checks (browser)") && archSrc.includes("28 browser checks plus a separate 54-check SQL pipeline"),
+  "architecture.html's '28 checks' prose is present in both the diagram box and the legend table");
+ok(P.guards.length === 28, "index.html's live GUARDS array actually has 28 entries, matching architecture.html's claim", String(P.guards.length));
+ok(archSrc.includes("+ 54-check SQL pipeline"),
+  "architecture.html still cites the 54-check SQL pipeline figure (static — pipeline/run_pipeline.py isn't executed from this harness, so this stays a text-presence check, not a live recomputation)");
+ok(archSrc.includes("17 tracked items"), "architecture.html's '17 tracked items' prose is present");
+ok(P.actions.length === 17, "index.html's live ACTIONS array actually has 17 entries, matching architecture.html's claim", String(P.actions.length));
+// regression guard for the specific live bug this round caught and fixed: the #archSvg
+// aria-label's own integrity-gate count (independent of the diagram-box/legend-table copies
+// checked above — a 3rd, easily-missed location) must say twenty-eight, never twenty-seven again.
+ok(!archSrc.includes("twenty-seven"), "architecture.html no longer says 'twenty-seven' anywhere (the stale #archSvg aria-label instance this round found and fixed)");
+ok(archSrc.includes("twenty-eight plus fifty-four check integrity gate"),
+  "the #archSvg aria-label states the integrity gate count correctly (twenty-eight), matching every other count in the file");
 
 /* =========================================================================
    F. COMPLIANCE SWEEPS
