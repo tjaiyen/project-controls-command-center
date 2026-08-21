@@ -712,6 +712,17 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
       <div class="phases" id="phases" role="group" aria-label="Program phase"></div>
       <div class="strip" id="strip"></div>
 
+      <div class="sec-h" style="margin-top:34px"><h2>Six lenses, not one blended score</h2>
+        <span class="tag">the taxonomy behind the board below</span></div>
+      <p class="lede">Every KPI on this board belongs to exactly one of six families. They aren't an
+        arbitrary filing system — each one answers a genuinely different operational question, and a
+        real problem is rarely visible in only one of them at once. <button type="button" class="btn"
+        data-jump-tab="sched" data-jump-el="schedDriftCard" style="min-height:auto;padding:1px 8px;font-size:12.5px">
+        See one root cause show up in five different instruments &rarr;</button></p>
+      <div class="card" id="familiesCard">
+        <div class="ledgerGrid" id="familiesGrid"></div>
+      </div>
+
       <div class="sec-h" style="margin-top:34px"><h2>KPI board</h2><span class="tag" id="boardTag"></span></div>
       <p class="lede">Click any card for the formula, thresholds, data source and the play to run when it
         breaches. Cards dim when the metric is not meaningful in the selected phase. Every candidate metric
@@ -1628,6 +1639,25 @@ var LEDGER_INPUTS=[
   ex:function(){var p=rows[0]; return "Crews actually logged "+num(p.actH)+" hours to get there."; }}
 ];
 
+/* The six KPI families (Overview-tab upgrade, 2026-08-21) — the taxonomy behind the 20-KPI board's
+   own `fam` field, described for humans. Deliberately text-only (no KPI count baked in here) — the
+   render function below counts live off KPIS, same "nothing is typed twice" discipline as
+   everything else on this page. */
+var KPI_FAMILIES=[
+ {key:"Cost",q:"Can we still afford to finish, and by how much are we off?",
+  why:"Dollars spent vs. dollars earned — the most stable index on this board, and the one that rarely recovers once it settles past roughly 20% complete."},
+ {key:"Schedule",q:"Will we finish on time, and which specific path is actually setting that date?",
+  why:"A program can be on-cost and badly late. Cost and time are genuinely independent failure modes, which is why they need separate metrics, not one blended score."},
+ {key:"Risk",q:"If what we've already identified as possible actually happens, do we have enough held back to cover it?",
+  why:"Priced in dollars, not just listed — the only form of a risk register that's directly comparable to the contingency reserve it has to be weighed against."},
+ {key:"Change",q:"Is this still the program we baselined, or has scope quietly become a different, more expensive one?",
+  why:"Tracks contract and scope drift specifically — a program can hit every cost and schedule target on paper while the underlying scope has already moved substantially."},
+ {key:"Delivery",q:"What's happening on the ground right now that becomes tomorrow's cost or schedule problem?",
+  why:"The only leading-indicator family on the board — hours and RFI aging move weeks before the Cost or Schedule families catch up to the same story."},
+ {key:"Compliance",q:"Is anything happening that overrides every other metric on this board?",
+  why:"Safety can stop the job independent of how good the other five families look — the one axis on this board that isn't really optional."}
+];
+
 var MILES = [
  {n:"Utilities relocation complete", base:"31 Aug 2026", fc:"05 Oct 2026", d: 35},
  {n:"Tunnel excavation complete",    base:"30 Sep 2026", fc:"18 Nov 2026", d: 49},
@@ -2404,6 +2434,19 @@ function renderLedgerPkgSelect(){
 }
 function renderLedgerCard(){ renderLedgerGrid(); renderLedgerInspector(); renderLedgerPkgSelect(); renderLedgerDemo(true); }
 
+/* Six KPI families card (Overview-tab upgrade, 2026-08-21) — reuses the ledger card's own
+   .ledgerGrid/.ledger-item visual pattern rather than inventing new CSS, since both are the same
+   kind of thing: a taxonomy explained before the detail it organizes. KPI counts are read live off
+   KPIS, never hand-typed. */
+function renderFamiliesGrid(){
+  document.getElementById("familiesGrid").innerHTML = KPI_FAMILIES.map(function(f){
+    var n = KPIS.filter(function(k){ return k.fam===f.key; }).length;
+    return '<div class="ledger-item"><div class="top"><span class="abbr">'+f.key+'</span>'+
+      '<button type="button" class="help-ic" data-help="'+f.key.toLowerCase()+'" aria-label="What does this term mean?" aria-expanded="false">i</button></div>'+
+      '<div class="nm">'+f.q+'</div><div class="sub">'+f.why+' ('+n+' KPI'+(n===1?"":"s")+')</div></div>';
+  }).join("");
+}
+
 function renderPhases(){
   document.getElementById("phases").innerHTML = PHASES.map(function(p,i){
     var cls = i<PROGRAM.phaseIdx? "done" : i===PROGRAM.phaseIdx? "active":"";
@@ -2491,7 +2534,11 @@ function renderFilters(){
   var fams=["All"].concat(scoped.map(function(k){return k.fam;}).filter(function(v,i,a){return a.indexOf(v)===i;}));
   document.getElementById("kfilters").innerHTML = fams.map(function(f){
     var n = f==="All"? scoped.length : scoped.filter(function(k){return k.fam===f;}).length;
-    return '<button class="btn'+(state.fam===f?" on":"")+'" data-fam="'+f+'" aria-pressed="'+(state.fam===f)+'">'+
+    // title = the family's own one-line purpose (KPI_FAMILIES above), not present for "All" —
+    // a native browser tooltip, zero extra JS, on top of the fuller familiesGrid card above.
+    var fam=KPI_FAMILIES.filter(function(x){return x.key===f;})[0];
+    return '<button class="btn'+(state.fam===f?" on":"")+'" data-fam="'+f+'" aria-pressed="'+(state.fam===f)+'"'+
+      (fam?' title="'+fam.q+'"':'')+'>'+
       f+' <span class="mono" style="opacity:.6">'+n+'</span></button>';
   }).join("") + '<span style="font-size:12px;color:rgb(var(--c-mut));margin-left:6px" id="dimNote" aria-live="polite"></span>';
 }
@@ -5468,6 +5515,18 @@ var GLOSS=[
   e:function(){ var p=rows[0]; return p.id+" has earned "+num(p.ernH)+" crew-hours of credit against "+num(p.actH)+" actually worked — a Productivity Factor of "+idx(p.pf)+"."; }},
  {k:"actH", t:"Actual Hours", p:"Real field/crew hours expended to date — the denominator Productivity Factor is built from, and the number a superintendent can act on today, before it shows up as a dollar variance weeks later.",
   e:function(){ var p=rows[0]; return "Crews logged "+num(p.actH)+" real hours on "+p.id+" to earn "+num(p.ernH)+" hours of credit."; }},
+ {k:"cost", t:"Cost family", p:"The KPIs that answer whether the program can still afford to finish, and by how much it's off — CPI, CV, EAC, VAC, TCPI, CDI, and FDI.",
+  e:function(){ return KPIS.filter(function(k){return k.fam==="Cost";}).length+" Cost KPIs on this board, led by CPI at "+idx(T.cpi)+" and EAC at "+m(T.eac)+"."; }},
+ {k:"schedule", t:"Schedule family", p:"The KPIs that answer whether the work is progressing at the rate the plan requires, separate from cost — SPI, SV, CPLI, BEI, Total Float Erosion, and Milestone Slip.",
+  e:function(){ return KPIS.filter(function(k){return k.fam==="Schedule";}).length+" Schedule KPIs, led by SPI at "+idx(T.spi)+" and the driving path's own CPLI at "+idx(T.cpli)+"."; }},
+ {k:"risk", t:"Risk family", p:"The KPIs that price what could still go wrong, in dollars comparable to the contingency reserve — Risk Exposure and Contingency Coverage Ratio.",
+  e:function(){ return "Risk Exposure reads "+m(T.riskExposure)+" against "+m(T.contRemaining)+" of remaining contingency — a coverage ratio of "+idx(T.contCoverage)+"."; }},
+ {k:"change", t:"Change family", p:"The KPIs that track whether the program's scope is drifting from what was actually baselined — Change Order Rate and Pending Change Exposure.",
+  e:function(){ return "Change orders currently run "+pct(T.coRate,2)+" of original contract value, with "+m(PROGRAM.coPendingValue)+" still pending."; }},
+ {k:"delivery", t:"Delivery family", p:"The one leading-indicator family on the board — signals that move weeks before Cost or Schedule catch up to the same underlying story: Productivity Factor and RFI Aging.",
+  e:function(){ return "Productivity Factor reads "+idx(T.pf)+" right now — a leading read on labor efficiency, distinct from CPI's own lagging one."; }},
+ {k:"compliance", t:"Compliance family", p:"The one KPI that can override every other metric on this board — Total Recordable Incident Rate. Safety isn't optional the way a schedule slip or a cost variance sometimes is.",
+  e:function(){ return "TRIR currently reads "+PROGRAM.trir.toFixed(2)+" against a "+PROGRAM.trirBenchmark.toFixed(2)+" benchmark."; }},
  {k:"cpli", t:"Critical path & CPLI", p:"The critical path is the chain of work that sets the finish date — delay any link and the whole program moves. CPLI (Critical Path Length Index) asks whether the remaining plan on that chain still fits: (days left + float) divided by days left. Under 1.00, the plan is arithmetically impossible without recovery.",
   e:function(){ return "The driving path runs through "+G_UT.id+": "+G_UT.cpRem+" days of critical work remain with "+days(G_UT.float)+" of float — CPLI "+idx(G_UT.cpli)+", meaning the plan must run faster than scheduled from tomorrow onward."; }},
  {k:"bei", t:"BEI — Baseline Execution Index", p:"A simple honesty counter: of the activities the plan said would be finished by now, how many actually are? Counts, not dollars — so big expensive tasks cannot hide small missed ones.",
@@ -6392,6 +6451,7 @@ document.getElementById("mcViewCdf").addEventListener("click",function(){ state.
 /* init */
 renderExecSummary();
 renderLedgerCard();
+renderFamiliesGrid();
 renderPhases(); renderStrip(); renderPortfolio(); renderAudienceFilters(); renderFilters(); renderBoard(); renderDetail();
 renderScurve(); renderScurveMath();
 document.getElementById("scurveScrub").max=String(MT);
@@ -6440,7 +6500,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   textZoom:TEXT_ZOOM,applyTextSize:applyTextSize,curZoom:curZoom,
   pkgs:PKGS,ledgerInputs:LEDGER_INPUTS,kpiLedger:KPI_LEDGER,kpiLedgerMixed:KPI_LEDGER_MIXED,
   kpiLedgerNone:KPI_LEDGER_NONE,ledgerProvenanceDbox:ledgerProvenanceDbox,ledgerDemoBase:ledgerDemoBase,
-  renderLedgerDemo:renderLedgerDemo};
+  renderLedgerDemo:renderLedgerDemo,kpiFamilies:KPI_FAMILIES,renderFamiliesGrid:renderFamiliesGrid};
 })();
 </script>
 </body>

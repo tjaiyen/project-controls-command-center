@@ -1392,7 +1392,10 @@ try {
   // real preventive-action field verbatim, which itself happens to start with "Contingency release
   // is now gated..." — a genuine, real data collision (found by running this exact assertion and
   // getting 4 instead of the old <=3, not assumed), not a bug to fix in either direction.
-  ok(n >= 1 && n <= 4, "glossary filter narrows to matching terms", String(n));
+  // 4->5 (six-families card, 2026-08-21): the new "Risk family" glossary entry genuinely discusses
+  // the contingency reserve twice (its own definition and its live-computed worked example) — same
+  // real-collision pattern as above, found the same way, not assumed.
+  ok(n >= 1 && n <= 5, "glossary filter narrows to matching terms", String(n));
   has("glossList", "Contingency", "filter keeps the contingency term");
   G.glossQ.value = "";
   fire(G.glossQ, "input");
@@ -2896,7 +2899,7 @@ console.log("== D9.1. the CDE flow diagram (data strategy) ==");
    (returns the active tab to "over" at the end, since D9 above left "data" active)
    ========================================================================= */
 console.log("== D10. inline term help ==");
-ok(P.gloss.length === 44, "GLOSS grew to 44 entries (38 prior + commit/cpRem/actsP/actsD/ernH/actH, ledger-card upgrade, 2026-08-20)", String(P.gloss.length));
+ok(P.gloss.length === 50, "GLOSS grew to 50 entries (44 prior + cost/schedule/risk/change/delivery/compliance, six-families card, 2026-08-21)", String(P.gloss.length));
 ["cde", "ids", "wbs", "abs", "zscore", "ewma", "gbm", "raid", "capa", "cbsobs", "excusablecompensable"].forEach(k => {
   const g = P.findGloss(k);
   ok(!!g && typeof g.p === "string" && g.p.length > 0, "findGloss resolves new term '" + k + "'");
@@ -3225,6 +3228,45 @@ console.log("== D13. ledger card ==");
 }
 
 /* =========================================================================
+   D14. SIX KPI FAMILIES CARD — Overview tab (2026-08-21)
+   ========================================================================= */
+console.log("== D14. six KPI families card ==");
+{
+  ok(P.kpiFamilies.length === 6, "KPI_FAMILIES has exactly 6 entries", String(P.kpiFamilies.length));
+
+  // every real KPIS.fam value is covered by exactly one KPI_FAMILIES entry — independently
+  // derived from KPIS itself, not from KPI_FAMILIES's own list (which would just check
+  // self-consistency, not real coverage)
+  const realFams = [...new Set(P.kpis.map(k => k.fam))].sort();
+  const describedFams = P.kpiFamilies.map(f => f.key).sort();
+  ok(JSON.stringify(realFams) === JSON.stringify(describedFams),
+    "KPI_FAMILIES describes exactly the 6 real fam values actually used across KPIS, no orphan and no missing family",
+    realFams.join(",") + " vs " + describedFams.join(","));
+
+  // each family card's own rendered KPI count matches an independent count against the real
+  // KPIS array (filtered by fam), not against KPI_FAMILIES' own claim
+  const missingCounts = P.kpiFamilies.filter(f => {
+    const real = P.kpis.filter(k => k.fam === f.key).length;
+    return !G.familiesGrid._html.includes("(" + real + " KPI");
+  });
+  ok(missingCounts.length === 0, "every family card shows its own real, independently-counted KPI total", missingCounts.map(f => f.key).join(","));
+
+  // every family name renders and every one resolves to a real glossary entry (no dangling
+  // data-help key on the six-lenses card)
+  const missingFamGloss = P.kpiFamilies.filter(f => !P.findGloss(f.key.toLowerCase()));
+  ok(missingFamGloss.length === 0, "every one of the 6 family names resolves to a real GLOSS entry", missingFamGloss.map(f => f.key).join(","));
+
+  // the family filter buttons carry a title attribute with the family's own real question —
+  // independently checked against KPI_FAMILIES, not just "a title exists"
+  const costFam = P.kpiFamilies.filter(f => f.key === "Cost")[0];
+  has("kfilters", costFam.q.replace(/"/g, "&quot;"), "the Cost filter button's title attribute carries its own real question, not a generic label");
+
+  // the cross-reference jump button targets a real, existing element on the Schedule tab
+  ok(indexSrc.includes('data-jump-tab="sched" data-jump-el="schedDriftCard"'),
+    "the six-lenses card's cross-reference button targets a real existing element (schedDriftCard), not a placeholder id");
+}
+
+/* =========================================================================
    E. otak.html — runtime + internal consistency
    ========================================================================= */
 console.log("== E. otak.html ==");
@@ -3277,7 +3319,11 @@ console.log("== F. sweeps ==");
   // counted the one mention both patterns matched — caught by running this exact check and getting
   // 4 instead of the predicted 3, not assumed correct after writing it.
   const instrumentMentions = indexSrc.match(/one root cause[^.]*?(four|five|six) (different )?instruments?/gi) || [];
-  ok(instrumentMentions.length === 3, "exactly 3 user-facing 'N instruments' mentions found (update this count if a 4th is intentionally added)", String(instrumentMentions.length));
+  // 4 as of the six-families card (2026-08-21) — its own cross-reference button intentionally
+  // repeats the same "one root cause ... five instruments" phrasing, correctly matching the other
+  // three (confirmed by the very next assertion below, which checks all mentions agree on the
+  // same number — it still passes, meaning this 4th mention says "five" like the rest).
+  ok(instrumentMentions.length === 4, "exactly 4 user-facing 'N instruments' mentions found (update this count if a 5th is intentionally added)", String(instrumentMentions.length));
   const counts = instrumentMentions.map(s => (s.match(/four|five|six/i) || [""])[0].toLowerCase());
   ok(counts.every(c => c === counts[0]), "all 'N instruments' mentions agree on the same number", JSON.stringify(counts));
 }

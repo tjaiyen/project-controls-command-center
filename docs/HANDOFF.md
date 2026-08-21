@@ -30,23 +30,24 @@ anywhere in this repository. The method is the content, not the numbers.
 
 | | |
 |---|---|
-| Primary file | `index.html` — 6,447 lines, one file, no build step |
-| Top-level JS functions | 176 |
+| Primary file | `index.html` — 6,507 lines, one file, no build step |
+| Top-level JS functions | 176 (not re-audited this round — see §18 gap note) |
 | Tabs | 11 |
 | KPIs (with formula/threshold/phase/source/play each) | 20 |
+| KPI families (`KPI_FAMILIES` — Cost/Schedule/Risk/Change/Delivery/Compliance) | 6, each with its own operational question + why-it-matters card on Overview |
 | JS integrity-gate checks (`GUARDS`) | 28, re-run on every page load |
 | Ingestion-validation checks (`INGEST_GUARDS`) | 2 |
 | SQL/DuckDB parity checks (`pipeline/run_pipeline.py`) | 54, independently verified this session — see §12 |
-| Glossary terms (each with a live-computed worked example) | 44 |
+| Glossary terms (each with a live-computed worked example) | 50 |
 | Actions/RAID register items | 17 (6 Issue, 10 Task, 1 Decision) |
 | Control accounts / packages | 8 |
 | Contracts | 6 |
 | Risks | 6 |
 | Delay events | 4 |
-| `stress.cjs` test assertions | 1,300, all passing |
+| `stress.cjs` test assertions | 1,306, all passing |
 | Companion pages | `otak.html` (fit brief), `architecture.html` (static pipeline map) |
 | Hosting | GitHub Pages, served directly from `main`, zero build |
-| Git history | 89 commits |
+| Git history | 91 commits |
 
 Current EVM tie-out (verify live in the browser console via `__PCC__.totals`, or `node verify.cjs`):
 
@@ -200,7 +201,7 @@ Beyond the core EVM block, three more derivation families exist:
 
 | # | Tab (id) | What's on it |
 |---|---|---|
-| 1 | **Overview** (`over`) | The 20-KPI board with drill-down detail (formula/threshold/source/play per card, plus a "computed from the ledger" / "not from the ledger" provenance box, honestly stated per KPI), a live root-cause-to-owner trace, the eleven-input ledger card (all 11 raw fields, a per-package inspector, and a live "change one input, watch the KPIs move" demo — reads a local snapshot, never mutates the real ledger), a five-chapter guided story walkthrough with tab-jumping evidence links, an executive summary. |
+| 1 | **Overview** (`over`) | A "Six lenses, not one blended score" card explaining what each of the 6 KPI families (Cost/Schedule/Risk/Change/Delivery/Compliance) actually asks and why it can't be folded into the others, directly above the 20-KPI board with drill-down detail (formula/threshold/source/play per card, plus a "computed from the ledger" / "not from the ledger" provenance box, honestly stated per KPI), a live root-cause-to-owner trace, the eleven-input ledger card (all 11 raw fields, a per-package inspector, and a live "change one input, watch the KPIs move" demo — reads a local snapshot, never mutates the real ledger), a five-chapter guided story walkthrough with tab-jumping evidence links, an executive summary. |
 | 2 | **Portfolio** (`port`) | Agency-level rollup across 4 lines of business — one reads live off this program's own totals (never duplicated, `GUARDS`-checked), three are summary-only illustrative peers. |
 | 3 | **Cost** (`cost`) | EVM S-curve + variance bridge, an estimate-to-budget baseline bridge reconciled to the ledger, four-method EAC, a forecast-reliability section (EAC trend, forecast-accuracy scorecard, monthly cash flow), what-if forecasting with 3 live sliders + scenario comparison, Monte Carlo completion distribution (4,000 runs, seeded/reproducible), the cost-diffusion (GBM) card. |
 | 4 | **Schedule** (`sched`) | DCMA-style schedule health (CPLI/BEI/float erosion), a Gantt-style bar with baseline vs. forecast, a fragnet-based delay & TIA register tied to package float, revenue-service forecast drift, statistical control charts (z-score + EWMA) over crew cost-per-hour. |
@@ -209,7 +210,7 @@ Beyond the core EVM block, three more derivation families exist:
 | 7 | **AI & Data** (`ai`) | The pipeline architecture diagram (now interactive — §8), the SQL model, a live 28-check integrity gate + 2 ingestion-validation checks, statistical control (z-score/EWMA) with worked-math accordions, and AI narrative generation under a verification contract (§10). |
 | 8 | **Operating Framework** (`fw`) | Phase playbook, the WBS/CBS/OBS control-account mapping (with a worked "100% Rule" proof), Board phase-gate governance with a live Gate-5 hard stop, escalation matrix, a live Working-Backward/inversion worked example, reporting cadence, stakeholder interface map, the 20-metric KPI reference library. |
 | 9 | **Actions** (`act`) | A RAID/CAPA register with proactive staleness detection, owner accountability rollup, a worked-math accordion for `actionStatus()`'s threshold logic. |
-| 10 | **Glossary** (`gloss`) | 44 terms, each with a live-computed worked example, filterable by search — the same content the inline "i" help icons pull from site-wide. |
+| 10 | **Glossary** (`gloss`) | 50 terms, each with a live-computed worked example, filterable by search — the same content the inline "i" help icons pull from site-wide. |
 | 11 | **Data Strategy** (`data`) | A real-world plan for connecting scattered, multi-system data — ISO 19650 CDE staging architecture as an interactive flow diagram (§8), automated guardrails, a discrepancy-resolution decision flow folded into that same diagram, proactive error recovery. |
 
 Plus, outside the tab body: **Presentation Mode** (a scripted 2-set walkthrough with presenter
@@ -250,9 +251,16 @@ Everything below is a real DOM interaction, independently covered by `stress.cjs
   display state only and never mutate `DRB_ASSUMPTIONS`; a small SVG chart makes the "escalating
   can never beat settling" structural finding visible across the whole probability range instead
   of asserting it as one static delta.
-- **44-term glossary** with live search filter, plus a click-driven inline "i" help icon next to
+- **50-term glossary** with live search filter, plus a click-driven inline "i" help icon next to
   jargon anywhere on the page — both read from the same `GLOSS` array, so there's one source of
   truth for every definition.
+- **1 six-KPI-families card** (Overview: `KPI_FAMILIES`) — each of the 6 family tiles carries its
+  own real operational question, its "why this can't be folded into the others" rationale, and its
+  own independently-counted KPI total (never hand-typed against `KPIS`), plus an inline "i" help
+  icon resolving to the matching Glossary entry. Each family filter button on the KPI board (§9)
+  also now carries that same question as a native `title` tooltip. A cross-reference button jumps
+  to and flashes the Schedule tab's `schedDriftCard`, the existing "one root cause, five
+  instruments" story — reusing `data-jump-tab`/`data-jump-el`, not a new nav mechanism.
 - **12 `<details class="dbox">` "how this is actually computed" accordions** — each walks a
   worked example against real data (S-curve PV formula, waterfall bridge, Gantt forecast-finish,
   CPLI driving-path arithmetic, risk exposure, Monte Carlo per-run formula, crew cost-per-hour
@@ -474,11 +482,17 @@ Named explicitly, not silently dropped — from the most recent engagement/inter
    checks" text (2 locations) was resynced to 28 on 2026-08-20, but the structural risk — nothing
    catches the *next* drift automatically — is unchanged; still an open gap, just not a stale one.
 4. ~~**`README.md`'s own stated counts lag behind this document**~~ — **Resolved 2026-08-20** (and
-   re-synced the same day after the ledger-card round bumped the counts again): 1,300 assertions /
-   44 glossary terms / 28-check integrity gate, matching §2 as of this writing.
+   re-synced again 2026-08-21 after this round's six-families card): 1,306 assertions / 50 glossary
+   terms / 28-check integrity gate, matching §2 as of this writing.
 5. **The eleven-input ledger card is new this round** (2026-08-20) and only covers the Overview
    tab's own `PKGS` provenance — it does not touch or resolve gap #2 above (the risk register still
    has no independent drill-down drawer of its own).
+6. **"Top-level JS functions: 176" in §2 was not re-audited this round** (2026-08-21) — a fresh
+   `grep -nE "^\s*function [a-zA-Z_]" index.html | wc -l` returns 204, but that count wasn't
+   reconciled against whatever narrower methodology produced 176 (§4 separately states 169, a
+   pre-existing mismatch this round didn't introduce or investigate). One real function,
+   `renderFamiliesGrid()`, was added this round. Left un-reconciled rather than guessed at — a
+   wrong "fixed" number would be worse than a flagged stale one.
 
 ---
 
@@ -491,7 +505,7 @@ carried over from memory or an earlier pass:
 - Array counts (`KPIS.length`, `GUARDS.length`, etc.): read live via `window.__PCC__` in a running
   browser instance, not grepped/estimated from source (a source-text grep for KPI category labels
   initially over-counted by 2, caught by cross-checking against the live array).
-- Test counts: a fresh `node stress.cjs` run (`1300 passed, 0 failed`) and `node verify.cjs`
+- Test counts: a fresh `node stress.cjs` run (`1306 passed, 0 failed`) and `node verify.cjs`
   (tie-out matches §2 exactly).
 - The "54 checks" pipeline-parity claim: **actually executed**, not assumed from prose — installed
   `duckdb` into a throwaway venv, ran `pipeline/run_pipeline.py` fresh, confirmed 54/54 PASS and
@@ -503,7 +517,13 @@ carried over from memory or an earlier pass:
   step-snapping bug (§8) was caught this way after the Node test stub passed cleanly on the same
   code, which is the concrete reason this document keeps insisting on live verification over
   trusting a green test run alone.
+- **2026-08-21 six-families-card round**: `KPI_FAMILIES.length` (6), `GLOSS.length` (50), and every
+  family tile's own KPI count read live via `window.__PCC__` in a running browser instance, not
+  grepped. The 6 family help-icons, the 6 filter-button `title` tooltips, and the cross-reference
+  jump button (`data-jump-tab="sched" data-jump-el="schedDriftCard"`) were each exercised live —
+  clicked, its resulting popover/tab-state read back, not just asserted to exist in markup.
 
-Generated 2026-08-20, against the tip of the eleven-input-ledger-card engagement round (see git log
-for the exact commit — this document is written before that commit lands, per the project's own
-"verify, then document" ordering).
+Generated 2026-08-20, against the tip of the eleven-input-ledger-card engagement round; extended
+2026-08-21 for the six-KPI-families card round (see git log for exact commits — each document
+update was written before its own round's commit lands, per the project's "verify, then document"
+ordering).
