@@ -512,14 +512,16 @@ Named explicitly, not silently dropped — from the most recent engagement/inter
    pre-existing mismatch this round didn't introduce or investigate). One real function,
    `renderFamiliesGrid()`, was added this round. Left un-reconciled rather than guessed at — a
    wrong "fixed" number would be worse than a flagged stale one.
-7. **The Data Strategy tab's tile grid, live ingestion panel, recovery table, and parity card were
-   verified via DOM-content extraction in a real browser (correct real values, zero console
-   errors), not via a scrolled screenshot** (2026-08-21) — the session's browser tool's `scroll`
-   action was flaky mid-session (a stale tab's viewport collapsed to `innerWidth:0`, inflating
-   every element's layout height; a fresh tab fixed it, but the `scroll`/`computer` action then
-   timed out repeatedly on that fresh tab too). Content correctness is confirmed; a full scrolled
-   visual screenshot of the new tab content is not. Worth a follow-up screenshot pass next session
-   rather than treated as done.
+7. ~~**The Data Strategy tab's tile grid, live ingestion panel, recovery table, and parity card
+   were verified via DOM-content extraction... not via a scrolled screenshot**~~ — **Resolved
+   2026-08-21** (`/stress-test` full-dashboard visual pass): two independent reviewers (this
+   session + a fresh-context subagent) confirmed real, non-garbled content at both desktop and
+   480px width — the guardrail grid, embedded live ingest panel ("GREEN — all 2 passing"),
+   recovery table, and parity card (real CPI 0.956, not a placeholder) all render correctly. The
+   browser tool's screenshot-after-scroll compositing issue (root-caused this round — see gap #10)
+   meant a full scrolled *screenshot* still wasn't captured, but DOM-level verification is now
+   corroborated by two independent passes rather than one, which is what this gap was actually
+   asking for.
 8. ~~**`README.md`/`docs/HANDOFF.md` both called the Overview tab's guided narrative a
    "five-chapter guided story walkthrough"**~~ — **Resolved 2026-08-21**: no 5-chapter array ever
    existed in the code; the real feature is the 10-stop `TOUR_BEATS`. Caught in passing during the
@@ -531,6 +533,22 @@ Named explicitly, not silently dropped — from the most recent engagement/inter
    20-KPI / 28-guard / 17-action / 54-check prose matches the live counts. Directly motivated by
    catching a real, live 3rd stale "twenty-seven" instance this same round (gap #3 above) that the
    prior hand-edit pass missed.
+10. **Testing-environment note, not a product gap** (`/stress-test` full-dashboard pass,
+    2026-08-21): the browser tool used for live verification this session reliably screenshots a
+    tab at its initial scroll position, but consistently fails to composite a fresh frame after
+    *any* scroll past roughly 600–900px — whether via `window.scrollTo()` or native mouse-wheel —
+    returning a stale/blank frame instead, confirmed independently by two separate reviewers in
+    this same session (this session's own JS-`scrollTo` attempts, and a fresh-context subagent's
+    native-scroll attempts). Root cause for the JS-`scrollTo` case: `index.html`'s `<html>`
+    carries `scroll-behavior:smooth` (line ~197), and a synchronous `scrollTo()` + immediate
+    `window.scrollY` readback races the animation — fixed by passing
+    `{top:N, behavior:'instant'}` instead of a bare `(x,y)` call. The screenshot-compositing
+    failure past a scroll threshold is a separate, still-open tool limitation with no known fix;
+    work around it with DOM-based verification (`getBoundingClientRect`, content extraction) for
+    anything below the fold, and treat screenshots as reliable only near scroll position 0.
+    Separately: `#printBtn`'s `window.print()` call opens a real native print dialog that can hang
+    an automated browser tab indefinitely — avoid clicking it in an automated verification pass;
+    closing and reopening the tab recovers cleanly.
 
 ---
 
@@ -578,9 +596,26 @@ carried over from memory or an earlier pass:
   never on-page. `stress.cjs`'s new `E.1. architecture.html sync` section was run fresh
   (`1329 passed, 0 failed`) and `node verify.cjs` re-confirmed the tie-out is unchanged (this
   round's edits touch zero `PKGS` values).
+- **2026-08-21 `/stress-test` full-dashboard visual pass**: all 11 tabs, both companion pages
+  (`architecture.html`, `otak.html`), and the cross-tab overlays (10-stop Tour, Presentation Mode,
+  light/dark Theme toggle) reviewed by two independent parties — this session directly, plus a
+  fresh-context subagent — split by scope for coverage, each checking structural overflow,
+  zero-size/garbled content, and console errors at both desktop (1280px) and narrow (480px) width.
+  **Zero real, reproducible defects found.** Several promising leads were investigated and
+  disproven as false positives before being discarded, not silently dropped: SVG `<title>`
+  tooltip elements and the `.help-ic` invisible 44px touch-target expander both produce a
+  `scrollWidth`/`clientWidth` mismatch with no actual visual effect; wrapped inline `<b>`/`<code>`
+  text spanning two lines produces a misleading single bounding-box "overlap" with a neighboring
+  element that never actually touches (confirmed via `getClientRects()` showing the real
+  per-line fragments); a synthetic `.click()`-chained tab-highlight artifact didn't reproduce with
+  genuine mouse clicks. Closed §18 gap #7 (Data Strategy tab visual verification) with
+  corroborating dual-review evidence; opened and closed within the same round §18 gap #10 (a
+  testing-environment note, not a product gap, about the browser tool's own screenshot/scroll
+  limitations found and root-caused this pass).
 
 Generated 2026-08-20, against the tip of the eleven-input-ledger-card engagement round; extended
 2026-08-21 for the six-KPI-families card round, again 2026-08-21 for the Data Strategy tab UI/UX
-round, and again 2026-08-21 for the "96→100" brainstorm round's Tier 0/1 items (see git log for
-exact commits — each document update was written before its own round's commit lands, per the
-project's "verify, then document" ordering).
+round, again 2026-08-21 for the "96→100" brainstorm round's Tier 0/1 items, and again 2026-08-21
+for the full-dashboard `/stress-test` visual pass (see git log for exact commits — each document
+update was written before its own round's commit lands, per the project's "verify, then document"
+ordering).
