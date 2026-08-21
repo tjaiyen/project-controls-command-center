@@ -540,6 +540,19 @@ has("docctl", "1.5×", "submittals 1.5x target");
   ok(!/\d+(\.\d+)?\s*(NCRs?\s*(closed|generated)\s*(per|\/)\s*(week|month))/i.test(indexSrc),
     "no fabricated NCR generation/closure rate string exists anywhere on the page");
   has("ncrCard", "Mean age (open)", "NCR card states real per-item aging, matching the honest-scope framing");
+  // Mobile-viewport horizontal-overflow guard (full-dashboard /stress-test, 2026-08-21) — a real,
+  // live-browser-confirmed bug: .rowbar's grid-template-columns:110px 1fr 90px 64px sandwiches the
+  // title track between 264px of fixed columns, and CSS Grid's default min-width:auto on that 1fr
+  // item lets its min-content size (not its wrapped size) force the whole row past a ~300px mobile
+  // column, pushing the page 36px past a 375px viewport (visualViewport stayed 375; window.innerWidth
+  // grew to 411) — reproduced, then confirmed fixed by adding min-width:0 to the title span (the
+  // exact precedent already set by the `.rowbar>.tab-num,.rowbar>.mono{min-width:0;...}` CSS rule
+  // for this identical bug class; the title span carries neither class, so it needed its own fix).
+  // This DOM-stub harness has no real CSS layout engine to re-run that live probe, so this instead
+  // guards the fix's presence structurally: without it, a future edit could silently drop min-width:0
+  // and reintroduce the exact same overflow with no test failure anywhere else in this file.
+  ok(G.ncrCard._html.includes("white-space:normal;min-width:0"),
+    "NCR title span carries min-width:0 (mobile-overflow fix, live-browser confirmed: 411px->375px)");
   // drift guard (this file's own doctrine, extended to a 3rd item): both leading-indicator framing
   // sites — KPI_FAMILIES' Delivery entry and the delivery GLOSS entry — must name all 3 real
   // leading indicators, not just today's original 2, so this can't silently go stale the way the
@@ -1120,13 +1133,13 @@ const expectedFiring =
   (Math.abs(Math.min(0, T.vac)) > T.contRemaining) + (T.negFloat.length > 0) +
   (P.program.coCycleDays > P.program.coCycleTarget) + (P.program.rfiOver30 > 0) +
   (P.program.trir > P.program.trirBenchmark) +
-  // EAC Drift Velocity (megaproject-controls-doc upgrade, 2026-08-22) — recomputed from the
+  // EAC Drift Velocity (megaproject-controls-doc upgrade, 2026-08-21) — recomputed from the
   // literal first EAC_HISTORY point (1266.0, index.html's own source) + live T.eac, not from
   // P.eacTrendSeries()'s own output (a /stress-test reviewer caught the original version of this
   // as circular — it called eacTrendSeries() and reapplied the same formula the app's own
   // eacDriftVelocity() uses, which only proves the formula is deterministic, not correct).
   (((T.eac - 1266.0) / 5) > 1.0) +
-  // Non-Critical Progress Inflation (megaproject-controls-doc upgrade, 2026-08-22) — false today
+  // Non-Critical Progress Inflation (megaproject-controls-doc upgrade, 2026-08-21) — false today
   // (T.spi<1.00), included here so this count stays correct if that ever flips, not just today.
   (T.spi >= 1.00 && T.cpli < 0.90);
 has("printBrief", "Escalations firing (" + expectedFiring + ")", "print brief escalation count matches independent derivation");
@@ -1189,7 +1202,7 @@ try {
 // integrity gate: every check passes, pill count matches
 const guardPasses = (G.aiGuards._html.match(/>PASS</g) || []).length;
 const guardFails = (G.aiGuards._html.match(/>FAIL</g) || []).length;
-// 27->28 (megaproject-controls-doc upgrade, 2026-08-22): one new GUARDS tie-out row added
+// 27->28 (megaproject-controls-doc upgrade, 2026-08-21): one new GUARDS tie-out row added
 // alongside the new floatErosionSeries() — see item C's own assertions further down for the
 // independent re-derivation of that specific row.
 ok(guardPasses === 28 && guardFails === 0, "integrity gate: 28 PASS, 0 FAIL",
@@ -1375,7 +1388,7 @@ ok(G.arch._html.includes("fct_control_account") && G.arch._html.includes("integr
       "EWMA math panel's t=6 band-width arithmetic matches an independent recomputation");
   }
 }
-// ingestion validation (megaproject-controls-doc upgrade, 2026-08-22) — a raw-record check,
+// ingestion validation (megaproject-controls-doc upgrade, 2026-08-21) — a raw-record check,
 // distinct from the GUARDS reconciliation gate above. Independently re-derive both checks from
 // P.rows, never trust INGEST_GUARDS' own run() in isolation.
 {
@@ -2178,7 +2191,7 @@ console.log("== D5.3. forecast model (actual vs plan) ==");
   ok(deltas.every(d => d > 0), "EAC has risen every single period — genuinely diverging, not oscillating",
     deltas.map(d => d.toFixed(2)).join(","));
   has("eacTrend", "diverging", "EAC trend prose calls out the divergence");
-  // EAC Drift Velocity (megaproject-controls-doc upgrade, 2026-08-22) — recompute from the LITERAL
+  // EAC Drift Velocity (megaproject-controls-doc upgrade, 2026-08-21) — recompute from the LITERAL
   // first history point (visible in index.html's own EAC_HISTORY array, not exposed via __PCC__)
   // plus the live T.eac, never from P.eacTrendSeries()'s own output. The first draft of this check
   // called P.eacTrendSeries() and reapplied the same formula the app's own eacDriftVelocity() uses
@@ -2199,7 +2212,7 @@ console.log("== D5.3. forecast model (actual vs plan) ==");
     "firingEscalations() genuinely includes the EAC-drift row today (confirmed breach, not dormant)");
 }
 // Earned Schedule / SPI(t) + Non-Critical Progress Inflation composite (megaproject-controls-doc
-// upgrade, 2026-08-22). Independently recompute from P.pvA/P.totals.ev in this file — never call
+// upgrade, 2026-08-21). Independently recompute from P.pvA/P.totals.ev in this file — never call
 // P.deriveEarnedSchedule() and trust it.
 {
   const pvA = P.pvA, ev = P.totals.ev;
@@ -2347,7 +2360,7 @@ has("aiGuards", "reads live off this program", "integrity gate covers at least o
   has("schedDriftCard", "still finding its true finish", "schedule-drift prose calls out the ongoing slip");
   has("schedDriftCard", "R-01, NCR-2026-014", "schedule-drift prose cross-references the same tunnel root cause");
 }
-// E. Critical float erosion rate (megaproject-controls-doc upgrade, 2026-08-22) — same shape as
+// E. Critical float erosion rate (megaproject-controls-doc upgrade, 2026-08-21) — same shape as
 // the schedule-drift block above; CP-201 is the anchor package (most negative float, distinct
 // from CP-601's worst-CPLI framing — see index.html's own FLOAT_HIST comment).
 {

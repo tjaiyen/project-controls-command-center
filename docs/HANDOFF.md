@@ -44,7 +44,7 @@ anywhere in this repository. The method is the content, not the numbers.
 | Contracts | 6 |
 | Risks | 6 |
 | Delay events | 4 |
-| `stress.cjs` test assertions | 1,395, all passing |
+| `stress.cjs` test assertions | 1,396, all passing |
 | Companion pages | `otak.html` (fit brief), `architecture.html` (static pipeline map) |
 | Hosting | GitHub Pages, served directly from `main`, zero build |
 | Git history | 100 commits |
@@ -375,7 +375,7 @@ matches an independent recomputation, not just that *a* number is present.
 
 ## 11. Testing & verification
 
-**`stress.cjs`** (1,395 assertions, all passing) — stubs the DOM, loads `index.html`'s script
+**`stress.cjs`** (1,396 assertions, all passing) — stubs the DOM, loads `index.html`'s script
 verbatim into that stub, and exercises it exactly like a user would: every tab switch, every
 filter, every drawer, every slider drag, every keyboard interaction. 35 labeled sections:
 
@@ -552,10 +552,10 @@ Named explicitly, not silently dropped — from the most recent engagement/inter
    2026-08-21; **§18 gap #9 below adds the automated sync test this gap has been naming since
    2026-08-20** — that structural risk is now closed, not just the 3rd stale instance.
 4. ~~**`README.md`'s own stated counts lag behind this document**~~ — **Resolved 2026-08-20** (and
-   re-synced five more times on 2026-08-21 — the six-families card, the Data Strategy UI/UX round,
-   the Monte Carlo PERT draw-shape toggle, the megaproject-controls-doc upgrade round, and the Kimi
-   research-package round): 1,395 assertions / 53 glossary terms / 28-check integrity gate, matching
-   §2 as of this writing.
+   re-synced six more times on 2026-08-21 — the six-families card, the Data Strategy UI/UX round,
+   the Monte Carlo PERT draw-shape toggle, the megaproject-controls-doc upgrade round, the Kimi
+   research-package round, and the full-dashboard `/stress-test` pass): 1,396 assertions / 53
+   glossary terms / 28-check integrity gate, matching §2 as of this writing.
 5. **The eleven-input ledger card is new this round** (2026-08-20) and only covers the Overview
    tab's own `PKGS` provenance — it does not touch or resolve gap #2 above (the risk register still
    has no independent drill-down drawer of its own).
@@ -602,6 +602,22 @@ Named explicitly, not silently dropped — from the most recent engagement/inter
     Separately: `#printBtn`'s `window.print()` call opens a real native print dialog that can hang
     an automated browser tab indefinitely — avoid clicking it in an automated verification pass;
     closing and reopening the tab recovers cleanly.
+11. ~~**Delivery tab's Quality NCR register overflowed the page horizontally at mobile width**~~
+    — **Resolved 2026-08-21** (full-dashboard `/stress-test` pass, second visual pass since gap
+    #7-9's round): a real, reproducible bug, isolated to `t-del` at ≤375px — every other of the
+    11 tabs stayed clean. Root cause: `renderNcr()`'s `.rowbar` row uses
+    `grid-template-columns:110px 1fr 90px 64px`, sandwiching the title track between 264px of
+    fixed columns; CSS Grid's default `min-width:auto` on that `1fr` item let its min-content size
+    (not its wrapped size) force the row past its ~300px mobile column, pushing
+    `window.innerWidth` to 411px against a 375px `visualViewport` (confirmed via
+    `window.visualViewport.width` staying 375 while `window.innerWidth`/`document.body.scrollWidth`
+    both read 411 — the layout viewport, not the device, had grown). Pre-registered fix
+    (`min-width:0` on the title span, the identical precedent already set by
+    `.rowbar>.tab-num,.rowbar>.mono{min-width:0;...}` for this exact bug class — the title span
+    carried neither class) confirmed live: 411px → 375px, all 11 tabs, before/after. A structural
+    regression guard was added to `stress.cjs` (checks the fix's presence in `ncrCard`'s rendered
+    HTML) since this DOM-stub harness has no real CSS layout engine to re-run the live probe
+    itself.
 
 ---
 
@@ -731,12 +747,31 @@ carried over from memory or an earlier pass:
   in a real browser — the layer card's real, live counts (28-check gate, 2 ingestion checks), all
   3 jump buttons confirmed to actually switch tabs, and the Gate 5 sentence's presence — zero
   console errors, zero layout overflow.
+- **2026-08-21 full-dashboard `/stress-test` pass, second visual pass since the earlier same-day
+  round** (gaps #7-10): one review done directly, one by an independent fresh-context subagent
+  (findings only, no file dump), both empirically probed rather than trusted. The subagent's sole
+  finding — a real date-stamp typo, "2026-08-22" instead of "2026-08-21," across 13 comments in
+  `index.html`/`stress.cjs` from the megaproject-controls-doc round, contradicting both the git
+  commit timestamp and this document's own provenance entry for that round — fixed in all 13
+  locations, confirmed zero remaining via fresh grep. This session's own pass added the resize
+  matrix the prior visual passes hadn't run (mobile 375px / tablet 768px / desktop, not just
+  desktop) and caught a real, reproducible mobile-only bug: the Delivery tab's Quality NCR
+  register forced `window.innerWidth` from 375px to 411px (confirmed via `visualViewport.width`
+  staying 375 — the layout viewport itself had grown, not a false positive from stale
+  measurement), isolated to that one tab across all 11. Root-caused to `renderNcr()`'s
+  `grid-template-columns:110px 1fr 90px 64px` lacking the `min-width:0` this exact bug class
+  already has a fix precedent for elsewhere on the page; fix applied and the 411→375 prediction
+  confirmed live, before/after, across all 11 tabs at all 3 widths. A structural regression guard
+  was added to `stress.cjs` (§18 gap #11 has the full root-cause writeup). `node stress.cjs` run
+  fresh after both fixes (`1396 passed, 0 failed` — 1395 baseline + 1 new guard), `node verify.cjs`
+  unchanged (pure CSS + comment-date fixes, zero `PKGS` touched).
 
 Generated 2026-08-20, against the tip of the eleven-input-ledger-card engagement round; extended
 2026-08-21 for the six-KPI-families card round, again 2026-08-21 for the Data Strategy tab UI/UX
 round, again 2026-08-21 for the "96→100" brainstorm round's Tier 0/1 items, again 2026-08-21 for
 the full-dashboard `/stress-test` visual pass, again 2026-08-21 for the Monte Carlo PERT
 draw-shape round, again 2026-08-21 for the Monte Carlo run-count round, again 2026-08-21 for the
-megaproject-controls-doc upgrade round, and again 2026-08-21 for the Kimi research-package round
-(see git log for exact commits — each document update was written before its own round's commit
-lands, per the project's "verify, then document" ordering).
+megaproject-controls-doc upgrade round, again 2026-08-21 for the Kimi research-package round, and
+again 2026-08-21 for the second full-dashboard `/stress-test` pass (see git log for exact commits
+— each document update was written before its own round's commit lands, per the project's "verify,
+then document" ordering).

@@ -1738,7 +1738,7 @@ var AC_HISTORY=[
 var REVSVC_HISTORY=[
  {m:"Feb",slip:16},{m:"Mar",slip:21},{m:"Apr",slip:26},{m:"May",slip:31},{m:"Jun",slip:36}
 ];
-/* Critical float erosion (megaproject-controls-doc upgrade, 2026-08-22) — same shape and same
+/* Critical float erosion (megaproject-controls-doc upgrade, 2026-08-21) — same shape and same
    discipline as REVSVC_HISTORY above: 5 hand-authored historical points, the 6th (current) point
    read live off the ledger below, never duplicated. CP-201 is the anchor on purpose — it carries
    the most negative float (-40d) of any package, distinct from CP-601 (worst CPLI ratio but a
@@ -1748,7 +1748,7 @@ var FLOAT_HIST=[
  {m:"Feb",float:5},{m:"Mar",float:-3},{m:"Apr",float:-12},{m:"May",float:-20},{m:"Jun",float:-31}
 ];
 function eacTrendSeries(){ return EAC_HISTORY.concat([{m:"Jul*",eac:T.eac}]); }
-/* EAC Drift Velocity (megaproject-controls-doc upgrade, 2026-08-22) — a trailing-5-period average
+/* EAC Drift Velocity (megaproject-controls-doc upgrade, 2026-08-21) — a trailing-5-period average
    monthly drift, matching the source doc's own "DV_5" framing. Reuses eacTrendSeries()'s own
    6-point series (5 history + 1 live) rather than a second, separately-maintained history.
    Note for anyone re-deriving this by hand (a /stress-test reviewer flagged this as a non-obvious
@@ -2078,7 +2078,7 @@ var GATE5_CHECKS=[
 
 /* Ingestion validation — a raw-record check, not a reconciliation (GUARDS above re-derives
    already-accepted totals; this asks whether a record should have been trusted at intake).
-   Megaproject-controls-doc upgrade, 2026-08-22: only these 2 of the source doc's 6 proposed
+   Megaproject-controls-doc upgrade, 2026-08-21: only these 2 of the source doc's 6 proposed
    quarantine conditions are honestly computable against this static, already-clean ledger — the
    other 4 (schedule-import logic quality, cost-code-mapping enforcement, post-data-date rejection,
    signed-change-order authorization) need a live schedule/ERP feed this demo doesn't have; named in the
@@ -2677,7 +2677,7 @@ function renderDetail(){
   el.scrollIntoView({block:"nearest"});
 }
 
-/* Companion 5th dbox, SPI's drawer only (megaproject-controls-doc upgrade, 2026-08-22) — a real,
+/* Companion 5th dbox, SPI's drawer only (megaproject-controls-doc upgrade, 2026-08-21) — a real,
    distinct schedule index, not a duplicate CPLI/BEI reading. Also states the live status of the
    "Non-Critical Progress Inflation" composite (dollar-SPI>=1.00 with CPLI<0.90) plainly, rather
    than silently — that composite intentionally gates on dollar SPI (the metric the source doc
@@ -2758,7 +2758,7 @@ var acA=evA.map(function(v,i){ return v/ramp(i,T.cpi); });
 var pvB=cum(wB,T.bac-T.pv).map(function(v){ return v+T.pv; });
 var eacTail=[T.ev].concat(cum(wB,T.eac-T.ev).map(function(v){ return v+T.ev; }));
 
-/* Earned Schedule / time-based SPI (megaproject-controls-doc upgrade, 2026-08-22) — a real,
+/* Earned Schedule / time-based SPI (megaproject-controls-doc upgrade, 2026-08-21) — a real,
    distinct schedule index (Lipke's Earned Schedule method), not a duplicate of CPLI/BEI: walks
    the planned-value curve for the latest period whose planned value the program has actually
    earned, interpolating fractionally between periods. Two edge cases handled explicitly, both
@@ -4093,7 +4093,7 @@ function renderSchedDrift(){
   bars("schedDriftBars",deltas.map(function(d){ return {id:d.m,v:d.delta,c:d.delta>0?"var(--c-pill-r)":"var(--c-pill-g)"}; }),days,
     function(o,i){ return "<b>"+o.id+"</b>Projected slip moved "+days(s[i].slip)+" &rarr; "+days(s[i+1].slip); });
 }
-/* Critical float erosion rate (megaproject-controls-doc upgrade, 2026-08-22) — exact clone of
+/* Critical float erosion rate (megaproject-controls-doc upgrade, 2026-08-21) — exact clone of
    renderSchedDrift() above, "allDown" in place of "allUp" since float eroding means the
    trend runs negative, not positive. */
 function renderFloatErosion(){
@@ -4441,7 +4441,7 @@ function renderNcr(){
    '</div>'+
    ncrs.map(function(n){ var sm=STATUS_META[n.status];
      return '<div class="rowbar" style="grid-template-columns:110px 1fr 90px 64px"><span class="mono" style="font-size:11px">'+n.id+'</span>'+
-       '<span style="font-size:12.5px;white-space:normal">'+n.title+'</span>'+
+       '<span style="font-size:12.5px;white-space:normal;min-width:0">'+n.title+'</span>'+
        '<span class="tab-num mono" style="font-size:11px;color:rgb(var(--c-mut))">'+n.ageD+'d open</span>'+
        '<span style="text-align:right"><span class="pill '+sm.cls+'">'+sm.label+'</span></span></div>'; }).join("")+
    '<p style="margin:12px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">Only '+ncrs.length+' NCR'+(ncrs.length===1?"":"s")+
