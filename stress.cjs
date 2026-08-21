@@ -463,6 +463,37 @@ has("miles", "24 Apr 2028", "milestones: forecast date rendered");
 has("schedTriad", "0.968", "triad: SPI 0.968");
 has("schedTriad", "0.878", "triad: CPLI 0.878 (driving path)");
 has("schedTriad", "0.937", "triad: BEI 0.937");
+// SPI(t)/Earned Schedule joins the triad as a 4th tile (megaproject-controls-doc upgrade,
+// 2026-08-21) — independently re-derived from the raw pvA/T.ev the app's own deriveEarnedSchedule()
+// reads, not by calling that function and trusting it against itself.
+{
+  const pv = P.pvA, ev = T.ev;
+  let i = -1;
+  for (let j = 0; j < pv.length; j++) { if (pv[j] <= ev) i = j; }
+  const at = pv.length;
+  let es;
+  if (i === -1) es = ev / pv[0];
+  else if (i === pv.length - 1) es = at < 2 ? at : at + (ev - pv[i]) / (pv[i] - pv[i - 1]);
+  else es = (i + 1) + (ev - pv[i]) / (pv[i + 1] - pv[i]);
+  const spit = es / at;
+  has("schedTriad", spit.toFixed(3), "triad: SPI(t) independently re-derived from raw pvA/T.ev matches the rendered tile");
+  has("schedTriad", "SPI(t)", "triad renders the SPI(t) label, not a bare 4th number");
+  has("schedTriad", "time, not dollars", "SPI(t) tile carries its own sub-label distinguishing it from dollar-based SPI");
+  // ordering assertion: SPI(t) sits immediately after SPI, before CPLI/BEI — matching the
+  // schedTriad array literal's own order (index.html), not asserted from memory.
+  const plainText = G.schedTriad._html.replace(/<[^>]*>/g, "|");
+  const order = ["SPI|", "SPI(t)", "CPLI", "BEI"].map(s => plainText.indexOf(s));
+  ok(order.every((v, idx2) => idx2 === 0 || v > order[idx2 - 1]),
+    "triad tiles render in SPI, SPI(t), CPLI, BEI order", JSON.stringify(order));
+  // the new "earnedschedule" GLOSS entry's own live worked example, checked against the same
+  // independently-derived es/at/spit values above, not by calling P.deriveEarnedSchedule() again
+  const gloss = P.findGloss("earnedschedule");
+  ok(!!gloss, "the earnedschedule GLOSS entry exists");
+  const worked = gloss.e();
+  ok(worked.includes(es.toFixed(1) + " months") && worked.includes(at + " months") && worked.includes(spit.toFixed(3)),
+    "earnedschedule GLOSS entry's worked example states the real es/at/spit values, independently re-derived", worked);
+  ok(indexSrc.includes('data-help="earnedschedule"'), "the Schedule tab's SPI(t) prose carries an inline help icon wired to the new glossary entry");
+}
 // Schedule-tab citation (2026-08-19): independently verified against the actual 791-page primary
 // Sound Transit specification document (not the untrusted CMP-scheduling research doc that
 // prompted this — that doc's own AI-addressed metadata and several fabricated specifics, PCPP
@@ -472,6 +503,15 @@ ok(indexSrc.includes("01&nbsp;32&nbsp;13.25"), "Schedule tab cites the real, ver
 ok(indexSrc.includes("Oracle Primavera P6"), "Schedule tab cites the real, verified P6 requirement");
 ok(!indexSrc.includes("PCPP"), "the unverifiable PCPP policy numbers from the untrusted research doc never made it onto the page");
 ok(!/01[\s&;a-z]*35[\s&;a-z]*00/i.test(indexSrc), "the fabricated 'Section 01 35 00' citation never made it onto the page");
+// DCMA 14-Point Assessment / ANSI-EIA-748 naming (megaproject-controls-doc upgrade, 2026-08-21) —
+// this is standard, public-domain project-controls methodology (CPLI/BEI genuinely are checks 13
+// and 14 of the real DCMA 14-Point Assessment, independent of any specific case-study figure), so
+// it's named directly rather than gated behind a per-fact primary-source citation the way the
+// program-specific claims above are. The other-12-checks gap is stated in the same box, not implied away.
+ok(indexSrc.includes("DCMA 14-Point Assessment"), "Schedule tab names the DCMA 14-Point Assessment explicitly, not just \"DCMA-style\"");
+ok(indexSrc.includes("ANSI/EIA-748"), "Schedule tab names the ANSI/EIA-748 EVMS standard the 14-Point Assessment sits under");
+ok(indexSrc.includes("checks 13 and 14"), "the citation box states precisely which 2 of the 14 checks this dashboard implements (CPLI/BEI), not a vague overlap claim");
+ok(indexSrc.includes("this ledger doesn't carry"), "the citation box names the other 12 checks as a real, honest gap (needs an activity-level CPM network this ledger doesn't have) rather than implying full 14-point coverage");
 has("risks", "$25.7M", "risks: total exposure $25.7M (recomputed " + exposure.toFixed(2) + ")");
 has("risks", (topShare * 100).toFixed(1) + "%", "risks: top risk share " + (topShare * 100).toFixed(1) + "%");
 has("risks", "$11.1M", "risks: contingency shortfall $11.1M before risk");
@@ -481,6 +521,36 @@ has("coContext", "3.49%", "CO rate 3.49%");
 has("coContext", "5.07%", "CO total exposure 5.07%");
 has("docctl", "1.4×", "RFI 1.4x target");
 has("docctl", "1.5×", "submittals 1.5x target");
+// Quality NCR register (megaproject-controls-doc upgrade, 2026-08-21) — independently re-derived
+// from the raw ACTIONS array the app's own renderNcr() reads, not by trusting its output against
+// itself. Same doctrine as every other module-reconciliation check in this file.
+{
+  const ncrs = P.actions.filter(a => a.src && a.src.indexOf("Quality NCR") === 0);
+  ok(ncrs.length === 2, "exactly 2 real Quality NCR rows exist in ACTIONS today", String(ncrs.length));
+  const withStatus = ncrs.map(a => Object.assign({}, a, { status: P.actionStatus(a) }));
+  const open = withStatus.filter(a => a.status !== "verified" && a.status !== "closed");
+  ok(open.length === ncrs.length, "pre-registered: both real NCRs are still open today (neither has a.done set)", String(open.length));
+  has("ncrCard", open.length + " of " + ncrs.length, "NCR card states real open-vs-total counts, not a hand-typed number");
+  ncrs.forEach(a => {
+    has("ncrCard", a.id, "NCR card renders " + a.id);
+    has("ncrCard", a.title, "NCR card renders " + a.id + "'s real title");
+  });
+  ok(indexSrc.includes("too few to compute a real generation-vs-closure rate"),
+    "NCR card explicitly declines to fabricate a velocity/rate metric from only 2 real records — an honest scope limit, not silently implied");
+  ok(!/\d+(\.\d+)?\s*(NCRs?\s*(closed|generated)\s*(per|\/)\s*(week|month))/i.test(indexSrc),
+    "no fabricated NCR generation/closure rate string exists anywhere on the page");
+  has("ncrCard", "Mean age (open)", "NCR card states real per-item aging, matching the honest-scope framing");
+  // drift guard (this file's own doctrine, extended to a 3rd item): both leading-indicator framing
+  // sites — KPI_FAMILIES' Delivery entry and the delivery GLOSS entry — must name all 3 real
+  // leading indicators, not just today's original 2, so this can't silently go stale the way the
+  // "N instruments"/"twenty-seven checks" bugs did earlier this session.
+  const deliveryFamily = P.kpiFamilies.filter(f => f.key === "Delivery")[0];
+  const deliveryGloss = P.findGloss("delivery");
+  ok(["hours", "RFI aging", "NCR aging"].every(s => deliveryFamily.why.indexOf(s) >= 0),
+    "KPI_FAMILIES' Delivery entry names all 3 real leading indicators, not a stale count of 2", deliveryFamily.why);
+  ok(["Productivity Factor", "RFI Aging", "NCR"].every(s => deliveryGloss.p.indexOf(s) >= 0),
+    "the delivery GLOSS entry's own prose names all 3 real leading indicators, not a stale count of 2", deliveryGloss.p);
+}
 has("compliance", "35.5%", "TRIR 35.5% under benchmark");
 has("compliance", "CP-201, CP-601", "compliance narrative names the two negative-float packages");
 has("funding", "$45.6M", "funding: fronted cash $45.6M = AC - drawn");
@@ -2395,6 +2465,19 @@ ok(P.wbs.length === 8, "exactly 8 WBS rows, one per control account", String(P.w
 }
 has("wbsTable", "CTE-WBS-101", "WBS table renders row CTE-WBS-101");
 has("wbsFoot", "8 of 8 control accounts mapped", "WBS footer states full 100% Rule coverage");
+// ABS axis (megaproject-controls-doc upgrade, 2026-08-21) — closes the gap between this table and
+// the WBS-vs-ABS mismatch already narrated at length elsewhere on this tab.
+{
+  ok(P.wbs.every(w => typeof w.abs === "string" && /^ABS-/.test(w.abs)),
+    "every WBS row carries a real ABS tag following the ABS- naming convention, not a missing/blank field");
+  ok(new Set(P.wbs.map(w => w.abs)).size === P.wbs.length, "every WBS row's ABS tag is unique — no two control accounts share one asset tag");
+  const tun = P.wbs.filter(w => w.ca === "CP-201")[0];
+  has("wbsTable", tun.abs, "WBS table renders the tunnel control account's real ABS tag");
+  ok(indexSrc.includes("WBS &middot; CBS &middot; OBS &middot; ABS control-account mapping"),
+    "the section header names all four structures, not just WBS/CBS/OBS, now that the table actually carries ABS");
+  ok(P.findGloss("cbsobs").e().includes(tun.abs),
+    "the CBS/OBS glossary entry's own worked example now names the real ABS tag too, not a stale 2-structure example");
+}
 // the new "how the 100% Rule is actually checked" dbox (Phase 3, 2026-08-20) — independently
 // sum every PKGS.bac reachable through a WBS row, matching m()'s own $M-with-1-decimal format.
 {
@@ -3014,7 +3097,7 @@ console.log("== D9.1. the CDE flow diagram (data strategy) ==");
    (returns the active tab to "over" at the end, since D9 above left "data" active)
    ========================================================================= */
 console.log("== D10. inline term help ==");
-ok(P.gloss.length === 51, "GLOSS grew to 51 entries (50 prior + pertdist, the PERT-vs-triangular Monte Carlo draw-shape toggle, 2026-08-21)", String(P.gloss.length));
+ok(P.gloss.length === 53, "GLOSS grew to 53 entries (52 prior + ncr, the quality-NCR-register upgrade, 2026-08-21)", String(P.gloss.length));
 ["cde", "ids", "wbs", "abs", "zscore", "ewma", "gbm", "raid", "capa", "cbsobs", "excusablecompensable"].forEach(k => {
   const g = P.findGloss(k);
   ok(!!g && typeof g.p === "string" && g.p.length > 0, "findGloss resolves new term '" + k + "'");

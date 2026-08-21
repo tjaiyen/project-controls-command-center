@@ -1020,10 +1020,14 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
             <em>dollars of earned value</em>, not days. It drifts back toward 1.00 as a program completes
             &mdash; even one finishing late &mdash; because earned value converges on budget regardless of
             when the work lands. It also cannot distinguish work on the critical path from float-rich work.</p>
-          <p class="lede" style="font-size:12.8px;margin-top:9px">That is why this framework pairs every
-            SPI reading with <b style="color:rgb(var(--c-ink))">CPLI</b> (is the driving path still
-            achievable?) and <b style="color:rgb(var(--c-ink))">BEI</b> (are activities actually completing
-            on plan?). Three numbers, three different failure modes.</p>
+          <p class="lede" style="font-size:12.8px;margin-top:9px">The direct fix is
+            <b style="color:rgb(var(--c-ink))">SPI(t)</b><button type="button" class="help-ic" data-help="earnedschedule" aria-label="What does this term mean?" aria-expanded="false">i</button>
+            &mdash; Earned Schedule translated into the same efficiency-ratio shape as SPI, but measured
+            in time instead of dollars, so it never mathematically converges to 1.00 just because the
+            budget eventually gets spent. This framework pairs it with
+            <b style="color:rgb(var(--c-ink))">CPLI</b> (is the driving path still achievable?) and
+            <b style="color:rgb(var(--c-ink))">BEI</b> (are activities actually completing on plan?) &mdash;
+            three numbers, three different failure modes, none of them fooled by spend rate alone.</p>
           <div class="outbox" id="schedTriad"></div></div>
       </div>
 
@@ -1038,6 +1042,17 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
           re-verified directly against the primary specification document, not cited secondhand.
           (Sound Transit 2023 Standard Division 01 Specifications, verified 19&nbsp;Aug&nbsp;2026 &mdash;
           a real, external citation, not this program's own data.)</p>
+        <p style="margin-top:8px">Named precisely, not just &ldquo;DCMA-style&rdquo;: the
+          <b style="color:rgb(var(--c-code))">DCMA 14-Point Assessment</b> is the specific schedule-health
+          audit this dashboard's CPLI and BEI cards implement &mdash; checks 13 and 14 of that
+          14-point methodology, by definition, not a paraphrase of it. The 14-Point Assessment itself
+          sits under the broader <b style="color:rgb(var(--c-code))">ANSI/EIA-748</b> Earned Value
+          Management System standard federal and major transit capital programs are built to comply
+          with. The other 12 checks &mdash; missing logic ties, negative lag, hard constraints, invalid
+          dates, and the rest &mdash; audit a real CPM activity network with logic ties between tasks;
+          this dashboard works from aggregate float and duration per control account, not an
+          activity-level schedule file, so those 12 stay a named, honest gap rather than something
+          faked from data this ledger doesn't carry.</p>
       </div>
 
       <div class="sec-h" style="margin-top:34px"><h2>Critical float erosion rate</h2><span class="tag">trend, not a snapshot</span></div>
@@ -1130,7 +1145,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
   <!-- ============================ DELIVERY ============================ -->
   <section role="tabpanel" id="p-del" aria-labelledby="t-del" tabindex="0" hidden>
     <div class="sec">
-      <div class="sec-h"><h2>Delivery health</h2><span class="tag">productivity &middot; document control</span></div>
+      <div class="sec-h"><h2>Delivery health</h2><span class="tag">productivity &middot; document control &middot; quality</span></div>
       <p class="lede">Cost and schedule indices are lagging indicators &mdash; by the time CPI moves, the money
         is spent. These are the leading ones: they move weeks earlier and they are the levers a controls
         manager can actually pull.</p>
@@ -1155,6 +1170,15 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
             Spending ahead of drawdown is a cash-flow exposure; drawing ahead of spend is a compliance one.</p>
           <div id="funding"></div></div>
       </div>
+
+      <div class="sec-h" style="margin-top:34px"><h3>Quality NCR register<button type="button" class="help-ic" data-help="ncr" aria-label="What does this term mean?" aria-expanded="false">i</button></h3></div>
+      <p class="lede">A rising ratio of unresolved Non-Conformance Reports is a leading indicator of
+        downstream rework and delayed systems testing &mdash; standard project-controls doctrine, not a
+        program-specific claim: relying on contractor-asserted quality status instead of independently
+        tracked NCR aging is exactly how a physical defect keeps propagating after it's already been
+        caught on paper. Read live off the same Actions/RAID register every other tab's stale-flag and
+        escalation logic already reads &mdash; not a separate register to keep in sync.</p>
+      <div class="card" style="margin-top:15px" id="ncrCard"></div>
 
       <div class="sec-h" style="margin-top:34px"><h2>Crew cost-per-hour</h2><span class="tag">weekly &middot; leading indicator</span></div>
       <p class="lede">Cost per hour translates a crew's labor, equipment and overhead into a burn rate and
@@ -1334,11 +1358,13 @@ join dim_control_account b using (package_id)</pre></div>
 
       <div id="playbook"></div>
 
-      <div class="sec-h" style="margin-top:34px"><h3>WBS &middot; CBS &middot; OBS control-account mapping<button type="button" class="help-ic" data-help="cbsobs" aria-label="What does this term mean?" aria-expanded="false">i</button></h3></div>
+      <div class="sec-h" style="margin-top:34px"><h3>WBS &middot; CBS &middot; OBS &middot; ABS control-account mapping<button type="button" class="help-ic" data-help="cbsobs" aria-label="What does this term mean?" aria-expanded="false">i</button></h3></div>
       <p class="lede">The 100% Rule: every dollar of budget traces to a named scope element, a cost
-        category, and an accountable owner. This is what makes Control Account performance measurement
-        (the EVM math on every other tab) defensible rather than an aggregate guess &mdash; and what a
-        Board or a lender actually checks before releasing funding.</p>
+        category, an accountable owner, and &mdash; the axis this table used to stop short of &mdash;
+        the maintainable asset it becomes at handover. This is what makes Control Account performance
+        measurement (the EVM math on every other tab) defensible rather than an aggregate guess, and
+        what closes the WBS-vs-ABS gap the Data Strategy tab names as a real, documented cause of data
+        loss at handover, rather than leaving it as narrative alone.</p>
       <div class="tw"><table id="wbsTable"></table></div>
       <p class="lede" id="wbsFoot" style="margin-top:9px;font-size:12.5px"></p>
       <details class="dbox" style="margin-top:14px">
@@ -1673,7 +1699,7 @@ var KPI_FAMILIES=[
  {key:"Change",q:"Is this still the program we baselined, or has scope quietly become a different, more expensive one?",
   why:"Tracks contract and scope drift specifically — a program can hit every cost and schedule target on paper while the underlying scope has already moved substantially."},
  {key:"Delivery",q:"What's happening on the ground right now that becomes tomorrow's cost or schedule problem?",
-  why:"The only leading-indicator family on the board — hours and RFI aging move weeks before the Cost or Schedule families catch up to the same story."},
+  why:"The only leading-indicator family on the board — hours, RFI aging, and quality NCR aging move weeks before the Cost or Schedule families catch up to the same story."},
  {key:"Compliance",q:"Is anything happening that overrides every other metric on this board?",
   why:"Safety can stop the job independent of how good the other five families look — the one axis on this board that isn't really optional."}
 ];
@@ -1979,16 +2005,21 @@ var PHASES = [
  {k:"close",n:"Commissioning &amp; closeout", s:"testing &rarr; revenue"}
 ];
 
-/* WBS/CBS/OBS — one row per control account, the 100% Rule made checkable. */
+/* WBS/CBS/OBS/ABS — one row per control account, the 100% Rule made checkable. The `abs` field
+   (megaproject-controls-doc upgrade, 2026-08-21) closes the gap between this table and the
+   WBS-vs-ABS mismatch already narrated at length elsewhere on this tab and in the Glossary
+   (`wbs`/`abs` GLOSS entries) — the table used to stop at the contractor's own OBS owner and never
+   actually touch the operating agency's asset-tag side of that same story. Illustrative tags only,
+   same convention as any other synthetic identifier on this ledger — not a real asset registry. */
 var WBS=[
- {id:"CTE-WBS-101",scope:"Guideway &mdash; north alignment",         cbs:"Direct Civil Construction",obs:"Dep. Director, Civil Delivery",  ca:"CP-101"},
- {id:"CTE-WBS-102",scope:"Guideway &mdash; south alignment",         cbs:"Direct Civil Construction",obs:"Dep. Director, Civil Delivery",  ca:"CP-102"},
- {id:"CTE-WBS-201",scope:"Tunnel &amp; portals",                     cbs:"Direct Civil Construction",obs:"Tunnel Construction Manager",     ca:"CP-201"},
- {id:"CTE-WBS-301",scope:"Stations (4) &mdash; shells &amp; finishes",cbs:"Station Facilities",       obs:"Stations Construction Manager",   ca:"CP-301"},
- {id:"CTE-WBS-401",scope:"Systems &amp; overhead catenary",          cbs:"Systems Contracting",       obs:"Lead Systems Engineer",           ca:"CP-401"},
- {id:"CTE-WBS-501",scope:"Parking structures",                       cbs:"Support Facilities",        obs:"Facilities Program Manager",      ca:"CP-501"},
- {id:"CTE-WBS-601",scope:"Third-party utilities relocation",         cbs:"Right-of-Way / Utilities",  obs:"Utilities Lead",                  ca:"CP-601"},
- {id:"CTE-WBS-701",scope:"Systems integration &amp; testing",        cbs:"Systems Contracting",       obs:"Lead Systems Engineer",           ca:"CP-701"}
+ {id:"CTE-WBS-101",scope:"Guideway &mdash; north alignment",         cbs:"Direct Civil Construction",obs:"Dep. Director, Civil Delivery",  ca:"CP-101",abs:"ABS-TRK-GDWY-101"},
+ {id:"CTE-WBS-102",scope:"Guideway &mdash; south alignment",         cbs:"Direct Civil Construction",obs:"Dep. Director, Civil Delivery",  ca:"CP-102",abs:"ABS-TRK-GDWY-102"},
+ {id:"CTE-WBS-201",scope:"Tunnel &amp; portals",                     cbs:"Direct Civil Construction",obs:"Tunnel Construction Manager",     ca:"CP-201",abs:"ABS-TUN-PLN-201"},
+ {id:"CTE-WBS-301",scope:"Stations (4) &mdash; shells &amp; finishes",cbs:"Station Facilities",       obs:"Stations Construction Manager",   ca:"CP-301",abs:"ABS-STN-ENV-301"},
+ {id:"CTE-WBS-401",scope:"Systems &amp; overhead catenary",          cbs:"Systems Contracting",       obs:"Lead Systems Engineer",           ca:"CP-401",abs:"ABS-OCS-CATENARY-401"},
+ {id:"CTE-WBS-501",scope:"Parking structures",                       cbs:"Support Facilities",        obs:"Facilities Program Manager",      ca:"CP-501",abs:"ABS-PKG-STRUCT-501"},
+ {id:"CTE-WBS-601",scope:"Third-party utilities relocation",         cbs:"Right-of-Way / Utilities",  obs:"Utilities Lead",                  ca:"CP-601",abs:"ABS-UTIL-RELOC-601"},
+ {id:"CTE-WBS-701",scope:"Systems integration &amp; testing",        cbs:"Systems Contracting",       obs:"Lead Systems Engineer",           ca:"CP-701",abs:"ABS-SIG-SYS-701"}
 ];
 
 /* Board phase-gate governance — one Board authorization per phase; Gate 5 is the hinge where the
@@ -3953,8 +3984,15 @@ function renderSchedule(){
       '<span class="tab-num mono" style="font-size:12px;color:'+c+';white-space:nowrap">'+days(k.d)+'</span></div>'+
       '<div class="mono" style="font-size:11px;color:rgb(var(--c-mut));margin-top:2px">'+k.base+' &rarr; '+k.fc+'</div></div>';
   }).join("")+'</div>';
+  // Earned Schedule / SPI(t) joins the triad as its 4th tile (megaproject-controls-doc upgrade,
+  // 2026-08-21) — it was already computed and rendered inside the SPI KPI's own click-through
+  // drawer (spiTCompanionDbox()), but never as a headline reading the way CPLI/BEI are, even
+  // though the doc's own "objective metric triad" names all three (ES/SPI(t), CPLI, BEI) as one
+  // coherent unit. Same deriveEarnedSchedule() call, no new math — a placement fix, not a new metric.
+  var es=deriveEarnedSchedule();
   document.getElementById("schedTriad").innerHTML=
    [["SPI",idx(T.spi),T.spi<0.95?"ba":"wa","dollars of work"],
+    ["SPI(t)",idx(es.spit),es.spit<0.95?"ba":"wa","time, not dollars"],
     ["CPLI",idx(T.cpli),T.cpli<0.95?"ba":"wa","driving path"],
     ["BEI",idx(T.bei),T.bei<0.95?"ba":"wa","activities done"]
    ].map(function(r){ return '<div><div class="k">'+r[0]+'</div><div class="v '+r[2]+'">'+r[1]+
@@ -4348,7 +4386,34 @@ function renderDelivery(){
     idx(T.fundIdx)+'</b> — the program has spent '+pct(sp)+' of budget but drawn only '+pct(fd)+
     ' of authorized funding. Actual cost to date exceeds grant drawdowns by '+m(T.ac-PROGRAM.fundDrawn)+
     ' — cash the program is fronting. That is a finance conversation, and it is invisible on every other panel in this tool.</p>';
+  renderNcr();
   renderCph();
+}
+
+/* Quality NCR register (megaproject-controls-doc upgrade, 2026-08-21) — genuinely computed off
+   the same ACTIONS/RAID register every other tab's stale-flag and escalation logic already reads,
+   not a fabricated PROGRAM.ncr* count. Deliberately no "velocity" (open-vs-closed rate) claim —
+   only 2 real NCR rows exist on this ledger today, nowhere near enough to compute a real rate
+   trend; a fabricated one would be exactly the "narrated to look computed" pattern this project's
+   own discipline exists to avoid. Open count + real per-item aging is what the data actually supports. */
+function renderNcr(){
+  var ncrs=ACTIONS.filter(function(a){ return a.src&&a.src.indexOf("Quality NCR")===0; })
+    .map(function(a){ return Object.assign({},a,{status:actionStatus(a),ageD:actDays(a.opened)}); });
+  var open=ncrs.filter(function(n){ return n.status!=="verified"&&n.status!=="closed"; });
+  var meanAge=open.length? Math.round(open.reduce(function(a,n){return a+n.ageD;},0)/open.length) : 0;
+  document.getElementById("ncrCard").innerHTML=
+   '<div style="display:flex;gap:22px;flex-wrap:wrap;margin-bottom:12px">'+
+   '<div><div class="k" style="font:600 9.5px/1.3 ui-monospace,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgb(var(--c-mut))">NCRs open</div><div class="v" style="margin-top:5px;font:600 .98rem/1.2 inherit">'+open.length+' of '+ncrs.length+'</div></div>'+
+   '<div><div class="k" style="font:600 9.5px/1.3 ui-monospace,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgb(var(--c-mut))">Mean age (open)</div><div class="v" style="margin-top:5px;font:600 .98rem/1.2 inherit'+(meanAge>=14?';color:var(--c-pill-a)':'')+'">'+(open.length?meanAge+"d":"&mdash;")+'</div></div>'+
+   '</div>'+
+   ncrs.map(function(n){ var sm=STATUS_META[n.status];
+     return '<div class="rowbar" style="grid-template-columns:110px 1fr 90px 64px"><span class="mono" style="font-size:11px">'+n.id+'</span>'+
+       '<span style="font-size:12.5px;white-space:normal">'+n.title+'</span>'+
+       '<span class="tab-num mono" style="font-size:11px;color:rgb(var(--c-mut))">'+n.ageD+'d open</span>'+
+       '<span style="text-align:right"><span class="pill '+sm.cls+'">'+sm.label+'</span></span></div>'; }).join("")+
+   '<p style="margin:12px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">Only '+ncrs.length+' NCR'+(ncrs.length===1?"":"s")+
+   ' exist on this synthetic ledger today &mdash; too few to compute a genuine generation-vs-closure rate, so this '+
+   'card reports real open counts and real per-item aging only, not a fabricated velocity trend.</p>';
 }
 
 function renderCph(){
@@ -4573,10 +4638,11 @@ var CADENCE=[
 function renderWbs(){
   document.getElementById("wbsTable").innerHTML=
     '<thead><tr><th scope="col">WBS ID</th><th scope="col">Scope</th><th scope="col">CBS category</th>'+
-    '<th scope="col">OBS lead</th><th scope="col">Control account</th><th scope="col">BAC</th></tr></thead><tbody>'+
+    '<th scope="col">OBS lead</th><th scope="col">ABS tag</th><th scope="col">Control account</th><th scope="col">BAC</th></tr></thead><tbody>'+
     WBS.map(function(w){ var p=PKGS.filter(function(x){ return x.id===w.ca; })[0];
       return '<tr style="cursor:default"><td class="mono" style="font-size:11px">'+w.id+'</td>'+
         '<td style="white-space:normal">'+w.scope+'</td><td>'+w.cbs+'</td><td>'+w.obs+'</td>'+
+        '<td class="mono" style="font-size:11px">'+w.abs+'</td>'+
         '<td class="mono" style="font-size:11.5px">'+w.ca+'</td>'+
         '<td class="tab-num">'+(p?m(p.bac):"&mdash;")+'</td></tr>'; }).join("")+'</tbody>';
   var mapped=WBS.filter(function(w){ return PKGS.some(function(p){ return p.id===w.ca; }); }).length;
@@ -5629,10 +5695,12 @@ var GLOSS=[
   e:function(){ return "Risk Exposure reads "+m(T.riskExposure)+" against "+m(T.contRemaining)+" of remaining contingency — a coverage ratio of "+idx(T.contCoverage)+"."; }},
  {k:"change", t:"Change family", p:"The KPIs that track whether the program's scope is drifting from what was actually baselined — Change Order Rate and Pending Change Exposure.",
   e:function(){ return "Change orders currently run "+pct(T.coRate,2)+" of original contract value, with "+m(PROGRAM.coPendingValue)+" still pending."; }},
- {k:"delivery", t:"Delivery family", p:"The one leading-indicator family on the board — signals that move weeks before Cost or Schedule catch up to the same underlying story: Productivity Factor and RFI Aging.",
+ {k:"delivery", t:"Delivery family", p:"The one leading-indicator family on the board — signals that move weeks before Cost or Schedule catch up to the same underlying story: Productivity Factor, RFI Aging, and quality NCR aging.",
   e:function(){ return "Productivity Factor reads "+idx(T.pf)+" right now — a leading read on labor efficiency, distinct from CPI's own lagging one."; }},
  {k:"compliance", t:"Compliance family", p:"The one KPI that can override every other metric on this board — Total Recordable Incident Rate. Safety isn't optional the way a schedule slip or a cost variance sometimes is.",
   e:function(){ return "TRIR currently reads "+PROGRAM.trir.toFixed(2)+" against a "+PROGRAM.trirBenchmark.toFixed(2)+" benchmark."; }},
+ {k:"earnedschedule", t:"Earned Schedule & SPI(t)", p:"Dollar-based SPI (Earned Value &divide; Planned Value) has a structural flaw: it mathematically drifts back toward 1.00 as a program nears completion, even one finishing badly late, because Planned Value eventually catches up to Budget at Completion regardless of when the work actually landed. Earned Schedule fixes this by asking a different question — not how much was earned, but by finding the point on the planned-value curve where today's real Earned Value would have landed on time, then reading that back as a time value. SPI(t) is that same ratio shape (earned &divide; planned) but computed in time instead of dollars, so it never converges to 1.00 just because the budget got spent.",
+  e:function(){ var es=deriveEarnedSchedule(); return "This program's own Earned Schedule reads "+es.es.toFixed(1)+" months against "+es.at+" months actually elapsed — SPI(t) "+idx(es.spit)+", a genuine time-based reading, not the dollar-based SPI shown next to it."; }},
  {k:"cpli", t:"Critical path & CPLI", p:"The critical path is the chain of work that sets the finish date — delay any link and the whole program moves. CPLI (Critical Path Length Index) asks whether the remaining plan on that chain still fits: (days left + float) divided by days left. Under 1.00, the plan is arithmetically impossible without recovery.",
   e:function(){ return "The driving path runs through "+G_UT.id+": "+G_UT.cpRem+" days of critical work remain with "+days(G_UT.float)+" of float — CPLI "+idx(G_UT.cpli)+", meaning the plan must run faster than scheduled from tomorrow onward."; }},
  {k:"bei", t:"BEI — Baseline Execution Index", p:"A simple honesty counter: of the activities the plan said would be finished by now, how many actually are? Counts, not dollars — so big expensive tasks cannot hide small missed ones.",
@@ -5643,6 +5711,10 @@ var GLOSS=[
   e:function(){ return PROGRAM.rfiOpen+" open, "+PROGRAM.rfiOver30+" older than 30 days, averaging "+PROGRAM.rfiAvgAge+" days against a "+PROGRAM.rfiTarget+"-day target. The oldest ones are where the next change orders are born."; }},
  {k:"submittal", t:"Submittal", p:"A document the contractor must send for approval before work — shop drawings, materials, mix designs. Slow submittal turnaround quietly delays procurement months before it shows up in the schedule.",
   e:function(){ return PROGRAM.subOpen+" in the queue, turning around in "+PROGRAM.subTurnaround+" days against a "+PROGRAM.subTarget+"-day target."; }},
+ {k:"ncr", t:"NCR — Non-Conformance Report", p:"A documented instance where installed or in-progress work fails to meet the contract's own specification — a quality defect, not a schedule or cost variance. Relying on contractor-asserted quality status instead of independently tracked NCR aging is a documented way for a physical defect to keep propagating after it's already been logged on paper. A rising ratio of unresolved NCRs is a leading indicator of downstream rework, not just a compliance footnote.",
+  e:function(){ var n=ACTIONS.filter(function(a){return a.src&&a.src.indexOf("Quality NCR")===0;});
+    var open=n.filter(function(a){return actionStatus(a)!=="verified"&&actionStatus(a)!=="closed";});
+    return open.length+" of "+n.length+" quality NCRs open on this ledger right now — too few to compute a real generation-vs-closure rate, so this dashboard reports real per-item aging instead of a fabricated velocity trend."; }},
  {k:"riskexposure", t:"Risk exposure", p:"The risk register priced: each risk's cost multiplied by its probability, added up. It turns a list of worries into a dollar figure you can compare directly against contingency.",
   e:function(){ var r01=RISKS.filter(function(x){return x.id==="R-01";})[0], r01exp=P_BAND[r01.p]*r01.cost;
     return m(T.riskExposure)+" across "+RISKS.length+" risks, and "+pct(r01exp/T.riskExposure,0)+" of it is one risk — tunnel ground conditions ("+m(r01exp)+"). Concentration, not count, is what leadership needs to see."; }},
@@ -5700,9 +5772,9 @@ var GLOSS=[
   e:function(){ var a1=ACTIONS.filter(function(a){return a.id==="A-01";})[0];
     return "A-01's own record: root cause — "+a1.root.slice(0,74)+"…; corrective — "+a1.corrective.slice(0,60)+
       "…; preventive — "+a1.preventive.slice(0,60)+"… Three distinct fields, not one merged 'notes' box."; }},
- {k:"cbsobs", t:"CBS/OBS — Cost & Organizational Breakdown Structure", p:"Two more views of the same scope the WBS already describes: the CBS (Cost Breakdown Structure) is the cost-category lens — labor, material, equipment, subcontract; the OBS (Organizational Breakdown Structure) is who's accountable, by named role. A control account is the intersection of one WBS element and one OBS owner.",
+ {k:"cbsobs", t:"CBS/OBS — Cost & Organizational Breakdown Structure", p:"Two more views of the same scope the WBS already describes: the CBS (Cost Breakdown Structure) is the cost-category lens — labor, material, equipment, subcontract; the OBS (Organizational Breakdown Structure) is who's accountable, by named role. A control account is the intersection of one WBS element and one OBS owner — and, per the ABS glossary entry, the same control account also carries the maintainable asset it hands over as.",
   e:function(){ var w=WBS.filter(function(x){return x.ca==="CP-201";})[0];
-    return "The tunnel's own WBS row: CBS category \""+w.cbs+"\", OBS owner \""+w.obs+"\" — the same control account (CP-201) read through two different structural lenses at once."; }},
+    return "The tunnel's own WBS row: CBS category \""+w.cbs+"\", OBS owner \""+w.obs+"\", ABS tag \""+w.abs+"\" — the same control account (CP-201) read through three different structural lenses at once."; }},
  {k:"excusablecompensable", t:"Excusable-compensable vs. non-excusable delay", p:"Two independent axes classify every delay event: excusable (was it the contractor's fault?) and compensable (does the contractor get paid for it, not just extra time?). Owner-caused or genuinely unforeseeable delays are excusable; only owner-caused ones are also compensable. Contractor-caused delay is neither.",
   e:function(){ var d01=DELAYS.filter(function(d){return d.id==="D-01";})[0], d03=DELAYS.filter(function(d){return d.id==="D-03";})[0];
     return "D-01 ("+d01.n.toLowerCase()+") is \""+d01.cls+"\" — the contractor gets both time and money. D-03 ("+d03.n.toLowerCase()+

@@ -30,7 +30,7 @@ anywhere in this repository. The method is the content, not the numbers.
 
 | | |
 |---|---|
-| Primary file | `index.html` — 6,672 lines, one file, no build step |
+| Primary file | `index.html` — 6,744 lines, one file, no build step |
 | Top-level JS functions | 176 (not re-audited this round — see §18 gap note) |
 | Tabs | 11 |
 | KPIs (with formula/threshold/phase/source/play each) | 20 |
@@ -38,16 +38,16 @@ anywhere in this repository. The method is the content, not the numbers.
 | JS integrity-gate checks (`GUARDS`) | 28, re-run on every page load |
 | Ingestion-validation checks (`INGEST_GUARDS`) | 2 |
 | SQL/DuckDB parity checks (`pipeline/run_pipeline.py`) | 54, independently verified this session — see §12 |
-| Glossary terms (each with a live-computed worked example) | 51 |
+| Glossary terms (each with a live-computed worked example) | 53 |
 | Actions/RAID register items | 17 (6 Issue, 10 Task, 1 Decision) |
 | Control accounts / packages | 8 |
 | Contracts | 6 |
 | Risks | 6 |
 | Delay events | 4 |
-| `stress.cjs` test assertions | 1,352, all passing |
+| `stress.cjs` test assertions | 1,380, all passing |
 | Companion pages | `otak.html` (fit brief), `architecture.html` (static pipeline map) |
 | Hosting | GitHub Pages, served directly from `main`, zero build |
-| Git history | 98 commits |
+| Git history | 99 commits |
 
 Current EVM tie-out (verify live in the browser console via `__PCC__.totals`, or `node verify.cjs`):
 
@@ -204,11 +204,11 @@ Beyond the core EVM block, three more derivation families exist:
 | 1 | **Overview** (`over`) | A "Six lenses, not one blended score" card explaining what each of the 6 KPI families (Cost/Schedule/Risk/Change/Delivery/Compliance) actually asks and why it can't be folded into the others, directly above the 20-KPI board with drill-down detail (formula/threshold/source/play per card, plus a "computed from the ledger" / "not from the ledger" provenance box, honestly stated per KPI), a live root-cause-to-owner trace, the eleven-input ledger card (all 11 raw fields, a per-package inspector, and a live "change one input, watch the KPIs move" demo — reads a local snapshot, never mutates the real ledger), a 10-stop guided Tour with tab-jumping evidence links (§18 gap #8 — this doc previously called it "five-chapter," a stale phrase with no matching code), an executive summary. |
 | 2 | **Portfolio** (`port`) | Agency-level rollup across 4 lines of business — one reads live off this program's own totals (never duplicated, `GUARDS`-checked), three are summary-only illustrative peers. |
 | 3 | **Cost** (`cost`) | EVM S-curve + variance bridge, an estimate-to-budget baseline bridge reconciled to the ledger, four-method EAC, a forecast-reliability section (EAC trend, forecast-accuracy scorecard, monthly cash flow), what-if forecasting with 3 live sliders + scenario comparison, Monte Carlo completion distribution (10,000 runs, seeded/reproducible, a Triangular/PERT draw-shape toggle), the cost-diffusion (GBM) card. |
-| 4 | **Schedule** (`sched`) | DCMA-style schedule health (CPLI/BEI/float erosion), a Gantt-style bar with baseline vs. forecast, a fragnet-based delay & TIA register tied to package float, revenue-service forecast drift, statistical control charts (z-score + EWMA) over crew cost-per-hour. |
+| 4 | **Schedule** (`sched`) | DCMA-style schedule health — SPI, SPI(t)/Earned Schedule, CPLI, BEI, the full objective metric triad the DCMA 14-Point Assessment and ANSI/EIA-748 sit under, named explicitly (checks 13/14, with the other 12 stated as a real gap) — a Gantt-style bar with baseline vs. forecast, a fragnet-based delay & TIA register tied to package float, revenue-service forecast drift, statistical control charts (z-score + EWMA) over crew cost-per-hour. |
 | 5 | **Risk & Change** (`risk`) | A priced risk register (probability × impact heat map + sensitivity tornado chart), a contract commercial register (a third axis distinct from control accounts), change pipeline with proposed-vs-settled pricing defense, the settle-vs-DRB EMV decision tree with an **interactive slider + chart** (§8). |
-| 6 | **Delivery** (`del`) | Leading indicators (productivity factor by package), the crew cost-per-hour module with a drill-down into idle/rework/baseline attribution. |
+| 6 | **Delivery** (`del`) | Leading indicators (productivity factor by package, RFI/submittal aging, a quality NCR register with real open counts and per-item aging read live off the Actions/RAID register), the crew cost-per-hour module with a drill-down into idle/rework/baseline attribution. |
 | 7 | **AI & Data** (`ai`) | The pipeline architecture diagram (now interactive — §8), the SQL model, a live 28-check integrity gate + 2 ingestion-validation checks, statistical control (z-score/EWMA) with worked-math accordions, and AI narrative generation under a verification contract (§10). |
-| 8 | **Operating Framework** (`fw`) | Phase playbook, the WBS/CBS/OBS control-account mapping (with a worked "100% Rule" proof), Board phase-gate governance with a live Gate-5 hard stop, escalation matrix, a live Working-Backward/inversion worked example, reporting cadence, stakeholder interface map, the 20-metric KPI reference library. |
+| 8 | **Operating Framework** (`fw`) | Phase playbook, the WBS/CBS/OBS/ABS control-account mapping (with a worked "100% Rule" proof, now carrying an illustrative ABS tag per row alongside WBS/CBS/OBS), Board phase-gate governance with a live Gate-5 hard stop, escalation matrix, a live Working-Backward/inversion worked example, reporting cadence, stakeholder interface map, the 20-metric KPI reference library. |
 | 9 | **Actions** (`act`) | A RAID/CAPA register with proactive staleness detection, owner accountability rollup, a worked-math accordion for `actionStatus()`'s threshold logic. |
 | 10 | **Glossary** (`gloss`) | 50 terms, each with a live-computed worked example, filterable by search — the same content the inline "i" help icons pull from site-wide. |
 | 11 | **Data Strategy** (`data`) | A real-world plan for connecting scattered, multi-system data — ISO 19650 CDE staging architecture as an interactive flow diagram (§8), a 4-tile IDS guardrail status grid with a genuinely live 2-check ingestion-validation panel embedded in it, automated guardrails, a discrepancy-resolution decision flow folded into that same diagram, a Category/Trigger/Routing proactive-error-recovery table, a Dual-Stack Parity card citing this program's own real, live CPI against the actual SQL that independently re-derives it. |
@@ -286,6 +286,30 @@ Everything below is a real DOM interaction, independently covered by `stress.cjs
   (`renderMcMath()`) branches its own copy on the active distribution so it never describes
   triangular while PERT is actually selected, or vice versa — including the real, computed α/β
   shape parameters and PERT's own textbook mean, not narrated numbers.
+- **Megaproject-controls-doc upgrade** (Schedule/Operating Framework/Delivery tabs, 2026-08-21) —
+  extracted from a downloaded infrastructure-controls research doc, grounded against the live code
+  before building anything (most of the doc's framework — RCF, CPLI/BEI, multi-method EAC, phase
+  gates, ISO 19650 CDE, IDS guardrails, TIA fragnets, DRB — was already built): the Schedule tab's
+  DCMA citation box now names the DCMA 14-Point Assessment and ANSI/EIA-748 explicitly (CPLI/BEI
+  are checks 13/14 by definition), stating the other 12 checks as a real, honest gap (they need an
+  activity-level CPM network this ledger doesn't carry) rather than implying full coverage. Earned
+  Schedule/SPI(t) — already computed by `deriveEarnedSchedule()` but previously buried inside the
+  SPI KPI's own click-through drawer — now joins CPLI/BEI as a 4th headline `schedTriad` tile,
+  completing the "objective metric triad" the doc names as one coherent unit. The WBS/CBS/OBS
+  "100% Rule" table gained a real ABS tag per row, closing the gap between the table and the
+  WBS-vs-ABS mismatch already narrated at length elsewhere. A new Quality NCR register (Delivery
+  tab, `renderNcr()`) reads real open counts and per-item aging live off the same `ACTIONS`/RAID
+  register every other tab's stale-flag logic already reads — deliberately **not** a fabricated
+  generation-vs-closure rate, since only 2 real NCR rows exist on this ledger, nowhere near enough
+  for a genuine trend; the card says so explicitly rather than implying more precision than the
+  data supports. Adding a 3rd Delivery leading indicator required updating 2 separate framing
+  sites (`KPI_FAMILIES`'s Delivery entry, the `delivery` GLOSS entry) that both hard-named exactly
+  2 — `stress.cjs` now carries a drift guard asserting both name all 3, so this can't silently go
+  stale the way the "N instruments" and "twenty-seven checks" bugs did earlier this session. The
+  doc's own specific case-study figures (East Link, Big Dig, Crossrail, Sydney Metro) were
+  deliberately **not** cited anywhere — they trace to secondary sources the doc itself never
+  appears to have independently verified, the same caution this project already applies to any
+  AI-synthesized research (see the plan file's own grounding note).
 - **12 `<details class="dbox">` "how this is actually computed" accordions** — each walks a
   worked example against real data (S-curve PV formula, waterfall bridge, Gantt forecast-finish,
   CPLI driving-path arithmetic, risk exposure, Monte Carlo per-run formula, crew cost-per-hour
@@ -336,7 +360,7 @@ matches an independent recomputation, not just that *a* number is present.
 
 ## 11. Testing & verification
 
-**`stress.cjs`** (1,352 assertions, all passing) — stubs the DOM, loads `index.html`'s script
+**`stress.cjs`** (1,380 assertions, all passing) — stubs the DOM, loads `index.html`'s script
 verbatim into that stub, and exercises it exactly like a user would: every tab switch, every
 filter, every drawer, every slider drag, every keyboard interaction. 35 labeled sections:
 
@@ -513,9 +537,9 @@ Named explicitly, not silently dropped — from the most recent engagement/inter
    2026-08-21; **§18 gap #9 below adds the automated sync test this gap has been naming since
    2026-08-20** — that structural risk is now closed, not just the 3rd stale instance.
 4. ~~**`README.md`'s own stated counts lag behind this document**~~ — **Resolved 2026-08-20** (and
-   re-synced three more times on 2026-08-21 — the six-families card, the Data Strategy UI/UX round,
-   and the Monte Carlo PERT draw-shape toggle): 1,352 assertions / 51 glossary terms / 28-check
-   integrity gate, matching §2 as of this writing.
+   re-synced four more times on 2026-08-21 — the six-families card, the Data Strategy UI/UX round,
+   the Monte Carlo PERT draw-shape toggle, and the megaproject-controls-doc upgrade round): 1,380
+   assertions / 53 glossary terms / 28-check integrity gate, matching §2 as of this writing.
 5. **The eleven-input ledger card is new this round** (2026-08-20) and only covers the Overview
    tab's own `PKGS` provenance — it does not touch or resolve gap #2 above (the risk register still
    has no independent drill-down drawer of its own).
@@ -661,11 +685,24 @@ carried over from memory or an earlier pass:
   `node stress.cjs` run fresh (`1352 passed, 0 failed`, including the fixed guard); live-browser
   confirmed the PERT toggle recompute at N=10,000 still completes in ~22ms, well within an
   instant-feeling interaction.
+- **2026-08-21 megaproject-controls-doc upgrade round**: every candidate idea from the downloaded
+  research doc was checked against the live code before being accepted or declined — confirmed via
+  direct grep/read, not assumed, that `deriveEarnedSchedule()` was already computed but only
+  rendered inside a click-through drawer, that DCMA "14-Point"/"ANSI"/"EIA-748" had zero hits
+  anywhere in `index.html` (a still-open item from an earlier round, not rediscovered), that NCR
+  tracking was exactly 2 narrative-only `ACTIONS` rows with no mechanism, and that the WBS table
+  had no ABS field despite 2 GLOSS entries already narrating the WBS-vs-ABS mismatch. `node
+  stress.cjs` run fresh after each of the 4 items (`1380 passed, 0 failed` final), `node verify.cjs`
+  re-confirmed the tie-out unchanged throughout (zero `PKGS` values touched), and every new render
+  target was checked live in a real browser — the SPI(t) tile's real value (0.978, distinct from
+  dollar-SPI's 0.968), the WBS table's real ABS tags, and the NCR card's real open-count/aging
+  values and status pills, all with zero console errors and zero layout overflow.
 
 Generated 2026-08-20, against the tip of the eleven-input-ledger-card engagement round; extended
 2026-08-21 for the six-KPI-families card round, again 2026-08-21 for the Data Strategy tab UI/UX
 round, again 2026-08-21 for the "96→100" brainstorm round's Tier 0/1 items, again 2026-08-21 for
 the full-dashboard `/stress-test` visual pass, again 2026-08-21 for the Monte Carlo PERT
-draw-shape round, and again 2026-08-21 for the Monte Carlo run-count round (see git log for exact
-commits — each document update was written before its own
-round's commit lands, per the project's "verify, then document" ordering).
+draw-shape round, again 2026-08-21 for the Monte Carlo run-count round, and again 2026-08-21 for
+the megaproject-controls-doc upgrade round (see git log for exact commits — each document update
+was written before its own round's commit lands, per the project's "verify, then document"
+ordering).
