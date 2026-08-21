@@ -2298,6 +2298,74 @@ console.log("== D5.3. forecast model (actual vs plan) ==");
   ok(!!progInflationRow && progInflationRow[1] === "Controls manager" && progInflationRow[3] === "72 hours",
     "the new composite row reuses the existing 'Controls manager' role, not a new near-duplicate one", JSON.stringify(progInflationRow));
   ok(P.kpis.length === 20, "regression guard: KPIS.length is still exactly 20 — SPI(t) was deliberately not made a 21st KPI card");
+  const r0 = rows[0];
+  const cpliCheck = r0.cpRem > 0 ? (r0.cpRem + r0.float) / r0.cpRem : 1;
+  ok(Math.abs(cpliCheck - r0.cpli) < 1e-9, "pre-registered ground truth: independent CPLI recompute matches rows[0].cpli before testing the tooltip against it", cpliCheck.toFixed(6) + " vs " + r0.cpli.toFixed(6));
+  G.tip._html = "";
+  fire(G.gantt, "click", { target: { classList: { contains: () => true }, dataset: { gantt: "0" } }, clientX: 60, clientY: 60 });
+  ok(G.tip._html.includes(r0.cpRem + "d remaining"), "gantt tooltip states the real cpRem, not just the derived date");
+  ok(G.tip._html.includes("CPLI = ("), "gantt tooltip works the CPLI formula live (numerator/denominator), not just names the final number");
+  ok(G.tip._html.includes(idx(cpliCheck)), "gantt tooltip's worked CPLI value matches independent recomputation");
+// floatCompanionDbox (brainstorm-mode round, 2026-08-21) — connects the worst-float account to
+// its real linked TIA delay fragnet(s) and its real crew-level idle-time split. Every expected
+// value independently recomputed from rows/P.delays/P.cphCells, never by calling the app's own
+// floatCompanionDbox() and trusting it.
+{
+  const worst = rows.reduce((w, r) => (r.float < w.float ? r : w), rows[0]);
+  ok(worst.id === "CP-201" && worst.float === -40, "pre-registered: today's worst-float account is CP-201 at -40d, matching the Gantt math panel's own worked example above", worst.id + " " + worst.float);
+  const fragnets = P.delays.filter(d => d.pkg === worst.id);
+  ok(fragnets.length === 1 && fragnets[0].id === "D-02", "pre-registered: exactly one real fragnet (D-02) is linked to the worst account today", JSON.stringify(fragnets.map(d => d.id)));
+  const cphCell = P.cphCells.filter(c => c.pkg === worst.id)[0];
+  ok(!!cphCell, "pre-registered: a real crew CPH cell is tracked for the worst-float account today");
+  const cph = P.deriveCph(cphCell);
+  const idlePct = cph.totalIdle / cph.totalOverrun;
+  ok(Math.abs(idlePct - 0.6866) < 0.001, "pre-registered: the worst account's real idle share is ~68.7% of its crew cost overrun", (idlePct * 100).toFixed(2) + "%");
+
+  fire(G.kboard, "click", { target: { closest: (sel) => (sel === "[data-kpi]" ? { dataset: { kpi: "float" } } : null) } });
+  ok(P.state.kpi === "float", "clicking the Total Float Erosion card sets state.kpi to float");
+  has("kdetail", worst.id, "float's drawer names the real worst-float account by id, not a hardcoded example");
+  has("kdetail", fragnets[0].id, "float's drawer names the real linked delay fragnet by id");
+  ok(G.kdetail._html.includes(pct(idlePct, 1)), "float's drawer states the real, independently-recomputed idle percentage");
+  ok(G.kdetail._html.includes('data-jump-tab="sched" data-jump-el="tiaReg"'), "float's drawer carries a real jump button to the delay register on the Schedule tab");
+  ok(G.kdetail._html.includes('data-jump-tab="del" data-jump-el="cphCard" data-jump-cphdrill'), "float's drawer carries a real jump button to the crew idle drill on the Delivery tab, with the auto-open flag");
+  // a different KPI's drawer must NOT carry this companion dbox — it's float-only, mirrors the
+  // same isolation check the spi/Earned Schedule companion dbox already gets above
+  fire(G.kboard, "click", { target: { closest: (sel) => (sel === "[data-kpi]" ? { dataset: { kpi: "float" } } : null) } });
+  fire(G.kboard, "click", { target: { closest: (sel) => (sel === "[data-kpi]" ? { dataset: { kpi: "cpli" } } : null) } });
+  ok(!G.kdetail._html.includes("Why " + worst.id + " is the account setting the date"), "the float companion dbox does NOT leak into a different KPI's drawer (cpli)");
+  fire(G.kboard, "click", { target: { closest: (sel) => (sel === "[data-kpi]" ? { dataset: { kpi: "cpli" } } : null) } });
+
+  // the jump-with-auto-open-drill handshake, end to end: jumping to the crew idle drill from the
+  // float drawer must actually flip state.cphDrill and re-render the drill content, not just scroll
+  P.state.cphDrill = false;
+  fire(R.win, "click", { target: { closest: (sel) => (sel === "[data-jump-tab]" ? { dataset: { jumpTab: "del", jumpEl: "cphCard", jumpCphdrill: "" } } : null) } });
+  ok(P.state.cphDrill === true, "the float drawer's crew-idle jump button flips state.cphDrill true on arrival, the same 'open on jump' idiom as the Actions-tab stale-filter jump");
+  has("cphDrill", "Idle wait time", "the crew idle/rework/baseline drill actually renders after the jump, not just a flipped flag with no visible effect");
+  // reset for later tests (D5.4's own crew-CPH lifecycle test assumes it starts collapsed) —
+  // same reset-via-real-toggle idiom as the Actions-tab stale-filter reset above, not a bare
+  // state mutation, so #cphDrill's actual rendered hidden attribute goes back too, not just the flag
+  fire(G.cphCard, "click", { target: { closest: sel => sel === "#cphIdleToggle" ? {} : null } });
+  ok(P.state.cphDrill === false, "reset: crew-idle drill collapsed again before later sections run");
+}
+
+// Missing float glossary icon (brainstorm-mode round, 2026-08-21) — the "Total float by package"
+// card heading on the Schedule tab now carries the same help-ic + data-help pattern already
+// proven on its neighbor, the CPLI card heading right beside it. Source-checked (static markup,
+// not rendered into any G[id]._html — the h3 lives in the page's initial HTML, outside every
+// JS-rendered container) plus a functional click-through, matching the existing help-ic pattern
+// this file already exercises elsewhere (helpPop open/close, term title, Explore-in-Glossary).
+{
+  ok(indexSrc.includes('(working days)</span><button type="button" class="help-ic" data-help="float"'),
+    "the 'Total float by package' heading carries a real help-ic wired to data-help=\"float\", not just some other icon elsewhere on the page");
+  const floatsIconEl = { dataset: { help: "float" }, getBoundingClientRect: () => ({ bottom: 400, left: 100 }), setAttribute(){}, focus(){} };
+  const floatsHeadingIcon = { closest: (sel) => (sel === "[data-help]" ? floatsIconEl : null) };
+  fire(R.win, "click", { target: floatsHeadingIcon });
+  ok(G.helpPop.hidden === false, "clicking the new float help icon opens the help popover");
+  has("helpPop", "Total float", "popover shows the real GLOSS float term title, not a placeholder");
+  has("helpPop", "How many days a piece of work can slip", "popover shows the real GLOSS float definition text");
+  fire(R.win, "click", { target: floatsHeadingIcon });
+  ok(G.helpPop.hidden === true, "clicking the same icon again closes the popover, same toggle as every other help-ic");
+}
   // deriveEarnedSchedule()'s two edge-case branches are unreachable with today's live ledger data
   // (real EV always lands in the "normal" interpolation branch) — a /stress-test reviewer flagged
   // this as a genuine coverage gap, since the branches were shipped but never exercised. Fixed by

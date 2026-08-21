@@ -44,7 +44,7 @@ anywhere in this repository. The method is the content, not the numbers.
 | Contracts | 6 |
 | Risks | 6 |
 | Delay events | 4 |
-| `stress.cjs` test assertions | 1,415, all passing |
+| `stress.cjs` test assertions | 1,438, all passing |
 | Companion pages | `otak.html` (fit brief), `architecture.html` (static pipeline map) |
 | Hosting | GitHub Pages, served directly from `main`, zero build |
 | Git history | 100 commits |
@@ -375,7 +375,7 @@ matches an independent recomputation, not just that *a* number is present.
 
 ## 11. Testing & verification
 
-**`stress.cjs`** (1,415 assertions, all passing) — stubs the DOM, loads `index.html`'s script
+**`stress.cjs`** (1,438 assertions, all passing) — stubs the DOM, loads `index.html`'s script
 verbatim into that stub, and exercises it exactly like a user would: every tab switch, every
 filter, every drawer, every slider drag, every keyboard interaction. 35 labeled sections:
 
@@ -552,10 +552,11 @@ Named explicitly, not silently dropped — from the most recent engagement/inter
    2026-08-21; **§18 gap #9 below adds the automated sync test this gap has been naming since
    2026-08-20** — that structural risk is now closed, not just the 3rd stale instance.
 4. ~~**`README.md`'s own stated counts lag behind this document**~~ — **Resolved 2026-08-20** (and
-   re-synced seven more times on 2026-08-21 — the six-families card, the Data Strategy UI/UX round,
+   re-synced eight more times on 2026-08-21 — the six-families card, the Data Strategy UI/UX round,
    the Monte Carlo PERT draw-shape toggle, the megaproject-controls-doc upgrade round, the Kimi
-   research-package round, the full-dashboard `/stress-test` pass, and the EAC-spread live check):
-   1,415 assertions / 53 glossary terms / 28-check integrity gate, matching §2 as of this writing.
+   research-package round, the full-dashboard `/stress-test` pass, the EAC-spread live check, and
+   the total-float early-warning round): 1,438 assertions / 53 glossary terms / 28-check integrity
+   gate, matching §2 as of this writing.
 5. **The eleven-input ledger card is new this round** (2026-08-20) and only covers the Overview
    tab's own `PKGS` provenance — it does not touch or resolve gap #2 above (the risk register still
    has no independent drill-down drawer of its own).
@@ -813,6 +814,39 @@ carried over from memory or an earlier pass:
   touches zero `PKGS` values), and live-browser confirmed the rendered text byte-for-byte —
   "$34.1M ... 2.7% of BAC ... within the ~5% band" — with the green pill, zero console errors,
   zero layout overflow.
+- **2026-08-21 total-float early-warning round**: TJ shared a 4-part, ~15-item brainstorm proposal
+  on total float. A fresh-context Explore agent surveyed all 10 checkable claims against the live
+  code before anything got proposed — the finding: 7 of 10 items already existed, several matching
+  the proposal's own exact numbers (CP-201's -40d, D-02's +40d fragnet, the 68.7% idle figure).
+  Shipped the 3 real gaps the survey found, all approved by TJ before building: (1) Gantt tooltip
+  depth — `cpRem` as a raw number plus a live-worked CPLI formula per hover, reusing the already-
+  guarded `d.r.cpli`, never a second copy of the divide-by-zero guard; (2) `floatCompanionDbox()` —
+  connects the worst-float account to its real linked TIA delay fragnet and real crew-level idle
+  split into one drawer, mirroring the existing `spiTCompanionDbox()` precedent exactly, every
+  value read live off `rows`/`DELAYS`/`CPH_CELLS` (never a hardcoded id or percentage), plus a new
+  `data-jump-cphdrill` pre-callback (mirrors `data-jump-actstale`) so the crew-idle jump button
+  opens the 3-way split on arrival, not just scrolls to a collapsed toggle; (3) the missing float
+  glossary icon on the "Total float by package" heading, matching its neighbor (CPLI) exactly.
+  Declined as fabrication risk: a per-account "contractual milestone impact date" in the Gantt
+  tooltip (no data field ties a control account to a specific milestone) and a named individual
+  Control Account Manager in the escalation handshake (the data model only has role titles).
+  Skipped as TJ's own judgment call, offered but not built by default: a float-only "At Risk"/
+  "On Track" micro-badge (likely redundant with the float cell's existing color-coding plus the
+  ledger's existing composite status pill) and full dynamic escalation-row generation (the
+  substance — live breach detection — already exists via `firingEscalations()`; a structural
+  rebuild for a mostly cosmetic difference wasn't judged worth it). One real bug caught and fixed
+  during the build, in the test file, not the app: a large brace-balance mistake while restructuring
+  an existing enclosing test block (removed an opening `{` but left its matching `}` orphaned,
+  and separately called a non-exposed `P.renderCph()`, and fired click events on `document.body`
+  instead of this file's own established `R.win` target) — all three caught by `node -c`/runtime
+  errors before any assertion was trusted, not silently worked around. `node stress.cjs` run fresh
+  (`1438 passed, 0 failed` — 1415 baseline + 23 new assertions, including pre-registered checks
+  that today's worst-float account really is CP-201 at -40d with exactly one real linked fragnet
+  and a ~68.7% real idle share), `node verify.cjs` unchanged (all three additions are pure
+  narrative/UI, zero `PKGS` values touched), and live-browser confirmed all three end to end — the
+  Gantt tooltip's real worked CPLI, the float drawer's real D-02/68.7% text and both working jump
+  buttons (including the crew-idle one auto-opening the drill), and the new glossary icon opening
+  the real popover — at desktop and mobile (375px) width, zero console errors, zero layout overflow.
 
 Generated 2026-08-20, against the tip of the eleven-input-ledger-card engagement round; extended
 2026-08-21 for the six-KPI-families card round, again 2026-08-21 for the Data Strategy tab UI/UX
@@ -821,6 +855,6 @@ the full-dashboard `/stress-test` visual pass, again 2026-08-21 for the Monte Ca
 draw-shape round, again 2026-08-21 for the Monte Carlo run-count round, again 2026-08-21 for the
 megaproject-controls-doc upgrade round, again 2026-08-21 for the Kimi research-package round, again
 2026-08-21 for the second full-dashboard `/stress-test` pass, again 2026-08-21 for the Monte Carlo
-mode-vs-bounds clarification, and again 2026-08-21 for the EAC-spread live check (see git log for
-exact commits — each document update was written before its own round's commit lands, per the
-project's "verify, then document" ordering).
+mode-vs-bounds clarification, again 2026-08-21 for the EAC-spread live check, and again 2026-08-21
+for the total-float early-warning round (see git log for exact commits — each document update was
+written before its own round's commit lands, per the project's "verify, then document" ordering).

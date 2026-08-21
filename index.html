@@ -1015,7 +1015,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         Negative float means the package is driving the program completion date &mdash; recovery anywhere
         else does not move it.</p>
       <div class="grid g2">
-        <div class="card"><h3>Total float by package <span style="font-weight:400;color:rgb(var(--c-mut))">(working days)</span></h3>
+        <div class="card"><h3>Total float by package <span style="font-weight:400;color:rgb(var(--c-mut))">(working days)</span><button type="button" class="help-ic" data-help="float" aria-label="What does this term mean?" aria-expanded="false">i</button></h3>
           <div id="floats"></div></div>
         <div class="card"><h3>Critical Path Length Index<button type="button" class="help-ic" data-help="cpli" aria-label="What does this term mean?" aria-expanded="false">i</button></h3>
           <p class="lede" style="font-size:12.5px;margin-top:5px">CPLI = (remaining duration + total float) &divide;
@@ -2670,6 +2670,7 @@ function renderDetail(){
       ledgerProvenanceDbox(k)+
     '</div>'+
     spiTCompanionDbox(k)+
+    floatCompanionDbox(k)+
     renderRootCause(k,rag)+
     '<p style="margin:14px 0 0;font-size:12.3px;color:rgb(var(--c-mut))">'+
       '<b style="color:rgb(var(--c-ink))">Meaningful in:</b> '+phNames+
@@ -2697,6 +2698,46 @@ function spiTCompanionDbox(k){
       'Inflation" pattern this reading exists to catch: volume is masking a stalled driving path.'
       :'Dollar SPI is itself below 1.00 today ('+idx(T.spi)+'), so it is not currently masking the critical-path '+
       'erosion CPLI already shows ('+idx(T.cpli)+') &mdash; this rule stands ready for the day that flips.')+
+    '</p></div>';
+}
+/* Companion dbox, float's drawer only (brainstorm-mode round, 2026-08-21) — connects three real,
+   already-computed facts (the worst-float account, its linked TIA delay fragnet(s), its crew-level
+   idle-time breakdown if one is tracked) into one drawer. Each fact already existed independently
+   and was already narrated in scattered prose elsewhere on the page (the Gantt math explainer, the
+   TIA register, the crew CPH card) — this closes the gap a live read of this file found: nothing
+   let a reader click from a negative-float badge straight to "why," even though every fact needed
+   to answer that already existed. Every value here is read live off rows/DELAYS/CPH_CELLS, never a
+   hardcoded id or percentage — if the worst account, or its linked delay/crew data, ever changes,
+   this drawer changes with it rather than silently narrating a stale example. */
+function floatCompanionDbox(k){
+  if(k.id!=="float") return "";
+  var worst=rows.reduce(function(w,r){ return r.float<w.float?r:w; },rows[0]);
+  if(worst.float>=0){
+    return '<div class="dbox" style="margin-top:13px"><h4>No account is driving the date late right now</h4>'+
+      '<p>Every control account currently carries positive float &mdash; the tightest is '+
+      '<b style="color:rgb(var(--c-ink))">'+worst.id+'</b> at '+days(worst.float)+'.</p></div>';
+  }
+  var fragnets=DELAYS.filter(function(d){ return d.pkg===worst.id; });
+  var cphCell=CPH_CELLS.filter(function(c){ return c.pkg===worst.id; })[0];
+  var cph=cphCell?deriveCph(cphCell):null;
+  return '<div class="dbox" style="margin-top:13px"><h4>Why '+worst.id+' is the account setting the date</h4>'+
+    '<p><b style="color:rgb(var(--c-ink))">'+worst.id+'</b> ('+worst.n.replace(/&amp;/g,"&")+') carries '+
+    days(worst.float)+' float, the worst on the program &mdash; CPLI '+idx(worst.cpli)+'.'+
+    (fragnets.length?
+      ' Linked TIA delay fragnet'+(fragnets.length>1?"s":"")+': '+
+      fragnets.map(function(d){ return '<b style="color:rgb(var(--c-ink))">'+d.id+'</b> ('+d.n+', '+days(d.d)+
+        ', '+d.cls+')'; }).join(", ")+'.'+
+      ' <button type="button" class="btn" style="min-height:auto;padding:1px 8px;font-size:12.5px;margin-left:2px" '+
+      'data-jump-tab="sched" data-jump-el="tiaReg">See the delay register &rarr;</button>'
+      : ' No delay fragnet is currently linked to this account in the TIA register.')+
+    (cph?
+      ' At the crew level, <b style="color:rgb(var(--c-ink))">'+pct(cph.totalIdle/cph.totalOverrun)+
+      '</b> of the '+usd(cph.totalOverrun)+' six-week cost overrun on '+cphCell.name+' is idle time waiting on '+
+      'staging, not installation rate &mdash; a week-earlier signal of the same condition, before it shows up in '+
+      worst.id+'&rsquo;s own CPI. <button type="button" class="btn" style="min-height:auto;padding:1px 8px;'+
+      'font-size:12.5px;margin-left:2px" data-jump-tab="del" data-jump-el="cphCard" data-jump-cphdrill>'+
+      'See the idle/rework/baseline split &rarr;</button>'
+      : ' No crew-level cost-per-hour cell is currently tracked for this account.')+
     '</p></div>';
 }
 /* The actual ask this section answers: not just "why is this number bad" (the dbox above already
@@ -4010,8 +4051,15 @@ function renderGantt(){
   function ganttTip(e){
     var t=e.target; if(!t.classList||!t.classList.contains("hot")){ tip.classList.remove("on"); return; }
     var d=ends[+t.dataset.gantt];
+    // Live-worked CPLI (brainstorm-mode round, 2026-08-21) — reuses d.r.cpli, already computed
+    // and guarded once by derive() (cpRem<=0 -> 1, never a 0/0 divide); this only re-derives the
+    // formula's own numbers for display, never a second copy of the guard logic itself.
+    var cpliLine = d.r.cpRem>0
+      ? "CPLI = (cpRem+float)&divide;cpRem = "+(d.r.cpRem+d.r.float)+"&divide;"+d.r.cpRem+" = "+idx(d.r.cpli)
+      : "CPLI = "+idx(d.r.cpli)+" (cpRem&le;0, no remaining path left to erode)";
     tip.innerHTML="<b>"+d.r.id+"</b>"+d.r.n.replace(/&amp;/g,"&")+"<br>Baseline-implied finish "+fmtDate(d.base)+
-      "<br>Forecast finish "+fmtDate(d.fcst)+"<br>"+pct(d.r.pct,0)+" complete &middot; "+days(d.r.float)+" float";
+      "<br>Forecast finish "+fmtDate(d.fcst)+"<br>"+pct(d.r.pct,0)+" complete &middot; "+days(d.r.float)+
+      " float &middot; "+d.r.cpRem+"d remaining<br>"+cpliLine;
     tip.classList.add("on");
     tip.style.left=Math.min(e.clientX+14,window.innerWidth-262)/curZoom()+"px";
     tip.style.top=Math.min(e.clientY+14,window.innerHeight-130)/curZoom()+"px";
@@ -6498,6 +6546,10 @@ window.addEventListener("click",function(e){
     var pre=null;
     if(j.dataset.jumpActstale) pre=function(){ state.actFilter="Stale"; renderActions(); };
     else if(j.dataset.jumpSelectds!==undefined) pre=function(){ selectDS(+j.dataset.jumpSelectds); };
+    // data-jump-cphdrill (brainstorm-mode round, 2026-08-21) — float's companion dbox jump
+    // button opens the crew idle/rework/baseline drill on arrival, same "open on jump" idiom
+    // as jumpActstale above, so the reader lands directly on the 3-way split, not a collapsed toggle.
+    else if(j.dataset.jumpCphdrill!==undefined) pre=function(){ state.cphDrill=true; renderCph(); };
     jumpToEl(j.dataset.jumpTab,j.dataset.jumpEl,pre);
     return;
   }
