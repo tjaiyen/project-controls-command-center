@@ -4056,8 +4056,11 @@ console.log("== D16. tab-rail hover-preview mini-drawer (brainstorm-mode nav rou
       note: "Phase playbook, WBS/CBS/OBS/ABS mapping, phase-gate governance with a live Gate 5 hard stop, and the full KPI reference library." },
     act: { q: "What's open, who owns it, and what's gone stale?",
       note: "A RAID/CAPA register with proactive staleness detection and an owner-accountability rollup." },
+    // note derived from the live P.gloss.length, not a hand-typed count (/stress-test finding,
+    // 2026-08-21) — a hardcoded "53 terms" here was passing only because index.html's own note
+    // was equally stale, providing zero real protection against that class of drift.
     gloss: { q: "What does this term mean, worked through this program's own numbers?",
-      note: "53 terms, each with a live example computed from this program's own ledger." },
+      note: P.gloss.length + " terms, each with a live example computed from this program's own ledger." },
     data: { q: "How does scattered, multi-system data actually become these numbers?",
       note: "Staging architecture, IDS guardrails, a discrepancy-resolution flow, and a live parity check between this dashboard's own JavaScript and the SQL that independently re-derives it." },
   };
@@ -4369,6 +4372,25 @@ console.log("== D21. Control Tower brainstorm round 1-4 (2026-08-21) ==");
   ok(G.tiaReg._html.indexOf('class="btn on" data-d04="fs"') >= 0, "toggling to FS logic flips which button is pressed");
   ok(G.tiaReg._html.indexOf("-7d") >= 0 && G.tiaReg._html.indexOf("At risk") >= 0,
     "FS logic shows the original -7d delay impact and an 'At risk' pill, not the recovered state");
+  // REGRESSION GUARD (/stress-test finding, 2026-08-21): an early draft hardcoded days(-7) in the
+  // pill span specifically — passed every test above since -7 happened to be the real value, but
+  // would have silently shown the WRONG number the moment DELAYS' own D-04 entry ever changed.
+  // Mutate the real source data and confirm BOTH places this number appears actually follow it,
+  // not a coincidental match. A first version of this guard checked the whole tiaReg blob with a
+  // single indexOf("-99d") — it passed even when the pill span itself was still hardcoded, because
+  // the SEPARATE prose sentence below it happened to read d.d correctly and satisfied the search
+  // on its own (found empirically: reintroducing just the pill-span bug left this guard green).
+  // Scoping each check to its own specific HTML location is what actually catches either bug.
+  const d04 = P.delays.filter(d => d.id === "D-04")[0], realD = d04.d;
+  d04.d = -99;
+  P.renderSchedule();
+  // anchored on "D-04</span>" first, then the NEXT tab-num span after it — D-01/D-02/D-03 share
+  // the identical class+style string, so an unanchored match would silently grab one of THEIR
+  // spans instead (D-04 happens to render last, but anchoring is what makes that not load-bearing)
+  const pillMatch = G.tiaReg._html.match(/D-04<\/span>[\s\S]*?tab-num mono" style="font-size:12\.5px">(-?\+?\d+d)<\/span>/);
+  ok(!!pillMatch && pillMatch[1] === "-99d", "pre-registered: the pill span specifically reads DELAYS' own d.d live, not a hand-typed -7", pillMatch && pillMatch[1]);
+  ok(G.tiaReg._html.indexOf("costs -99d outright") >= 0, "pre-registered: the prose sentence specifically reads d.d live too, not a hand-typed 7d");
+  d04.d = realD; // restore
   P.state.d04Logic = "ss"; P.renderSchedule(); // leave shared state at its default for later tests
 
   // Item 2 — CPLI status-band summary strip. Independently re-derived from the same real per-
@@ -4393,6 +4415,17 @@ console.log("== D21. Control Tower brainstorm round 1-4 (2026-08-21) ==");
   ok(P.mc.p50 === canonicalP50, "the canonical MC object itself is untouched after toggling — re-checked directly, not inferred from activeMc alone");
   ok(G.mcRiskFilter._html.indexOf('class="btn on" data-risk="R-01"') >= 0, "the R-01 button itself renders pressed");
   ok(G.mcRiskRead._html.indexOf("1 named risk") >= 0, "the read-out states exactly one risk is layered in");
+  // Multi-risk coverage (/stress-test finding, 2026-08-21: the original test only ever toggled a
+  // single risk, leaving the aggregation branch across 2+ risks untested). Add a second risk and
+  // confirm both the read-out's pluralization/sum and the distribution shift further, not just
+  // that a single-risk toggle works in isolation.
+  const oneRiskP50 = P.getActiveMc().p50;
+  P.state.riskIncluded.push("R-02"); // P4 (70%) x $6.2M
+  P.renderMcRiskFilter(); P.recomputeActiveMc();
+  ok(G.mcRiskRead._html.indexOf("2 named risks") >= 0, "the read-out correctly pluralizes at 2 risks");
+  const expected2 = 0.7 * 18.5 + 0.7 * 6.2;
+  ok(G.mcRiskRead._html.indexOf("$" + expected2.toFixed(1) + "M") >= 0, "pre-registered: the combined-exposure read-out sums both risks' own real P_BAND x cost, independently recomputed", "$" + expected2.toFixed(1) + "M");
+  ok(P.getActiveMc().p50 !== oneRiskP50, "pre-registered: adding a second risk further shifts P50 away from the single-risk run, not silently capped at one risk's effect", P.getActiveMc().p50.toFixed(1) + " vs one-risk " + oneRiskP50.toFixed(1));
   P.state.riskIncluded.length = 0; // uncheck
   P.renderMcRiskFilter(); P.recomputeActiveMc();
   ok(P.getActiveMc() === P.mc, "unchecking the risk restores activeMc to the exact canonical MC object, not a re-simulated approximation");

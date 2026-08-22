@@ -4808,13 +4808,16 @@ function renderSchedule(){
         '<span style="flex:1;min-width:200px;font-size:12.8px">'+d.n+
           ' <span style="color:rgb(var(--c-mut))">('+d.pkg+')</span></span>'+
         '<span class="pill '+(ss?"g":"r")+'">'+(ss?"Recovered":"At risk")+'</span>'+
-        '<span class="tab-num mono" style="font-size:12.5px">'+(ss?days(cp101.float):days(-7))+'</span></div>'+
+        '<span class="tab-num mono" style="font-size:12.5px">'+(ss?days(cp101.float):days(d.d))+'</span></div>'+
         '<div style="margin-top:5px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">'+
         '<button type="button" class="btn'+(!ss?" on":"")+'" data-d04="fs" aria-pressed="'+(!ss)+'" style="font-size:11px;padding:3px 9px">Original FS logic</button>'+
         '<button type="button" class="btn'+(ss?" on":"")+'" data-d04="ss" aria-pressed="'+ss+'" style="font-size:11px;padding:3px 9px">Resequenced SS logic</button>'+
         '<span style="font-size:11.5px;color:rgb(var(--c-mut))">&rarr; '+
           (ss? "Start-to-Start logic recovered "+days(cp101.float)+" of float on CP-101&rsquo;s own driving path."
-              : "Finish-to-Start logic as originally sequenced &mdash; the weather delay costs 7d outright, no recovery.")+
+              // reads directly off d.d, never a hand-typed "-7d" — a second independent copy of
+              // the same number is exactly the drift class this codebase's own comments elsewhere
+              // repeatedly flag and fix (/stress-test finding, 2026-08-21)
+              : "Finish-to-Start logic as originally sequenced &mdash; the weather delay costs "+days(d.d)+" outright, no recovery.")+
         '</span></div></div>';
     }
     return '<div style="padding:9px 0;border-bottom:1px solid var(--c-line)">'+
@@ -7062,7 +7065,9 @@ var TAB_DRAWER={
   act:{label:"Actions", q:"What's open, who owns it, and what's gone stale?",
        note:"A RAID/CAPA register with proactive staleness detection and an owner-accountability rollup."},
   gloss:{label:"Glossary", q:"What does this term mean, worked through this program's own numbers?",
-         note:"53 terms, each with a live example computed from this program's own ledger."},
+         // note:GLOSS.length+"..." not a hand-typed count (/stress-test finding, 2026-08-21) —
+         // GLOSS is declared above this object, so a live reference here is safe and self-updating.
+         note:GLOSS.length+" terms, each with a live example computed from this program's own ledger."},
   data:{label:"Data Strategy", q:"How does scattered, multi-system data actually become these numbers?",
         note:"Staging architecture, IDS guardrails, a discrepancy-resolution flow, and a live parity check between this dashboard's own JavaScript and the SQL that independently re-derives it."}
 };

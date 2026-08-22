@@ -44,7 +44,7 @@ anywhere in this repository. The method is the content, not the numbers.
 | Contracts | 6 |
 | Risks | 6 |
 | Delay events | 4 |
-| `stress.cjs` test assertions | 1,714, all passing |
+| `stress.cjs` test assertions | 1,719, all passing |
 | Companion pages | `otak.html` (fit brief), `architecture.html` (static pipeline map) |
 | Hosting | GitHub Pages, served directly from `main`, zero build |
 | Git history | 100 commits |
@@ -145,7 +145,7 @@ browser's dev console to independently sanity-check a number.
 | `CONTRACTS` | 6 | Award value, approved/pending change, contingency allocation, per contract | Risk & Change tab's commercial register (a third axis, distinct from control accounts) |
 | `ACTIONS` | 17 | RAID register: Issue/Task/Decision, owner, opened/due/touch dates, root/corrective/preventive fields | Actions tab |
 | `CPH_CELLS` | 1 crew, 6 weeks | Crew cost-per-hour history for CP-201's tunnel crew | Delivery tab, AI & Data's z-score/EWMA control charts |
-| `GLOSS` | 53 | Term/definition/live-computed worked example, each independently traceable to real data | Glossary tab + every inline "i" help icon site-wide |
+| `GLOSS` | 54 | Term/definition/live-computed worked example, each independently traceable to real data | Glossary tab + every inline "i" help icon site-wide |
 | `LEDGER_INPUTS` | 11 | Name/abbr/description/live-computed worked example, one per raw `PKGS` field — human-facing metadata for the ledger card, not a second copy of the data itself | Overview tab's ledger card |
 | `KPI_LEDGER` / `KPI_LEDGER_MIXED` / `KPI_LEDGER_NONE` | 14 / 3 / 6 | Which raw ledger fields actually feed each KPI, stated honestly — pure-ledger, mixed with another register, or not ledger-derived at all | KPI drawer's "Computed from the ledger" / "Not from the ledger" box |
 | `PROGRAM` | 32 fields | Everything not per-package: contingency, funding, safety (TRIR), RFI aging, subcontractor turnaround, change-order pipeline | Cost, Schedule, Delivery, Risk & Change tabs |
@@ -375,7 +375,7 @@ matches an independent recomputation, not just that *a* number is present.
 
 ## 11. Testing & verification
 
-**`stress.cjs`** (1,714 assertions, all passing) — stubs the DOM, loads `index.html`'s script
+**`stress.cjs`** (1,719 assertions, all passing) — stubs the DOM, loads `index.html`'s script
 verbatim into that stub, and exercises it exactly like a user would: every tab switch, every
 filter, every drawer, every slider drag, every keyboard interaction. 41 labeled sections:
 
@@ -1215,11 +1215,31 @@ carried over from memory or an earlier pass:
   the separate `RISKS` register, which had never been wired into the simulation at all before this
   round; (4) Flyvbjerg's own published "trifecta" rate (0.5%, 80/15,920 projects) added to the
   existing reference-class card, independently recomputed (not just copied from the source
-  blueprint) before being cited. `node stress.cjs`: 1692&rarr;1714 assertions (22 new, one
-  regression-only count fix for the glossary's 53&rarr;54 growth), all passing. `node verify.cjs`:
-  headline tie-out unchanged to the decimal (BAC/PV/EV/AC/SPI/CPI/EAC/VAC/TCPI all identical to the
-  pre-round run) — confirming the new risk-driver layer never touches the canonical board number
-  unless a risk is explicitly checked on.
+  blueprint) before being cited. `node stress.cjs`: 1692&rarr;1719 assertions. A following
+  `/stress-test` pass on this same round (own review + an independent fresh-context reviewer,
+  running concurrently — both converged on the same HIGH finding independently) caught and fixed
+  five real issues before landing: (1) the D-04 badge itself was still `days(-7)`, hardcoded,
+  despite the prose sentence beside it correctly reading `days(d.d)` — a direct on-screen
+  contradiction, probed by mutating the live `DELAYS` entry and rendering; (2) the round's own new
+  regression guard for that bug checked the whole rendered blob for the mutated value instead of
+  the specific badge span, so it passed even with the badge still broken — the unrelated prose
+  sentence satisfied the blob-wide search on its own, a textbook "assertion that would pass even if
+  the feature were broken"; (3) the tab-rail hover-drawer's Glossary note, and (4) its
+  `stress.cjs`-side expected-value comparison, both still hardcoded "53 terms" — this round's own
+  53&rarr;54 glossary sweep should have caught both and didn't, and the comparison in (4) was
+  providing zero real protection since it was checked against the equally-stale value in (3), not
+  a live count; (5) a missing multi-risk toggle test, the aggregation-across-2+-risks branch having
+  shipped with zero coverage. All five re-verified by reintroducing each bug individually and
+  confirming the strengthened test now fails, then restoring and confirming green again. `node
+  verify.cjs`: headline tie-out unchanged to the decimal (BAC/PV/EV/AC/SPI/CPI/EAC/VAC/TCPI all
+  identical to the pre-round run, independently re-confirmed via a direct pre/post commit-boundary
+  MC.p50/sims comparison, not just the object-identity check `stress.cjs` already asserted) —
+  confirming the new risk-driver layer never touches the canonical board number unless a risk is
+  explicitly checked on. **Accepted limitation:** one transient `1715 passed, 1 failed` run was
+  observed mid-pass while this round's own edits and the independent reviewer's own `stress.cjs`
+  runs were happening concurrently against the same working tree; not reproduced in dozens of
+  subsequent runs, most plausibly a race against a mid-edit intermediate file state rather than a
+  real product bug — noted rather than hidden, not chased further given non-reproduction.
 
 Generated 2026-08-20, against the tip of the eleven-input-ledger-card engagement round; extended
 2026-08-21 for the six-KPI-families card round, again 2026-08-21 for the Data Strategy tab UI/UX
