@@ -3635,11 +3635,22 @@ function renderGbmLogReturns(){
   var series=acHistorySeries(), g=deriveGbmParams(series.map(function(p){ return p.ac; }));
   var pairs=g.logReturns.map(function(v,i){ return {v:v, from:series[i].m, to:series[i+1].m}; });
   var W=560,H=170,PL=44,PR=20,PT=14,PB=34;
-  var spread=Math.max(g.sigmaHatMle*3.2, Math.max.apply(null,pairs.map(function(p){return Math.abs(p.v-g.rbar);}))*1.35);
+  /* +1e-4 floor (/stress-test self-review, 2026-08-21): if every log-return were ever identical
+     (sigmaHatMle -> 0, every |p.v-rbar| -> 0), spread would collapse to exactly 0, making
+     lo===hi and X()'s (v-lo)/(hi-lo) a 0/0 NaN -- the identical bug class mcParams()'s own
+     min<mode<max floor above already exists to prevent. Harmless with today's real data
+     (sigmaHatMle=0.017, nowhere near zero) but a real landmine if this program's cost history
+     ever flattened to a constant growth rate. */
+  var spread=Math.max(g.sigmaHatMle*3.2, Math.max.apply(null,pairs.map(function(p){return Math.abs(p.v-g.rbar);}))*1.35, 1e-4);
   var lo=g.rbar-spread, hi=g.rbar+spread;
   function X(v){ return PL+((v-lo)/(hi-lo))*(W-PL-PR); }
   var baseY=H-PB;
-  function gaussPdf(x){ return (1/(g.sigmaHatMle*Math.sqrt(2*Math.PI)))*Math.exp(-Math.pow(x-g.rbar,2)/(2*g.sigmaHatMle*g.sigmaHatMle)); }
+  // sigmaForCurve floors ONLY the curve's own denominator, never g.sigmaHatMle itself (the real
+  // point estimate the numeric tiles above and the glossary both report) -- an exactly-zero
+  // sigma would make gaussPdf(rbar) itself Infinity/Infinity (NaN) at the curve's own peak, a
+  // second, distinct edge case from the spread-collapse one above (/stress-test self-review).
+  var sigmaForCurve=Math.max(g.sigmaHatMle,1e-6);
+  function gaussPdf(x){ return (1/(sigmaForCurve*Math.sqrt(2*Math.PI)))*Math.exp(-Math.pow(x-g.rbar,2)/(2*sigmaForCurve*sigmaForCurve)); }
   var peakPdf=gaussPdf(g.rbar), curveH=H-PT-PB-26; // -26 leaves headroom above the dots' own row
   var steps=60, curvePts=[];
   for(var i=0;i<=steps;i++){ var x=lo+(hi-lo)*(i/steps);

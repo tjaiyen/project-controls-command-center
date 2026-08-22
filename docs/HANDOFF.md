@@ -44,7 +44,7 @@ anywhere in this repository. The method is the content, not the numbers.
 | Contracts | 6 |
 | Risks | 6 |
 | Delay events | 4 |
-| `stress.cjs` test assertions | 1,740, all passing |
+| `stress.cjs` test assertions | 1,745, all passing |
 | Companion pages | `otak.html` (fit brief), `architecture.html` (static pipeline map) |
 | Hosting | GitHub Pages, served directly from `main`, zero build |
 | Git history | 100 commits |
@@ -375,7 +375,7 @@ matches an independent recomputation, not just that *a* number is present.
 
 ## 11. Testing & verification
 
-**`stress.cjs`** (1,740 assertions, all passing) — stubs the DOM, loads `index.html`'s script
+**`stress.cjs`** (1,745 assertions, all passing) — stubs the DOM, loads `index.html`'s script
 verbatim into that stub, and exercises it exactly like a user would: every tab switch, every
 filter, every drawer, every slider drag, every keyboard interaction. 41 labeled sections:
 
@@ -1289,6 +1289,31 @@ again 2026-08-21 for the Galton Engine round, again 2026-08-21 for the third ful
 `/stress-test` pass, again 2026-08-21 for the "how the dashboard catches drift" round, again
 2026-08-21 for the tab-rail navigation round, again 2026-08-21 for the altitude-grouped-rail
 round, again 2026-08-21 for the whole-repo `/stress-test` round, again 2026-08-21 for the
-Control Tower brainstorm round items 1-4, and again 2026-08-21 for the GBM/MLE brainstorm round
-items 1-4 (see git log for exact commits — each document update was written before its own round's
-commit lands, per the project's "verify, then document" ordering).
+Control Tower brainstorm round items 1-4, again 2026-08-21 for the GBM/MLE brainstorm round
+items 1-4, and again 2026-08-21 for the `/stress-test` pass on that same round (see git log for
+exact commits — each document update was written before its own round's commit lands, per the
+project's "verify, then document" ordering).
+
+- **2026-08-21 `/stress-test` pass on the GBM/MLE round**: own review + an independent
+  fresh-context reviewer, both converging on the same real finding independently (a genuinely
+  productive collision this time, not a duplicate-effort waste — the reviewer's report explicitly
+  noted the in-progress fix mid-flight per this project's own `reconcile.md` doctrine and did not
+  re-fix it). Own review caught first: `gaussPdf`'s divisor and the chart's `lo`/`hi` domain
+  formula had no floor against a degenerate all-identical-log-returns input — not reachable with
+  today's real data (&sigma;&#770;=0.017), but reproduced directly against a synthetic
+  exact-doubling series (a first attempt using 10%/period compound growth did NOT trigger it,
+  floating-point residue in `Math.log()` of decimal ratios kept &sigma;&#770; a tiny-but-nonzero
+  float rather than a clean zero — a contradicted first prediction, corrected before writing the
+  regression test rather than left in) and confirmed the ORIGINAL formula genuinely produces
+  `NaN` on that exact input, then confirmed the fix (a `1e-4` spread floor, a `1e-6` sigma floor,
+  local to the chart's own math, never touching the real `sigmaHatMle` the numeric tiles report)
+  stays finite on the identical input. The independent reviewer found the same defect
+  independently before seeing the fix, plus one genuinely new finding: the round's own new
+  "no forward-projected P80 figure" test was itself tautological — reproduced with an adversarial
+  fixture (a fake "GBM P80 completion estimate: March 2027" sentence) that passed both original
+  assertions anyway, because "completion figure" already appears in the honest disclosure sentence
+  itself and satisfied an unconditional OR. Fixed by requiring exactly one `P80` occurrence in the
+  whole card AND that occurrence sitting within the disclosure sentence specifically (a bounded
+  regex), re-verified against the exact same adversarial fixture, which now correctly fails the
+  check. `node stress.cjs`: 1740&rarr;1745 assertions, all passing. `node verify.cjs`: headline
+  tie-out unchanged throughout.

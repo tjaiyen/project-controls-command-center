@@ -4471,7 +4471,19 @@ console.log("== D22. GBM/MLE brainstorm round, items 1-4 (2026-08-21) ==");
   ok(evmHtml.indexOf(idx(T.cpi)) >= 0, "the comparison cites this program's own real live CPI, not a hand-typed figure");
   ok(evmHtml.indexOf(pct(g.sigmaHatMle, 2)) >= 0, "the comparison cites the real sigmaHatMle, not a hand-typed figure");
   ok(evmHtml.indexOf("Deliberately not shown") >= 0 && evmHtml.indexOf("Stochastic TCPI") >= 0, "the comparison explicitly states what it declined and why, not just silently omitting it");
-  ok(evmHtml.indexOf("P80") === -1 || evmHtml.toLowerCase().indexOf("completion figure") >= 0, "no forward-projected P80-completion figure is being asserted as real (the one 'P80' mention, if any, is the declined-item disclosure itself)");
+  // /stress-test finding (independent reviewer, 2026-08-21): the original two-assertion version
+  // of this check was tautological -- indexOf("P80")===-1 OR "completion figure" appears ANYWHERE
+  // in the card both pass even if a real, separate forward-projected P80 sentence were injected
+  // elsewhere in the same html, because "completion figure" already appears in the honest
+  // disclosure sentence itself and satisfies the OR unconditionally. Reproduced with an
+  // adversarial fixture (a fake "GBM P80 completion estimate: March 2027" sentence added
+  // alongside the real disclosure) -- both original assertions passed anyway. Fixed by requiring
+  // (a) exactly one "P80" occurrence in the whole card, and (b) that occurrence sits within the
+  // declined-item disclosure sentence specifically (anchored via a bounded regex), not merely
+  // present somewhere in the blob.
+  const p80Count = (evmHtml.match(/P80/g) || []).length;
+  ok(p80Count === 1, "pre-registered: exactly one 'P80' mention exists in the whole card -- a second, separate mention would signal a leaked forward-projection claim outside the disclosure", String(p80Count));
+  ok(/Deliberately not shown:[\s\S]{0,40}P80/.test(evmHtml), "pre-registered: the one 'P80' mention sits inside the declined-item disclosure sentence specifically, not merely somewhere in the card");
 
   // Item 4 — Math Unlocked drawer, plain-language, real numbers.
   P.renderGbmMathUnlocked();
@@ -4493,6 +4505,31 @@ console.log("== D22. GBM/MLE brainstorm round, items 1-4 (2026-08-21) ==");
   // -- must never touch T (portfolio totals) or any PKGS-derived value. Spot-checked here too,
   // not just left to the separate `node verify.cjs` run.
   ok(T.bac === 1240.0 && T.ac === 857.6, "sanity: the canonical portfolio totals are untouched by this round", "BAC=" + T.bac + " AC=" + T.ac);
+
+  // Degenerate-data edge-case guard (/stress-test self-review, 2026-08-21): if every log-return
+  // were ever EXACTLY bit-identical (verified below with a clean-doubling series, not just a
+  // "same percentage" series -- a first attempt using 10%/period compound growth turned out NOT
+  // to trigger this, because floating-point residue in the log() of decimal ratios happens to
+  // keep sigmaHatMle a tiny-but-nonzero float rather than a clean zero; exact binary doublings
+  // remove that residue and DO produce an exact zero, confirmed empirically before writing this
+  // assertion, a contradicted first prediction corrected rather than left in), sigmaHatMle
+  // collapses to exactly 0 and the ORIGINAL (pre-fix) spread/gaussPdf formulas divide by zero --
+  // the same bug class mcParams()'s own min<mode<max floor already exists to prevent elsewhere
+  // in this file. Not reachable with today's real AC_HISTORY (sigmaHatMle=0.017), but reproduced
+  // directly to prove the two floors this round added (spread's 1e-4 minimum, sigmaForCurve's
+  // 1e-6 minimum) actually hold, mirroring the real formula rather than re-deriving a different
+  // one that could pass for the wrong reason.
+  const doublings = [100]; for (let i = 0; i < 5; i++) doublings.push(doublings[doublings.length - 1] * 2);
+  const constG = P.deriveGbmParams(doublings);
+  ok(constG.sigmaHatMle === 0, "pre-registered: exact-doubling log-returns really do collapse sigmaHatMle to a clean, exact 0 (not just near-zero)", String(constG.sigmaHatMle));
+  const spreadOld = Math.max(constG.sigmaHatMle * 3.2, 0 /* every |p.v-rbar| is exactly 0 too */);
+  ok(spreadOld === 0 && isNaN(44 + ((constG.rbar - (constG.rbar - spreadOld)) / ((constG.rbar + spreadOld) - (constG.rbar - spreadOld))) * 496), "pre-registered: reproducing the ORIGINAL pre-fix formula on this exact input really does produce NaN, proving the bug was real, not hypothetical");
+  const spreadFixed = Math.max(constG.sigmaHatMle * 3.2, 0, 1e-4);
+  const sigmaForCurveFixed = Math.max(constG.sigmaHatMle, 1e-6);
+  const loF = constG.rbar - spreadFixed, hiF = constG.rbar + spreadFixed;
+  ok(!isNaN(44 + ((constG.rbar - loF) / (hiF - loF)) * 496), "the FIXED formula's X(rbar) stays finite (not NaN) on the identical degenerate input");
+  const peakPdfFixed = (1 / (sigmaForCurveFixed * Math.sqrt(2 * Math.PI)));
+  ok(isFinite(peakPdfFixed) && !isNaN(peakPdfFixed), "the FIXED formula's gaussPdf(rbar) stays finite (not Infinity/NaN) on the identical degenerate input", String(peakPdfFixed));
 }
 
 /* =========================================================================
