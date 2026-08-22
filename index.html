@@ -1126,6 +1126,14 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
           </div>
           <button type="button" class="help-ic" data-help="pertdist" aria-label="What does this term mean?" aria-expanded="false">i</button>
         </div>
+        <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--c-line)">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+            <span class="eyebrow" style="margin:0">+ named risk events</span>
+            <div id="mcRiskFilter" role="group" aria-label="Priced risks layered onto the simulation" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+            <button type="button" class="help-ic" data-help="riskdriver" aria-label="What does this term mean?" aria-expanded="false">i</button>
+          </div>
+          <p class="lede" style="font-size:11.8px;margin-top:6px" id="mcRiskRead"></p>
+        </div>
         <div class="chart" id="mcChart" style="margin-top:10px"></div>
         <div style="display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap">
           <span class="eyebrow" style="margin:0;white-space:nowrap">Drag to inspect</span>
@@ -1193,10 +1201,14 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
           out?" Bent Flyvbjerg's database of 16,000+ megaprojects found rail projects run
           <b style="color:rgb(var(--c-code))">45%</b> over budget on average, fixed-link (bridge/tunnel)
           projects <b style="color:rgb(var(--c-code))">34%</b>, and roads <b style="color:rgb(var(--c-code))">20%</b>
-          &mdash; overruns that are prevalent and predictable, not random noise. The two techniques are
-          complementary, not competing: one grounds a forecast in this program's own track record, the
-          other checks it against the base rate for programs of this type. A forecast that only does the
-          first can still be optimistic in a way an entire asset class already tells you to expect.
+          &mdash; overruns that are prevalent and predictable, not random noise. The same database puts the
+          <b style="color:rgb(var(--c-code))">"trifecta" rate</b> &mdash; on budget, on schedule, <em>and</em>
+          delivering the promised benefits, all three &mdash; at roughly <b style="color:rgb(var(--c-code))">0.5%</b>
+          (80 of 15,920 projects analyzed). That is the honest denominator a program-level forecast is
+          actually competing against. The two techniques are complementary, not competing: one grounds a
+          forecast in this program's own track record, the other checks it against the base rate for
+          programs of this type. A forecast that only does the first can still be optimistic in a way an
+          entire asset class already tells you to expect.
           (Bent Flyvbjerg's published megaproject research, via PMI's research summary, verified
           21&nbsp;Aug&nbsp;2026 &mdash; a real, external citation, not this program's own data.)</p>
         <p class="lede" id="mcRcfRead" style="margin-top:8px;font-size:12.8px"></p>
@@ -1250,6 +1262,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         <div class="card"><h3>Critical Path Length Index<button type="button" class="help-ic" data-help="cpli" aria-label="What does this term mean?" aria-expanded="false">i</button></h3>
           <p class="lede" style="font-size:12.5px;margin-top:5px">CPLI = (remaining duration + total float) &divide;
             remaining duration. Below 1.00 the path cannot absorb any more slip; DCMA flags below 0.95.</p>
+          <div id="cpliStatus" style="margin:8px 0 2px"></div>
           <div id="cpli"></div></div>
       </div>
       <details class="dbox" style="margin-top:14px">
@@ -2679,7 +2692,13 @@ var state = {phase:"con", fam:"All", audience:"pcm", kpi:null, pkg:2, actFilter:
   presenting:false, presentSet:"full", beatIdx:0, touring:false, tourIdx:0, textSize:0, tab:"over", mcView:"hist",
   mcIncluded:rows.map(function(r){ return r.id; }), cphDrill:false, mcConfidence:0.80, mcInspect:75,
   pertPlay:null, ledgerDemoPkg:"CP-101",
-  mcDist:"triangular"};
+  mcDist:"triangular",
+  d04Logic:"ss", // brainstorm-mode upgrade, 2026-08-21: FS (original)<->SS (resequenced) toggle
+                 // for D-04, the only DELAYS entry with a real "Resequenced" recovery story.
+  riskIncluded:[]}; // AACE 57R-09 risk-driver toggle (brainstorm-mode upgrade, 2026-08-21) — starts
+                     // empty so the canonical MC's own long-standing behavior (zero discrete-risk
+                     // layer) stays exactly what it has always been; checking a risk ON is what
+                     // adds the new layer, never a default-on state that would silently change it.
 
 /* Ledger card (Overview-tab upgrade, 2026-08-20) — the 11 raw inputs, a per-package inspector, and
    a live "change one input, watch the KPIs move" demo. The demo deliberately reads a LOCAL copy of
@@ -3752,9 +3771,18 @@ function mcParams(r){
    formula, now a shared top-level function so the new confidence slider can look up any arbitrary
    percentile from an already-sorted run array without duplicating this one-line lookup. */
 function mcQuantile(sortedSims,p){ return sortedSims[Math.floor(p*sortedSims.length)]; }
-function computeMc(uncertainIds,dist){
+/* riskIds (brainstorm-mode upgrade, 2026-08-21): the AACE 57R-09 "Risk Driver" layer — discrete,
+   named risk EVENTS (RISKS, each with its own real probability band and priced $ impact) added on
+   top of the continuous cost-efficiency uncertainty above. A genuinely different kind of
+   uncertainty from the per-account CPI draw: that one asks "how much might this account's future
+   efficiency drift," this asks "does a specific, priced, avoidable event happen at all." Optional
+   and additive — omitted or empty reproduces every pre-existing call site's behavior byte-for-byte,
+   including the canonical MC below, which has never modeled discrete risk events and still doesn't
+   unless riskIds is explicitly passed. */
+function computeMc(uncertainIds,dist,riskIds){
   dist=dist||"triangular"; // default preserves every pre-existing call site's behavior unchanged
   var rnd=lcg(20260731), N=10000, sims=[], i, j;
+  var activeRisks=(riskIds&&riskIds.length)? RISKS.filter(function(k){ return riskIds.indexOf(k.id)>=0; }) : null;
   for(i=0;i<N;i++){
     var e=0;
     for(j=0;j<rows.length;j++){ var r=rows[j];
@@ -3774,6 +3802,16 @@ function computeMc(uncertainIds,dist){
         c=r.cpi; // locked to its current, observed efficiency — no draw, no uncertainty modeled
       }
       e+=r.ac+(r.bac-r.ev)/c;
+    }
+    if(activeRisks){
+      for(j=0;j<activeRisks.length;j++){ var k=activeRisks[j];
+        // discrete risk event: triggers this run with its own real probability band (P_BAND —
+        // the same table the tornado chart and priced-exposure figure already use), adding its
+        // own real priced $ impact when it does. Not a fraction of the cost added every run —
+        // that would be modeling the register's EXPECTED VALUE a second time, redundantly; this
+        // is the actual Risk Driver method, an event that either happens in a given run or doesn't.
+        if(rnd()<P_BAND[k.p]) e+=k.cost;
+      }
     }
     sims.push(e);
   }
@@ -3798,8 +3836,8 @@ var MC=computeMc(rows.map(function(r){ return r.id; }));
    someone was mid-exploration with boxes unchecked or PERT selected. */
 var activeMc=MC;
 function recomputeActiveMc(){
-  activeMc = (state.mcIncluded.length===rows.length && state.mcDist==="triangular")
-    ? MC : computeMc(state.mcIncluded, state.mcDist);
+  activeMc = (state.mcIncluded.length===rows.length && state.mcDist==="triangular" && state.riskIncluded.length===0)
+    ? MC : computeMc(state.mcIncluded, state.mcDist, state.riskIncluded);
 }
 /* Reference-class marker — Flyvbjerg's real, cited rail-project average overrun (+45%) applied
    to this program's own BAC, drawn on the same axis as the Monte Carlo run so the two lenses are
@@ -4420,6 +4458,38 @@ document.getElementById("mcFilter").addEventListener("click",function(e){
   document.getElementById("mcOneRun").innerHTML=""; mcRunCount=0;
 });
 
+/* AACE 57R-09 risk-driver toggle (brainstorm-mode upgrade, 2026-08-21) — same on/off .btn pattern
+   as renderMcFilter() above, checked against RISKS (the priced register the tornado chart and
+   heat map already read) instead of rows. Off by default; see state.riskIncluded's own comment
+   for why. */
+function renderMcRiskFilter(){
+  document.getElementById("mcRiskFilter").innerHTML=RISKS.map(function(k){
+    var on=state.riskIncluded.indexOf(k.id)>=0;
+    return '<button class="btn'+(on?" on":"")+'" data-risk="'+k.id+'" aria-pressed="'+on+'" title="'+
+      k.n+' — P'+k.p+' ('+Math.round(P_BAND[k.p]*100)+'%) &times; '+m(k.cost)+'">'+k.id+'</button>';
+  }).join("");
+  var read=document.getElementById("mcRiskRead");
+  if(!state.riskIncluded.length){
+    read.innerHTML="No named risk events layered in &mdash; the chart above shows cost-efficiency "+
+      "uncertainty only, the same run it's always been. Check a risk to add its own real "+
+      "probability-weighted event on top.";
+  } else {
+    var active=RISKS.filter(function(k){return state.riskIncluded.indexOf(k.id)>=0;});
+    var expSum=active.reduce(function(s,k){return s+P_BAND[k.p]*k.cost;},0);
+    read.innerHTML=active.length+" named risk"+(active.length===1?"":"s")+" layered in, "+
+      m(expSum)+" combined expected value &mdash; each one either fires or doesn't in a given "+
+      "simulated run, at its own real probability, same as the priced register on the Risk & "+
+      "Change tab.";
+  }
+}
+document.getElementById("mcRiskFilter").addEventListener("click",function(e){
+  var b=e.target.closest("[data-risk]"); if(!b) return;
+  var id=b.dataset.risk, idx2=state.riskIncluded.indexOf(id);
+  if(idx2>=0) state.riskIncluded.splice(idx2,1); else state.riskIncluded.push(id);
+  renderMcRiskFilter(); recomputeActiveMc(); syncMcView();
+  document.getElementById("mcOneRun").innerHTML=""; mcRunCount=0;
+});
+
 /* ---------- print brief ---------- */
 function firingEscalations(){
   var f=[];
@@ -4725,8 +4795,28 @@ function renderSchedule(){
    ].map(function(r){ return '<div><div class="k">'+r[0]+'</div><div class="v '+r[2]+'">'+r[1]+
      '</div><div style="font-size:11px;color:rgb(var(--c-mut));margin-top:4px">'+r[3]+'</div></div>'; }).join("");
 
-  /* delay & TIA register — day counts tie to the float table by construction */
+  /* delay & TIA register — day counts tie to the float table by construction. D-04 gets a real
+     FS<->SS resequencing toggle (brainstorm-mode upgrade, 2026-08-21): both numbers already exist
+     in the data (this delay's own -7d impact, CP-101's own recovered float) — the toggle switches
+     which of the two already-real numbers is on screen, nothing computed that isn't already here. */
   document.getElementById("tiaReg").innerHTML=DELAYS.map(function(d){
+    if(d.id==="D-04"){
+      var cp101=rows.filter(function(r){return r.id==="CP-101";})[0], ss=state.d04Logic==="ss";
+      return '<div style="padding:9px 0;border-bottom:1px solid var(--c-line)">'+
+        '<div style="display:flex;gap:9px;align-items:baseline;flex-wrap:wrap">'+
+        '<span class="mono" style="font-size:11px;color:rgb(var(--c-code))">'+d.id+'</span>'+
+        '<span style="flex:1;min-width:200px;font-size:12.8px">'+d.n+
+          ' <span style="color:rgb(var(--c-mut))">('+d.pkg+')</span></span>'+
+        '<span class="pill '+(ss?"g":"r")+'">'+(ss?"Recovered":"At risk")+'</span>'+
+        '<span class="tab-num mono" style="font-size:12.5px">'+(ss?days(cp101.float):days(-7))+'</span></div>'+
+        '<div style="margin-top:5px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">'+
+        '<button type="button" class="btn'+(!ss?" on":"")+'" data-d04="fs" aria-pressed="'+(!ss)+'" style="font-size:11px;padding:3px 9px">Original FS logic</button>'+
+        '<button type="button" class="btn'+(ss?" on":"")+'" data-d04="ss" aria-pressed="'+ss+'" style="font-size:11px;padding:3px 9px">Resequenced SS logic</button>'+
+        '<span style="font-size:11.5px;color:rgb(var(--c-mut))">&rarr; '+
+          (ss? "Start-to-Start logic recovered "+days(cp101.float)+" of float on CP-101&rsquo;s own driving path."
+              : "Finish-to-Start logic as originally sequenced &mdash; the weather delay costs 7d outright, no recovery.")+
+        '</span></div></div>';
+    }
     return '<div style="padding:9px 0;border-bottom:1px solid var(--c-line)">'+
       '<div style="display:flex;gap:9px;align-items:baseline;flex-wrap:wrap">'+
       '<span class="mono" style="font-size:11px;color:rgb(var(--c-code))">'+d.id+'</span>'+
@@ -4744,7 +4834,20 @@ function renderSchedule(){
     ' late. An event with no fragnet is an opinion; an event with one is arithmetic.</p>';
   renderSchedDrift();
   renderFloatErosion();
+  /* CPLI status-band summary strip (brainstorm-mode upgrade, 2026-08-21) — a glanceable rollup
+     above the per-package bars: how many packages sit in each band, not each one's own number.
+     Complements the bars chart below rather than duplicating it — the bars answer "which package,
+     what value," this answers "how many are actually a problem" without reading every bar. */
+  var cpliBands=rows.reduce(function(a,r){ a[r.cpli<0.95?"r":r.cpli<1?"a":"g"]++; return a; },{r:0,a:0,g:0});
+  document.getElementById("cpliStatus").innerHTML=
+    '<span class="pill g">'+cpliBands.g+' healthy</span>'+
+    '<span class="pill a" style="margin-left:6px">'+cpliBands.a+' at brink</span>'+
+    '<span class="pill r" style="margin-left:6px">'+cpliBands.r+' red</span>';
 }
+document.getElementById("tiaReg").addEventListener("click",function(e){
+  var b=e.target.closest("[data-d04]"); if(!b) return;
+  state.d04Logic=b.dataset.d04; renderSchedule();
+});
 
 /* The math explainer — CPLI's formula is already stated as prose above the bars; this panel
    walks it against the actual driving path (the package T.cpli itself is read from, not a
@@ -6541,6 +6644,8 @@ var GLOSS=[
   e:function(){ return "This program's own Monte Carlo puts the median finish at "+m(MC.p50)+" ("+pct(MC.pOver,0)+" of runs over budget) — grounded in this ledger's own efficiency. Reference class forecasting is the complementary check: does that number also look plausible against the base rate for rail programs generally, not just this one's own history?"; }},
  {k:"pertdist", t:"Triangular vs. PERT (Beta-PERT)", p:"Two shapes for the same min/mode/max future-efficiency range each Monte Carlo run draws from. Triangular ramps linearly to the mode and back down — simple, closed-form, easy to reproduce by hand. PERT (Beta-PERT) is smoother and concentrates more probability mass near the mode, tapering its tails instead of ramping straight lines — the shape PMI/AACE guidance for 3-point estimates generally recommends, at the cost of needing a real Gamma/Beta sampler instead of a one-line formula.",
   e:function(){ return "Right now this board is drawing from the "+(state.mcDist==="pert"?"PERT":"triangular")+" shape — toggle \"Draw shape\" above the chart to compare how the same "+rows.length+"-account uncertainty reshapes the distribution."; }},
+ {k:"riskdriver", t:"Risk driver method (AACE 57R-09)", p:"A different kind of uncertainty than the cost-efficiency draw above. That one asks how much a control account's future performance might drift — continuous, always present. A risk driver is discrete: a specific, named, priced event that either happens in a given simulated run or doesn't, at its own real probability. AACE's 57R-09 recommended practice is combining both layers rather than picking one — the register captures what could go wrong by name, the efficiency draw captures the everyday drift that isn't any single named thing.",
+  e:function(){ return state.riskIncluded.length? state.riskIncluded.length+" named risk"+(state.riskIncluded.length===1?"":"s")+" currently layered onto the Monte Carlo run — check the \"+ named risk events\" row above the chart to add or remove one and watch the distribution shift." : "No named risk events are currently layered in — the Monte Carlo chart is showing cost-efficiency uncertainty only. Check a risk in the \"+ named risk events\" row to add its own real probability-weighted event on top."; }},
  {k:"fundingtier", t:"Funding tier", p:"A portfolio-level question, distinct from whether a single line is on budget: if the total program had to absorb a real funding constraint, which lines get protected first and which are most exposed? Crosses two axes — how far along a line is (sunk cost and momentum make an early cut expensive to reverse) against whether it's spending efficiently — rather than reading off a single cost index.",
   e:function(){ var lines=portfolioRows(); return lines.map(function(l){ return l.name.replace(/&mdash;.*/,"").trim()+": "+fundingTier(l).tier; }).join(" · "); }},
  {k:"trir", t:"TRIR — Total Recordable Incident Rate", p:"The standard safety yardstick: recordable injuries per 200,000 hours worked — roughly 100 people working full time for a year. The one metric that can stop a job regardless of cost or schedule.",
@@ -7813,6 +7918,7 @@ document.getElementById("sDrbLegal").value=DRB_ASSUMPTIONS.legalCost;
 renderDrbSlider();
 renderDataStrategy();
 renderMcFilter();
+renderMcRiskFilter();
 document.getElementById("mcDistTri").setAttribute("aria-pressed", String(state.mcDist==="triangular"));
 document.getElementById("mcDistPert").setAttribute("aria-pressed", String(state.mcDist==="pert"));
 syncMcView(); renderMcMath(); renderPertPlay(); renderGaltonStatic(); renderScen(); renderPrint();
@@ -7867,7 +7973,8 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   tabs:TABS,openShortcuts:openShortcuts,closeShortcuts:closeShortcuts,shortcutsOpen:shortcutsOpen,
   renderShortcutsOverlay:renderShortcutsOverlay,
   getJumpFrom:function(){ return jumpFrom; },renderJumpBreadcrumb:renderJumpBreadcrumb,
-  hideJumpBreadcrumb:hideJumpBreadcrumb,jumpToEl:jumpToEl};
+  hideJumpBreadcrumb:hideJumpBreadcrumb,jumpToEl:jumpToEl,
+  renderSchedule:renderSchedule,renderMcRiskFilter:renderMcRiskFilter};
 })();
 </script>
 </body>

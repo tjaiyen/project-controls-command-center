@@ -44,7 +44,7 @@ anywhere in this repository. The method is the content, not the numbers.
 | Contracts | 6 |
 | Risks | 6 |
 | Delay events | 4 |
-| `stress.cjs` test assertions | 1,692, all passing |
+| `stress.cjs` test assertions | 1,714, all passing |
 | Companion pages | `otak.html` (fit brief), `architecture.html` (static pipeline map) |
 | Hosting | GitHub Pages, served directly from `main`, zero build |
 | Git history | 100 commits |
@@ -210,7 +210,7 @@ Beyond the core EVM block, three more derivation families exist:
 | 7 | **AI & Data** (`ai`) | The pipeline architecture diagram (now interactive — §8), the SQL model, a live 28-check integrity gate + 2 ingestion-validation checks, statistical control (z-score/EWMA) with worked-math accordions, and AI narrative generation under a verification contract (§10). |
 | 8 | **Operating Framework** (`fw`) | Phase playbook, the WBS/CBS/OBS/ABS control-account mapping (with a worked "100% Rule" proof, now carrying an illustrative ABS tag per row alongside WBS/CBS/OBS), Board phase-gate governance with a live Gate-5 hard stop, escalation matrix, a live Working-Backward/inversion worked example, reporting cadence, stakeholder interface map, the 20-metric KPI reference library. |
 | 9 | **Actions** (`act`) | A RAID/CAPA register with proactive staleness detection, owner accountability rollup, a worked-math accordion for `actionStatus()`'s threshold logic. |
-| 10 | **Glossary** (`gloss`) | 53 terms, each with a live-computed worked example, filterable by search — the same content the inline "i" help icons pull from site-wide. |
+| 10 | **Glossary** (`gloss`) | 54 terms, each with a live-computed worked example, filterable by search — the same content the inline "i" help icons pull from site-wide. |
 | 11 | **Data Strategy** (`data`) | A real-world plan for connecting scattered, multi-system data — ISO 19650 CDE staging architecture as an interactive flow diagram (§8), a 4-tile IDS guardrail status grid with a genuinely live 2-check ingestion-validation panel embedded in it, automated guardrails, a discrepancy-resolution decision flow folded into that same diagram, a Category/Trigger/Routing proactive-error-recovery table, a Dual-Stack Parity card citing this program's own real, live CPI against the actual SQL that independently re-derives it. |
 
 Plus, outside the tab body: **Presentation Mode** (a scripted 2-set walkthrough with presenter
@@ -375,7 +375,7 @@ matches an independent recomputation, not just that *a* number is present.
 
 ## 11. Testing & verification
 
-**`stress.cjs`** (1,692 assertions, all passing) — stubs the DOM, loads `index.html`'s script
+**`stress.cjs`** (1,714 assertions, all passing) — stubs the DOM, loads `index.html`'s script
 verbatim into that stub, and exercises it exactly like a user would: every tab switch, every
 filter, every drawer, every slider drag, every keyboard interaction. 41 labeled sections:
 
@@ -1188,6 +1188,39 @@ carried over from memory or an earlier pass:
   industry-standard practice for agencies this size, but the precise sub-clause detail rests on a
   PRIOR round's own verification pass, not this one's.
 
+- **2026-08-21 Control Tower brainstorm round (items 1-4)**: an external, unverified UX blueprint
+  ("Megaproject Float & Risk Control Tower") was ground against the live codebase line-by-line
+  before anything was proposed — most of it was already built (the confidence slider, the
+  Flyvbjerg reference-class card, the dark palette — hex-identical to the proposal's own choices,
+  the idle-cost breakdown — already a real 3-way split, stronger than the proposal's 2-way donut,
+  the guided Tour, click-driven glossary help). Two items in the proposal (a DCMA 14-Point full
+  grid, a trade-stacking heatmap) were **declined outright, not deferred** — both require
+  activity-level/per-trade schedule data this ledger's own on-page text already states it doesn't
+  carry (`index.html` §Schedule tab, the existing 14-Point-Assessment caveat); building either
+  would mean fabricating pass/fail states or crew-overlap data, the same standard that already
+  declined EWMA-on-Earned-Schedule in the Kimi research-package round. Four items were real and
+  buildable: (1) an FS&harr;SS toggle on D-04, using CP-101's own real +22d float and the delay's
+  own real -7d impact — both numbers already existed, only the toggle is new; (2) a CPLI
+  status-band summary strip, independently re-derived from `rows`, complementing rather than
+  duplicating the existing per-package bars chart (a prior brainstorm claim that CPLI had "no
+  visual treatment" was itself wrong — contradicted, per the project's own B35 discipline, by
+  finding the existing `bars("cpli",...)` chart mid-implementation, so item 2's scope was narrowed
+  accordingly, not built as originally proposed); (3) an AACE 57R-09 risk-driver layer — a real,
+  separate Bernoulli-per-run event layer for each of the priced risk register's own named risks,
+  additive on top of the existing cost-efficiency Monte Carlo, opt-in and starting empty so the
+  canonical board-facing `MC` object is provably byte-identical before and after (asserted by
+  direct object-identity check in `stress.cjs`, not inferred); a second prior brainstorm claim
+  ("the Monte Carlo already carries per-risk contribution data") was also found wrong on inspection
+  — that data belongs to the tri-point PERT playground's per-*control-account* contribution, not
+  the separate `RISKS` register, which had never been wired into the simulation at all before this
+  round; (4) Flyvbjerg's own published "trifecta" rate (0.5%, 80/15,920 projects) added to the
+  existing reference-class card, independently recomputed (not just copied from the source
+  blueprint) before being cited. `node stress.cjs`: 1692&rarr;1714 assertions (22 new, one
+  regression-only count fix for the glossary's 53&rarr;54 growth), all passing. `node verify.cjs`:
+  headline tie-out unchanged to the decimal (BAC/PV/EV/AC/SPI/CPI/EAC/VAC/TCPI all identical to the
+  pre-round run) — confirming the new risk-driver layer never touches the canonical board number
+  unless a risk is explicitly checked on.
+
 Generated 2026-08-20, against the tip of the eleven-input-ledger-card engagement round; extended
 2026-08-21 for the six-KPI-families card round, again 2026-08-21 for the Data Strategy tab UI/UX
 round, again 2026-08-21 for the "96→100" brainstorm round's Tier 0/1 items, again 2026-08-21 for
@@ -1200,6 +1233,6 @@ for the total-float early-warning round, again 2026-08-21 for the Monte Carlo ca
 again 2026-08-21 for the Galton Engine round, again 2026-08-21 for the third full-dashboard
 `/stress-test` pass, again 2026-08-21 for the "how the dashboard catches drift" round, again
 2026-08-21 for the tab-rail navigation round, again 2026-08-21 for the altitude-grouped-rail
-round, and again 2026-08-21 for the whole-repo `/stress-test` round (see git log for exact commits
-— each document update was written before its own round's commit lands, per the project's "verify,
-then document" ordering).
+round, again 2026-08-21 for the whole-repo `/stress-test` round, and again 2026-08-21 for the
+Control Tower brainstorm round items 1-4 (see git log for exact commits — each document update was
+written before its own round's commit lands, per the project's "verify, then document" ordering).

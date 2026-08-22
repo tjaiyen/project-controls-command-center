@@ -3618,7 +3618,7 @@ console.log("== D9.1. the CDE flow diagram (data strategy) ==");
    (returns the active tab to "over" at the end, since D9 above left "data" active)
    ========================================================================= */
 console.log("== D10. inline term help ==");
-ok(P.gloss.length === 53, "GLOSS grew to 53 entries (52 prior + ncr, the quality-NCR-register upgrade, 2026-08-21)", String(P.gloss.length));
+ok(P.gloss.length === 54, "GLOSS grew to 54 entries (53 prior + riskdriver, the Risk-Driver Monte Carlo upgrade, 2026-08-21)", String(P.gloss.length));
 // title independently re-typed per term (/stress-test finding, 2026-08-21: the prior version only
 // checked g.p/g.e() were non-empty, which passes even for a totally wrong or swapped-in entry) —
 // guards that findGloss(k) actually resolves to the RIGHT term, not just SOME term.
@@ -4347,6 +4347,62 @@ console.log("== D20. contextual return breadcrumb (nav round 2, item 3 — Tier 
   ok(G.jumpBreadcrumb._html.indexOf(overLabel) >= 0, "jumpToAction()'s breadcrumb also names the real origin tab");
   P.hideJumpBreadcrumb(); // leave shared state clean for any tests after this one
   P.state.tab = "over";
+}
+
+console.log("== D21. Control Tower brainstorm round 1-4 (2026-08-21) ==");
+{
+  // Item 4 — Flyvbjerg trifecta stat, independently re-verified (80/15,920 ≈ 0.5%), not just
+  // read back from the page and trusted.
+  const trifectaOk = Math.abs(80 / 15920 - 0.005) < 0.0002;
+  ok(trifectaOk, "pre-registered: 80/15,920 independently computes to ~0.5%, the figure now cited on the reference-class card", (80/15920*100).toFixed(2)+"%");
+  ok(/roughly[\s\S]*?0\.5%[\s\S]*?\(80 of 15,920 projects analyzed\)/.test(indexSrc), "the reference-class card cites the trifecta rate with its own real denominator, not a bare percentage");
+
+  // Item 1 — D-04 FS<->SS toggle. Both real numbers (the -7d delay, CP-101's own real +22 float)
+  // already existed in the data before this round; the toggle only switches which is displayed.
+  const cp101 = P.rows.filter(r => r.id === "CP-101")[0];
+  ok(cp101.float === 22, "sanity: CP-101's real float is still 22 — the SS-logic number this toggle displays is not invented");
+  P.state.d04Logic = "ss"; P.renderSchedule();
+  ok(G.tiaReg._html.indexOf("Resequenced SS logic") >= 0 && G.tiaReg._html.indexOf('class="btn on" data-d04="ss"') >= 0,
+    "default state renders the SS (resequenced) button as pressed");
+  ok(G.tiaReg._html.indexOf("+22d") >= 0, "SS logic shows CP-101's real +22d recovered float, not a hand-typed figure");
+  P.state.d04Logic = "fs"; P.renderSchedule();
+  ok(G.tiaReg._html.indexOf('class="btn on" data-d04="fs"') >= 0, "toggling to FS logic flips which button is pressed");
+  ok(G.tiaReg._html.indexOf("-7d") >= 0 && G.tiaReg._html.indexOf("At risk") >= 0,
+    "FS logic shows the original -7d delay impact and an 'At risk' pill, not the recovered state");
+  P.state.d04Logic = "ss"; P.renderSchedule(); // leave shared state at its default for later tests
+
+  // Item 2 — CPLI status-band summary strip. Independently re-derived from the same real per-
+  // package cpli values, not read back from the rendered strip and trusted against itself.
+  const bands = P.rows.reduce((a, r) => { a[r.cpli < 0.95 ? "r" : r.cpli < 1 ? "a" : "g"]++; return a; }, { r: 0, a: 0, g: 0 });
+  ok(bands.g + bands.a + bands.r === P.rows.length, "sanity: every package lands in exactly one CPLI band");
+  ok(G.cpliStatus._html.indexOf(bands.g + " healthy") >= 0, "healthy-band count in the strip matches an independent recount (" + bands.g + ")");
+  ok(G.cpliStatus._html.indexOf(bands.a + " at brink") >= 0, "at-brink-band count matches an independent recount (" + bands.a + ")");
+  ok(G.cpliStatus._html.indexOf(bands.r + " red") >= 0, "red-band count matches an independent recount (" + bands.r + ")");
+
+  // Item 3 — risk-driver Monte Carlo toggle (AACE 57R-09). The load-bearing invariant: the
+  // canonical, board-facing MC must be byte-for-byte untouched by this whole feature — same
+  // "board number never silently changes" guarantee already enforced for the per-account toggle.
+  ok(P.state.riskIncluded.length === 0, "sanity: risk-driver toggle starts empty (opt-in, not opt-out)");
+  P.recomputeActiveMc();
+  ok(P.getActiveMc() === P.mc, "pre-registered: with no risks toggled on, activeMc is the exact same object as canonical MC, not a re-simulated lookalike");
+  const canonicalP50 = P.mc.p50;
+  P.state.riskIncluded.push("R-01"); // highest-exposure risk: P4 (70%) x $18.5M
+  P.renderMcRiskFilter(); P.recomputeActiveMc();
+  ok(P.getActiveMc() !== P.mc, "toggling a risk on computes a genuinely separate run, not a mutated canonical MC");
+  ok(P.getActiveMc().p50 !== canonicalP50, "pre-registered: layering R-01's real 70%-probability $18.5M event actually moves the displayed run's own P50", P.getActiveMc().p50.toFixed(1) + " vs canonical " + canonicalP50.toFixed(1));
+  ok(P.mc.p50 === canonicalP50, "the canonical MC object itself is untouched after toggling — re-checked directly, not inferred from activeMc alone");
+  ok(G.mcRiskFilter._html.indexOf('class="btn on" data-risk="R-01"') >= 0, "the R-01 button itself renders pressed");
+  ok(G.mcRiskRead._html.indexOf("1 named risk") >= 0, "the read-out states exactly one risk is layered in");
+  P.state.riskIncluded.length = 0; // uncheck
+  P.renderMcRiskFilter(); P.recomputeActiveMc();
+  ok(P.getActiveMc() === P.mc, "unchecking the risk restores activeMc to the exact canonical MC object, not a re-simulated approximation");
+  ok(G.mcRiskRead._html.indexOf("No named risk events") >= 0, "the read-out reverts to its empty-state text");
+
+  // Glossary term resolves and its worked example reflects live state, same pattern as every
+  // other help-icon term already covered in D10.
+  const riskDriverTerm = P.findGloss("riskdriver");
+  ok(!!riskDriverTerm, "riskdriver glossary term exists");
+  ok(riskDriverTerm.e().indexOf("No named risk events") >= 0, "riskdriver's worked example correctly reflects the current (empty) toggle state");
 }
 
 /* =========================================================================
