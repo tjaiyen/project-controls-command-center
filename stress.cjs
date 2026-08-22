@@ -4532,6 +4532,115 @@ console.log("== D22. GBM/MLE brainstorm round, items 1-4 (2026-08-21) ==");
   ok(isFinite(peakPdfFixed) && !isNaN(peakPdfFixed), "the FIXED formula's gaussPdf(rbar) stays finite (not Infinity/NaN) on the identical degenerate input", String(peakPdfFixed));
 }
 
+console.log("== D23. Glossary upgrade round, items 1-3 (2026-08-21) ==");
+{
+  // Item 3 — every one of the 55 real GLOSS entries carries a real cat, and every cat resolves
+  // to a known category. Independently re-derived from the raw array, not read back from the
+  // rendered pill counts and trusted against itself.
+  ok(P.gloss.length === 55, "sanity: still 55 real glossary terms");
+  const validCats = Object.keys(P.cats);
+  P.gloss.forEach(g => ok(validCats.indexOf(g.cat) >= 0, "term '" + g.k + "' carries a real category (" + g.cat + ")", g.cat));
+
+  // Item 1 — every term's jT/jE actually resolves to a real, existing tab + element in the
+  // static markup, not a typo'd id that would silently no-op when clicked. Checked against
+  // indexSrc directly, the same discipline the prior round's jump-target audit used.
+  const realTabIds = ["over", "port", "cost", "sched", "risk", "del", "ai", "fw", "act", "data", "gloss"];
+  let badTargets = [];
+  P.gloss.forEach(g => {
+    const tabOk = realTabIds.indexOf(g.jT) >= 0;
+    const elOk = new RegExp('id="' + g.jE + '"').test(indexSrc);
+    if (!tabOk || !elOk) badTargets.push(g.k + " -> tab=" + g.jT + "(" + tabOk + ") el=" + g.jE + "(" + elOk + ")");
+  });
+  ok(badTargets.length === 0, "pre-registered: every one of the 55 terms' jump targets resolves to a real tab and a real element id in markup", badTargets.join("; "));
+
+  // "See it live" button renders with the right attributes for a sample spanning all 5
+  // categories, exercised through the real render + delegated click path (not just checking the
+  // data-* attribute strings are present, but that clicking one actually switches tabs).
+  P.state.glossCat = "All"; P.renderGlossCatBar(); P.renderGlossary("");
+  const sample = ["cpli", "gbm", "raid", "zscore", "cde"]; // sched, cost, risk, field, data
+  sample.forEach(k => {
+    const g = P.findGloss(k);
+    ok(G.glossList._html.indexOf('data-jump-tab="' + g.jT + '" data-jump-el="' + g.jE + '"') >= 0,
+      "'" + k + "' card carries a See-it-live button with its own real jump target");
+  });
+  P.state.tab = "gloss"; // land back on gloss before exercising the click (jumpToEl records the FROM tab)
+  // fired on R.win, not G.glossList -- the real data-jump-tab handler is a single delegated
+  // window-level listener (window.addEventListener("click",...)), the same one every other jump
+  // button on this page already goes through; this stub doesn't simulate DOM bubbling, so firing
+  // on the specific card would never reach it (found empirically: the first version of this test
+  // fired on G.glossList and silently never matched, which is itself the reason this note exists).
+  fire(R.win, "click", { target: { closest: sel => sel === "[data-jump-tab]" ? { dataset: { jumpTab: "cost", jumpEl: "costGbm" } } : null } });
+  ok(P.state.tab === "cost", "clicking a See-it-live button really switches tabs, through the same delegated data-jump-tab handler every other jump button on this page already uses");
+  P.state.tab = "gloss";
+
+  // Item 3 — category pill bar. Counts independently recomputed, not read back from the
+  // rendered pill text and trusted against itself.
+  const realCounts = {}; P.gloss.forEach(g => { realCounts[g.cat] = (realCounts[g.cat] || 0) + 1; });
+  Object.keys(realCounts).forEach(cat => {
+    ok(G.glossCatBar._html.indexOf(P.cats[cat].label + ' <span style="opacity:.7">(' + realCounts[cat] + ')</span>') >= 0,
+      "the '" + cat + "' pill's own count (" + realCounts[cat] + ") matches an independent recount");
+  });
+  const sumOfCats = Object.values(realCounts).reduce((a, b) => a + b, 0);
+  ok(sumOfCats === 55, "sanity: the 5 category counts sum to all 55 terms — no term left uncategorized or double-counted", String(sumOfCats));
+
+  // Clicking a category pill actually filters the card list, and All shows everything again.
+  // G.glossQ.value must be explicitly cleared first -- the stub's makeEl() defaults every
+  // element's .value to "0" (a stub-fidelity default unrelated to this feature), and the real
+  // click handler reads document.getElementById("glossQ").value for the search half of the
+  // filter, so an unset stub value would silently AND the category filter against a literal "0"
+  // query (found empirically: the first version of this test left it unset and got 0 matches).
+  G.glossQ.value = "";
+  fire(G.glossCatBar, "click", { target: { closest: sel => sel === "[data-glosscat]" ? { dataset: { glosscat: "sched" } } : null } });
+  ok(P.state.glossCat === "sched", "clicking the Schedule pill sets the category filter");
+  const schedCount = (G.glossList._html.match(/<div class="gcard">/g) || []).length;
+  ok(schedCount === realCounts.sched, "pre-registered: filtering to Schedule shows exactly the real Schedule-category count of cards, not all 55", String(schedCount) + " vs expected " + realCounts.sched);
+  ok(G.glossList._html.indexOf(P.findGloss("bac").t) === -1, "a Cost-category term (BAC) is correctly hidden while filtered to Schedule");
+  fire(G.glossCatBar, "click", { target: { closest: sel => sel === "[data-glosscat]" ? { dataset: { glosscat: "All" } } : null } });
+  ok(P.state.glossCat === "All", "clicking All resets the category filter");
+
+  // Category + search combine (AND, not OR) — pre-registered: filtering to Cost AND searching
+  // "float" (a Schedule term) should show zero results, not fall back to one or the other.
+  P.state.glossCat = "cost"; P.renderGlossCatBar(); P.renderGlossary("float");
+  const combinedCount = (G.glossList._html.match(/<div class="gcard">/g) || []).length;
+  ok(combinedCount === 0, "pre-registered: category filter and search combine as AND — Cost category + 'float' search (a Schedule term) yields zero matches, not a fallback to either filter alone", String(combinedCount));
+  P.state.glossCat = "All"; P.renderGlossCatBar(); P.renderGlossary("");
+
+  // Real regression guard (/stress-test self-review, 2026-08-21): "Explore in Glossary" must
+  // reset the category filter, or a term from a DIFFERENT category than whatever was last
+  // selected would be silently hidden by a stale filter — reproduced before fixing, confirmed
+  // fixed here.
+  P.state.glossCat = "cost"; P.renderGlossCatBar(); // leave a non-All filter active on purpose
+  // fired on R.win -- same window-delegated-listener reasoning as the See-it-live click above.
+  fire(R.win, "click", { target: { closest: sel => sel === "[data-explore]" ? { dataset: { explore: "Total float" } } : null } });
+  ok(P.state.glossCat === "All", "pre-registered: Explore-in-Glossary resets a stale category filter");
+  ok(G.glossList._html.indexOf("Total float") >= 0, "the exact term (a Schedule-category term, despite the Cost filter that was active) is actually visible after exploring to it");
+
+  // Item 2 — bare "/" shortcut. Must switch to Glossary and focus search; must NOT fire inside
+  // an input (existing guard, re-exercised here); Shift+"/" must keep going to the shortcuts
+  // panel, not this handler (the two branches are mutually exclusive by construction, verified).
+  P.state.tab = "over"; G.glossQ._focusCount = 0;
+  fire(R.win, "keydown", { key: "/", target: { tagName: "BODY" }, preventDefault(){} });
+  ok(P.state.tab === "gloss", "pre-registered: bare '/' switches to the Glossary tab");
+  ok(G.glossQ._focusCount > 0, "pre-registered: bare '/' focuses the search input");
+  P.state.tab = "over";
+  fire(R.win, "keydown", { key: "/", shiftKey: true, target: { tagName: "BODY" }, preventDefault(){} });
+  ok(P.state.tab === "over", "Shift+'/' does NOT trigger the glossary jump — it's the existing shortcuts-panel toggle instead");
+  ok(G.shortcutsOverlay.hidden === false, "Shift+'/' opened the shortcuts panel, confirming which branch actually fired");
+  P.closeShortcuts();
+  fire(R.win, "keydown", { key: "/", target: { tagName: "INPUT" }, preventDefault(){} });
+  ok(P.state.tab === "over", "bare '/' does nothing while already typing in an input — the existing tag-guard still applies");
+
+  // Category tablist markup + ARIA. The ArrowRight/Left/Home/End keyboard handler itself queries
+  // document.querySelectorAll('#glossCatBar [role="tab"]'), which this DOM stub always returns []
+  // for (a documented, existing stub limitation — see makeEl()'s own querySelectorAll comment and
+  // wireAccountHighlight's identical caveat elsewhere in this file) — that interaction is
+  // live-browser-only coverage, not exercisable here, same accepted-limitation class as those
+  // prior cases. What IS checkable from this stub: the real markup carries the real ARIA roles.
+  P.state.glossCat = "All"; P.renderGlossCatBar();
+  ok(/role="tab" aria-selected="true"[^>]*data-glosscat="All"/.test(G.glossCatBar._html), "the All pill renders as the selected tab by default");
+  ok(/role="tablist"/.test(indexSrc) && /aria-label="Glossary categories"/.test(indexSrc), "the category bar declares role=tablist with a real accessible name in static markup");
+}
+
 /* =========================================================================
    E. otak.html — runtime + internal consistency
    ========================================================================= */

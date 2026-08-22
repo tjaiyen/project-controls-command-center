@@ -1731,9 +1731,10 @@ join dim_control_account b using (package_id)</pre></div>
         actual numbers so you can check the math yourself. Everything here is computed live from the
         same ledger as the rest of the dashboard.</p>
       <input class="gsearch" id="glossQ" type="search" autocomplete="off"
-        placeholder="Filter terms&hellip; try &ldquo;float&rdquo; or &ldquo;contingency&rdquo;"
+        placeholder="Filter terms&hellip; try &ldquo;float&rdquo; or &ldquo;contingency&rdquo; (or press /)"
         aria-label="Filter glossary terms">
-      <div class="grid g2" id="glossList"></div>
+      <div id="glossCatBar" role="tablist" aria-label="Glossary categories" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px"></div>
+      <div class="grid g2" id="glossList" style="margin-top:14px"></div>
       <p class="lede" id="glossCount" style="margin-top:13px;font-size:12.3px"></p>
     </div>
   </section>
@@ -2702,10 +2703,11 @@ var state = {phase:"con", fam:"All", audience:"pcm", kpi:null, pkg:2, actFilter:
   mcDist:"triangular",
   d04Logic:"ss", // brainstorm-mode upgrade, 2026-08-21: FS (original)<->SS (resequenced) toggle
                  // for D-04, the only DELAYS entry with a real "Resequenced" recovery story.
-  riskIncluded:[]}; // AACE 57R-09 risk-driver toggle (brainstorm-mode upgrade, 2026-08-21) — starts
+  riskIncluded:[], // AACE 57R-09 risk-driver toggle (brainstorm-mode upgrade, 2026-08-21) — starts
                      // empty so the canonical MC's own long-standing behavior (zero discrete-risk
                      // layer) stays exactly what it has always been; checking a risk ON is what
                      // adds the new layer, never a default-on state that would silently change it.
+  glossCat:"All"}; // glossary category filter (brainstorm-mode upgrade, 2026-08-21)
 
 /* Ledger card (Overview-tab upgrade, 2026-08-20) — the 11 raw inputs, a per-package inspector, and
    a live "change one input, watch the KPIs move" demo. The demo deliberately reads a LOCAL copy of
@@ -6675,141 +6677,156 @@ var TOUR_BEATS=[
 var G_TUN=rows.filter(function(r){return r.id==="CP-201";})[0];
 var G_UT=rows.filter(function(r){return r.id==="CP-601";})[0];
 var GLOSS=[
- {k:"controlaccount", t:"Control account", p:"A slice of the project with its own budget and its own scoreboard. Instead of tracking one giant number, the program is broken into pieces small enough that one person can be accountable for each.",
+ {k:"controlaccount", cat:"data", jT:"cost", jE:"pkgTable", t:"Control account", p:"A slice of the project with its own budget and its own scoreboard. Instead of tracking one giant number, the program is broken into pieces small enough that one person can be accountable for each.",
   e:function(){ return "This program has "+rows.length+" control accounts. The tunnel ("+G_TUN.id+") is one: its own budget of "+m(G_TUN.bac)+", its own progress, its own forecast. When it drifts, you can see it without the other seven hiding it."; }},
- {k:"bac", t:"BAC — Budget at Completion", p:"The total approved budget for the work — the number everyone promised at the start. It only changes when a formal change order changes it.",
+ {k:"bac", cat:"cost", jT:"cost", jE:"eacTable", t:"BAC — Budget at Completion", p:"The total approved budget for the work — the number everyone promised at the start. It only changes when a formal change order changes it.",
   e:function(){ return m(T.bac)+" across all "+rows.length+" control accounts. The biggest single slice is the tunnel at "+m(G_TUN.bac)+"."; }},
- {k:"pv", t:"PV — Planned Value", p:"What the schedule said should be finished by today, expressed in dollars. It is the yardstick, not an achievement.",
+ {k:"pv", cat:"cost", jT:"cost", jE:"scurve", t:"PV — Planned Value", p:"What the schedule said should be finished by today, expressed in dollars. It is the yardstick, not an achievement.",
   e:function(){ return "By the data date the plan called for "+m(T.pv)+" of work to be complete. Everything on this dashboard is measured against that yardstick."; }},
- {k:"ev", t:"EV — Earned Value", p:"What the work that is actually finished is worth, priced at budget rates. If a task budgeted at $10M is half done, it has earned $5M — no matter what it cost.",
+ {k:"ev", cat:"cost", jT:"cost", jE:"scurve", t:"EV — Earned Value", p:"What the work that is actually finished is worth, priced at budget rates. If a task budgeted at $10M is half done, it has earned $5M — no matter what it cost.",
   e:function(){ return m(T.ev)+" earned against "+m(T.pv)+" planned. The program has produced "+pct(T.ev/T.pv)+" of the value it planned to have by now."; }},
- {k:"ac", t:"AC — Actual Cost", p:"What the finished work really cost — every invoice, timesheet and commitment that has landed.",
+ {k:"ac", cat:"cost", jT:"cost", jE:"scurve", t:"AC — Actual Cost", p:"What the finished work really cost — every invoice, timesheet and commitment that has landed.",
   e:function(){ return m(T.ac)+" spent to earn "+m(T.ev)+" of value. Spending more than you earned is the definition of an overrun, and the gap here is "+m(Math.abs(T.cv))+"."; }},
- {k:"cpi", t:"CPI — Cost Performance Index", p:"Value earned per dollar spent. 1.00 means on budget; below 1.00 means every dollar buys less than a dollar of work. Earned value divided by actual cost.",
+ {k:"cpi", cat:"cost", jT:"over", jE:"kboard", t:"CPI — Cost Performance Index", p:"Value earned per dollar spent. 1.00 means on budget; below 1.00 means every dollar buys less than a dollar of work. Earned value divided by actual cost.",
   e:function(){ return idx(T.cpi)+" — each dollar spent has bought about "+(T.cpi*100).toFixed(1)+" cents of value. Small-looking, but on a "+m(T.bac)+" program that shortfall compounds into a "+m(Math.abs(T.vac))+" forecast overrun."; }},
- {k:"spi", t:"SPI — Schedule Performance Index", p:"Earned value divided by planned value — a pace reading measured in dollars, not days. Useful, but it drifts back toward 1.00 as a program finishes even when it finishes late, which is why it is never read alone.",
+ {k:"spi", cat:"sched", jT:"over", jE:"kboard", t:"SPI — Schedule Performance Index", p:"Earned value divided by planned value — a pace reading measured in dollars, not days. Useful, but it drifts back toward 1.00 as a program finishes even when it finishes late, which is why it is never read alone.",
   e:function(){ return idx(T.spi)+" today. Read it together with float and BEI below — those two measure time directly, which SPI cannot do."; }},
- {k:"eac", t:"EAC — Estimate at Completion", p:"The honest forecast of the final bill: what we have spent plus what the rest will really cost at current efficiency.",
+ {k:"eac", cat:"cost", jT:"cost", jE:"eacTable", t:"EAC — Estimate at Completion", p:"The honest forecast of the final bill: what we have spent plus what the rest will really cost at current efficiency.",
   e:function(){ return "The bottom-up forecast is "+m(T.eac)+" (each package projected at its own efficiency). The quick portfolio version — budget divided by CPI — says "+m(T.eacIndep)+". A controls manager shows the spread, not one number."; }},
- {k:"vac", t:"VAC — Variance at Completion", p:"Budget minus forecast. Negative means the program expects to finish over budget.",
+ {k:"vac", cat:"cost", jT:"cost", jE:"eacTable", t:"VAC — Variance at Completion", p:"Budget minus forecast. Negative means the program expects to finish over budget.",
   e:function(){ return sgn(T.vac)+". That is the number the board conversation is actually about."; }},
- {k:"tcpi", t:"TCPI — To-Complete Performance Index", p:"The cost efficiency the remaining work must hit to land exactly on a target — usually the original budget. It is the honesty test: compare it to the CPI actually being achieved.",
+ {k:"tcpi", cat:"cost", jT:"cost", jE:"eacTable", t:"TCPI — To-Complete Performance Index", p:"The cost efficiency the remaining work must hit to land exactly on a target — usually the original budget. It is the honesty test: compare it to the CPI actually being achieved.",
   e:function(){ return "Required: "+idx(T.tcpi)+". Demonstrated so far: "+idx(T.cpi)+". The remaining work would have to outperform everything done to date — that gap is why this program escalates rather than hopes."; }},
- {k:"contingency", t:"Contingency", p:"Money set aside up front for the risks you can name. It is not profit and it is not slack — it is insurance with a drawdown rate you should watch like a fuel gauge.",
+ {k:"contingency", cat:"risk", jT:"fw", jE:"gate5Card", t:"Contingency", p:"Money set aside up front for the risks you can name. It is not profit and it is not slack — it is insurance with a drawdown rate you should watch like a fuel gauge.",
   e:function(){ return m(PROGRAM.contingency)+" set aside, "+m(PROGRAM.contingencyDrawn)+" spent ("+pct(T.contDrawn,0)+"), "+m(T.contRemaining)+" left — while the program is "+pct(T.pct,0)+" complete. Here the reserve is being consumed slower than value is earned, which is the healthy direction; the forecast overrun of "+m(Math.abs(T.vac))+" against "+m(T.contRemaining)+" left is not."; }},
- {k:"float", t:"Total float", p:"How many days a piece of work can slip before it starts moving the final completion date. Positive float is breathing room. Zero means you are on the edge. Negative means the plan no longer fits in the time left.",
+ {k:"float", cat:"sched", jT:"sched", jE:"floats", t:"Total float", p:"How many days a piece of work can slip before it starts moving the final completion date. Positive float is breathing room. Zero means you are on the edge. Negative means the plan no longer fits in the time left.",
   e:function(){ return "The tunnel sits at "+days(G_TUN.float)+", utilities at "+days(G_UT.float)+". Those two packages are not just late — they are now setting the completion date themselves."; }},
- {k:"commit", t:"Commitments", p:"Contracted and committed dollar values assigned to the control account — money the program is on the hook for even if it hasn't been invoiced yet. Distinct from Actual Cost, which is what has actually landed.",
+ {k:"commit", cat:"cost", jT:"cost", jE:"pkgTable", t:"Commitments", p:"Contracted and committed dollar values assigned to the control account — money the program is on the hook for even if it hasn't been invoiced yet. Distinct from Actual Cost, which is what has actually landed.",
   e:function(){ var p=rows[0]; return p.id+" carries "+m(p.commit)+" in commitments against "+m(p.ac)+" spent so far — the gap between the two is exposure that hasn't hit the ledger as a real cost yet."; }},
- {k:"cpRem", t:"Remaining Critical-Path Duration", p:"The remaining calendar days along that control account's own driving path — the raw duration input CPLI is built from, not a derived index itself.",
+ {k:"cpRem", cat:"sched", jT:"sched", jE:"schedTriad", t:"Remaining Critical-Path Duration", p:"The remaining calendar days along that control account's own driving path — the raw duration input CPLI is built from, not a derived index itself.",
   e:function(){ var p=rows[0]; return p.id+" has "+p.cpRem+" days left on its own driving path, with "+p.float+"d of float — the two combine into its CPLI of "+idx(p.cpli)+"."; }},
- {k:"actsP", t:"Baseline Activity Count", p:"The number of activities the baseline schedule said would be finished by the data date — the denominator BEI is built from.",
+ {k:"actsP", cat:"sched", jT:"sched", jE:"schedTriad", t:"Baseline Activity Count", p:"The number of activities the baseline schedule said would be finished by the data date — the denominator BEI is built from.",
   e:function(){ var p=rows[0]; return "The baseline expected "+p.actsP+" activities done on "+p.id+" by now — the number Completed Activity Count is measured against."; }},
- {k:"actsD", t:"Completed Activity Count", p:"The actual count of activities fully finished by the data date — counted as whole activities, not dollars, so a handful of expensive-but-incomplete tasks can't hide behind a healthy-looking budget.",
+ {k:"actsD", cat:"sched", jT:"sched", jE:"schedTriad", t:"Completed Activity Count", p:"The actual count of activities fully finished by the data date — counted as whole activities, not dollars, so a handful of expensive-but-incomplete tasks can't hide behind a healthy-looking budget.",
   e:function(){ var p=rows[0]; return p.actsD+" of "+p.actsP+" activities are actually done on "+p.id+" — a BEI of "+idx(p.bei)+"."; }},
- {k:"ernH", t:"Earned Hours", p:"Budgeted labor/crew hours credited for the work actually completed — the numerator Productivity Factor is built from.",
+ {k:"ernH", cat:"field", jT:"del", jE:"cphCard", t:"Earned Hours", p:"Budgeted labor/crew hours credited for the work actually completed — the numerator Productivity Factor is built from.",
   e:function(){ var p=rows[0]; return p.id+" has earned "+num(p.ernH)+" crew-hours of credit against "+num(p.actH)+" actually worked — a Productivity Factor of "+idx(p.pf)+"."; }},
- {k:"actH", t:"Actual Hours", p:"Real field/crew hours expended to date — the denominator Productivity Factor is built from, and the number a superintendent can act on today, before it shows up as a dollar variance weeks later.",
+ {k:"actH", cat:"field", jT:"del", jE:"cphCard", t:"Actual Hours", p:"Real field/crew hours expended to date — the denominator Productivity Factor is built from, and the number a superintendent can act on today, before it shows up as a dollar variance weeks later.",
   e:function(){ var p=rows[0]; return "Crews logged "+num(p.actH)+" real hours on "+p.id+" to earn "+num(p.ernH)+" hours of credit."; }},
- {k:"cost", t:"Cost family", p:"The KPIs that answer whether the program can still afford to finish, and by how much it's off — CPI, CV, EAC, VAC, TCPI, CDI, and FDI.",
+ {k:"cost", cat:"cost", jT:"cost", jE:"eacTable", t:"Cost family", p:"The KPIs that answer whether the program can still afford to finish, and by how much it's off — CPI, CV, EAC, VAC, TCPI, CDI, and FDI.",
   e:function(){ return KPIS.filter(function(k){return k.fam==="Cost";}).length+" Cost KPIs on this board, led by CPI at "+idx(T.cpi)+" and EAC at "+m(T.eac)+"."; }},
- {k:"schedule", t:"Schedule family", p:"The KPIs that answer whether the work is progressing at the rate the plan requires, separate from cost — SPI, SV, CPLI, BEI, Total Float Erosion, and Milestone Slip.",
+ {k:"schedule", cat:"sched", jT:"sched", jE:"schedTriad", t:"Schedule family", p:"The KPIs that answer whether the work is progressing at the rate the plan requires, separate from cost — SPI, SV, CPLI, BEI, Total Float Erosion, and Milestone Slip.",
   e:function(){ return KPIS.filter(function(k){return k.fam==="Schedule";}).length+" Schedule KPIs, led by SPI at "+idx(T.spi)+" and the driving path's own CPLI at "+idx(T.cpli)+"."; }},
- {k:"risk", t:"Risk family", p:"The KPIs that price what could still go wrong, in dollars comparable to the contingency reserve — Risk Exposure and Contingency Coverage Ratio.",
+ {k:"risk", cat:"risk", jT:"risk", jE:"tornado", t:"Risk family", p:"The KPIs that price what could still go wrong, in dollars comparable to the contingency reserve — Risk Exposure and Contingency Coverage Ratio.",
   e:function(){ return "Risk Exposure reads "+m(T.riskExposure)+" against "+m(T.contRemaining)+" of remaining contingency — a coverage ratio of "+idx(T.contCoverage)+"."; }},
- {k:"change", t:"Change family", p:"The KPIs that track whether the program's scope is drifting from what was actually baselined — Change Order Rate and Pending Change Exposure.",
+ {k:"change", cat:"risk", jT:"risk", jE:"changePipe", t:"Change family", p:"The KPIs that track whether the program's scope is drifting from what was actually baselined — Change Order Rate and Pending Change Exposure.",
   e:function(){ return "Change orders currently run "+pct(T.coRate,2)+" of original contract value, with "+m(PROGRAM.coPendingValue)+" still pending."; }},
- {k:"delivery", t:"Delivery family", p:"The one leading-indicator family on the board — signals that move weeks before Cost or Schedule catch up to the same underlying story: Productivity Factor, RFI Aging, and quality NCR aging.",
+ {k:"delivery", cat:"field", jT:"del", jE:"cphCard", t:"Delivery family", p:"The one leading-indicator family on the board — signals that move weeks before Cost or Schedule catch up to the same underlying story: Productivity Factor, RFI Aging, and quality NCR aging.",
   e:function(){ return "Productivity Factor reads "+idx(T.pf)+" right now — a leading read on labor efficiency, distinct from CPI's own lagging one."; }},
- {k:"compliance", t:"Compliance family", p:"The one KPI that can override every other metric on this board — Total Recordable Incident Rate. Safety isn't optional the way a schedule slip or a cost variance sometimes is.",
+ {k:"compliance", cat:"field", jT:"del", jE:"compliance", t:"Compliance family", p:"The one KPI that can override every other metric on this board — Total Recordable Incident Rate. Safety isn't optional the way a schedule slip or a cost variance sometimes is.",
   e:function(){ return "TRIR currently reads "+PROGRAM.trir.toFixed(2)+" against a "+PROGRAM.trirBenchmark.toFixed(2)+" benchmark."; }},
- {k:"earnedschedule", t:"Earned Schedule & SPI(t)", p:"Dollar-based SPI (Earned Value &divide; Planned Value) has a structural flaw: it mathematically drifts back toward 1.00 as a program nears completion, even one finishing badly late, because Planned Value eventually catches up to Budget at Completion regardless of when the work actually landed. Earned Schedule fixes this by asking a different question — not how much was earned, but by finding the point on the planned-value curve where today's real Earned Value would have landed on time, then reading that back as a time value. SPI(t) is that same ratio shape (earned &divide; planned) but computed in time instead of dollars, so it never converges to 1.00 just because the budget got spent.",
+ {k:"earnedschedule", cat:"sched", jT:"sched", jE:"schedTriad", t:"Earned Schedule & SPI(t)", p:"Dollar-based SPI (Earned Value &divide; Planned Value) has a structural flaw: it mathematically drifts back toward 1.00 as a program nears completion, even one finishing badly late, because Planned Value eventually catches up to Budget at Completion regardless of when the work actually landed. Earned Schedule fixes this by asking a different question — not how much was earned, but by finding the point on the planned-value curve where today's real Earned Value would have landed on time, then reading that back as a time value. SPI(t) is that same ratio shape (earned &divide; planned) but computed in time instead of dollars, so it never converges to 1.00 just because the budget got spent.",
   e:function(){ var es=deriveEarnedSchedule(); return "This program's own Earned Schedule reads "+es.es.toFixed(1)+" months against "+es.at+" months actually elapsed — SPI(t) "+idx(es.spit)+", a genuine time-based reading, not the dollar-based SPI shown next to it."; }},
- {k:"cpli", t:"Critical path & CPLI", p:"The critical path is the chain of work that sets the finish date — delay any link and the whole program moves. CPLI (Critical Path Length Index) asks whether the remaining plan on that chain still fits: (days left + float) divided by days left. Under 1.00, the plan is arithmetically impossible without recovery.",
+ {k:"cpli", cat:"sched", jT:"sched", jE:"schedTriad", t:"Critical path & CPLI", p:"The critical path is the chain of work that sets the finish date — delay any link and the whole program moves. CPLI (Critical Path Length Index) asks whether the remaining plan on that chain still fits: (days left + float) divided by days left. Under 1.00, the plan is arithmetically impossible without recovery.",
   e:function(){ return "The driving path runs through "+G_UT.id+": "+G_UT.cpRem+" days of critical work remain with "+days(G_UT.float)+" of float — CPLI "+idx(G_UT.cpli)+", meaning the plan must run faster than scheduled from tomorrow onward."; }},
- {k:"bei", t:"BEI — Baseline Execution Index", p:"A simple honesty counter: of the activities the plan said would be finished by now, how many actually are? Counts, not dollars — so big expensive tasks cannot hide small missed ones.",
+ {k:"bei", cat:"sched", jT:"sched", jE:"schedTriad", t:"BEI — Baseline Execution Index", p:"A simple honesty counter: of the activities the plan said would be finished by now, how many actually are? Counts, not dollars — so big expensive tasks cannot hide small missed ones.",
   e:function(){ return T.actsD.toLocaleString("en-US")+" of "+T.actsP.toLocaleString("en-US")+" planned activities are complete — BEI "+idx(T.bei)+". Below 0.95 the misses start piling up faster than they can be worked off."; }},
- {k:"changeorder", t:"Change order", p:"A formal amendment to the contract — scope, price or time — signed by both sides. The rate of change against the original contract value is one of the best predictors of a troubled program; the cycle time to process each one is the part you can actually control.",
+ {k:"changeorder", cat:"risk", jT:"risk", jE:"changePipe", t:"Change order", p:"A formal amendment to the contract — scope, price or time — signed by both sides. The rate of change against the original contract value is one of the best predictors of a troubled program; the cycle time to process each one is the part you can actually control.",
   e:function(){ return PROGRAM.coApprovedCount+" approved changes worth "+m(PROGRAM.coApprovedValue)+" — "+pct(T.coRate,2)+" of the original "+m(PROGRAM.origContract)+" contract — with "+PROGRAM.coPendingCount+" more pending. Processing is running "+(PROGRAM.coCycleDays-PROGRAM.coCycleTarget)+" days past the "+PROGRAM.coCycleTarget+"-day target."; }},
- {k:"rfi", t:"RFI — Request for Information", p:"A formal question to the designer when the drawings do not answer something. Work stops or guesses until it is answered — so aging RFIs are tomorrow's claims.",
+ {k:"rfi", cat:"field", jT:"del", jE:"docctl", t:"RFI — Request for Information", p:"A formal question to the designer when the drawings do not answer something. Work stops or guesses until it is answered — so aging RFIs are tomorrow's claims.",
   e:function(){ return PROGRAM.rfiOpen+" open, "+PROGRAM.rfiOver30+" older than 30 days, averaging "+PROGRAM.rfiAvgAge+" days against a "+PROGRAM.rfiTarget+"-day target. The oldest ones are where the next change orders are born."; }},
- {k:"submittal", t:"Submittal", p:"A document the contractor must send for approval before work — shop drawings, materials, mix designs. Slow submittal turnaround quietly delays procurement months before it shows up in the schedule.",
+ {k:"submittal", cat:"field", jT:"del", jE:"docctl", t:"Submittal", p:"A document the contractor must send for approval before work — shop drawings, materials, mix designs. Slow submittal turnaround quietly delays procurement months before it shows up in the schedule.",
   e:function(){ return PROGRAM.subOpen+" in the queue, turning around in "+PROGRAM.subTurnaround+" days against a "+PROGRAM.subTarget+"-day target."; }},
- {k:"ncr", t:"NCR — Non-Conformance Report", p:"A documented instance where installed or in-progress work fails to meet the contract's own specification — a quality defect, not a schedule or cost variance. Relying on contractor-asserted quality status instead of independently tracked NCR aging is a documented way for a physical defect to keep propagating after it's already been logged on paper. A rising ratio of unresolved NCRs is a leading indicator of downstream rework, not just a compliance footnote.",
+ {k:"ncr", cat:"field", jT:"del", jE:"ncrCard", t:"NCR — Non-Conformance Report", p:"A documented instance where installed or in-progress work fails to meet the contract's own specification — a quality defect, not a schedule or cost variance. Relying on contractor-asserted quality status instead of independently tracked NCR aging is a documented way for a physical defect to keep propagating after it's already been logged on paper. A rising ratio of unresolved NCRs is a leading indicator of downstream rework, not just a compliance footnote.",
   e:function(){ var n=ACTIONS.filter(function(a){return a.src&&a.src.indexOf("Quality NCR")===0;});
     var open=n.filter(function(a){return actionStatus(a)!=="verified"&&actionStatus(a)!=="closed";});
     return open.length+" of "+n.length+" quality NCRs open on this ledger right now — too few to compute a real generation-vs-closure rate, so this dashboard reports real per-item aging instead of a fabricated velocity trend."; }},
- {k:"riskexposure", t:"Risk exposure", p:"The risk register priced: each risk's cost multiplied by its probability, added up. It turns a list of worries into a dollar figure you can compare directly against contingency.",
+ {k:"riskexposure", cat:"risk", jT:"risk", jE:"tornado", t:"Risk exposure", p:"The risk register priced: each risk's cost multiplied by its probability, added up. It turns a list of worries into a dollar figure you can compare directly against contingency.",
   e:function(){ var r01=RISKS.filter(function(x){return x.id==="R-01";})[0], r01exp=P_BAND[r01.p]*r01.cost;
     return m(T.riskExposure)+" across "+RISKS.length+" risks, and "+pct(r01exp/T.riskExposure,0)+" of it is one risk — tunnel ground conditions ("+m(r01exp)+"). Concentration, not count, is what leadership needs to see."; }},
- {k:"montecarlo", t:"Monte Carlo simulation", p:"Instead of one forecast, run the finish thousands of times, each time letting each package's remaining efficiency vary around what it has actually achieved. The result is a distribution: not \"the answer\" but the honest odds.",
+ {k:"montecarlo", cat:"risk", jT:"cost", jE:"mcChart", t:"Monte Carlo simulation", p:"Instead of one forecast, run the finish thousands of times, each time letting each package's remaining efficiency vary around what it has actually achieved. The result is a distribution: not \"the answer\" but the honest odds.",
   e:function(){ return MC.n.toLocaleString("en-US")+" runs here, fixed seed so it is reproducible. Median finish "+m(MC.p50)+"; "+pct(MC.pOver,0)+" of runs finish over budget; "+pct(MC.pBust,0)+" bust through budget plus all remaining contingency."; }},
- {k:"referenceclass", t:"Reference class forecasting", p:"A different question from Monte Carlo above: not \"what does this program's own track record imply,\" but \"how have similar completed programs, elsewhere, actually turned out?\" Bent Flyvbjerg's database of 16,000+ megaprojects found rail projects average 45% real cost overrun, fixed-link (bridge/tunnel) 34%, road 20% — prevalent and predictable, not random. The fix is basing an estimate on that outcome distribution instead of a bottom-up build that quietly assumes this time is different.",
+ {k:"referenceclass", cat:"risk", jT:"cost", jE:"rcfGapTile", t:"Reference class forecasting", p:"A different question from Monte Carlo above: not \"what does this program's own track record imply,\" but \"how have similar completed programs, elsewhere, actually turned out?\" Bent Flyvbjerg's database of 16,000+ megaprojects found rail projects average 45% real cost overrun, fixed-link (bridge/tunnel) 34%, road 20% — prevalent and predictable, not random. The fix is basing an estimate on that outcome distribution instead of a bottom-up build that quietly assumes this time is different.",
   e:function(){ return "This program's own Monte Carlo puts the median finish at "+m(MC.p50)+" ("+pct(MC.pOver,0)+" of runs over budget) — grounded in this ledger's own efficiency. Reference class forecasting is the complementary check: does that number also look plausible against the base rate for rail programs generally, not just this one's own history?"; }},
- {k:"pertdist", t:"Triangular vs. PERT (Beta-PERT)", p:"Two shapes for the same min/mode/max future-efficiency range each Monte Carlo run draws from. Triangular ramps linearly to the mode and back down — simple, closed-form, easy to reproduce by hand. PERT (Beta-PERT) is smoother and concentrates more probability mass near the mode, tapering its tails instead of ramping straight lines — the shape PMI/AACE guidance for 3-point estimates generally recommends, at the cost of needing a real Gamma/Beta sampler instead of a one-line formula.",
+ {k:"pertdist", cat:"risk", jT:"cost", jE:"mcChart", t:"Triangular vs. PERT (Beta-PERT)", p:"Two shapes for the same min/mode/max future-efficiency range each Monte Carlo run draws from. Triangular ramps linearly to the mode and back down — simple, closed-form, easy to reproduce by hand. PERT (Beta-PERT) is smoother and concentrates more probability mass near the mode, tapering its tails instead of ramping straight lines — the shape PMI/AACE guidance for 3-point estimates generally recommends, at the cost of needing a real Gamma/Beta sampler instead of a one-line formula.",
   e:function(){ return "Right now this board is drawing from the "+(state.mcDist==="pert"?"PERT":"triangular")+" shape — toggle \"Draw shape\" above the chart to compare how the same "+rows.length+"-account uncertainty reshapes the distribution."; }},
- {k:"riskdriver", t:"Risk driver method (AACE 57R-09)", p:"A different kind of uncertainty than the cost-efficiency draw above. That one asks how much a control account's future performance might drift — continuous, always present. A risk driver is discrete: a specific, named, priced event that either happens in a given simulated run or doesn't, at its own real probability. AACE's 57R-09 recommended practice is combining both layers rather than picking one — the register captures what could go wrong by name, the efficiency draw captures the everyday drift that isn't any single named thing.",
+ {k:"riskdriver", cat:"risk", jT:"cost", jE:"mcRiskFilter", t:"Risk driver method (AACE 57R-09)", p:"A different kind of uncertainty than the cost-efficiency draw above. That one asks how much a control account's future performance might drift — continuous, always present. A risk driver is discrete: a specific, named, priced event that either happens in a given simulated run or doesn't, at its own real probability. AACE's 57R-09 recommended practice is combining both layers rather than picking one — the register captures what could go wrong by name, the efficiency draw captures the everyday drift that isn't any single named thing.",
   e:function(){ return state.riskIncluded.length? state.riskIncluded.length+" named risk"+(state.riskIncluded.length===1?"":"s")+" currently layered onto the Monte Carlo run — check the \"+ named risk events\" row above the chart to add or remove one and watch the distribution shift." : "No named risk events are currently layered in — the Monte Carlo chart is showing cost-efficiency uncertainty only. Check a risk in the \"+ named risk events\" row to add its own real probability-weighted event on top."; }},
- {k:"fundingtier", t:"Funding tier", p:"A portfolio-level question, distinct from whether a single line is on budget: if the total program had to absorb a real funding constraint, which lines get protected first and which are most exposed? Crosses two axes — how far along a line is (sunk cost and momentum make an early cut expensive to reverse) against whether it's spending efficiently — rather than reading off a single cost index.",
+ {k:"fundingtier", cat:"cost", jT:"port", jE:"fundingTierRead", t:"Funding tier", p:"A portfolio-level question, distinct from whether a single line is on budget: if the total program had to absorb a real funding constraint, which lines get protected first and which are most exposed? Crosses two axes — how far along a line is (sunk cost and momentum make an early cut expensive to reverse) against whether it's spending efficiently — rather than reading off a single cost index.",
   e:function(){ var lines=portfolioRows(); return lines.map(function(l){ return l.name.replace(/&mdash;.*/,"").trim()+": "+fundingTier(l).tier; }).join(" · "); }},
- {k:"trir", t:"TRIR — Total Recordable Incident Rate", p:"The standard safety yardstick: recordable injuries per 200,000 hours worked — roughly 100 people working full time for a year. The one metric that can stop a job regardless of cost or schedule.",
+ {k:"trir", cat:"field", jT:"del", jE:"compliance", t:"TRIR — Total Recordable Incident Rate", p:"The standard safety yardstick: recordable injuries per 200,000 hours worked — roughly 100 people working full time for a year. The one metric that can stop a job regardless of cost or schedule.",
   e:function(){ return PROGRAM.recordables+" recordable incidents across "+PROGRAM.hoursWorked.toLocaleString("en-US")+" work hours: "+(PROGRAM.recordables*200000/PROGRAM.hoursWorked).toFixed(2)+" versus an industry benchmark of "+PROGRAM.trirBenchmark.toFixed(2)+" — about "+pct(1-PROGRAM.trir/PROGRAM.trirBenchmark,0)+" better."; }},
- {k:"pf", t:"Productivity factor", p:"Earned hours divided by actual hours. Below 1.00 the crews are burning more hours than the estimate carried — and because hours are booked weekly, this moves weeks before the same problem reaches the cost index.",
+ {k:"pf", cat:"field", jT:"del", jE:"cphCard", t:"Productivity factor", p:"Earned hours divided by actual hours. Below 1.00 the crews are burning more hours than the estimate carried — and because hours are booked weekly, this moves weeks before the same problem reaches the cost index.",
   e:function(){ return idx(T.pf)+" program-wide — crews are running about "+((1/T.pf-1)*100).toFixed(1)+"% over the estimated hours. The tunnel is the drag at "+idx(G_TUN.pf)+"."; }},
- {k:"cph", t:"CPH — Cost Per Hour", p:"Labor, equipment and overhead for one crew or cell, translated into a burn rate and checked weekly against a standard. It is a manufacturing-floor discipline applied to a field crew — the same idea as productivity factor, but it prices the hours in dollars and runs weekly instead of monthly, so it isolates why the rate moved, not just that it did.",
+ {k:"cph", cat:"field", jT:"del", jE:"cphCard", t:"CPH — Cost Per Hour", p:"Labor, equipment and overhead for one crew or cell, translated into a burn rate and checked weekly against a standard. It is a manufacturing-floor discipline applied to a field crew — the same idea as productivity factor, but it prices the hours in dollars and runs weekly instead of monthly, so it isolates why the rate moved, not just that it did.",
   e:function(){ var c=CPH_CELLS.map(deriveCph)[0], last=c.weeks[c.weeks.length-1];
     return "The tunnel liner crew's standard is "+usd(c.baseline)+"/hr; "+last.w+" ran "+usd(last.actual)+
     "/hr. Of the "+usd(c.totalOverrun)+" six-week overrun, "+usd(c.totalIdle)+" is idle time specifically — the part a staging fix recovers, not an engineering one."; }},
- {k:"ve", t:"Value engineering (VE)", p:"A structured review that asks one question: can the same function be delivered for less money? Done before award it shapes the baseline; done during construction it becomes a shared-savings change.",
+ {k:"ve", cat:"cost", jT:"cost", jE:"eacTable", t:"Value engineering (VE)", p:"A structured review that asks one question: can the same function be delivered for less money? Done before award it shapes the baseline; done during construction it becomes a shared-savings change.",
   e:function(){ var award=BASELINE.filter(function(b){return /^Engineer/.test(b.l);})[0];
     var ve=BASELINE.filter(function(b){return /Value engineering/.test(b.l);})[0];
     return "This program's baseline carries "+m(Math.abs(ve.v))+" of accepted VE — part of how the engineer's estimate of "+m(award.v)+" came down to a "+m(T.bac)+" baseline before construction started."; }},
- {k:"buyout", t:"Buyout", p:"Letting the subcontracts and major purchases after the contract is won. When the market prices below the estimate, the difference is buyout savings — margin captured at the source, before any risk can touch it.",
+ {k:"buyout", cat:"cost", jT:"cost", jE:"eacTable", t:"Buyout", p:"Letting the subcontracts and major purchases after the contract is won. When the market prices below the estimate, the difference is buyout savings — margin captured at the source, before any risk can touch it.",
   e:function(){ var buyout=BASELINE.filter(function(b){return /^Buyout/.test(b.l);})[0];
     return m(Math.abs(buyout.v))+" of buyout savings is baked into this baseline. The opposite — buyout above estimate — is an overrun that arrives on day one."; }},
- {k:"tia", t:"Time Impact Analysis (TIA)", p:"The disciplined way to answer \"how many days did that event cost?\": insert the delay into the schedule model as a small sub-network (a fragnet), re-run the dates, and read the difference. It turns an argument into arithmetic — and sets whether the event buys time, money, both, or neither.",
+ {k:"tia", cat:"sched", jT:"sched", jE:"tiaReg", t:"Time Impact Analysis (TIA)", p:"The disciplined way to answer \"how many days did that event cost?\": insert the delay into the schedule model as a small sub-network (a fragnet), re-run the dates, and read the difference. It turns an argument into arithmetic — and sets whether the event buys time, money, both, or neither.",
   e:function(){ var d02=DELAYS.filter(function(x){return x.id==="D-02";})[0];
     return "D-02's fragnet measures "+days(d02.d)+" of impact on the tunnel — exactly the "+(-G_TUN.float)+" days of negative float CP-201 carries, and the driver of revenue service landing "+days(MILES[MILES.length-1].d)+"."; }},
- {k:"cde", t:"CDE — Common Data Environment", p:"A governed workspace for project information under ISO 19650, the international standard for managing data across a built asset's lifecycle. Not a file share — four defined states (Work in Progress, Shared, Published, Archived), each requiring a specific approval before information can advance to the next.",
+ {k:"cde", cat:"data", jT:"data", jE:"cdeFlow", t:"CDE — Common Data Environment", p:"A governed workspace for project information under ISO 19650, the international standard for managing data across a built asset's lifecycle. Not a file share — four defined states (Work in Progress, Shared, Published, Archived), each requiring a specific approval before information can advance to the next.",
   e:function(){ return "The Data Strategy tab's four cards — Work in Progress, Shared, Published, Archived — are exactly these four states, each with the real gate that moves information from one to the next."; }},
- {k:"ids", t:"IDS — Information Delivery Specification", p:"An XML-based, machine-readable standard from buildingSMART defining exactly what information a submittal must carry before it can pass a gate. Pairs an applicability rule (which records this governs) with a requirement (what those records must have) — a failed submittal gets rejected with a specific, itemized reason, not a vague quality flag.",
+ {k:"ids", cat:"data", jT:"data", jE:"cdeFlow", t:"IDS — Information Delivery Specification", p:"An XML-based, machine-readable standard from buildingSMART defining exactly what information a submittal must carry before it can pass a gate. Pairs an applicability rule (which records this governs) with a requirement (what those records must have) — a failed submittal gets rejected with a specific, itemized reason, not a vague quality flag.",
   e:function(){ return "This dashboard's own "+GUARDS.length+"-check integrity gate is a small-scale version of the same pattern — each check names exactly what it's verifying, not just pass or fail."; }},
- {k:"wbs", t:"WBS — Work Breakdown Structure", p:"How a contractor organizes project scope for controls — around contractual work packages and spatial boundaries. The Asset Breakdown Structure (ABS) an owner uses for operations is organized around functional system topology instead — a structural mismatch, not a data-entry error, and a documented cause of data loss at handover.",
+ {k:"wbs", cat:"data", jT:"fw", jE:"wbsTable", t:"WBS — Work Breakdown Structure", p:"How a contractor organizes project scope for controls — around contractual work packages and spatial boundaries. The Asset Breakdown Structure (ABS) an owner uses for operations is organized around functional system topology instead — a structural mismatch, not a data-entry error, and a documented cause of data loss at handover.",
   e:function(){ return "This program's own WBS maps 100% of its "+m(T.bac)+" budget to a named scope element and owner — see the Operating Framework tab's control-account mapping."; }},
- {k:"abs", t:"ABS — Asset Breakdown Structure", p:"How an owner organizes an asset for operations and maintenance — by functional system, not by the contractor's work packages. Reconciling a WBS-built program into an ABS-run facility is exactly where handover data tends to get lost.",
+ {k:"abs", cat:"data", jT:"data", jE:"cdeFlow", t:"ABS — Asset Breakdown Structure", p:"How an owner organizes an asset for operations and maintenance — by functional system, not by the contractor's work packages. Reconciling a WBS-built program into an ABS-run facility is exactly where handover data tends to get lost.",
   e:function(){ return "See the Data Strategy tab's rebaselining workflow — the real four-phase process for bringing legacy, mixed-vintage assets into a clean digital record."; }},
- {k:"zscore", t:"Z-score anomaly check", p:"How far a single data point sits from a series' own historical average, measured in standard deviations. A genuine outlier detector — good at catching one week that's suddenly way off — but blind to a slow, persistent drift that never individually crosses the threshold, which is exactly what the EWMA control chart below it exists to catch.",
+ {k:"zscore", cat:"field", jT:"ai", jE:"aiStatControl", t:"Z-score anomaly check", p:"How far a single data point sits from a series' own historical average, measured in standard deviations. A genuine outlier detector — good at catching one week that's suddenly way off — but blind to a slow, persistent drift that never individually crosses the threshold, which is exactly what the EWMA control chart below it exists to catch.",
   e:function(){ var series=CPH_CELLS[0].weeks.map(function(w){return w.actual;}), z=deriveZScores(series), flags=z.points.filter(function(p2){return p2.flag;}).length;
     return "Run against the tunnel crew's own 6-week $/hr series: "+flags+" of "+z.points.length+" weeks currently cross the &plusmn;"+z.threshold+
       "&sigma; threshold ("+(flags?"a real, live flag":"a genuine null result, not a manufactured anomaly")+")."; }},
- {k:"ewma", t:"EWMA — Exponentially Weighted Moving Average control chart", p:"A statistical process control technique that catches a slow, persistent drift a simple threshold check misses — each new point is weighted more heavily than older history, so a series that never individually crosses a fixed line but keeps trending the same direction still gets flagged, once the trend itself crosses a dynamically-widening control limit.",
+ {k:"ewma", cat:"field", jT:"ai", jE:"ewmaSvgChart", t:"EWMA — Exponentially Weighted Moving Average control chart", p:"A statistical process control technique that catches a slow, persistent drift a simple threshold check misses — each new point is weighted more heavily than older history, so a series that never individually crosses a fixed line but keeps trending the same direction still gets flagged, once the trend itself crosses a dynamically-widening control limit.",
   e:function(){ var series=CPH_CELLS[0].weeks.map(function(w){return w.actual;}), e2=deriveEwma(series), flags=e2.points.filter(function(p2){return p2.flag;}).length;
     return "Run against the tunnel crew's own 6-week $/hr series: "+flags+" of "+e2.points.length+" weeks currently breach the dynamic control limit ("+
       (flags?"a real, live flag":"a genuine null result — the honest answer, not a manufactured anomaly")+"). &lambda;="+e2.lambda+", L="+e2.L+" are standard SPC parameter choices, not derived from this program's own history."; }},
- {k:"gbm", t:"Geometric Brownian Motion & Maximum Likelihood Estimation", p:"A way to fit a drift (average rate of change) and a volatility (how much it wobbles around that drift) directly to a program's own cost history, using Maximum Likelihood Estimation on the log-returns between consecutive periods — the same math finance uses to model a stock price's random walk, applied here to actual cost instead.",
+ {k:"gbm", cat:"cost", jT:"cost", jE:"costGbm", t:"Geometric Brownian Motion & Maximum Likelihood Estimation", p:"A way to fit a drift (average rate of change) and a volatility (how much it wobbles around that drift) directly to a program's own cost history, using Maximum Likelihood Estimation on the log-returns between consecutive periods — the same math finance uses to model a stock price's random walk, applied here to actual cost instead.",
   e:function(){ var g=deriveGbmParams(acHistorySeries().map(function(p2){return p2.ac;}));
     return "Fit to this program's own "+g.n+" real log-returns: drift "+pct(g.muHatMle,2)+"/period, volatility "+pct(g.sigmaHatMle,2)+
       "/period. With only "+g.n+" data points the 90% confidence interval is wide enough that the dashboard's own card states plainly, before showing any number, that this is too thin a sample to trust as a forecast — the arithmetic is real, the caveat is the point."; }},
- {k:"gbmvsevm", t:"CPI-extrapolation vs. GBM — what each method assumes", p:"Classical EAC (BAC÷CPI) assumes the remaining work happens at exactly today's cost-efficiency, every month, with zero variance — a real assumption, just an invisible one unless someone states it. GBM's own MLE fit makes the opposite move: it names a real volatility figure instead of assuming it away. Neither method is being projected forward here — this compares what each one assumes about the future, not which one predicts it better.",
+ {k:"gbmvsevm", cat:"cost", jT:"cost", jE:"gbmVsEvm", t:"CPI-extrapolation vs. GBM — what each method assumes", p:"Classical EAC (BAC÷CPI) assumes the remaining work happens at exactly today's cost-efficiency, every month, with zero variance — a real assumption, just an invisible one unless someone states it. GBM's own MLE fit makes the opposite move: it names a real volatility figure instead of assuming it away. Neither method is being projected forward here — this compares what each one assumes about the future, not which one predicts it better.",
   e:function(){ var g=deriveGbmParams(acHistorySeries().map(function(p2){return p2.ac;}));
     return "This program's CPI ("+idx(T.cpi)+") implies zero month-to-month variance in the remaining work's efficiency. GBM's own fit puts that variance at "+pct(g.sigmaHatMle,2)+
       "/period — real, even though "+g.n+" data points is too few to trust the figure as a forecasting input on its own."; }},
- {k:"raid", t:"RAID — Risks, Assumptions, Issues, Decisions", p:"A single register discipline for tracking everything that isn't yet a scheduled task but still needs an owner and a resolution: a Risk not yet realized, an Assumption the plan depends on, an Issue that's already happened, a Decision that needs making and recording.",
+ {k:"raid", cat:"risk", jT:"act", jE:"actTable", t:"RAID — Risks, Assumptions, Issues, Decisions", p:"A single register discipline for tracking everything that isn't yet a scheduled task but still needs an owner and a resolution: a Risk not yet realized, an Assumption the plan depends on, an Issue that's already happened, a Decision that needs making and recording.",
   e:function(){ var byType={}; ACTIONS.forEach(function(a){byType[a.type]=(byType[a.type]||0)+1;});
     return "This program's Actions register carries "+(byType.Issue||0)+" Issues, "+(byType.Task||0)+" Tasks, and "+(byType.Decision||0)+
       " Decisions — "+ACTIONS.length+" items total, each with a named owner and a due date, not a generic backlog."; }},
- {k:"capa", t:"CAPA — Corrective and Preventive Action", p:"The difference between fixing a problem and fixing the process that let it happen: a Corrective Action addresses this specific occurrence; a Preventive Action changes something structural so the same class of problem is less likely next time. Naming both, separately, is what turns a fix into a lesson.",
+ {k:"capa", cat:"risk", jT:"act", jE:"actTable", t:"CAPA — Corrective and Preventive Action", p:"The difference between fixing a problem and fixing the process that let it happen: a Corrective Action addresses this specific occurrence; a Preventive Action changes something structural so the same class of problem is less likely next time. Naming both, separately, is what turns a fix into a lesson.",
   e:function(){ var a1=ACTIONS.filter(function(a){return a.id==="A-01";})[0];
     return "A-01's own record: root cause — "+a1.root.slice(0,74)+"…; corrective — "+a1.corrective.slice(0,60)+
       "…; preventive — "+a1.preventive.slice(0,60)+"… Three distinct fields, not one merged 'notes' box."; }},
- {k:"cbsobs", t:"CBS/OBS — Cost & Organizational Breakdown Structure", p:"Two more views of the same scope the WBS already describes: the CBS (Cost Breakdown Structure) is the cost-category lens — labor, material, equipment, subcontract; the OBS (Organizational Breakdown Structure) is who's accountable, by named role. A control account is the intersection of one WBS element and one OBS owner — and, per the ABS glossary entry, the same control account also carries the maintainable asset it hands over as.",
+ {k:"cbsobs", cat:"data", jT:"fw", jE:"wbsTable", t:"CBS/OBS — Cost & Organizational Breakdown Structure", p:"Two more views of the same scope the WBS already describes: the CBS (Cost Breakdown Structure) is the cost-category lens — labor, material, equipment, subcontract; the OBS (Organizational Breakdown Structure) is who's accountable, by named role. A control account is the intersection of one WBS element and one OBS owner — and, per the ABS glossary entry, the same control account also carries the maintainable asset it hands over as.",
   e:function(){ var w=WBS.filter(function(x){return x.ca==="CP-201";})[0];
     return "The tunnel's own WBS row: CBS category \""+w.cbs+"\", OBS owner \""+w.obs+"\", ABS tag \""+w.abs+"\" — the same control account (CP-201) read through three different structural lenses at once."; }},
- {k:"excusablecompensable", t:"Excusable-compensable vs. non-excusable delay", p:"Two independent axes classify every delay event: excusable (was it the contractor's fault?) and compensable (does the contractor get paid for it, not just extra time?). Owner-caused or genuinely unforeseeable delays are excusable; only owner-caused ones are also compensable. Contractor-caused delay is neither.",
+ {k:"excusablecompensable", cat:"sched", jT:"sched", jE:"tiaReg", t:"Excusable-compensable vs. non-excusable delay", p:"Two independent axes classify every delay event: excusable (was it the contractor's fault?) and compensable (does the contractor get paid for it, not just extra time?). Owner-caused or genuinely unforeseeable delays are excusable; only owner-caused ones are also compensable. Contractor-caused delay is neither.",
   e:function(){ var d01=DELAYS.filter(function(d){return d.id==="D-01";})[0], d03=DELAYS.filter(function(d){return d.id==="D-03";})[0];
     return "D-01 ("+d01.n.toLowerCase()+") is \""+d01.cls+"\" — the contractor gets both time and money. D-03 ("+d03.n.toLowerCase()+
       ") is \""+d03.cls+"\" — a recovery plan, not a change order, because the cause sits with the contractor's own coordination."; }}
 ];
+/* Glossary category taxonomy (brainstorm-mode upgrade, 2026-08-21) — each GLOSS entry's own real
+   `cat` field, grounded against the dashboard's existing 6-family KPI system (Cost/Schedule/Risk/
+   Change/Delivery/Compliance, KPI_FAMILIES) plus one 6th bucket (data architecture: WBS/CBS/OBS/
+   ABS/CDE/IDS terms that describe structure, not a scored KPI) folded into 5 categories here —
+   Risk absorbs Change (both are Risk & Change tab concepts), Delivery absorbs Compliance (both are
+   Field-telemetry concepts on the Delivery/AI & Data tabs). Deliberately NOT colored with this
+   dashboard's own RAG tokens (--c-ok/--c-warn/--c-bad already mean pass/warn/fail everywhere else
+   on this page) — a category badge is neutral information, not a status signal, and reusing red
+   for "Field" or amber for "Risk" would read as a false pass/fail cue next to a card that's simply
+   about that domain, not failing anything. Category identity comes from the pill filter's own
+   active-state styling (same .btn/.on pattern as mcFilter/riskFilter) and the label text alone. */
+var CATS={
+ cost:{label:"Cost & EVM"}, sched:{label:"Schedule & CPM"}, risk:{label:"Risk, Commercial & Governance"},
+ field:{label:"Field Telemetry & Quality"}, data:{label:"Data Strategy & Architecture"}
+};
 /* Data Strategy tab — not about this program's data, about the real problem a synthetic single-
    ledger dashboard can't demonstrate: connecting scattered, unclean, multi-system data. Static
    reference content by design (same convention as this tab's CADENCE/stakeholder-map neighbors) —
@@ -7238,6 +7255,7 @@ function renderShortcutsOverlay(){
     '<dt>&larr; &rarr;</dt><dd>Move within the tab rail (also &uarr; &darr; on the wide vertical rail). '+
       'The same keys drive Presentation Mode’s beats and the Guided Tour’s stops while either is active.</dd>'+
     '<dt>N&nbsp;&nbsp;P</dt><dd>Next / previous beat, while Presentation Mode is active.</dd>'+
+    '<dt>/</dt><dd>Jump straight to the Glossary tab and focus its search box.</dd>'+
     '<dt>Esc</dt><dd>Close whatever’s open &mdash; a popover, this panel, Presentation Mode, or the Tour.</dd>'+
     '<dt>?</dt><dd>Toggle this panel.</dd>'+
     '</dl>';
@@ -7261,13 +7279,51 @@ function closeShortcuts(){
 }
 function shortcutsOpen(){ return !document.getElementById("shortcutsOverlay").hidden; }
 
+/* Category pill bar (brainstorm-mode upgrade, 2026-08-21) — role="tablist"/role="tab" per the
+   real ARIA tablist pattern (not decorative buttons): the category filter genuinely swaps which
+   panel of cards is showing, the same semantic the tab-rail itself already uses site-wide. Counts
+   are computed live from GLOSS, never hand-typed, so they can't silently drift from the real data
+   the way a hardcoded "38" elsewhere in an unrelated document already did once this session. */
+function renderGlossCatBar(){
+  var counts={}; GLOSS.forEach(function(g){ counts[g.cat]=(counts[g.cat]||0)+1; });
+  var cats=[{k:"All",label:"All"}].concat(Object.keys(CATS).map(function(k){ return {k:k,label:CATS[k].label}; }));
+  document.getElementById("glossCatBar").innerHTML=cats.map(function(c){
+    var on=state.glossCat===c.k, n=c.k==="All"?GLOSS.length:(counts[c.k]||0);
+    return '<button class="btn'+(on?" on":"")+'" role="tab" aria-selected="'+on+'" aria-controls="glossList" '+
+      'data-glosscat="'+c.k+'">'+c.label+' <span style="opacity:.7">('+n+')</span></button>';
+  }).join("");
+}
+document.getElementById("glossCatBar").addEventListener("click",function(e){
+  var b=e.target.closest("[data-glosscat]"); if(!b) return;
+  state.glossCat=b.dataset.glosscat; renderGlossCatBar(); renderGlossary(document.getElementById("glossQ").value);
+});
+document.getElementById("glossCatBar").addEventListener("keydown",function(e){
+  // ArrowLeft/ArrowRight/Home/End between category pills — the real tablist keyboard pattern,
+  // same convention this file already applies to its own tab-rail (activateTabByOffset() etc.),
+  // now extended to this second, smaller tablist rather than left as click-only.
+  var tabs=[].slice.call(document.querySelectorAll('#glossCatBar [role="tab"]'));
+  var i=tabs.indexOf(document.activeElement); if(i<0) return;
+  var to=null;
+  if(e.key==="ArrowRight") to=tabs[(i+1)%tabs.length];
+  else if(e.key==="ArrowLeft") to=tabs[(i-1+tabs.length)%tabs.length];
+  else if(e.key==="Home") to=tabs[0];
+  else if(e.key==="End") to=tabs[tabs.length-1];
+  if(to){ e.preventDefault(); to.focus(); to.click(); }
+});
 function renderGlossary(q){
   q=(q||"").toLowerCase();
   var list=GLOSS.filter(function(g){
-    return !q || (g.t+" "+g.p+" "+g.e()).toLowerCase().indexOf(q)>=0; });
+    var matchesCat=state.glossCat==="All"||g.cat===state.glossCat;
+    var matchesQ=!q || (g.t+" "+g.p+" "+g.e()).toLowerCase().indexOf(q)>=0;
+    return matchesCat&&matchesQ; });
   document.getElementById("glossList").innerHTML=list.map(function(g){
-    return '<div class="gcard"><h3>'+g.t+'</h3><p class="gp">'+g.p+'</p>'+
-      '<div class="gex"><b>Example from this program:</b> '+g.e()+'</div></div>';
+    return '<div class="gcard"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap">'+
+      '<h3 style="margin:0">'+g.t+'</h3>'+
+      '<span class="eyebrow" style="margin:0;white-space:nowrap">'+CATS[g.cat].label+'</span></div>'+
+      '<p class="gp">'+g.p+'</p>'+
+      '<div class="gex"><b>Example from this program:</b> '+g.e()+'</div>'+
+      '<div style="margin-top:8px"><button type="button" class="btn" style="min-height:auto;padding:1px 8px;font-size:12.5px" '+
+      'data-jump-tab="'+g.jT+'" data-jump-el="'+g.jE+'">See it live &rarr;</button></div></div>';
   }).join("");
   document.getElementById("glossCount").textContent =
     list.length===GLOSS.length ? GLOSS.length+" terms — every figure above is computed live from the ledger."
@@ -7561,6 +7617,13 @@ window.addEventListener("keydown",function(e){
   // shifted character (confirmed via live-browser probe: this project's own automated test
   // environment's synthetic key dispatch does exactly that, 2026-08-21).
   if(e.key==="?"||(e.shiftKey&&e.key==="/")){ if(shortcutsOpen()) closeShortcuts(); else openShortcuts(); return; }
+  // Bare "/" jumps to the glossary search (brainstorm-mode upgrade, 2026-08-21) -- a GitHub-style
+  // convention, chosen specifically over Cmd/Ctrl+K, which every major browser already reserves
+  // for its own address-bar search (the e.metaKey/e.ctrlKey guard above already refuses to hijack
+  // that class of shortcut; "/" unshifted is not OS/browser-reserved, confirmed by its absence
+  // from every other check in this handler). Distinct from the shiftKey+"/" branch above, which
+  // only fires WITH shift held.
+  if(e.key==="/"){ e.preventDefault(); document.getElementById("t-gloss").click(); document.getElementById("glossQ").focus(); return; }
   if(e.key==="Escape"&&shortcutsOpen()){ closeShortcuts(); return; }
   // Escape also dismisses a standing return breadcrumb (nav round 2, item 3, 2026-08-21) — same
   // "Escape closes whatever's open" convention as every other dismissible surface on this page.
@@ -7586,6 +7649,10 @@ window.addEventListener("click",function(e){
     activateTab("gloss");
     var q=document.getElementById("glossQ");
     q.value=x.dataset.explore.replace(/\s*&mdash;.*$/,"").replace(/\s*—.*$/,"");
+    // reset the category filter (brainstorm-mode upgrade, 2026-08-21) -- otherwise a category
+    // filter left active from a prior visit could hide the exact term this jump is supposed to
+    // reveal, e.g. filtered to "Cost & EVM" then exploring a Field-category term from elsewhere
+    state.glossCat="All"; renderGlossCatBar();
     renderGlossary(q.value);
     q.focus();
     return;
@@ -8033,6 +8100,7 @@ document.getElementById("mcDistTri").setAttribute("aria-pressed", String(state.m
 document.getElementById("mcDistPert").setAttribute("aria-pressed", String(state.mcDist==="pert"));
 syncMcView(); renderMcMath(); renderPertPlay(); renderGaltonStatic(); renderScen(); renderPrint();
 renderArch(); renderGuards(); renderStatControl(); renderZscoreMath(); renderEwmaControl(); renderEwmaMath(); renderIngestGuards();
+renderGlossCatBar();
 renderGlossary("");
 document.getElementById("sCpi").value=T.cpi;
 document.getElementById("sSpi").value=T.spi;
@@ -8085,7 +8153,8 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   getJumpFrom:function(){ return jumpFrom; },renderJumpBreadcrumb:renderJumpBreadcrumb,
   hideJumpBreadcrumb:hideJumpBreadcrumb,jumpToEl:jumpToEl,
   renderSchedule:renderSchedule,renderMcRiskFilter:renderMcRiskFilter,
-  renderGbmLogReturns:renderGbmLogReturns,renderGbmMathUnlocked:renderGbmMathUnlocked,renderGbmVsEvm:renderGbmVsEvm};
+  renderGbmLogReturns:renderGbmLogReturns,renderGbmMathUnlocked:renderGbmMathUnlocked,renderGbmVsEvm:renderGbmVsEvm,
+  cats:CATS,renderGlossCatBar:renderGlossCatBar,renderGlossary:renderGlossary};
 })();
 </script>
 </body>

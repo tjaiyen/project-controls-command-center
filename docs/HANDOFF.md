@@ -44,7 +44,7 @@ anywhere in this repository. The method is the content, not the numbers.
 | Contracts | 6 |
 | Risks | 6 |
 | Delay events | 4 |
-| `stress.cjs` test assertions | 1,745, all passing |
+| `stress.cjs` test assertions | 1,828, all passing |
 | Companion pages | `otak.html` (fit brief), `architecture.html` (static pipeline map) |
 | Hosting | GitHub Pages, served directly from `main`, zero build |
 | Git history | 100 commits |
@@ -210,7 +210,7 @@ Beyond the core EVM block, three more derivation families exist:
 | 7 | **AI & Data** (`ai`) | The pipeline architecture diagram (now interactive — §8), the SQL model, a live 28-check integrity gate + 2 ingestion-validation checks, statistical control (z-score/EWMA) with worked-math accordions, and AI narrative generation under a verification contract (§10). |
 | 8 | **Operating Framework** (`fw`) | Phase playbook, the WBS/CBS/OBS/ABS control-account mapping (with a worked "100% Rule" proof, now carrying an illustrative ABS tag per row alongside WBS/CBS/OBS), Board phase-gate governance with a live Gate-5 hard stop, escalation matrix, a live Working-Backward/inversion worked example, reporting cadence, stakeholder interface map, the 20-metric KPI reference library. |
 | 9 | **Actions** (`act`) | A RAID/CAPA register with proactive staleness detection, owner accountability rollup, a worked-math accordion for `actionStatus()`'s threshold logic. |
-| 10 | **Glossary** (`gloss`) | 55 terms, each with a live-computed worked example, filterable by search — the same content the inline "i" help icons pull from site-wide. |
+| 10 | **Glossary** (`gloss`) | 55 terms, each with a live-computed worked example, a real category (5 domains — Cost & EVM, Schedule & CPM, Risk/Commercial & Governance, Field Telemetry & Quality, Data Strategy & Architecture — with a live pill filter), and a real "See it live" cross-tab jump button — the same content the inline "i" help icons pull from site-wide. Filterable by search AND category together, and reachable from anywhere via a bare `/` keypress. |
 | 11 | **Data Strategy** (`data`) | A real-world plan for connecting scattered, multi-system data — ISO 19650 CDE staging architecture as an interactive flow diagram (§8), a 4-tile IDS guardrail status grid with a genuinely live 2-check ingestion-validation panel embedded in it, automated guardrails, a discrepancy-resolution decision flow folded into that same diagram, a Category/Trigger/Routing proactive-error-recovery table, a Dual-Stack Parity card citing this program's own real, live CPI against the actual SQL that independently re-derives it. |
 
 Plus, outside the tab body: **Presentation Mode** (a scripted 2-set walkthrough with presenter
@@ -375,7 +375,7 @@ matches an independent recomputation, not just that *a* number is present.
 
 ## 11. Testing & verification
 
-**`stress.cjs`** (1,745 assertions, all passing) — stubs the DOM, loads `index.html`'s script
+**`stress.cjs`** (1,828 assertions, all passing) — stubs the DOM, loads `index.html`'s script
 verbatim into that stub, and exercises it exactly like a user would: every tab switch, every
 filter, every drawer, every slider drag, every keyboard interaction. 41 labeled sections:
 
@@ -1276,24 +1276,6 @@ carried over from memory or an earlier pass:
   DOM state throughout), so this round is verified by direct DOM inspection rather than a visual
   screenshot; stated as a real, accepted limitation, not silently substituted for the real thing.
 
-Generated 2026-08-20, against the tip of the eleven-input-ledger-card engagement round; extended
-2026-08-21 for the six-KPI-families card round, again 2026-08-21 for the Data Strategy tab UI/UX
-round, again 2026-08-21 for the "96→100" brainstorm round's Tier 0/1 items, again 2026-08-21 for
-the full-dashboard `/stress-test` visual pass, again 2026-08-21 for the Monte Carlo PERT
-draw-shape round, again 2026-08-21 for the Monte Carlo run-count round, again 2026-08-21 for the
-megaproject-controls-doc upgrade round, again 2026-08-21 for the Kimi research-package round, again
-2026-08-21 for the second full-dashboard `/stress-test` pass, again 2026-08-21 for the Monte Carlo
-mode-vs-bounds clarification, again 2026-08-21 for the EAC-spread live check, again 2026-08-21
-for the total-float early-warning round, again 2026-08-21 for the Monte Carlo captivation round,
-again 2026-08-21 for the Galton Engine round, again 2026-08-21 for the third full-dashboard
-`/stress-test` pass, again 2026-08-21 for the "how the dashboard catches drift" round, again
-2026-08-21 for the tab-rail navigation round, again 2026-08-21 for the altitude-grouped-rail
-round, again 2026-08-21 for the whole-repo `/stress-test` round, again 2026-08-21 for the
-Control Tower brainstorm round items 1-4, again 2026-08-21 for the GBM/MLE brainstorm round
-items 1-4, and again 2026-08-21 for the `/stress-test` pass on that same round (see git log for
-exact commits — each document update was written before its own round's commit lands, per the
-project's "verify, then document" ordering).
-
 - **2026-08-21 `/stress-test` pass on the GBM/MLE round**: own review + an independent
   fresh-context reviewer, both converging on the same real finding independently (a genuinely
   productive collision this time, not a duplicate-effort waste — the reviewer's report explicitly
@@ -1317,3 +1299,61 @@ project's "verify, then document" ordering).
   regex), re-verified against the exact same adversarial fixture, which now correctly fails the
   check. `node stress.cjs`: 1740&rarr;1745 assertions, all passing. `node verify.cjs`: headline
   tie-out unchanged throughout.
+
+- **2026-08-21 Glossary brainstorm round (items 1-3)**: a third external blueprint ("Interactive
+  Project Controls Glossary & Educational System") was ground against the live Glossary tab before
+  anything was proposed — it described 38 terms; the real count is 55, three rounds past that
+  number, and the blueprint's other claims (LaTeX formulas, Cmd/Ctrl+K, no existing cross-tab
+  routing) were checked individually rather than trusted. Two items **declined outright**: a real
+  LaTeX/MathJax renderer would be this file's first external dependency, contradicting the
+  project's own stated zero-dependency architecture (README: "No build step, no framework, no
+  dependencies, no CDN") through 20+ prior brainstorm rounds; Cmd/Ctrl+K directly violates an
+  already-written rule in this file's own global keydown handler — `if(e.metaKey||e.ctrlKey||
+  e.altKey) return; // never hijack a browser/OS shortcut sharing this key` — since Cmd/Ctrl+K is
+  the browser's own address-bar-search shortcut in every major browser. Three items were real and
+  buildable: (1) a "See it live" cross-tab jump button on every one of the 55 cards, each with a
+  real, individually-verified `jT`/`jE` target (every one of the 55 checked against real tab codes
+  and real element ids in markup, not assumed) — reusing the existing `data-jump-tab`/`data-jump-el`
+  delegated-click mechanism already used 15+ places on this page, no new plumbing; (2) a bare `/`
+  keyboard shortcut (GitHub-style) substituted for the declined Cmd/Ctrl+K, confirmed not bound
+  anywhere else in the file before adding it; (3) a 5-category domain filter (Cost & EVM, Schedule
+  & CPM, Risk/Commercial & Governance, Field Telemetry & Quality, Data Strategy & Architecture),
+  each of the 55 terms individually categorized against the dashboard's own existing 6-family KPI
+  system rather than freehand, with counts derived live from the real array. A real mid-build
+  design decision, stated rather than silently made: category badges were deliberately left
+  uncolored, NOT mapped onto this dashboard's existing `--c-ok`/`--c-warn`/`--c-bad` red/amber/green
+  tokens as the source blueprint proposed — those three colors already mean pass/warn/fail
+  everywhere else on this page, and a red "Field Telemetry" badge next to an actually-failing
+  red pill would read as a false status signal, not a category label. A real self-caught bug fixed
+  before it shipped: "Explore in Glossary" (the existing inline-help-icon jump) didn't reset the
+  category filter, so a term from a different category than whatever filter was last active would
+  have been silently hidden — reproduced, fixed (the jump now resets `state.glossCat` to "All"),
+  and re-verified. `node stress.cjs`: 1745&rarr;1828 assertions (83 new — including an
+  individually-checked jump-target audit across all 55 terms, category+search combined-as-AND
+  behavior, the category-filter-reset regression guard, and the bare `/` shortcut's three real
+  branches: switches tabs + focuses search, Shift+`/` correctly goes to the shortcuts panel
+  instead, and it's a no-op while already typing in an input). `node verify.cjs`: headline tie-out
+  unchanged (pure UI/categorization on already-real data). Live-browser confirmed end to end, not
+  just the Node stub: clicked a category pill (correctly filtered from 55 to the real per-category
+  count), clicked a "See it live" button (correctly jumped tabs and scrolled), and pressed the real
+  `/` key (correctly switched to Glossary and focused the search box) — the screenshot tool that
+  malfunctioned during the prior round's verification worked cleanly this time.
+
+Generated 2026-08-20, against the tip of the eleven-input-ledger-card engagement round; extended
+2026-08-21 for the six-KPI-families card round, again 2026-08-21 for the Data Strategy tab UI/UX
+round, again 2026-08-21 for the "96→100" brainstorm round's Tier 0/1 items, again 2026-08-21 for
+the full-dashboard `/stress-test` visual pass, again 2026-08-21 for the Monte Carlo PERT
+draw-shape round, again 2026-08-21 for the Monte Carlo run-count round, again 2026-08-21 for the
+megaproject-controls-doc upgrade round, again 2026-08-21 for the Kimi research-package round, again
+2026-08-21 for the second full-dashboard `/stress-test` pass, again 2026-08-21 for the Monte Carlo
+mode-vs-bounds clarification, again 2026-08-21 for the EAC-spread live check, again 2026-08-21
+for the total-float early-warning round, again 2026-08-21 for the Monte Carlo captivation round,
+again 2026-08-21 for the Galton Engine round, again 2026-08-21 for the third full-dashboard
+`/stress-test` pass, again 2026-08-21 for the "how the dashboard catches drift" round, again
+2026-08-21 for the tab-rail navigation round, again 2026-08-21 for the altitude-grouped-rail
+round, again 2026-08-21 for the whole-repo `/stress-test` round, again 2026-08-21 for the
+Control Tower brainstorm round items 1-4, again 2026-08-21 for the GBM/MLE brainstorm round
+items 1-4, again 2026-08-21 for the `/stress-test` pass on that same round, and again 2026-08-21
+for the Glossary brainstorm round items 1-3 (see git log for exact commits — each document update
+was written before its own round's commit lands, per the project's "verify, then document"
+ordering).
