@@ -30,7 +30,7 @@ anywhere in this repository. The method is the content, not the numbers.
 
 | | |
 |---|---|
-| Primary file | `index.html` — 7,660 lines, one file, no build step |
+| Primary file | `index.html` — 7,865 lines, one file, no build step |
 | Top-level JS functions | 176 (not re-audited this round — see §18 gap note) |
 | Tabs | 11 |
 | KPIs (with formula/threshold/phase/source/play each) | 20 |
@@ -44,7 +44,7 @@ anywhere in this repository. The method is the content, not the numbers.
 | Contracts | 6 |
 | Risks | 6 |
 | Delay events | 4 |
-| `stress.cjs` test assertions | 1,620, all passing |
+| `stress.cjs` test assertions | 1,664, all passing |
 | Companion pages | `otak.html` (fit brief), `architecture.html` (static pipeline map) |
 | Hosting | GitHub Pages, served directly from `main`, zero build |
 | Git history | 100 commits |
@@ -375,9 +375,9 @@ matches an independent recomputation, not just that *a* number is present.
 
 ## 11. Testing & verification
 
-**`stress.cjs`** (1,620 assertions, all passing) — stubs the DOM, loads `index.html`'s script
+**`stress.cjs`** (1,664 assertions, all passing) — stubs the DOM, loads `index.html`'s script
 verbatim into that stub, and exercises it exactly like a user would: every tab switch, every
-filter, every drawer, every slider drag, every keyboard interaction. 38 labeled sections:
+filter, every drawer, every slider drag, every keyboard interaction. 41 labeled sections:
 
 ```
 A. static structure          B/B2. runtime + portfolio tab       C. narrative vs. data
@@ -554,13 +554,14 @@ Named explicitly, not silently dropped — from the most recent engagement/inter
    2026-08-21; **§18 gap #9 below adds the automated sync test this gap has been naming since
    2026-08-20** — that structural risk is now closed, not just the 3rd stale instance.
 4. ~~**`README.md`'s own stated counts lag behind this document**~~ — **Resolved 2026-08-20** (and
-   re-synced nine more times on 2026-08-21 — the six-families card, the Data Strategy UI/UX round,
+   re-synced ten more times on 2026-08-21 — the six-families card, the Data Strategy UI/UX round,
    the Monte Carlo PERT draw-shape toggle, the megaproject-controls-doc upgrade round, the Kimi
    research-package round, the full-dashboard `/stress-test` pass, the EAC-spread live check, the
    total-float early-warning round, the Monte Carlo captivation round, the Galton Engine round, the
-   drift-catching round, and the tab-rail navigation round (320px mobile-overflow fix, hover-preview
-   mini-drawers, 1&ndash;9/"?" keyboard shortcuts)): 1,620 assertions / 53 glossary terms / 28-check
-   integrity gate, matching §2 as of this writing.
+   drift-catching round, the tab-rail navigation round (320px mobile-overflow fix, hover-preview
+   mini-drawers, 1&ndash;9/"?" keyboard shortcuts), and the altitude-grouped-rail round (5 nav
+   groups, Gate 5 status pill, sticky in-tab anchor rail, return breadcrumb)): 1,664 assertions /
+   53 glossary terms / 28-check integrity gate, matching §2 as of this writing.
 5. **The eleven-input ledger card is new this round** (2026-08-20) and only covers the Overview
    tab's own `PKGS` provenance — it does not touch or resolve gap #2 above (the risk register still
    has no independent drill-down drawer of its own).
@@ -623,6 +624,12 @@ Named explicitly, not silently dropped — from the most recent engagement/inter
     regression guard was added to `stress.cjs` (checks the fix's presence in `ncrCard`'s rendered
     HTML) since this DOM-stub harness has no real CSS layout engine to re-run the live probe
     itself.
+12. **3-playlist Guided Tour selector — deferred, not built** (altitude-grouped-rail round,
+    2026-08-21): the second nav-IA proposal's most interesting idea, but not scoped — whether the
+    13 requested stops (4+5+4, some likely overlapping across "Executive Briefing" / "CP-201
+    Forensic Thread" / "Data Integrity & Governance") already exist among `TOUR_BEATS`' real 10
+    entries, or need new narrated tour content authored for gaps, is unverified. Needs a dedicated
+    grounding pass against `TOUR_BEATS`' actual content before it can be honestly sized.
 
 ---
 
@@ -1025,6 +1032,69 @@ carried over from memory or an earlier pass:
   glossary popover — with the tooltip/dialog `role` attribute correctly reset each way), and all
   nine digit shortcuts plus the "?" overlay work end to end (button click, keyboard, Escape,
   backdrop click) with zero horizontal overflow anywhere.
+- **2026-08-21 altitude-grouped-rail round**: TJ shared a second nav-IA brainstorm proposal
+  (5-tier tab grouping with status pills, sticky in-tab section anchors, a 3-playlist Guided Tour
+  selector, two-way contextual breadcrumbs, and an a11y scaffold). Grounding corrected the
+  proposal's own grouping on 2 counts before building anything — Data Strategy is governance/
+  architecture content (CDE staging, ingestion guards, a rollout plan), not reference material, so
+  it moved to Governance & Execution instead of Reference; Risk & Change is priced/commercial risk,
+  not field-level telemetry, so it moved to Program Performance instead of being paired with
+  Delivery. Also corrected: "38 live-computed terms" (real count is 53, already rendered live);
+  "leverage the existing PRESENT_BEATS array and tour engine directly" (three separate arrays with
+  different data shapes — Present beats are static bullets, Tour beats are live-narrated
+  functions — not one reusable engine); "pure CSS `position:sticky; top:var(--nav-height)`, zero
+  JS" (no such variable existed yet, and the horizontal tab bar isn't sticky at all below 1050px).
+  TJ approved Tier 1 (grouping + Gate 5 pill; sticky anchor rail) and Tier 2 (return breadcrumb);
+  the 3-playlist Tour selector was deferred pending a second grounding pass against `TOUR_BEATS`'
+  actual content, not built this round.
+
+  Same message also reported "something wrong with the dashboard that was updated last" with no
+  specifics. Extensive synthetic + live-browser testing on the deployed site (all 11 tabs, digit
+  shortcuts, the "?" overlay, Present/Tour, mobile width) found nothing — until checking the
+  shortcuts overlay's *rendered CSS*, not just its `.hidden` JS property, surfaced a real, severe
+  bug from the prior round: `.shortcuts-overlay{...display:flex...}` carried no `[hidden]`
+  qualifier, and `[hidden]` and a bare class selector tie in specificity — an author-stylesheet
+  rule wins that tie regardless of source order, so `display:flex` silently overrode the UA's own
+  `[hidden]{display:none}` even while `el.hidden` correctly read `true`. Net effect: a full-
+  viewport `rgba(0,0,0,.5)` backdrop — easy to miss by eye against this page's already-dark
+  theme — permanently covered and click-blocked the *entire* dashboard the first time anyone
+  opened the Shortcuts panel and closed it. The prior round's own verification only ever checked
+  `.hidden` (correctly `true`) and the DOM-stub suite (no real CSS engine, structurally unable to
+  see this class of bug) — never the actual computed `display` or a real click hit-test, which is
+  exactly how it shipped undetected. Fixed with `.shortcuts-overlay:not([hidden])`; this is very
+  likely the exact bug TJ was reporting.
+
+  Two more real bugs caught live-browser *before* they ever shipped, both in this round's own new
+  code: (1) the anchor rail's first version tried to force a closed `<details>` open at ≥600px via
+  a pure-CSS `:not([open])>nav{display:flex}` override — the child DID paint (real computed
+  `display:flex`, real height), but the closed `<details>`'s own generated box stayed 11px tall
+  regardless, so the next sibling in normal flow overlapped and click-intercepted it — a real,
+  invisible, unusable rail. Fixed by JS-setting the real `open` attribute instead
+  (`syncAnchorRails()`, same `matchMedia`-driven pattern as the file's own `syncTabsOrientation()`)
+  — a genuinely-open `<details>` sizes and hit-tests itself correctly with zero CSS override
+  needed. (2) The return breadcrumb's first version was `top`-anchored at
+  `calc(var(--nav-height)+12px)`, the same offset the anchor rail's sticky positioning uses — but
+  `--nav-height` is only accurate at ≥1050px (the header wraps to several rows below that), so at
+  mobile widths the pill visibly overlapped the still-wrapping header. Fixed by bottom-anchoring
+  it instead, which needs no header-height knowledge at all. A fourth issue, a plain typo
+  (`fromTab!==="act"` — four `=` characters where `!==` needed three), was a straightforward
+  syntax-error catch via `node --check`/`acorn`, not a live-browser find.
+
+  `node stress.cjs` run fresh (`1664 passed, 0 failed` — 1620 baseline + 44 new assertions across
+  three new sections, D18/D19/D20, each independently confirmed to fail/throw against pre-round
+  code via a git-stash round-trip before being confirmed passing against the fix), `node
+  verify.cjs` unchanged (pure UI/nav, zero `PKGS` touched), and live-browser confirmed at 320px/
+  375px/1400px: all 11 tabs switch correctly in the new grouped order, the Gate 5 pill shows/hides
+  correctly, both anchor rails open/scroll/collapse correctly (mobile `<details>` toggle
+  confirmed, `scroll-margin-top` clearance measured at ~120px against a computed ~120px target),
+  and the return breadcrumb shows/returns/dismisses/auto-clears correctly at both the longest real
+  tab label and at 375px with zero horizontal overflow anywhere. (One live-browser artifact worth
+  naming for future sessions: this environment's tabs sometimes evaluate JS with
+  `document.visibilityState==="hidden"`/`innerWidth:0` regardless of which tab is visually
+  fronted, which also suppresses `scroll-behavior:smooth` animations specifically — `window.
+  scrollTo({behavior:"instant"})` and `matchMedia` both still read correctly in that state,
+  confirming it's this tool's own quirk, not a page bug; a `resize_window` + fresh `navigate`
+  immediately before a check reliably clears it.)
 
 Generated 2026-08-20, against the tip of the eleven-input-ledger-card engagement round; extended
 2026-08-21 for the six-KPI-families card round, again 2026-08-21 for the Data Strategy tab UI/UX
@@ -1036,7 +1106,7 @@ megaproject-controls-doc upgrade round, again 2026-08-21 for the Kimi research-p
 mode-vs-bounds clarification, again 2026-08-21 for the EAC-spread live check, again 2026-08-21
 for the total-float early-warning round, again 2026-08-21 for the Monte Carlo captivation round,
 again 2026-08-21 for the Galton Engine round, again 2026-08-21 for the third full-dashboard
-`/stress-test` pass, again 2026-08-21 for the "how the dashboard catches drift" round, and again
-2026-08-21 for the tab-rail navigation round (see git log for exact commits — each document update
-was written before its own round's commit lands, per the project's "verify, then document"
-ordering).
+`/stress-test` pass, again 2026-08-21 for the "how the dashboard catches drift" round, again
+2026-08-21 for the tab-rail navigation round, and again 2026-08-21 for the altitude-grouped-rail
+round (see git log for exact commits — each document update was written before its own round's
+commit lands, per the project's "verify, then document" ordering).

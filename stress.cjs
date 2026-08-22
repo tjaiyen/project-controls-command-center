@@ -2385,7 +2385,10 @@ try {
 // querySelectorAll always returns [], so syncKpiAriaExpanded()'s actual DOM write is unobservable
 // here (same documented limitation as D4.8 #1 above) — this confirms jumpToAction() calls it at
 // all (a real live-browser check already confirmed the DOM effect: aria-expanded true -> false).
-ok(/function jumpToAction\(id\)\{\s*state\.kpi=null; renderDetail\(\);\s*\/\/[^\n]*\n\s*\/\/[^\n]*\n\s*syncKpiAriaExpanded\(\);/.test(indexSrc),
+// `var fromTab=state.tab;` (nav-round-2 return-breadcrumb addition, 2026-08-21) now leads the
+// function body, ahead of the state.kpi=null line this check originally anchored on — updated to
+// allow it, not loosened otherwise.
+ok(/function jumpToAction\(id\)\{\s*var fromTab=state\.tab;\s*state\.kpi=null; renderDetail\(\);\s*\/\/[^\n]*\n\s*\/\/[^\n]*\n\s*syncKpiAriaExpanded\(\);/.test(indexSrc),
   "jumpToAction() calls syncKpiAriaExpanded() right after clearing state.kpi, matching closeDetail's own pattern");
 
 // 4. #whatIfOut/#whatIfRead aria-live — the value grid (rewritten on every slider tick) must not
@@ -3444,11 +3447,14 @@ try {
    D9. DATA STRATEGY TAB — real-world multi-system data problem, static reference
    ========================================================================= */
 console.log("== D9. data strategy tab ==");
-ok(P.kpis && TABS_CHECK(), "TABS array carries 11 ids, ending in gloss then data");
+// Order flipped 2026-08-21 (altitude-grouped nav round): Data Strategy is governance/architecture
+// content, not reference material, so it moved ahead of Glossary in both the tab rail's visual
+// grouping and this array — see TABS' own comment in index.html for why indices 0-8 stayed put.
+ok(P.kpis && TABS_CHECK(), "TABS array carries 11 ids, ending in data then gloss");
 function TABS_CHECK() {
   const m = indexSrc.match(/var TABS=\[([^\]]+)\]/);
   const arr = m ? m[1].split(",").map(s => s.replace(/["']/g, "")) : [];
-  return arr.length === 11 && arr[9] === "gloss" && arr[10] === "data";
+  return arr.length === 11 && arr[9] === "data" && arr[10] === "gloss";
 }
 ok(P.guardrails.length === 4, "4 guardrail types defined", String(P.guardrails.length));
 ok(P.discrepancySteps.length === 5, "5-step discrepancy-resolution flow defined", String(P.discrepancySteps.length));
@@ -4131,6 +4137,141 @@ console.log("== D17. 1-9 tab-jump + \"?\" shortcuts overlay (brainstorm-mode nav
   P.state.presenting = false;
   fire(R.win, "keydown", { key: "1", target: { tagName: "BODY" } });
   ok(P.state.tab === "over", "digit shortcut works again once Tour/Presentation are both inactive");
+}
+
+console.log("== D18. altitude-grouped tab rail + Gate 5 status pill (nav round 2, 2026-08-21) ==");
+{
+  // 5 group labels appear in the tab rail, in the corrected order — grounding this round found
+  // the original proposal's own grouping wrong on 2 counts (Data Strategy is governance content,
+  // not reference material; Risk & Change is priced/commercial, not field telemetry), so this
+  // guards the CORRECTED order, not the proposal's literal one.
+  const tabsBlock = indexSrc.slice(indexSrc.indexOf('id="tabs"'), indexSrc.indexOf("</div>", indexSrc.indexOf('id="tabs"')));
+  const labelOrder = [...tabsBlock.matchAll(/tab-group-label" aria-hidden="true">([^<]+)</g)].map(m => m[1]);
+  ok(JSON.stringify(labelOrder) === JSON.stringify(["Executive", "Program Performance", "Field &amp; Assurance", "Governance &amp; Execution", "Reference"]),
+    "tab rail group labels appear in the corrected order", JSON.stringify(labelOrder));
+  // Data Strategy moved ahead of Glossary in both the tab rail markup and the TABS array
+  // (D9/TABS_CHECK above already guards the array side) — this guards the DOM/markup side.
+  const dataIdx = tabsBlock.indexOf('id="t-data"'), glossIdx = tabsBlock.indexOf('id="t-gloss"');
+  ok(dataIdx > 0 && glossIdx > 0 && dataIdx < glossIdx, "t-data appears before t-gloss in the tab rail markup");
+
+  // Gate 5 status pill — computed live from the same GATE5_CHECKS the Gate 5 card itself reads
+  // (renderGates(), D5.5), independently re-derived here from the raw array, not read back from
+  // the rendered pill and trusted against itself.
+  const fails = P.gate5Checks.filter(c => !c.run()[0]).length;
+  ok(fails > 0, "pre-registered: Gate 5 is still blocked today (contingency coverage below 1.00) — same fact D5.5/D15 already establish", String(fails));
+  ok(G.cntGate5.hidden === false, "Gate 5 tab pill is shown while Gate 5 is blocked");
+  ok(G.cntGate5.textContent.indexOf("Gate 5 blocked") >= 0, "Gate 5 tab pill states the real blocked status, not a generic label");
+  ok(G.cntGate5.className.indexOf("warn") >= 0, "Gate 5 tab pill carries the warn (red) modifier class while blocked — not the neutral count-pill styling");
+}
+
+console.log("== D19. in-tab sticky anchor rail, Cost/Schedule (nav round 2, 2026-08-21) ==");
+{
+  // Every anchor target named on both rails resolves to a real, unique element id — independently
+  // re-checked here against the raw markup, not trusted from the grounding pass that found them.
+  const COST_ANCHORS = ["scurve", "eacTable", "eacTrend", "mcChart", "costGbm"];
+  const SCHED_ANCHORS = ["gantt", "schedTriad", "floatErosionCard", "tiaReg"];
+  COST_ANCHORS.concat(SCHED_ANCHORS).forEach(id => {
+    const count = (indexSrc.match(new RegExp('id="' + id + '"', "g")) || []).length;
+    ok(count === 1, "anchor target #" + id + " exists exactly once in the markup", String(count));
+  });
+  const costRailBlock = indexSrc.slice(indexSrc.indexOf('id="p-cost"'), indexSrc.indexOf('id="p-cost"') + 800);
+  ok(COST_ANCHORS.every(id => costRailBlock.includes('href="#' + id + '"')), "Cost tab's anchor rail links to all 5 of its own real section ids, in order");
+  const schedRailBlock = indexSrc.slice(indexSrc.indexOf('id="p-sched"'), indexSrc.indexOf('id="p-sched"') + 800);
+  ok(SCHED_ANCHORS.every(id => schedRailBlock.includes('href="#' + id + '"')), "Schedule tab's anchor rail links to all 4 of its own real section ids, in order");
+  ok(/aria-label="Section anchors"/.test(indexSrc), "each anchor rail's <nav> carries an accessible label");
+
+  // --nav-height: both the vertical tab rail's own sticky offset and the anchor rail's now read
+  // the same custom property, rather than two separately-hardcoded 64px literals that could drift
+  // apart from each other.
+  ok(/--nav-height:64px/.test(indexSrc), "--nav-height custom property is defined");
+  ok(/\.tabs\{grid-column:1[^}]*top:var\(--nav-height\)/.test(indexSrc.replace(/\n\s*/g, "")), "the vertical tab rail's sticky offset reads --nav-height, not a separate hardcoded literal");
+  ok(/\.anchor-rail\{position:sticky;top:var\(--nav-height\)/.test(indexSrc), "the anchor rail's sticky offset reads the same --nav-height var");
+
+  // scroll-margin-top on every real anchor target — without this, a native #hash jump tucks its
+  // target under the sticky header/rail with no visible feedback (the exact class of bug this
+  // file's own openHelp() comment already documents fixing once for the popover case).
+  const smtBlock = (indexSrc.match(/#scurve,#eacTable,#eacTrend,#mcChart,#costGbm,#gantt,#schedTriad,#floatErosionCard,#tiaReg\{\s*scroll-margin-top:[^}]+\}/) || [])[0];
+  ok(!!smtBlock, "scroll-margin-top rule covers all 9 real anchor targets in one place, not 9 separate rules that could drift");
+
+  // Two real bugs, both found live-browser (not by this DOM-stub harness, which has no CSS engine
+  // and can't see either class of bug) after the CSS/JS above first shipped — both guarded here so
+  // a future edit can't silently reintroduce either:
+  ok(/\.shortcuts-overlay:not\(\[hidden\]\)\{/.test(indexSrc),
+    "shortcuts-overlay display rule is qualified with :not([hidden]) — REGRESSION GUARD: without it, [hidden] and a class selector tie in specificity and author CSS beats the UA's own [hidden]{display:none}, leaving a full-viewport black backdrop permanently covering and click-blocking the whole dashboard after the panel is ever opened once (found live-browser, 2026-08-21)");
+  ok(!/\.anchor-rail:not\(\[open\]\)>nav\{display:flex\}/.test(indexSrc),
+    "anchor-rail does NOT use the :not([open])>nav CSS-override trick — REGRESSION GUARD: that technique visually painted the child but a closed <details>'s own generated box stayed 11px tall (measured live) regardless, so the very next sibling in normal flow overlapped and click-intercepted it; a real, invisible, unusable rail (found live-browser, 2026-08-21)");
+  ok(/function syncAnchorRails\(\)/.test(indexSrc) && /^syncAnchorRails\(\);/m.test(indexSrc),
+    "syncAnchorRails() exists and runs at load — sets the real `open` attribute via matchMedia instead of the broken CSS-only override; this DOM-stub harness has no real CSS engine and can't exercise the visual/hit-testing result itself (live-browser confirmed above: real bounding-box size, correct elementFromPoint hit, correct scroll-margin-top clearance)");
+}
+
+console.log("== D20. contextual return breadcrumb (nav round 2, item 3 — Tier 2, 2026-08-21) ==");
+{
+  ok(/<div id="jumpBreadcrumb" class="jump-breadcrumb" role="status" aria-live="polite" hidden><\/div>/.test(indexSrc),
+    "jumpBreadcrumb markup exists with role=status/aria-live=polite — a non-modal, transient notification, not a dialog");
+  ok(/\.jump-breadcrumb:not\(\[hidden\]\)\{position:fixed;bottom:20px/.test(indexSrc),
+    "breadcrumb is bottom-anchored — REGRESSION GUARD: an earlier version used top:calc(var(--nav-height)+12px), matching the anchor rail's sticky offset, but --nav-height is only accurate at ≥1050px; at mobile widths the header wraps to several rows and the pill visibly overlapped it (found live-browser, 2026-08-21). Bottom anchoring needs no header-height knowledge at all.");
+
+  // A real cross-tab jump shows the pill, naming the real origin tab via TAB_DRAWER's own label
+  // (not a second hand-typed tab-name map) — independently re-derived here, not read back from
+  // the rendered pill and trusted against itself.
+  P.state.tab = "over";
+  const overLabel = P.tabDrawer.over.label;
+  P.jumpToEl("del", "cphCard");
+  ok(P.state.tab === "del", "jumpToEl() switches to the destination tab");
+  ok(G.jumpBreadcrumb.hidden === false, "a real cross-tab jump shows the return breadcrumb");
+  ok(G.jumpBreadcrumb._html.indexOf(overLabel) >= 0, "the pill names the real origin tab's own label (" + overLabel + "), not a re-typed copy");
+  ok(JSON.stringify(P.getJumpFrom()) === JSON.stringify({ tab: "over" }), "jumpFrom correctly records the origin tab");
+
+  // Same-tab jump (already on the destination tab) shows nothing — there's no "from" to return to.
+  P.hideJumpBreadcrumb();
+  P.jumpToEl("del", "cphCard"); // already on del from the previous jump
+  ok(G.jumpBreadcrumb.hidden === true, "jumping to an anchor on the CURRENT tab does not show a return breadcrumb");
+
+  // Clicking the return button navigates back and clears state. The buttons are dynamically
+  // written into #jumpBreadcrumb's innerHTML (this stub never parses HTML strings into real DOM,
+  // per its own documented limitation elsewhere in this file) — the real delegated listener is
+  // registered on #jumpBreadcrumb itself and reads e.target.id, so a synthetic target with the
+  // right id exercises the exact same branch a real click on the rendered button would.
+  P.state.tab = "over";
+  P.jumpToEl("act", "actFilters");
+  fire(G.jumpBreadcrumb, "click", { target: { id: "jumpBreadcrumbReturn" } });
+  ok(P.state.tab === "over", "clicking the return button navigates back to the real origin tab");
+  ok(G.jumpBreadcrumb.hidden === true, "the breadcrumb clears itself once used");
+  ok(P.getJumpFrom() === null, "jumpFrom is cleared after a return");
+
+  // Clicking dismiss (×) clears it without navigating.
+  P.state.tab = "over";
+  P.jumpToEl("act", "actFilters");
+  fire(G.jumpBreadcrumb, "click", { target: { id: "jumpBreadcrumbClose" } });
+  ok(P.state.tab === "act", "dismissing the pill does NOT navigate — the visitor stays where the jump landed them");
+  ok(G.jumpBreadcrumb.hidden === true, "dismiss hides the pill");
+
+  // A normal tab switch (not the return button) invalidates a stale breadcrumb — activateTab()'s
+  // own hideJumpBreadcrumb() call, not a special case bolted on at every OTHER call site (tour,
+  // present, digit shortcuts all already route through activateTab()).
+  P.state.tab = "over";
+  P.jumpToEl("del", "cphCard");
+  ok(G.jumpBreadcrumb.hidden === false, "precondition: breadcrumb open before the normal tab switch");
+  fire(G["t-cost"], "click");
+  ok(G.jumpBreadcrumb.hidden === true, "switching tabs normally (not via the return button) clears a stale breadcrumb");
+  ok(P.state.tab === "cost", "the normal tab switch itself still lands on the tab actually clicked");
+
+  // Escape dismisses it too, matching this file's own "Escape closes whatever's open" convention
+  // (glossary popover, tab drawer, shortcuts panel, Presentation Mode, the Tour all already do this).
+  P.state.tab = "over";
+  P.jumpToEl("del", "cphCard");
+  fire(R.win, "keydown", { key: "Escape", target: { tagName: "BODY" } });
+  ok(G.jumpBreadcrumb.hidden === true, "Escape dismisses an open return breadcrumb");
+
+  // jumpToAction() (the Actions-register-specific jump, distinct from generic jumpToEl()) gets
+  // the identical treatment — both real jump mechanisms in this file, not just the newer one.
+  P.state.tab = "over";
+  P.jumpToAction("A-01");
+  ok(P.state.tab === "act", "jumpToAction() still switches to the Actions tab");
+  ok(G.jumpBreadcrumb.hidden === false, "jumpToAction() also shows a return breadcrumb for a real cross-tab jump");
+  ok(G.jumpBreadcrumb._html.indexOf(overLabel) >= 0, "jumpToAction()'s breadcrumb also names the real origin tab");
+  P.hideJumpBreadcrumb(); // leave shared state clean for any tests after this one
+  P.state.tab = "over";
 }
 
 /* =========================================================================
