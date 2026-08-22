@@ -1235,6 +1235,135 @@ try {
   } catch (e) { ok(false, "confidence slider interaction", e.message); }
 }
 
+// D2.4 — Optimism Gap tile (brainstorm-mode round, 2026-08-21). Independently recomputed from
+// P.totals.bac/P.getActiveMc(), never by calling the app's own renderMcRcf() and trusting it.
+{
+  const rcfVal = T.bac * 1.45; // RCF_MULT — same real, cited constant already tested elsewhere
+  const p50 = P.getActiveMc().p50;
+  const gapDollar = rcfVal - p50, gapPct = gapDollar / p50;
+  has("rcfGapTile", "Optimism gap", "gap tile renders its own labeled tile, not folded into the prose sentence");
+  ok(G.rcfGapTile._html.includes(sgn(gapDollar)), "gap tile's dollar figure matches independent recomputation (rcfVal - activeMc.p50)", sgn(gapDollar));
+  ok(G.rcfGapTile._html.includes(pct(gapPct, 0)), "gap tile's percent figure matches independent recomputation, denominator is the model's own P50", pct(gapPct, 0));
+  ok(gapDollar > 0, "pre-registered: today's real gap is positive — Flyvbjerg's reference class reads higher than this program's own P50, the framing the tile's copy assumes", sgn(gapDollar));
+}
+
+// D2.5 — "100% Contingency Breach" pill (brainstorm-mode round, 2026-08-21). Gated on the
+// literal case: activeMc.sims[0] (sorted ascending by computeMc()) is the single BEST outcome —
+// if even that busts BAC+contingency, every one of the n runs does.
+{
+  const allBustToday = P.getActiveMc().sims[0] > (T.bac + T.contRemaining);
+  ok(allBustToday === false, "pre-registered: today's real ledger does NOT trigger a 100% breach (best simulated outcome still lands under BAC+contingency)", "sims[0]=" + m(P.getActiveMc().sims[0]) + " vs BAC+cont=" + m(T.bac + T.contRemaining));
+  ok(!G.mcRead._html.includes("100% Contingency Breach"), "breach pill correctly absent today, not a false positive");
+  // force the condition and prove the pill actually fires — not just that the boolean is coded,
+  // but that a real re-render under the forced condition produces the real pill markup
+  const origCont = P.totals.contRemaining;
+  try {
+    P.totals.contRemaining = -1e9; // forces allBust=true regardless of live data
+    fire(G.mcViewHist, "click"); // triggers a genuine renderMc() re-render, same as the live-browser probe
+    ok(G.mcRead._html.includes('<span class="pill r flash" style="margin-right:7px">100% Contingency Breach</span>'),
+      "forcing the condition produces the real pill markup, byte-for-byte");
+    ok(G.mcRead._html.includes("every single one, not most"), "forced-breach narrative states the literal 100% framing, not the generic pBust sentence alone");
+  } finally {
+    P.totals.contRemaining = origCont; // restore before any other test reads it
+    fire(G.mcViewHist, "click");
+    ok(!G.mcRead._html.includes("100% Contingency Breach"), "restoring the real contRemaining removes the pill again — not a state leak into later tests");
+  }
+}
+
+// D2.6 — Drag-to-inspect percentile needle (brainstorm-mode round, 2026-08-21). Independently
+// recomputed from P.mcQuantile(activeMc.sims, p), never by calling the app's own marker/readout
+// and trusting it.
+{
+  ok(idsA.includes("mcInspect") && idsA.includes("mcInspectOut") && idsA.includes("vInspect"), "markup contains the inspect slider, its value label, and its readout");
+  const v75 = P.mcQuantile(P.getActiveMc().sims, 0.75);
+  ok(G.mcInspectOut._html.includes("P75") && G.mcInspectOut._html.includes(m(v75)), "default P75 readout matches independent recomputation on load", m(v75));
+  G.mcInspect.value = "90";
+  fire(G.mcInspect, "input");
+  ok(P.state.mcInspect === 90, "dragging the slider updates state.mcInspect");
+  const v90 = P.mcQuantile(P.getActiveMc().sims, 0.90);
+  const required90 = Math.max(0, v90 - T.bac), delta90 = T.contRemaining - required90;
+  ok(G.mcInspectOut._html.includes("P90") && G.mcInspectOut._html.includes(m(v90)), "readout updates to the real P90 dollar value after dragging");
+  ok(G.mcInspectOut._html.includes(sgn(delta90)), "readout's contingency surplus/deficit at P90 matches independent recomputation");
+  ok(String(G.vInspect.textContent) === "P90", "the slider's own value label updates in sync with the readout");
+  // survives the hist<->cdf view toggle (a full re-render), not just the cheap drag-time
+  // reposition — checked against G.mcChart's own rendered _html, not G.mcInspectMarker directly:
+  // this stub's getElementById auto-vivifies a fresh, disconnected phantom for ANY id on first
+  // reference (never parses nested ids out of an innerHTML string), so G.mcInspectMarker would
+  // read truthy regardless of whether the marker was ever really rendered — the same
+  // static-markup-vs-rendered-innerHTML boundary this file has already hit and documented
+  // elsewhere (e.g. the aiEwmaControl note above).
+  fire(G.mcViewCdf, "click");
+  ok(G.mcChart._html.includes('id="mcInspectMarker"'), "the inspect marker's <g> element survives switching to the cumulative view");
+  fire(G.mcViewHist, "click");
+  // reset for later tests/live-browser parity
+  G.mcInspect.value = "75";
+  fire(G.mcInspect, "input");
+  ok(P.state.mcInspect === 75, "reset: inspect slider back to its default P75 before later sections run");
+}
+
+// D2.7 — Tri-point curve playground (brainstorm-mode round, 2026-08-21). Independently
+// recomputed from P.mcParams(P.pertPlayRow())/P.pertRnd() — pertRnd()'s own statistical
+// correctness is already covered by the PERT-round tests above (bounds + textbook-mean
+// convergence); this only tests the NEW arithmetic and interaction this round adds.
+{
+  ok(idsA.includes("pertPlayChart") && idsA.includes("pertPlayStats") && idsA.includes("pertPlayRead") && idsA.includes("pertPlayReset"),
+    "markup contains the playground chart, its stats tile, its readout, and the reset button");
+  ok(P.state.pertPlay === null, "pre-registered: pertPlay starts null (never-touched) on load, so the playground opens on live CPI-derived bounds, not a hardcoded default");
+  const r = P.pertPlayRow();
+  ok(r.id === "CP-201", "playground worked example is CP-201, the same thread renderMcMath()/renderMcOneRun() already use");
+  const liveP = P.mcParams(r);
+  const bounds0 = P.pertPlayBounds();
+  ok(bounds0.a === liveP.lo && bounds0.m === liveP.mode && bounds0.b === liveP.hi,
+    "default bounds match the account's real, live mcParams() exactly (not an independently-drifted copy)");
+  has("pertPlayChart", 'data-handle="a"', "chart renders the minimum-bound handle");
+  has("pertPlayChart", 'data-handle="m"', "chart renders the mode handle");
+  has("pertPlayChart", 'data-handle="b"', "chart renders the maximum-bound handle");
+
+  // PERT mean formula, independently recomputed against the live default bounds
+  const mu0 = (bounds0.a + 4 * bounds0.m + bounds0.b) / 6;
+  ok(G.pertPlayRead._html.includes(idx(mu0)), "rendered PERT mean matches independent (a+4m+b)/6 recomputation", idx(mu0));
+
+  // clamping: pushing 'a' far past 'm' must clamp to just under m, never cross over
+  P.pertPlaySetHandle("a", 5.0);
+  ok(Math.abs(P.pertPlayBounds().a - (bounds0.m - 0.01)) < 1e-9, "pre-registered: dragging 'a' past 'm' clamps to m-0.01, never crosses over", P.pertPlayBounds().a.toFixed(4));
+  ok(P.pertPlayBounds().m === bounds0.m && P.pertPlayBounds().b === bounds0.b, "clamping 'a' leaves 'm' and 'b' untouched");
+
+  // reset restores the real live bounds and clears state.pertPlay back to null
+  fire(G.pertPlayReset, "click");
+  ok(P.state.pertPlay === null, "reset button clears state.pertPlay back to null, not to a copy of the live values");
+  const boundsAfterReset = P.pertPlayBounds();
+  ok(boundsAfterReset.a === liveP.lo && boundsAfterReset.m === liveP.mode && boundsAfterReset.b === liveP.hi, "reset bounds match live mcParams() again, byte-for-byte");
+
+  // keyboard nudge, end to end through the real dispatcher (mirrors the pointer-drag path this
+  // stub's DOM has no real layout engine to exercise — that half is accepted live-browser-only
+  // coverage, same class of limitation already stated for renderGanttScrubMarker())
+  const mHandleEl = { closest: (sel) => (sel === "[data-handle]" ? { dataset: { handle: "m" } } : null), focus() {} };
+  fire(G.pertPlayChart, "keydown", { key: "ArrowRight", shiftKey: false, preventDefault(){}, target: mHandleEl });
+  ok(Math.abs(P.pertPlayBounds().m - (liveP.mode + 0.005)) < 1e-9, "ArrowRight nudges the focused 'm' handle by the real +0.005 step", P.pertPlayBounds().m.toFixed(4));
+  fire(G.pertPlayChart, "keydown", { key: "ArrowLeft", shiftKey: true, preventDefault(){}, target: mHandleEl });
+  ok(Math.abs(P.pertPlayBounds().m - (liveP.mode + 0.005 - 0.02)) < 1e-9, "shift+ArrowLeft nudges the real -0.02 step (a genuinely bigger step than ArrowRight's +0.005, not a symmetric net-to-zero pair)", P.pertPlayBounds().m.toFixed(4));
+  // reset to a known, clean state before the P80/P95 check below — the two keyboard nudges above
+  // deliberately don't net back to the live default (0.005 - 0.02 != 0), so the P80/P95
+  // recomputation must run against a confirmed-reset state, not an assumed one
+  fire(G.pertPlayReset, "click");
+  ok(P.pertPlayBounds().a === liveP.lo && P.pertPlayBounds().m === liveP.mode && P.pertPlayBounds().b === liveP.hi,
+    "reset after the keyboard-nudge tests restores the exact live bounds before the P80/P95 check below");
+
+  // P80/P95 stat tile — reproduce the exact same seeded sample sequence pertPlaySamples() draws
+  // (pertRnd() itself already verified elsewhere; this only re-derives THIS round's own new
+  // sampling/aggregation code, not pertRnd()'s internal distribution math a second time)
+  function lcgCheck2(seed) { let s = seed >>> 0; return () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; }; }
+  const rnd2 = lcgCheck2(4180226), N = 2000, contribs2 = [];
+  for (let i = 0; i < N; i++) {
+    const c = P.pertRnd(rnd2, liveP.lo, liveP.hi, liveP.mode);
+    contribs2.push(r.ac + (r.bac - r.ev) / c);
+  }
+  contribs2.sort((a, b) => a - b);
+  const p80check = contribs2[Math.floor(0.80 * N)], p95check = contribs2[Math.floor(0.95 * N)];
+  ok(G.pertPlayStats._html.includes(m(p80check)), "playground's P80 stat matches an independent reproduction of the exact same seeded sample sequence", m(p80check));
+  ok(G.pertPlayStats._html.includes(m(p95check)), "playground's P95 stat matches an independent reproduction of the exact same seeded sample sequence", m(p95check));
+}
+
 /* ---- AI & data tab ---- */
 console.log("== D3. AI & data tab ==");
 ok(idsA.includes("t-ai") && idsA.includes("p-ai"), "AI tab/panel pair exists");

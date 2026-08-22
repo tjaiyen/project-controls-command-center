@@ -576,6 +576,12 @@ rect.acc-hover{stroke:rgb(var(--c-accent));stroke-width:2px}
    this one runs for as long as the item stays stale — genuinely ongoing, not a first-visit nudge. */
 tr.stale-glow{animation:staleGlow 2.4s ease-in-out infinite}
 @keyframes staleGlow{0%,100%{box-shadow:inset 3px 0 0 rgb(var(--c-warn) / .35)}50%{box-shadow:inset 3px 0 0 rgb(var(--c-warn) / .85)}}
+/* Monte Carlo "100% Contingency Breach" pill (brainstorm-mode round, 2026-08-21) — same ongoing-
+   not-first-visit pulse language as staleGlow above (an outward ring, not an inset stripe, since
+   a pill has no natural edge to inset against), gated on the literal 100% case (every single
+   simulated run busts BAC+contingency), never a softer invented threshold. */
+.pill.r.flash{animation:pillFlash 1.6s ease-in-out infinite}
+@keyframes pillFlash{0%,100%{box-shadow:0 0 0 0 rgb(var(--c-bad) / 0)}50%{box-shadow:0 0 0 4px rgb(var(--c-bad) / .45)}}
 /* ---------- glossary ---------- */
 .gcard{background:rgb(var(--c-card));border:1px solid var(--c-line);border-radius:11px;padding:15px 16px;
   animation:rise .4s ease-out backwards}
@@ -948,6 +954,12 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
           <button type="button" class="help-ic" data-help="pertdist" aria-label="What does this term mean?" aria-expanded="false">i</button>
         </div>
         <div class="chart" id="mcChart" style="margin-top:10px"></div>
+        <div style="display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap">
+          <span class="eyebrow" style="margin:0;white-space:nowrap">Drag to inspect</span>
+          <input type="range" id="mcInspect" min="1" max="99" step="1" style="flex:1;min-width:140px">
+          <span class="mono tab-num" id="vInspect" style="font-size:11.5px;min-width:64px;text-align:right"></span>
+        </div>
+        <p class="lede" id="mcInspectOut" style="margin-top:6px;font-size:12.5px"></p>
         <div class="outbox" id="mcStats"></div>
         <!-- aria-live on the narrative sentence below, not #mcStats itself — #mcStats' numbers
              are tweened frame-by-frame (see tweenNum() in the script), and a live region on a
@@ -962,6 +974,19 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
             <div id="mcOneRun" style="margin-top:10px"></div>
           </div>
         </details>
+      </div>
+
+      <div class="sec-h" style="margin-top:34px"><h2>Tri-point curve playground</h2><span class="tag">tactile beta-pert</span></div>
+      <p class="lede">Drag any of the three pins &mdash; minimum, mode, maximum &mdash; or focus a pin
+        and use the arrow keys, and this account&rsquo;s own future-efficiency curve reshapes live,
+        drawn from 2,000 real Beta-PERT samples every time, the same draw formula the Monte Carlo run
+        above uses &mdash; never an analytic curve fitted on top.</p>
+      <div class="card" style="margin-top:15px">
+        <div class="eyebrow" id="pertPlayName"></div>
+        <div class="chart" id="pertPlayChart" style="margin-top:6px;touch-action:none"></div>
+        <div class="outbox" id="pertPlayStats" style="margin-top:10px"></div>
+        <p class="lede" id="pertPlayRead" style="margin-top:8px;font-size:12.5px"></p>
+        <button class="btn" id="pertPlayReset" type="button" style="margin-top:8px">Reset to live CPI-derived bounds</button>
       </div>
 
       <div class="dbox" style="margin-top:14px;border-left-color:rgb(var(--c-info) / .55)">
@@ -980,6 +1005,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
           (Bent Flyvbjerg's published megaproject research, via PMI's research summary, verified
           19&nbsp;Aug&nbsp;2026 &mdash; a real, external citation, not this program's own data.)</p>
         <p class="lede" id="mcRcfRead" style="margin-top:8px;font-size:12.8px"></p>
+        <div class="outbox" id="rcfGapTile" style="margin-top:8px"></div>
       </div>
 
       <div class="sec-h" style="margin-top:34px"><h2>Control account ledger</h2><span class="tag">drill-down</span></div>
@@ -2443,7 +2469,8 @@ function sparkline(series, ragColor){
    ========================================================================= */
 var state = {phase:"con", fam:"All", audience:"pcm", kpi:null, pkg:2, actFilter:"All", act:null,
   presenting:false, presentSet:"full", beatIdx:0, touring:false, tourIdx:0, textSize:0, tab:"over", mcView:"hist",
-  mcIncluded:rows.map(function(r){ return r.id; }), cphDrill:false, mcConfidence:0.80, ledgerDemoPkg:"CP-101",
+  mcIncluded:rows.map(function(r){ return r.id; }), cphDrill:false, mcConfidence:0.80, mcInspect:75,
+  pertPlay:null, ledgerDemoPkg:"CP-101",
   mcDist:"triangular"};
 
 /* Ledger card (Overview-tab upgrade, 2026-08-20) — the 11 raw inputs, a per-package inspector, and
@@ -3540,6 +3567,142 @@ function mcMarker(X,H,PT,PB,v,color,label){
   return '<line x1="'+X(v)+'" x2="'+X(v)+'" y1="'+PT+'" y2="'+(H-PB)+'" stroke="'+color+'" stroke-width="1.8" stroke-dasharray="4 3"/>'+
     '<text x="'+X(v)+'" y="'+(H-24)+'" text-anchor="middle" font-size="10" font-family="ui-monospace,monospace" fill="'+color+'">'+label+'</text>';
 }
+/* Drag-to-inspect needle (brainstorm-mode round, 2026-08-21) — solid + thicker so it visually
+   reads as the interactive marker, distinct from the 4 fixed dashed reference lines (BAC/P50/
+   BAC+cont/RCF) mcMarker()/rcfMarkerSvg() already draw. Rendered fresh on every full renderMc()/
+   renderMcCdf() pass (so it survives tab-switches/redrawCharts()/view-toggle automatically) —
+   drag-time repositioning is a separate, cheap direct-attribute update via
+   renderMcInspectMarker(), same division of labor as #scurveConfMarker already established for
+   the S-curve's own confidence marker. */
+function mcInspectMarkerSvg(X,H,PT,PB){
+  var v=mcQuantile(activeMc.sims,state.mcInspect/100), x=X(v);
+  return '<g id="mcInspectMarker" data-role="inspect">'+
+    '<line x1="'+x.toFixed(1)+'" x2="'+x.toFixed(1)+'" y1="'+PT+'" y2="'+(H-PB)+'" stroke="'+C("accent")+'" stroke-width="2.4"/>'+
+    '<text x="'+x.toFixed(1)+'" y="'+(PT+11)+'" text-anchor="middle" font-size="10" font-family="ui-monospace,monospace" '+
+    'fill="'+C("accent")+'">P'+state.mcInspect+'</text></g>';
+}
+function renderMcInspectMarker(){
+  var g=document.getElementById("mcInspectMarker"); if(!g) return;
+  var W=980,PL=64,PR=18, range=mcChartRange(), lo=range.lo, hi=range.hi;
+  var X=function(v){ return PL+((Math.min(hi,Math.max(lo,v))-lo)/(hi-lo))*(W-PL-PR); };
+  var x=X(mcQuantile(activeMc.sims,state.mcInspect/100));
+  var line=g.querySelector("line"), label=g.querySelector("text");
+  line.setAttribute("x1",x.toFixed(1)); line.setAttribute("x2",x.toFixed(1));
+  label.setAttribute("x",x.toFixed(1));
+  label.textContent="P"+state.mcInspect;
+}
+/* Same required-contingency/surplus-deficit math renderMcConfCallout() already uses for #sConf,
+   but against activeMc (the currently displayed run — per-account filter and PERT toggle both
+   included) rather than the fixed canonical MC, since this needle is about reading THIS chart,
+   not sizing contingency in the abstract — the two controls answer different questions on
+   purpose, not duplicate ones. */
+function renderMcInspectOut(){
+  var v=mcQuantile(activeMc.sims,state.mcInspect/100);
+  var required=Math.max(0,v-T.bac), delta=T.contRemaining-required;
+  document.getElementById("mcInspectOut").innerHTML=
+    "Dragged to <b style='color:rgb(var(--c-ink))'>P"+state.mcInspect+"</b>: <b style='color:rgb(var(--c-ink))'>"+
+    m(v)+"</b> &mdash; "+pct(state.mcInspect/100,0)+" of this run's own "+activeMc.n+" simulated completions land at or "+
+    "below this figure. Contingency "+(delta>=0?"surplus":"deficit")+" at this point: <b style='color:rgb(var(--c-ink))'>"+
+    sgn(delta)+"</b>.";
+}
+
+/* ---------- tri-point curve playground ---------- */
+/* Brainstorm-mode round, 2026-08-21. A per-account (CP-201, the same worked-example thread
+   renderMcMath()/renderMcOneRun() already use) empirical Beta-PERT density, built from real
+   pertRnd() draws — the exact same formula computeMc() uses for a real simulated run — rather
+   than an analytic Beta-PDF curve. Deliberate: the Monte Carlo chart above is already a real
+   drawn-and-counted histogram, never a fitted curve; a Gamma-function-based analytic PDF here
+   would be a second, inconsistent technique introduced just for this one card. Its own dedicated
+   seed (4180226) keeps it independent of the canonical MC.sims sequence and every other
+   illustrative-draw stream on this tab (renderMcMath's 7202602, renderMcOneRun's per-click one).
+   state.pertPlay is null until the user actually drags/nudges a pin — pertPlayBounds() falls back
+   to the account's live, CPI-derived mcParams() until then, so the playground always opens on the
+   real number, never an arbitrary hardcoded default. */
+function pertPlayRow(){ return rows.filter(function(x){ return x.id==="CP-201"; })[0]; }
+function pertPlayDomain(){ return {lo:0.5,hi:1.3}; } // fixed, not recomputed from current bounds —
+  // a domain that shifted with every drag tick would make the axis itself move under the pointer
+function pertPlayBounds(){
+  if(state.pertPlay) return state.pertPlay;
+  var p=mcParams(pertPlayRow());
+  return {a:p.lo,m:p.mode,b:p.hi};
+}
+function pertPlaySamples(bounds){
+  var rnd=lcg(4180226), N=2000, r=pertPlayRow(), out=[];
+  for(var i=0;i<N;i++){
+    var c=pertRnd(rnd,bounds.a,bounds.b,bounds.m);
+    out.push({c:c,contrib:r.ac+(r.bac-r.ev)/c});
+  }
+  return out;
+}
+function renderPertPlay(){
+  var r=pertPlayRow(), bounds=pertPlayBounds(), dom=pertPlayDomain();
+  var samples=pertPlaySamples(bounds);
+  var cs=samples.map(function(s){return s.c;}).sort(function(a,b){return a-b;});
+  var contribs=samples.map(function(s){return s.contrib;}).sort(function(a,b){return a-b;});
+  document.getElementById("pertPlayName").textContent=r.n.replace(/&amp;/g,"&")+" ("+r.id+") — future efficiency";
+
+  var W=760,H=190,PL=44,PR=20,PT=14,PB=40;
+  var lo=dom.lo,hi=dom.hi;
+  var X=function(v){ return PL+((v-lo)/(hi-lo))*(W-PL-PR); };
+  var bins=36, bw=(hi-lo)/bins, counts=[],i;
+  for(i=0;i<bins;i++) counts.push(0);
+  cs.forEach(function(v){ if(v<lo||v>hi) return; counts[Math.min(bins-1,Math.floor((v-lo)/bw))]++; });
+  var mx=Math.max.apply(null,counts)||1;
+  var pts=[]; for(i=0;i<bins;i++){ pts.push(X(lo+(i+0.5)*bw).toFixed(1)+","+((H-PB)-(counts[i]/mx)*(H-PT-PB)).toFixed(1)); }
+  var areaPath="M"+X(lo).toFixed(1)+","+(H-PB)+" L"+pts.join(" L")+" L"+X(hi).toFixed(1)+","+(H-PB)+" Z";
+  var linePath="M"+pts.join(" L");
+  var handleY=H-PB+20;
+  function handle(key,v,color,label){
+    var x=X(v);
+    return '<g class="hot" data-handle="'+key+'" tabindex="0" role="slider" aria-label="'+label+
+      ' bound" aria-valuenow="'+v.toFixed(3)+'" aria-valuemin="'+dom.lo+'" aria-valuemax="'+dom.hi+
+      '" style="cursor:ew-resize">'+
+      '<line x1="'+x.toFixed(1)+'" x2="'+x.toFixed(1)+'" y1="'+PT+'" y2="'+(H-PB)+'" stroke="'+color+
+      '" stroke-width="1.4" stroke-dasharray="2 2"/>'+
+      '<circle cx="'+x.toFixed(1)+'" cy="'+handleY+'" r="9" fill="'+color+'"/>'+
+      '<text x="'+x.toFixed(1)+'" y="'+(handleY+3.3)+'" text-anchor="middle" font-size="9.5" '+
+      'font-family="ui-monospace,monospace" fill="var(--c-bg)" style="pointer-events:none">'+label+'</text>'+
+      '<text x="'+x.toFixed(1)+'" y="'+(handleY+21)+'" text-anchor="middle" font-size="9.5" '+
+      'font-family="ui-monospace,monospace" fill="'+color+'" style="pointer-events:none">'+idx(v)+'</text></g>';
+  }
+  var body=
+    '<path d="'+areaPath+'" fill="'+C("accent")+'" opacity=".26"/>'+
+    '<path d="'+linePath+'" fill="none" stroke="'+C("accent")+'" stroke-width="1.8"/>'+
+    handle("a",bounds.a,C("bad"),"a")+handle("m",bounds.m,C("warn"),"m")+handle("b",bounds.b,C("ok"),"b");
+  document.getElementById("pertPlayChart").innerHTML=svg(W,H,body,
+    "Empirical Beta-PERT density for "+r.id+"'s future efficiency, built from 2,000 real draws between "+
+    idx(bounds.a)+" and "+idx(bounds.b)+", mode "+idx(bounds.m)+" — drag or arrow-key the a/m/b pins to reshape it.");
+
+  var mu=(bounds.a+4*bounds.m+bounds.b)/6;
+  var p80=contribs[Math.floor(0.80*contribs.length)], p95=contribs[Math.floor(0.95*contribs.length)];
+  document.getElementById("pertPlayStats").innerHTML=
+    '<div><div class="k">PERT mean &mu;</div><div class="v">'+idx(mu)+'</div></div>'+
+    '<div><div class="k">'+r.id+' contribution P80</div><div class="v">'+m(p80)+'</div></div>'+
+    '<div><div class="k">'+r.id+' contribution P95</div><div class="v">'+m(p95)+'</div></div>';
+
+  var downW=bounds.m-bounds.a, upW=bounds.b-bounds.m;
+  var skewed=upW>0.0001? downW/upW : null;
+  document.getElementById("pertPlayRead").innerHTML=
+    "&mu; = (a+4m+b)&divide;6 = ("+idx(bounds.a)+"+4&times;"+idx(bounds.m)+"+"+idx(bounds.b)+")&divide;6 = "+
+    idx(mu)+", pulled toward the mode harder than a plain average of the three bounds would be. Downside width "+
+    idx(downW)+" vs. upside width "+idx(upW)+
+    (skewed!==null? " &mdash; <b style='color:rgb(var(--c-ink))'>"+skewed.toFixed(1)+"&times;</b> wider on the downside." : ".")+
+    " Capping the upside narrower than the downside is a deliberate modeling choice, not an accident — it says "+
+    "recovery is possible but bounded, even when the pessimistic case isn't.";
+}
+var pertPlayDragKey=null;
+function pertPlayClamp(key,v,bounds){
+  var dom=pertPlayDomain(), gap=0.01;
+  if(key==="a") return Math.max(dom.lo,Math.min(bounds.m-gap,v));
+  if(key==="b") return Math.min(dom.hi,Math.max(bounds.m+gap,v));
+  return Math.max(bounds.a+gap,Math.min(bounds.b-gap,v)); // m
+}
+function pertPlaySetHandle(key,v){
+  var bounds=Object.assign({},pertPlayBounds());
+  bounds[key]=pertPlayClamp(key,v,bounds);
+  state.pertPlay=bounds;
+  renderPertPlay();
+}
 function renderMc(){
   var W=980,H=260,PL=64,PR=18,PT=18,PB=40;
   var range=mcChartRange(), lo=range.lo, hi=range.hi;
@@ -3563,9 +3726,10 @@ function renderMc(){
     mcMarker(X,H,PT,PB,T.bac,C("ok"),"BAC "+m(T.bac))+
     mcMarker(X,H,PT,PB,activeMc.p50,C("warn"),"P50 "+m(activeMc.p50))+
     mcMarker(X,H,PT,PB,T.bac+T.contRemaining,C("bad"),"BAC+cont "+m(T.bac+T.contRemaining))+
-    rcfMarkerSvg(W,H,PL,PR,PT,PB,hi,X),
-    "Monte Carlo distribution of the forecast at completion across "+activeMc.n+" simulated completions, marked with budget, median, budget plus remaining contingency, and the rail reference-class estimate.");
+    rcfMarkerSvg(W,H,PL,PR,PT,PB,hi,X)+mcInspectMarkerSvg(X,H,PT,PB),
+    "Monte Carlo distribution of the forecast at completion across "+activeMc.n+" simulated completions, marked with budget, median, budget plus remaining contingency, the rail reference-class estimate, and a drag-to-inspect percentile needle.");
   renderMcStatsRead();
+  renderMcInspectOut();
 }
 
 /* Cumulative view — same activeMc.sims outcomes, plotted as P(finish at or under $x) instead of
@@ -3587,9 +3751,10 @@ function renderMcCdf(){
     mcMarker(X,H,PT,PB,T.bac,C("ok"),"BAC "+m(T.bac))+
     mcMarker(X,H,PT,PB,activeMc.p50,C("warn"),"P50 "+m(activeMc.p50))+
     mcMarker(X,H,PT,PB,T.bac+T.contRemaining,C("bad"),"BAC+cont "+m(T.bac+T.contRemaining))+
-    rcfMarkerSvg(W,H,PL,PR,PT,PB,hi,X),
-    "Cumulative probability of the forecast at completion across "+activeMc.n+" simulated completions — the probability of finishing at or under a given cost — marked with budget, median, budget plus remaining contingency, and the rail reference-class estimate.");
+    rcfMarkerSvg(W,H,PL,PR,PT,PB,hi,X)+mcInspectMarkerSvg(X,H,PT,PB),
+    "Cumulative probability of the forecast at completion across "+activeMc.n+" simulated completions — the probability of finishing at or under a given cost — marked with budget, median, budget plus remaining contingency, the rail reference-class estimate, and a drag-to-inspect percentile needle.");
   renderMcStatsRead();
+  renderMcInspectOut();
 }
 
 /* Tween a displayed number from its last value to a new one over ~380ms, rather than snapping —
@@ -3630,11 +3795,18 @@ function renderMcStatsRead(){
     });
   }
   mcStatsPrev=cur;
+  // "100% Contingency Breach" pill (brainstorm-mode round, 2026-08-21) — gated on the literal
+  // case the name claims: activeMc.sims[0] is the single BEST simulated outcome (sims are sorted
+  // ascending by computeMc()), so if even that one already busts BAC+contingency, every one of
+  // the activeMc.n runs does — not a softer "most runs" threshold standing in for "100%".
+  var allBust=activeMc.sims[0]>(T.bac+T.contRemaining);
   document.getElementById("mcRead").innerHTML=
+    (allBust? '<span class="pill r flash" style="margin-right:7px">100% Contingency Breach</span>' : "")+
     (activeMc!==MC? "<b style='color:rgb(var(--c-code))'>Showing a narrowed run — some accounts locked to their observed CPI below.</b> " : "")+
     "The point forecast of <b style='color:rgb(var(--c-ink))'>"+m(T.eac)+"</b> sits inside the distribution — "+
     "but <b style='color:rgb(var(--c-ink))'>"+pct(activeMc.pBust,0)+"</b> of simulated completions bust through budget "+
-    "<em>plus</em> the remaining "+m(T.contRemaining)+" of contingency. The honest sentence for the board is not "+
+    "<em>plus</em> the remaining "+m(T.contRemaining)+" of contingency"+
+    (allBust? " — every single one, not most" : "")+". The honest sentence for the board is not "+
     "&ldquo;we land at "+m(T.eac)+"&rdquo; but &ldquo;there is a "+pct(activeMc.pBust,0)+" chance the current funding "+
     "line does not hold&rdquo; — and that sentence is what triggers the contingency conversation early rather than late.";
 }
@@ -3661,6 +3833,16 @@ function renderMcRcf(){
       : "inside the range this program's own model already simulates, at roughly the "+
         pct(activeMc.sims.filter(function(v){return v<=rcfVal;}).length/activeMc.n,0)+" percentile of its own "+activeMc.n+" outcomes.")+
     " Marked on the chart above as a separate, dashed reference line.";
+  // Optimism Gap tile (brainstorm-mode round, 2026-08-21) — the same rcfVal-vs-model comparison
+  // above, restated as two numbers instead of a sentence, for a reader scanning tiles rather than
+  // reading prose. gapPct's denominator is activeMc.p50 (the model's own median), not rcfVal —
+  // "how much higher is the outside number than what we're telling ourselves" is the question,
+  // which only reads correctly against the internal figure as the base.
+  var gapDollar=rcfVal-activeMc.p50, gapPct=gapDollar/activeMc.p50;
+  document.getElementById("rcfGapTile").innerHTML=
+    '<div><div class="k">Optimism gap</div><div class="v'+(gapDollar>0?" ba":"")+'">'+sgn(gapDollar)+'</div></div>'+
+    '<div><div class="k">vs. this model’s own P50</div><div class="v'+(gapPct>0?" ba":"")+'">'+
+    (gapPct>=0?"+":"")+pct(gapPct,0)+'</div></div>';
 }
 
 /* The math explainer — a live worked example against CP-201 (the tunnel package, the same
@@ -6726,6 +6908,55 @@ document.getElementById("sConf").addEventListener("input",function(){
   renderScurveConfMarker();
   renderMcConfCallout();
 });
+// Monte Carlo drag-to-inspect needle (brainstorm-mode round, 2026-08-21) — same split as #sConf
+// just above: the marker's position updates immediately, the readout recomputes alongside it,
+// neither debounced (matching #sConf's own actual behavior, not the stale "debounced" claim in
+// its comment — this listener does exactly what that one does).
+document.getElementById("mcInspect").addEventListener("input",function(){
+  state.mcInspect=+document.getElementById("mcInspect").value;
+  document.getElementById("vInspect").textContent="P"+state.mcInspect;
+  renderMcInspectMarker();
+  renderMcInspectOut();
+});
+/* Tri-point curve playground drag + keyboard (brainstorm-mode round, 2026-08-21). Pointer Events
+   (not separate mouse/touch listeners) so one code path drives both mouse drag and touchscreen
+   drag — setPointerCapture ties every subsequent move/up to the handle that started the drag,
+   so the pointer can leave the SVG's bounds mid-drag without losing the interaction, the same
+   guarantee native <input type="range"> already gives every other slider on this page.
+   getBoundingClientRect()/viewBox-based pixel math has no meaningful equivalent in stress.cjs's
+   DOM stub (it has no real layout engine) — accepted as live-browser-only coverage, the same
+   class of limitation already stated for renderGanttScrubMarker(). Arrow-key nudging on a
+   focused pin, by contrast, touches no pixel math at all and IS exercised in stress.cjs. */
+document.getElementById("pertPlayChart").addEventListener("pointerdown",function(e){
+  var g=e.target.closest("[data-handle]"); if(!g) return;
+  pertPlayDragKey=g.dataset.handle;
+  if(g.setPointerCapture) g.setPointerCapture(e.pointerId);
+  e.preventDefault();
+});
+document.getElementById("pertPlayChart").addEventListener("pointermove",function(e){
+  if(!pertPlayDragKey) return;
+  var svgEl=document.getElementById("pertPlayChart").querySelector("svg"); if(!svgEl) return;
+  var rect=svgEl.getBoundingClientRect(); if(!rect.width) return;
+  var dom=pertPlayDomain();
+  var relX=(e.clientX-rect.left)/rect.width; // 0..1 across the full viewBox width
+  var v=dom.lo+relX*(dom.hi-dom.lo);
+  pertPlaySetHandle(pertPlayDragKey,v);
+});
+document.getElementById("pertPlayChart").addEventListener("pointerup",function(){ pertPlayDragKey=null; });
+document.getElementById("pertPlayChart").addEventListener("pointercancel",function(){ pertPlayDragKey=null; });
+document.getElementById("pertPlayChart").addEventListener("keydown",function(e){
+  var g=e.target.closest("[data-handle]"); if(!g) return;
+  var fwd=e.key==="ArrowRight"||e.key==="ArrowUp", bwd=e.key==="ArrowLeft"||e.key==="ArrowDown";
+  if(!fwd&&!bwd) return;
+  e.preventDefault();
+  var key=g.dataset.handle, step=e.shiftKey?0.02:0.005;
+  pertPlaySetHandle(key,pertPlayBounds()[key]+(fwd?step:-step));
+  document.querySelector('#pertPlayChart [data-handle="'+key+'"]').focus();
+});
+document.getElementById("pertPlayReset").addEventListener("click",function(){
+  state.pertPlay=null;
+  renderPertPlay();
+});
 document.getElementById("resetWhatIf").addEventListener("click",function(){
   document.getElementById("sCpi").value=T.cpi;
   document.getElementById("sSpi").value=T.spi;
@@ -6802,7 +7033,7 @@ window.addEventListener("scroll",function(){ document.getElementById("tip").clas
    pre-existing pattern) silently reset the scrubber's cursor to hidden while the slider value and
    HUD text stayed on whatever month was last scrubbed — the display and the control disagreeing
    with each other, silently, on the single most ordinary action in the app. */
-function redrawCharts(){ renderScurve(); renderWaterfall(); renderCont(); renderRisk(); syncMcView(); renderGantt(); renderScurveScrub(); renderGateLine(); renderCdeFlow(); }
+function redrawCharts(){ renderScurve(); renderWaterfall(); renderCont(); renderRisk(); syncMcView(); renderPertPlay(); renderGantt(); renderScurveScrub(); renderGateLine(); renderCdeFlow(); }
 document.getElementById("mcViewHist").addEventListener("click",function(){ state.mcView="hist"; syncMcView(); });
 document.getElementById("mcViewCdf").addEventListener("click",function(){ state.mcView="cdf"; syncMcView(); });
 /* Draw-shape toggle (triangular <-> PERT) — mirrors mcView's own set-state -> recompute -> re-
@@ -6833,6 +7064,8 @@ document.getElementById("scurveScrub").value=String(PROGRAM.monthsElapsed);
 document.getElementById("sConf").value=String(Math.round(state.mcConfidence*100));
 document.getElementById("vConf").textContent="P"+Math.round(state.mcConfidence*100);
 renderMcConfCallout();
+document.getElementById("mcInspect").value=String(state.mcInspect);
+document.getElementById("vInspect").textContent="P"+state.mcInspect;
 renderWaterfall(); renderWaterfallMath(); renderBaseline(); renderEac(); renderCont(); renderTable();
 renderEacTrend(); renderFcastTable(); renderGbmDiffusion(); renderCashflow();
 renderGantt(); renderSchedule(); renderRisk(); renderDrbEmv(); renderContracts(); renderDelivery(); renderFramework(); renderActions(); renderActionsMath();
@@ -6843,7 +7076,7 @@ renderDataStrategy();
 renderMcFilter();
 document.getElementById("mcDistTri").setAttribute("aria-pressed", String(state.mcDist==="triangular"));
 document.getElementById("mcDistPert").setAttribute("aria-pressed", String(state.mcDist==="pert"));
-syncMcView(); renderMcMath(); renderScen(); renderPrint();
+syncMcView(); renderMcMath(); renderPertPlay(); renderScen(); renderPrint();
 renderArch(); renderGuards(); renderStatControl(); renderZscoreMath(); renderEwmaControl(); renderEwmaMath(); renderIngestGuards();
 renderGlossary("");
 document.getElementById("sCpi").value=T.cpi;
@@ -6881,7 +7114,10 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   pkgs:PKGS,ledgerInputs:LEDGER_INPUTS,kpiLedger:KPI_LEDGER,kpiLedgerMixed:KPI_LEDGER_MIXED,
   kpiLedgerNone:KPI_LEDGER_NONE,ledgerProvenanceDbox:ledgerProvenanceDbox,ledgerDemoBase:ledgerDemoBase,
   renderLedgerDemo:renderLedgerDemo,kpiFamilies:KPI_FAMILIES,renderFamiliesGrid:renderFamiliesGrid,
-  layers:LAYERS,renderLayersGrid:renderLayersGrid};
+  layers:LAYERS,renderLayersGrid:renderLayersGrid,
+  pertPlayRow:pertPlayRow,pertPlayDomain:pertPlayDomain,pertPlayBounds:pertPlayBounds,
+  pertPlayClamp:pertPlayClamp,pertPlaySetHandle:pertPlaySetHandle,renderPertPlay:renderPertPlay,
+  renderMcInspectOut:renderMcInspectOut,renderMcInspectMarker:renderMcInspectMarker};
 })();
 </script>
 </body>

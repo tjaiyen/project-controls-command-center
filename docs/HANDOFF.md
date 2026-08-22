@@ -30,7 +30,7 @@ anywhere in this repository. The method is the content, not the numbers.
 
 | | |
 |---|---|
-| Primary file | `index.html` — 6,783 lines, one file, no build step |
+| Primary file | `index.html` — 7,124 lines, one file, no build step |
 | Top-level JS functions | 176 (not re-audited this round — see §18 gap note) |
 | Tabs | 11 |
 | KPIs (with formula/threshold/phase/source/play each) | 20 |
@@ -44,7 +44,7 @@ anywhere in this repository. The method is the content, not the numbers.
 | Contracts | 6 |
 | Risks | 6 |
 | Delay events | 4 |
-| `stress.cjs` test assertions | 1,438, all passing |
+| `stress.cjs` test assertions | 1,472, all passing |
 | Companion pages | `otak.html` (fit brief), `architecture.html` (static pipeline map) |
 | Hosting | GitHub Pages, served directly from `main`, zero build |
 | Git history | 100 commits |
@@ -375,7 +375,7 @@ matches an independent recomputation, not just that *a* number is present.
 
 ## 11. Testing & verification
 
-**`stress.cjs`** (1,438 assertions, all passing) — stubs the DOM, loads `index.html`'s script
+**`stress.cjs`** (1,472 assertions, all passing) — stubs the DOM, loads `index.html`'s script
 verbatim into that stub, and exercises it exactly like a user would: every tab switch, every
 filter, every drawer, every slider drag, every keyboard interaction. 35 labeled sections:
 
@@ -555,7 +555,7 @@ Named explicitly, not silently dropped — from the most recent engagement/inter
    re-synced eight more times on 2026-08-21 — the six-families card, the Data Strategy UI/UX round,
    the Monte Carlo PERT draw-shape toggle, the megaproject-controls-doc upgrade round, the Kimi
    research-package round, the full-dashboard `/stress-test` pass, the EAC-spread live check, and
-   the total-float early-warning round): 1,438 assertions / 53 glossary terms / 28-check integrity
+   the total-float early-warning round, and the Monte Carlo captivation round): 1,472 assertions / 53 glossary terms / 28-check integrity
    gate, matching §2 as of this writing.
 5. **The eleven-input ledger card is new this round** (2026-08-20) and only covers the Overview
    tab's own `PKGS` provenance — it does not touch or resolve gap #2 above (the risk register still
@@ -847,6 +847,52 @@ carried over from memory or an earlier pass:
   Gantt tooltip's real worked CPLI, the float drawer's real D-02/68.7% text and both working jump
   buttons (including the crew-idle one auto-opening the drill), and the new glossary icon opening
   the real popover — at desktop and mobile (375px) width, zero console errors, zero layout overflow.
+- **2026-08-21 Monte Carlo captivation round**: TJ shared a 5-part brainstorm proposal to make the
+  Monte Carlo module "the most captivating, educational, and technically authoritative module in
+  the dashboard." A fresh-context Explore agent grounded all 5 items against the live code before
+  anything got proposed — the finding: most of the "hard" mechanics already existed (PDF/CDF
+  toggle, BAC/contingency threshold lines, a `#sConf`-style percentile drag-inspect precedent on
+  the S-curve, a fully-built single-draw stepper, a real Flyvbjerg reference line with gap prose),
+  and 3 of the proposal's own 6 cited dollar figures were wrong against the live simulation (P50/
+  P95 off by $0.1M at the page's own display precision; the CP-201 worked example's formula
+  substituted the account's own EAC where BAC belonged). TJ approved everything except the
+  "Galton Engine" Canvas/WebGL particle-physics waterfall, which was held out as a separate
+  architecture decision (this page's entire stated design is zero-dependency SVG+CSS; introducing
+  Canvas would be a first, not just another feature) rather than silently built or silently
+  dropped. Shipped the 4 approved items: (1) a flashing "100% Contingency Breach" pill, gated on
+  the literal case (`activeMc.sims[0]`, the single best simulated outcome, still busting
+  BAC+contingency) rather than an invented soft threshold; (2) a drag-to-inspect percentile
+  needle consolidated directly onto the MC chart itself (`#mcInspect`, reusing `#sConf`'s exact
+  required-contingency math but against `activeMc` instead of the canonical `MC`, since the two
+  controls answer different questions on purpose), surviving the hist/CDF view toggle via the
+  same `<g>`-rendered-fresh-then-cheaply-repositioned pattern `#scurveConfMarker` already
+  established; (3) an Optimism Gap stat tile restating `renderMcRcf()`'s existing prose comparison
+  as two scannable numbers; (4) a tri-point Beta-PERT curve playground for CP-201 with draggable
+  (Pointer Events) and arrow-key-nudgeable min/mode/max pins, an empirical density curve built
+  from 2,000 real `pertRnd()` draws (deliberately not an analytic Beta-PDF via a Gamma function —
+  the MC histogram itself is already a real drawn-and-counted distribution, never a fitted curve,
+  and this stays consistent with that rather than introducing a second, inconsistent technique),
+  live-recomputed PERT mean and per-account P80/P95, and a `pertPlayBounds()` that always opens on
+  the account's real, live `mcParams()`-derived bounds until the user actually touches a pin.
+  Caught one real mobile-viewport CSS bug during the build (a new flex row for the inspect slider
+  omitted `flex-wrap:wrap`, which every other flex row on this page already carries for exactly
+  this reason — pushed the Cost tab to 386px at a 375px viewport; fixed, re-verified clean across
+  all 11 tabs). Caught two real bugs in the new tests, not the app: `document.getElementById`'s
+  auto-vivify-on-first-reference behavior in this stub means checking `!!G.mcInspectMarker`
+  directly is always true regardless of whether the marker ever really rendered — fixed to check
+  `G.mcChart._html` instead, the same static-markup-vs-rendered-innerHTML boundary already
+  documented elsewhere in this file; and a keyboard-nudge test wrongly assumed +0.005 then -0.02
+  would net back to zero (it doesn't — pre-registered wrong, caught by the contradiction, not
+  rationalized past). `node stress.cjs` run fresh (`1472 passed, 0 failed` — 1438 baseline + 34
+  new assertions, including a pre-registered check that today's real gap is positive and that
+  today's ledger does NOT trigger a false breach, then a forced-condition test proving the pill
+  DOES fire on the real rendered markup when the condition is forced true, and a P80/P95 check that
+  reproduces the exact same seeded 2,000-sample sequence independently), `node verify.cjs`
+  unchanged (all four additions are pure UI/interaction, zero `PKGS` values touched), and live
+  browser confirmed all four end to end — the forced-breach pill firing on real markup, the
+  inspect needle's marker and readout updating on drag and surviving the CDF toggle, the
+  playground's keyboard nudge/clamp/reset all producing the real live numbers — at desktop and
+  mobile (375px, post-fix) width, zero console errors.
 
 Generated 2026-08-20, against the tip of the eleven-input-ledger-card engagement round; extended
 2026-08-21 for the six-KPI-families card round, again 2026-08-21 for the Data Strategy tab UI/UX
@@ -855,6 +901,7 @@ the full-dashboard `/stress-test` visual pass, again 2026-08-21 for the Monte Ca
 draw-shape round, again 2026-08-21 for the Monte Carlo run-count round, again 2026-08-21 for the
 megaproject-controls-doc upgrade round, again 2026-08-21 for the Kimi research-package round, again
 2026-08-21 for the second full-dashboard `/stress-test` pass, again 2026-08-21 for the Monte Carlo
-mode-vs-bounds clarification, again 2026-08-21 for the EAC-spread live check, and again 2026-08-21
-for the total-float early-warning round (see git log for exact commits — each document update was
-written before its own round's commit lands, per the project's "verify, then document" ordering).
+mode-vs-bounds clarification, again 2026-08-21 for the EAC-spread live check, again 2026-08-21
+for the total-float early-warning round, and again 2026-08-21 for the Monte Carlo captivation
+round (see git log for exact commits — each document update was written before its own round's
+commit lands, per the project's "verify, then document" ordering).
