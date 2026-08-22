@@ -576,6 +576,23 @@ has("docctl", "1.5×", "submittals 1.5x target");
   // and reintroduce the exact same overflow with no test failure anywhere else in this file.
   ok(G.ncrCard._html.includes("white-space:normal;min-width:0"),
     "NCR title span carries min-width:0 (mobile-overflow fix, live-browser confirmed: 411px->375px)");
+  // Second, distinct mobile-overflow bug at a narrower 320px viewport (live-browser confirmed,
+  // 2026-08-21 nav-upgrade round): the 375px fix above only clipped the title span's own overflow;
+  // it left the row's grid-template-columns declared as bare 110px/90px/64px fixed tracks, which
+  // CSS Grid never shrinks below their declared size regardless of container pressure. At 320px this
+  // program's real card padding leaves the row well under the 264px those 3 fixed columns alone
+  // demand, so the excess poked out (window.innerWidth measured 332px, not 320px) even with every
+  // child's own min-width:0/overflow:hidden already in place — a structural grid-template problem,
+  // not a per-child content problem. Fixed by widening the 3 fixed tracks to minmax(0,Npx), which
+  // lets each shrink under real pressure while still preferring Npx when there's room. Also added
+  // matching min-width:0/overflow:hidden/ellipsis to the status-pill span, which had none before.
+  // No real CSS Grid engine here to re-run the live 320px probe, so this guards structurally: without
+  // minmax(0,...), a future edit could silently revert to bare Npx tracks and reintroduce the exact
+  // same overflow with no test failure anywhere else in this file.
+  ok(G.ncrCard._html.includes("grid-template-columns:minmax(0,110px) 1fr minmax(0,90px) minmax(0,64px)"),
+    "NCR row's 3 fixed grid columns are minmax(0,Npx), not bare Npx (mobile-overflow fix, live-browser confirmed: 332px->320px)");
+  ok(G.ncrCard._html.includes('min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'),
+    "NCR status-pill span carries min-width:0/overflow:hidden/ellipsis + a title fallback (previously had no overflow handling at all)");
   // drift guard (this file's own doctrine, extended to a 3rd item): both leading-indicator framing
   // sites — KPI_FAMILIES' Delivery entry and the delivery GLOSS entry — must name all 3 real
   // leading indicators, not just today's original 2, so this can't silently go stale the way the
@@ -3969,6 +3986,151 @@ console.log("== D15. three-layer architecture card (megaproject-controls-doc upg
   // Gate 5 re-baselining governance sentence (item 2 of this round)
   has("gate5Card", "should never move without the same independent review", "Gate 5 card states the post-lock re-baselining governance principle");
   has("gate5Card", "No re-baseline event is modeled", "Gate 5 card honestly states this is a stated principle, not an enforced check on this synthetic ledger");
+}
+
+console.log("== D16. tab-rail hover-preview mini-drawer (brainstorm-mode nav round, 2026-08-21) ==");
+{
+  const TABS_LIST = ["over","port","cost","sched","risk","del","ai","fw","act","gloss","data"];
+  TABS_LIST.forEach(id => {
+    const c = P.tabDrawerContent(id);
+    ok(!!c && typeof c.label === "string" && c.label.length > 0, "tabDrawerContent('" + id + "') returns a labeled entry");
+    ok(typeof c.q === "string" && c.q.length > 0, "'" + id + "' drawer states a core question");
+  });
+  // Content grounding: fam-mapped tabs reuse KPI_FAMILIES' own real q/why fields verbatim — not a
+  // re-typed copy that could silently drift from the family's own framing elsewhere on the page.
+  ok(P.tabDrawerContent("cost").q === P.kpiFamilies.filter(f => f.key === "Cost")[0].q,
+    "Cost tab drawer's q is exactly KPI_FAMILIES' own Cost.q, not a re-typed copy");
+  ok(P.tabDrawerContent("sched").q === P.kpiFamilies.filter(f => f.key === "Schedule")[0].q,
+    "Schedule tab drawer's q is exactly KPI_FAMILIES' own Schedule.q, not a re-typed copy");
+  const riskQ = P.tabDrawerContent("risk").q;
+  ["Risk", "Change"].forEach(k => ok(riskQ.indexOf(P.kpiFamilies.filter(f => f.key === k)[0].q) >= 0,
+    "Risk & Change tab drawer's q includes the " + k + " family's own real q"));
+  // Delivery's own renderDelivery() draws a Compliance-family (TRIR) card too, so its preview must
+  // name both families, not just Delivery — a single-family drawer here would be an honest-looking
+  // but incomplete preview of what the tab actually renders.
+  const delQ = P.tabDrawerContent("del").q;
+  ["Delivery", "Compliance"].forEach(k => ok(delQ.indexOf(P.kpiFamilies.filter(f => f.key === k)[0].q) >= 0,
+    "Delivery tab drawer's q includes the " + k + " family's own real q"));
+  // System-of-record is computed live from KPIS[].src for the tab's family/families — independently
+  // re-derived here from the raw KPIS array (this file's own doctrine), not read back from
+  // tabDrawerSysOfRecord()'s output and trusted against itself.
+  const costSrcs = [...new Set(P.kpis.filter(k => k.fam === "Cost" && k.src !== "Derived — no separate source").map(k => k.src))];
+  ok(JSON.stringify(P.tabDrawerContent("cost").sys) === JSON.stringify(costSrcs),
+    "Cost tab drawer's system-of-record list matches KPIS[].src filtered by fam, independently re-derived", JSON.stringify(P.tabDrawerContent("cost").sys));
+  ok(P.tabDrawerContent("over").sys === null && P.tabDrawerContent("gloss").sys === null,
+    "tabs with no KPI_FAMILIES mapping carry no fabricated system-of-record line (sys is null, not an empty/invented array)");
+
+  // Interaction, end to end against the real openTabDrawer()/closeTabDrawer() — mirrors the D10
+  // openHelp()/closeHelp() interaction block's style, with getBoundingClientRect mocked onto the
+  // real registry elements the same way D10 mocks it onto its own anchor (this stub's makeEl()
+  // has never needed it before either feature).
+  // A prior test section (D9.1's CDE glossary popover) leaves a click-triggered popover open
+  // without closing it — real, harmless in isolation, but this file's own D10 block already
+  // established the idiom of an Escape keypress to reset that shared state before its own
+  // interaction checks; do the same here so this block's assertions test THIS feature's behavior,
+  // not whatever an earlier section happened to leave open.
+  fire(R.win, "keydown", { key: "Escape" });
+
+  const overBtn = G["t-over"];
+  overBtn.getBoundingClientRect = () => ({ bottom: 40, left: 20 });
+  ok(overBtn.getAttribute("aria-selected") === "true", "t-over is the default-selected tab (precondition for the next check)");
+  P.openTabDrawer("over", overBtn);
+  ok(G.helpPop.hidden !== false, "hovering the already-active tab does not open its own preview drawer — nothing to preview");
+
+  const costBtn = G["t-cost"];
+  costBtn.getBoundingClientRect = () => ({ bottom: 40, left: 20 });
+  P.openTabDrawer("cost", costBtn);
+  ok(G.helpPop.hidden === false, "hovering an inactive tab opens its preview drawer");
+  has("helpPop", "Cost", "drawer shows the tab's real label");
+  has("helpPop", P.kpiFamilies.filter(f => f.key === "Cost")[0].q, "drawer shows the tab's real core question");
+  ok(G.helpPop._attrs.role === "tooltip", "drawer sets role=tooltip, not role=dialog — it's a passive preview, not a modal");
+  P.closeTabDrawer();
+  ok(G.helpPop.hidden === true, "closeTabDrawer() closes it");
+  ok(G.helpPop._html === "", "closeTabDrawer() clears its content");
+
+  // Mutual exclusion with the click-triggered glossary popover (shared #helpPop/helpOpenKey state,
+  // by design — see the code's own comment on why this reuse was deliberate): a real glossary
+  // click must supersede an open tab-drawer preview, and must reset the role back to "dialog" —
+  // guards the exact "tooltip role leaks into the next glossary popover" bug this file's own
+  // defensive reset (openHelp's own role="dialog" line) exists to prevent.
+  P.openTabDrawer("cost", costBtn);
+  ok(G.helpPop.hidden === false, "precondition: tab drawer open before the glossary click");
+  const wbsIconEl = { dataset: { help: "wbs" }, getBoundingClientRect: () => ({ bottom: 40, left: 20 }), setAttribute(){}, focus(){} };
+  const wbsIcon = { closest: sel => (sel === "[data-help]" ? wbsIconEl : null) };
+  fire(R.win, "click", { target: wbsIcon });
+  ok(G.helpPop.hidden === false, "a real glossary click supersedes an open tab-drawer preview");
+  has("helpPop", "WBS", "glossary content correctly replaces the tab-drawer content");
+  ok(G.helpPop._attrs.role === "dialog", "role is reset back to dialog for the glossary popover — the tooltip role does not leak across");
+  fire(R.win, "keydown", { key: "Escape" }); // clean up shared popover state before the tests that follow
+}
+
+console.log("== D17. 1-9 tab-jump + \"?\" shortcuts overlay (brainstorm-mode nav round, 2026-08-21) ==");
+{
+  // Static markup: aria-keyshortcuts="N" on exactly the first 9 tab buttons, matching this file's
+  // own existing convention (already declared on tourBtn/presentBtn) — and honestly absent from
+  // the last 2, since Glossary/Data Strategy have no digit shortcut.
+  const digitIds = ["t-over", "t-port", "t-cost", "t-sched", "t-risk", "t-del", "t-ai", "t-fw", "t-act"];
+  digitIds.forEach((id, i) => ok(new RegExp('id="' + id + '"[^>]*aria-keyshortcuts="' + (i + 1) + '"').test(indexSrc),
+    id + " declares aria-keyshortcuts=\"" + (i + 1) + "\" in markup"));
+  ["t-gloss", "t-data"].forEach(id => ok(!new RegExp('id="' + id + '"[^>]*aria-keyshortcuts=').test(indexSrc),
+    id + " has no digit shortcut — it's past the 1-9 range"));
+  ok(/id="shortcutsBtn"[^>]*aria-keyshortcuts="\?"/.test(indexSrc), "shortcutsBtn declares aria-keyshortcuts=\"?\" in markup");
+  ok(/id="shortcutsCard"[^>]*aria-labelledby="shortcutsTitle"/.test(indexSrc),
+    "shortcutsCard declares aria-labelledby pointing at the panel's own title");
+
+  // Content: the panel's tab-jump line is built from TAB_DRAWER's own real labels for TABS[0..8],
+  // independently re-derived here from the raw arrays, not read back from renderShortcutsOverlay()
+  // and trusted against itself.
+  const expectedLabels = P.tabs.slice(0, 9).map(id => P.tabDrawer[id].label).join(", ");
+  P.openShortcuts();
+  ok(G.shortcutsOverlay.hidden === false, "openShortcuts() shows the overlay");
+  ok(G.shortcutsCard._focusCount > 0, "openShortcuts() moves focus into the dialog");
+  ok(G.shortcutsCard._html.indexOf('id="shortcutsTitle"') >= 0, "the rendered title carries the exact id the static aria-labelledby references");
+  has("shortcutsCard", "Keyboard shortcuts", "panel renders its title");
+  has("shortcutsCard", expectedLabels, "panel's 1-9 line names all 9 real tab labels in TABS order, independently re-derived from TAB_DRAWER");
+  has("shortcutsCard", "Glossary and Data Strategy", "panel honestly states which 2 tabs are past the 1-9 range");
+  ok(G.shortcutsBtn._attrs["aria-expanded"] === "true", "shortcutsBtn's aria-expanded reflects the open panel");
+  P.closeShortcuts();
+  ok(G.shortcutsOverlay.hidden === true, "closeShortcuts() hides the overlay");
+  ok(G.shortcutsCard._html === "", "closeShortcuts() clears the panel's content");
+  ok(G.shortcutsBtn._attrs["aria-expanded"] === "false", "shortcutsBtn's aria-expanded resets on close");
+
+  // Interaction, end to end through the real click wiring.
+  fire(G.shortcutsBtn, "click");
+  ok(G.shortcutsOverlay.hidden === false, "clicking the Shortcuts button opens the panel");
+  fire(G.shortcutsBtn, "click");
+  ok(G.shortcutsOverlay.hidden === true, "clicking it again toggle-closes the panel");
+
+  // Global keydown, end to end. Normalize to a known tab first (panel closed) so the suppression
+  // checks below have a clean precondition to assert against.
+  fire(R.win, "keydown", { key: "1", target: { tagName: "BODY" } });
+  ok(P.state.tab === "over", "precondition: digit 1 jumps to Overview when the panel is closed");
+  fire(R.win, "keydown", { key: "?", target: { tagName: "BODY" } });
+  ok(G.shortcutsOverlay.hidden === false, "\"?\" keydown opens the panel");
+  fire(R.win, "keydown", { key: "3", target: { tagName: "BODY" } });
+  ok(P.state.tab === "over", "a digit keypress while the panel is open does not jump tabs — it's suppressed so a reader isn't yanked mid-read");
+  fire(R.win, "keydown", { key: "Escape", target: { tagName: "BODY" } });
+  ok(G.shortcutsOverlay.hidden === true, "Escape closes the panel");
+  fire(R.win, "keydown", { key: "3", target: { tagName: "BODY" } });
+  ok(P.state.tab === "cost", "once the panel is closed again, digit 3 jumps to Cost as normal");
+
+  // Guards: a real user typing into a form field, holding a modifier (sharing the key with a
+  // browser/OS shortcut), or mid-Tour/-Presentation (those modes already own the keyboard) must
+  // never have a digit keypress hijacked into a tab jump.
+  fire(R.win, "keydown", { key: "1", target: { tagName: "BODY" }, ctrlKey: true });
+  ok(P.state.tab === "cost", "Ctrl+1 does not jump tabs — never hijack a browser/OS shortcut sharing this key");
+  fire(R.win, "keydown", { key: "1", target: { tagName: "INPUT" } });
+  ok(P.state.tab === "cost", "typing \"1\" into a form field does not jump tabs");
+  P.state.touring = true;
+  fire(R.win, "keydown", { key: "1", target: { tagName: "BODY" } });
+  ok(P.state.tab === "cost", "digit shortcut is suppressed while the Tour is active — it already owns the keyboard");
+  P.state.touring = false;
+  P.state.presenting = true;
+  fire(R.win, "keydown", { key: "1", target: { tagName: "BODY" } });
+  ok(P.state.tab === "cost", "digit shortcut is suppressed while Presentation Mode is active — it already owns the keyboard");
+  P.state.presenting = false;
+  fire(R.win, "keydown", { key: "1", target: { tagName: "BODY" } });
+  ok(P.state.tab === "over", "digit shortcut works again once Tour/Presentation are both inactive");
 }
 
 /* =========================================================================

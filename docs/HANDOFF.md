@@ -30,7 +30,7 @@ anywhere in this repository. The method is the content, not the numbers.
 
 | | |
 |---|---|
-| Primary file | `index.html` — 7,453 lines, one file, no build step |
+| Primary file | `index.html` — 7,660 lines, one file, no build step |
 | Top-level JS functions | 176 (not re-audited this round — see §18 gap note) |
 | Tabs | 11 |
 | KPIs (with formula/threshold/phase/source/play each) | 20 |
@@ -44,7 +44,7 @@ anywhere in this repository. The method is the content, not the numbers.
 | Contracts | 6 |
 | Risks | 6 |
 | Delay events | 4 |
-| `stress.cjs` test assertions | 1,541, all passing |
+| `stress.cjs` test assertions | 1,620, all passing |
 | Companion pages | `otak.html` (fit brief), `architecture.html` (static pipeline map) |
 | Hosting | GitHub Pages, served directly from `main`, zero build |
 | Git history | 100 commits |
@@ -375,9 +375,9 @@ matches an independent recomputation, not just that *a* number is present.
 
 ## 11. Testing & verification
 
-**`stress.cjs`** (1,541 assertions, all passing) — stubs the DOM, loads `index.html`'s script
+**`stress.cjs`** (1,620 assertions, all passing) — stubs the DOM, loads `index.html`'s script
 verbatim into that stub, and exercises it exactly like a user would: every tab switch, every
-filter, every drawer, every slider drag, every keyboard interaction. 35 labeled sections:
+filter, every drawer, every slider drag, every keyboard interaction. 38 labeled sections:
 
 ```
 A. static structure          B/B2. runtime + portfolio tab       C. narrative vs. data
@@ -554,11 +554,13 @@ Named explicitly, not silently dropped — from the most recent engagement/inter
    2026-08-21; **§18 gap #9 below adds the automated sync test this gap has been naming since
    2026-08-20** — that structural risk is now closed, not just the 3rd stale instance.
 4. ~~**`README.md`'s own stated counts lag behind this document**~~ — **Resolved 2026-08-20** (and
-   re-synced eight more times on 2026-08-21 — the six-families card, the Data Strategy UI/UX round,
+   re-synced nine more times on 2026-08-21 — the six-families card, the Data Strategy UI/UX round,
    the Monte Carlo PERT draw-shape toggle, the megaproject-controls-doc upgrade round, the Kimi
-   research-package round, the full-dashboard `/stress-test` pass, the EAC-spread live check, and
-   the total-float early-warning round, the Monte Carlo captivation round, the Galton Engine round, and the drift-catching round): 1,541 assertions / 53 glossary terms / 28-check integrity
-   gate, matching §2 as of this writing.
+   research-package round, the full-dashboard `/stress-test` pass, the EAC-spread live check, the
+   total-float early-warning round, the Monte Carlo captivation round, the Galton Engine round, the
+   drift-catching round, and the tab-rail navigation round (320px mobile-overflow fix, hover-preview
+   mini-drawers, 1&ndash;9/"?" keyboard shortcuts)): 1,620 assertions / 53 glossary terms / 28-check
+   integrity gate, matching §2 as of this writing.
 5. **The eleven-input ledger card is new this round** (2026-08-20) and only covers the Overview
    tab's own `PKGS` provenance — it does not touch or resolve gap #2 above (the risk register still
    has no independent drill-down drawer of its own).
@@ -979,6 +981,50 @@ carried over from memory or an earlier pass:
   and jump targets, the EAC drawer now showing the real escalation rule end to end through the new
   jump button, and the EWMA chart's real SVG geometry (6 circles, a 12-point band polygon, 4
   polylines) — at mobile (375px) and desktop width, zero console errors.
+- **2026-08-21 tab-rail navigation round**: TJ shared a 5-section "Table of Contents wayfinding"
+  brainstorm proposal (a "Transit Subway Line" wayfinder with pulsing nodes/hover mini-drawers/an
+  animated train, multi-track guided playlists, a cross-tab "Connective Thread" story navigator, a
+  Cmd+K command palette, and accessibility scaffolding). Grounding caught two invented facts from
+  the proposal (a "24 Sep 2027" date matching nothing in `MILES`, and R-01's "70% × $18.5M =
+  $12.9M" — no percentage field exists for R-01) and one regression the proposal's own ask would
+  have introduced (`aria-current` on the tab rail, when `aria-selected` — already correctly used —
+  is the right ARIA property for a `tablist`/`tab` component). Approved 3 items, scoped down from
+  the proposal's own ask: (1) fix a genuine, previously-untested 320px mobile-overflow bug on the
+  Delivery tab's Quality NCR register — found live during grounding, not literally in the proposal
+  — root-caused through 3 successive live-browser probes (each pre-registered, two contradicted)
+  to `renderNcr()`'s `grid-template-columns` using bare `Npx` fixed tracks (110+90+64=264px) that
+  never shrink below their declared size, exceeding the row's real ~244px available width at
+  320px; fixed with `minmax(0,Npx)`, the standard CSS Grid technique letting a track shrink under
+  real pressure while still preferring `Npx` when there's room. (2) Hover/focus-preview
+  mini-drawers on the tab rail — the scoped-down version of the proposal's SVG subway-line
+  wayfinder, reusing the existing help-icon/`#helpPop` popover infrastructure (same
+  position/flip-above geometry via a newly-factored `positionHelpPop()`, same `helpOpenKey`
+  coordination) rather than the proposal's animated-train SVG; content is grounded, not fabricated
+  — a tab that maps onto real `KPI_FAMILIES` entries reuses that family's own `q`/`why` fields
+  verbatim and computes "system(s) of record" live from `KPIS[].src`, never hand-typed (the
+  Delivery tab's own drawer correctly names both the Delivery and Compliance families, since
+  `renderDelivery()` draws both). (3) A global 1-9 tab-jump plus a "?" keyboard-shortcuts overlay —
+  the first place every real shortcut on the page (arrow-key tab-rail nav, N/P/Escape in
+  Presentation Mode, arrow keys/Escape in the Tour) is gathered in one list, its tab-jump line
+  built from the same `TAB_DRAWER` labels item 2 introduced rather than a second, hand-typed copy.
+  Declined, not defaulted: the full SVG subway-line/animated-train redesign, a Cmd+K command
+  palette, and a cross-tab root-cause filter/highlight mode — all left as TJ's call, not silently
+  dropped.
+
+  Two real bugs caught live in the browser, both fixed same-session: the 320px NCR-grid overflow
+  above, and this browser-automation environment's own synthetic key-dispatch not computing the
+  shifted "?" character for Shift+/ (it delivers `key:"/"` + `shiftKey:true` instead of `key:"?"`)
+  — a genuine automation-tool limitation, fixed defensively in the app's own code by accepting
+  both shapes rather than working around it only in the test harness. `node stress.cjs` run fresh
+  (`1620 passed, 0 failed` — 1543 baseline (1541 + this round's own NCR-fix regression test) + 77
+  new assertions across two new sections, D16/D17, each independently confirmed to throw/fail
+  against pre-feature code before being confirmed passing against the fix), `node verify.cjs`
+  unchanged (pure UI/nav, zero `PKGS` touched), and live-browser confirmed at 320px/375px/768px/
+  desktop: the NCR fix holds across all 11 tabs at both mobile widths, the hover-drawer opens and
+  closes correctly (including the already-selected-tab suppression and mutual exclusion with the
+  glossary popover — with the tooltip/dialog `role` attribute correctly reset each way), and all
+  nine digit shortcuts plus the "?" overlay work end to end (button click, keyboard, Escape,
+  backdrop click) with zero horizontal overflow anywhere.
 
 Generated 2026-08-20, against the tip of the eleven-input-ledger-card engagement round; extended
 2026-08-21 for the six-KPI-families card round, again 2026-08-21 for the Data Strategy tab UI/UX
@@ -990,6 +1036,7 @@ megaproject-controls-doc upgrade round, again 2026-08-21 for the Kimi research-p
 mode-vs-bounds clarification, again 2026-08-21 for the EAC-spread live check, again 2026-08-21
 for the total-float early-warning round, again 2026-08-21 for the Monte Carlo captivation round,
 again 2026-08-21 for the Galton Engine round, again 2026-08-21 for the third full-dashboard
-`/stress-test` pass, and again 2026-08-21 for the "how the dashboard catches drift" round (see
-git log for exact commits — each document update was written before its own round's commit lands,
-per the project's "verify, then document" ordering).
+`/stress-test` pass, again 2026-08-21 for the "how the dashboard catches drift" round, and again
+2026-08-21 for the tab-rail navigation round (see git log for exact commits — each document update
+was written before its own round's commit lands, per the project's "verify, then document"
+ordering).

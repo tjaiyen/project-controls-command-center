@@ -455,6 +455,29 @@ tfoot td{font-weight:600;border-top:1px solid rgb(var(--c-accent) / .40);border-
 #helpPop{animation:helpPopIn .16s ease-out}
 @media(prefers-reduced-motion:reduce){#helpPop{animation:none}}
 
+/* keyboard-shortcuts overlay (brainstorm-mode nav round, 2026-08-21) — the same card visual
+   language as #helpPop above (same background/border/radius/shadow tokens), centered over a
+   dimmed backdrop instead of anchored to a trigger, since this is a full reference list rather
+   than a single term's definition. */
+.shortcuts-overlay{position:fixed;inset:0;z-index:95;display:flex;align-items:center;
+  justify-content:center;background:rgb(0 0 0 / .5);padding:16px}
+#shortcutsCard{max-width:420px;width:100%;max-height:80vh;overflow:auto;background:rgb(var(--c-card));
+  border:1px solid rgb(var(--c-accent) / .55);border-radius:10px;box-shadow:var(--c-elev);
+  padding:18px 20px}
+#shortcutsCard h2{margin:0 0 4px;font-size:15px}
+#shortcutsCard .sc-close{float:right;background:none;border:none;color:rgb(var(--c-mut));
+  cursor:pointer;font-size:18px;line-height:1;padding:2px 4px;position:relative}
+#shortcutsCard .sc-close::before{content:"";position:absolute;top:50%;left:50%;width:44px;
+  height:44px;transform:translate(-50%,-50%)}
+#shortcutsCard .sc-close:hover{color:rgb(var(--c-ink))}
+#shortcutsCard dl{margin:14px 0 0;display:grid;grid-template-columns:auto 1fr;gap:8px 14px}
+#shortcutsCard dt{font:600 11.5px/1.5 ui-monospace,monospace;color:rgb(var(--c-code));
+  white-space:nowrap;align-self:start}
+#shortcutsCard dd{margin:0;font-size:12.5px;color:rgb(var(--c-mut));line-height:1.5}
+@keyframes shortcutsIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+#shortcutsCard{animation:shortcutsIn .16s ease-out}
+@media(prefers-reduced-motion:reduce){#shortcutsCard{animation:none}}
+
 /* bars */
 .rowbar{display:grid;grid-template-columns:106px 1fr 72px;gap:10px;align-items:center;
   padding:7px 0;border-bottom:1px solid var(--c-line);font-size:12.3px}
@@ -624,6 +647,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
       <button class="btn" id="printBtn" type="button">Print brief</button>
       <button class="btn" id="tourBtn" type="button" aria-pressed="false" aria-keyshortcuts="ArrowLeft ArrowRight Escape">Take the tour<span class="fv-badge" id="fvBadge">&#10148; new here? start here</span></button>
       <button class="btn" id="presentBtn" type="button" aria-pressed="false" aria-keyshortcuts="N P Escape">Present</button>
+      <button class="btn" id="shortcutsBtn" type="button" aria-keyshortcuts="?" aria-haspopup="dialog" aria-expanded="false">Shortcuts</button>
       <button class="btn" id="themeBtn" type="button">Theme</button>
       <div class="tsize" role="group" aria-label="Text size">
         <button class="btn" id="textDownBtn" type="button" aria-label="Decrease text size">A&minus;</button>
@@ -640,15 +664,15 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
 <div class="wrap" id="main">
 
   <div class="tabs" id="tabs" role="tablist" aria-label="Command center sections">
-    <button role="tab" id="t-over"  aria-controls="p-over"  aria-selected="true" tabindex="0"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><rect x="2" y="2" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="2" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="2" y="9" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="9" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>Overview<span class="cnt" id="cntOver">20</span></button>
-    <button role="tab" id="t-port"  aria-controls="p-port"  aria-selected="false" tabindex="-1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><path d="M2 5.5a1 1 0 0 1 1-1h3l1.2 1.6H13a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Portfolio</button>
-    <button role="tab" id="t-cost"  aria-controls="p-cost"  aria-selected="false" tabindex="-1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><line x1="3" y1="13" x2="3" y2="9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="7" y1="13" x2="7" y2="5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="11" y1="13" x2="11" y2="7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="13.5" y1="13" x2="13.5" y2="3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>Cost</button>
-    <button role="tab" id="t-sched" aria-controls="p-sched" aria-selected="false" tabindex="-1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><rect x="2.3" y="3.3" width="11.4" height="10.4" rx="1.3" fill="none" stroke="currentColor" stroke-width="1.3"/><line x1="2.3" y1="6.3" x2="13.7" y2="6.3" stroke="currentColor" stroke-width="1.3"/><line x1="5.3" y1="2" x2="5.3" y2="4.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="10.7" y1="2" x2="10.7" y2="4.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>Schedule</button>
-    <button role="tab" id="t-risk"  aria-controls="p-risk"  aria-selected="false" tabindex="-1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><path d="M8 2.6 14.2 13H1.8Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><line x1="8" y1="6.5" x2="8" y2="9.8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="11.6" r="0.8" fill="currentColor"/></svg>Risk &amp; Change</button>
-    <button role="tab" id="t-del"   aria-controls="p-del"   aria-selected="false" tabindex="-1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><path d="M8 2.3 13.6 5.5v6L8 14.7 2.4 11.5v-6Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M2.4 5.5 8 8.7l5.6-3.2M8 8.7v6" stroke="currentColor" stroke-width="1.1" fill="none"/></svg>Delivery</button>
-    <button role="tab" id="t-ai"    aria-controls="p-ai"    aria-selected="false" tabindex="-1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><circle cx="8" cy="8" r="1.6" fill="currentColor"/><circle cx="3" cy="4" r="1.3" fill="none" stroke="currentColor" stroke-width="1.1"/><circle cx="13" cy="4" r="1.3" fill="none" stroke="currentColor" stroke-width="1.1"/><circle cx="3" cy="12" r="1.3" fill="none" stroke="currentColor" stroke-width="1.1"/><circle cx="13" cy="12" r="1.3" fill="none" stroke="currentColor" stroke-width="1.1"/><line x1="4.1" y1="4.8" x2="7" y2="7" stroke="currentColor" stroke-width="1"/><line x1="11.9" y1="4.8" x2="9" y2="7" stroke="currentColor" stroke-width="1"/><line x1="4.1" y1="11.2" x2="7" y2="9" stroke="currentColor" stroke-width="1"/><line x1="11.9" y1="11.2" x2="9" y2="9" stroke="currentColor" stroke-width="1"/></svg>AI &amp; Data</button>
-    <button role="tab" id="t-fw"    aria-controls="p-fw"    aria-selected="false" tabindex="-1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><circle cx="3" cy="8" r="1.6" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="1.6" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="13" cy="8" r="1.6" fill="none" stroke="currentColor" stroke-width="1.3"/><line x1="4.6" y1="8" x2="6.4" y2="8" stroke="currentColor" stroke-width="1.3"/><line x1="9.6" y1="8" x2="11.4" y2="8" stroke="currentColor" stroke-width="1.3"/></svg>Operating Framework</button>
-    <button role="tab" id="t-act"   aria-controls="p-act"   aria-selected="false" tabindex="-1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.3"/><polyline points="5,8.3 7.2,10.3 11,6.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Actions<span class="cnt" id="cntAct"></span></button>
+    <button role="tab" id="t-over"  aria-controls="p-over"  aria-selected="true" tabindex="0" aria-keyshortcuts="1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><rect x="2" y="2" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="2" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="2" y="9" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="9" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>Overview<span class="cnt" id="cntOver">20</span></button>
+    <button role="tab" id="t-port"  aria-controls="p-port"  aria-selected="false" tabindex="-1" aria-keyshortcuts="2"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><path d="M2 5.5a1 1 0 0 1 1-1h3l1.2 1.6H13a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Portfolio</button>
+    <button role="tab" id="t-cost"  aria-controls="p-cost"  aria-selected="false" tabindex="-1" aria-keyshortcuts="3"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><line x1="3" y1="13" x2="3" y2="9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="7" y1="13" x2="7" y2="5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="11" y1="13" x2="11" y2="7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="13.5" y1="13" x2="13.5" y2="3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>Cost</button>
+    <button role="tab" id="t-sched" aria-controls="p-sched" aria-selected="false" tabindex="-1" aria-keyshortcuts="4"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><rect x="2.3" y="3.3" width="11.4" height="10.4" rx="1.3" fill="none" stroke="currentColor" stroke-width="1.3"/><line x1="2.3" y1="6.3" x2="13.7" y2="6.3" stroke="currentColor" stroke-width="1.3"/><line x1="5.3" y1="2" x2="5.3" y2="4.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="10.7" y1="2" x2="10.7" y2="4.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>Schedule</button>
+    <button role="tab" id="t-risk"  aria-controls="p-risk"  aria-selected="false" tabindex="-1" aria-keyshortcuts="5"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><path d="M8 2.6 14.2 13H1.8Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><line x1="8" y1="6.5" x2="8" y2="9.8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="11.6" r="0.8" fill="currentColor"/></svg>Risk &amp; Change</button>
+    <button role="tab" id="t-del"   aria-controls="p-del"   aria-selected="false" tabindex="-1" aria-keyshortcuts="6"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><path d="M8 2.3 13.6 5.5v6L8 14.7 2.4 11.5v-6Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M2.4 5.5 8 8.7l5.6-3.2M8 8.7v6" stroke="currentColor" stroke-width="1.1" fill="none"/></svg>Delivery</button>
+    <button role="tab" id="t-ai"    aria-controls="p-ai"    aria-selected="false" tabindex="-1" aria-keyshortcuts="7"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><circle cx="8" cy="8" r="1.6" fill="currentColor"/><circle cx="3" cy="4" r="1.3" fill="none" stroke="currentColor" stroke-width="1.1"/><circle cx="13" cy="4" r="1.3" fill="none" stroke="currentColor" stroke-width="1.1"/><circle cx="3" cy="12" r="1.3" fill="none" stroke="currentColor" stroke-width="1.1"/><circle cx="13" cy="12" r="1.3" fill="none" stroke="currentColor" stroke-width="1.1"/><line x1="4.1" y1="4.8" x2="7" y2="7" stroke="currentColor" stroke-width="1"/><line x1="11.9" y1="4.8" x2="9" y2="7" stroke="currentColor" stroke-width="1"/><line x1="4.1" y1="11.2" x2="7" y2="9" stroke="currentColor" stroke-width="1"/><line x1="11.9" y1="11.2" x2="9" y2="9" stroke="currentColor" stroke-width="1"/></svg>AI &amp; Data</button>
+    <button role="tab" id="t-fw"    aria-controls="p-fw"    aria-selected="false" tabindex="-1" aria-keyshortcuts="8"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><circle cx="3" cy="8" r="1.6" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="1.6" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="13" cy="8" r="1.6" fill="none" stroke="currentColor" stroke-width="1.3"/><line x1="4.6" y1="8" x2="6.4" y2="8" stroke="currentColor" stroke-width="1.3"/><line x1="9.6" y1="8" x2="11.4" y2="8" stroke="currentColor" stroke-width="1.3"/></svg>Operating Framework</button>
+    <button role="tab" id="t-act"   aria-controls="p-act"   aria-selected="false" tabindex="-1" aria-keyshortcuts="9"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.3"/><polyline points="5,8.3 7.2,10.3 11,6.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Actions<span class="cnt" id="cntAct"></span></button>
     <button role="tab" id="t-gloss" aria-controls="p-gloss" aria-selected="false" tabindex="-1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><path d="M2.5 3.3c1.6-.6 3.4-.6 5.5.4v9c-2.1-1-3.9-1-5.5-.4Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M13.5 3.3c-1.6-.6-3.4-.6-5.5.4v9c2.1-1 3.9-1 5.5-.4Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>Glossary</button>
     <button role="tab" id="t-data"  aria-controls="p-data"  aria-selected="false" tabindex="-1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><ellipse cx="8" cy="3.6" rx="5.3" ry="1.7" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M2.7 3.6v8.8c0 .9 2.4 1.7 5.3 1.7s5.3-.8 5.3-1.7V3.6" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M2.7 8c0 .9 2.4 1.7 5.3 1.7s5.3-.8 5.3-1.7" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>Data Strategy</button>
   </div>
@@ -1680,6 +1704,9 @@ join dim_control_account b using (package_id)</pre></div>
 </div>
 <div class="tip" id="tip" role="tooltip"></div>
 <div id="helpPop" role="dialog" aria-label="Term definition" tabindex="-1" hidden></div>
+<div id="shortcutsOverlay" class="shortcuts-overlay" hidden>
+  <div id="shortcutsCard" role="dialog" aria-modal="true" aria-labelledby="shortcutsTitle" tabindex="-1"></div>
+</div>
 
 <script>
 (function(){
@@ -4956,10 +4983,19 @@ function renderNcr(){
    '<div><div class="k" style="font:600 9.5px/1.3 ui-monospace,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgb(var(--c-mut))">Mean age (open)</div><div class="v" style="margin-top:5px;font:600 .98rem/1.2 inherit'+(meanAge>=14?';color:var(--c-pill-a)':'')+'">'+(open.length?meanAge+"d":"&mdash;")+'</div></div>'+
    '</div>'+
    ncrs.map(function(n){ var sm=STATUS_META[n.status];
-     return '<div class="rowbar" style="grid-template-columns:110px 1fr 90px 64px"><span class="mono" style="font-size:11px">'+n.id+'</span>'+
+     /* minmax(0,Npx), not a bare Npx (found at 320px — /stress-test round, 2026-08-21): at this
+        program's own real card padding, the row's available width can drop below the 264px these
+        3 fixed columns alone demand (110+90+64), before the title track gets anything. A bare
+        Npx track never shrinks below its own declared size no matter how tight the container
+        gets, so the excess simply pokes out; minmax(0,Npx) is the standard CSS Grid technique
+        that lets a track shrink under real pressure while still preferring Npx when there's
+        room — combined with each column's own min-width:0 (already set below), this is what
+        actually lets the row fit instead of just clipping symptoms one column at a time. */
+     return '<div class="rowbar" style="grid-template-columns:minmax(0,110px) 1fr minmax(0,90px) minmax(0,64px)"><span class="mono" style="font-size:11px">'+n.id+'</span>'+
        '<span style="font-size:12.5px;white-space:normal;min-width:0">'+n.title+'</span>'+
        '<span class="tab-num mono" style="font-size:11px;color:rgb(var(--c-mut))">'+n.ageD+'d open</span>'+
-       '<span style="text-align:right"><span class="pill '+sm.cls+'">'+sm.label+'</span></span></div>'; }).join("")+
+       '<span style="text-align:right;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+sm.label+
+       '"><span class="pill '+sm.cls+'">'+sm.label+'</span></span></div>'; }).join("")+
    '<p style="margin:12px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">Only '+ncrs.length+' NCR'+(ncrs.length===1?"":"s")+
    ' exist on this synthetic ledger today &mdash; too few to compute a genuine generation-vs-closure rate, so this '+
    'card reports real open counts and real per-item aging only, not a fabricated velocity trend.</p>';
@@ -6675,6 +6711,18 @@ function closeHelp(){
   if(helpOpenAnchor){ helpOpenAnchor.setAttribute("aria-expanded","false"); helpOpenAnchor.focus(); }
   helpOpenAnchor=null;
 }
+// Shared position:fixed placement for #helpPop against any anchor element — flips above the
+// anchor when there isn't room below, since a popover opened near the bottom of the viewport
+// (position:fixed, so scrolling can never bring it into view) would otherwise render mostly or
+// entirely off-screen with no visible feedback (found by /stress-test, 2026-08-18). Factored out
+// so the hover-preview tab drawer below can reuse the identical geometry instead of a second copy.
+function positionHelpPop(el, anchorEl){
+  var r=anchorEl.getBoundingClientRect();
+  var vh=window.innerHeight||800, popH=el.offsetHeight;
+  var top=(r.bottom+8+popH>vh)? Math.max(8,r.top-popH-8) : r.bottom+8;
+  var left=Math.min(r.left,(window.innerWidth||1200)-296);
+  el.style.top=Math.max(8,top)/curZoom()+"px"; el.style.left=Math.max(8,left)/curZoom()+"px";
+}
 function openHelp(key, anchorEl){
   var g=findGloss(key);
   if(!g){ closeHelp(); return; }
@@ -6683,23 +6731,139 @@ function openHelp(key, anchorEl){
   anchorEl.setAttribute("aria-expanded","true");
   var el=document.getElementById("helpPop");
   el.hidden=false;
+  el.setAttribute("role","dialog"); // defensive reset: a tab-drawer preview (below) sets role="tooltip" on this same shared element
   el.setAttribute("aria-label",g.t+" — definition");
   el.innerHTML='<b>'+g.t+'</b><p>'+g.p+'</p><div class="help-actions">'+
     '<button type="button" class="btn" data-explore="'+g.t.replace(/"/g,"&quot;")+'">Explore in Glossary &rarr;</button>'+
     '<button type="button" class="help-pop-close" id="helpPopClose" aria-label="Close">&times;</button></div>';
-  var r=anchorEl.getBoundingClientRect();
-  var vh=window.innerHeight||800, popH=el.offsetHeight;
-  // flip above the icon when there isn't room below — otherwise a popover opened near the
-  // bottom of the viewport (position:fixed, so scrolling can never bring it into view) renders
-  // mostly or entirely off-screen with no visible feedback (found by /stress-test, 2026-08-18)
-  var top=(r.bottom+8+popH>vh)? Math.max(8,r.top-popH-8) : r.bottom+8;
-  var left=Math.min(r.left,(window.innerWidth||1200)-296);
-  el.style.top=Math.max(8,top)/curZoom()+"px"; el.style.left=Math.max(8,left)/curZoom()+"px";
+  positionHelpPop(el, anchorEl);
   // move focus into the dialog itself (not straight to a button) so a keyboard/AT user hears its
   // accessible name and content before reaching its two actions — otherwise Tab from the trigger
   // skips over it entirely, since it sits last in the DOM (/stress-test finding, 2026-08-18)
   el.focus();
 }
+
+/* Tab-rail hover-preview mini-drawers (brainstorm-mode nav round, 2026-08-21) — the scoped-down
+   version of the proposal's "Transit Subway Line" wayfinder: reuses this same #helpPop element,
+   its position:fixed/flip-above-when-no-room geometry, and its helpOpenKey coordination (so it's
+   mutually exclusive with any open glossary popover, and Escape/click-away dismissal — both wired
+   above — cover it for free) rather than a parallel popover system. Deliberately does NOT reuse
+   openHelp/closeHelp themselves: those move focus into the dialog and toggle aria-expanded, both
+   correct for a click-triggered term definition, both wrong for a passive hover/focus preview that
+   must never steal keyboard focus from the tab rail's own roving-tabindex arrow-key navigation
+   (wired below) or claim an ARIA state (aria-expanded) that role="tab" doesn't define.
+   Content is grounded, not fabricated: a tab whose content maps onto real KPI_FAMILIES entries
+   (Cost/Schedule/Delivery 1:1, Risk & Change and Delivery+Compliance 2:1 — Delivery's own render
+   function draws the Compliance-family TRIR card, so its preview names both) reuses that family's
+   own real `q`/`why` fields verbatim, and computes "system(s) of record" live from KPIS[].src for
+   that family — never hand-typed, so it can't silently drift the way a hardcoded string could.
+   Tabs with no KPI_FAMILIES mapping (Overview, Portfolio, AI & Data, Operating Framework, Actions,
+   Glossary, Data Strategy) get a short hand-authored line naming only real, already-built sections
+   on that tab — no numbers, so nothing to go stale. */
+var TAB_DRAWER={
+  over:{label:"Overview", q:"Where do I start, and what does this program look like right now?",
+        note:"Six KPI families explained, a live root-cause trace, an editable ledger demo, a guided Tour, and the five-signal Velocity Pulse strip."},
+  port:{label:"Portfolio", q:"How is this program doing against the rest of the agency's portfolio?",
+        note:"Agency-level rollup across 4 lines of business — one line read live off this program's own totals, three shown as summaries only."},
+  cost:{label:"Cost", fam:["Cost"]},
+  sched:{label:"Schedule", fam:["Schedule"]},
+  risk:{label:"Risk & Change", fam:["Risk","Change"]},
+  del:{label:"Delivery", fam:["Delivery","Compliance"]},
+  ai:{label:"AI & Data", q:"Can the numbers on every other tab be trusted?",
+      note:"Pipeline architecture, the SQL model, a live 28-check integrity gate, and control charts on the one series with genuine variance."},
+  fw:{label:"Operating Framework", q:"What governance does this program actually run on?",
+      note:"Phase playbook, WBS/CBS/OBS/ABS mapping, phase-gate governance with a live Gate 5 hard stop, and the full KPI reference library."},
+  act:{label:"Actions", q:"What's open, who owns it, and what's gone stale?",
+       note:"A RAID/CAPA register with proactive staleness detection and an owner-accountability rollup."},
+  gloss:{label:"Glossary", q:"What does this term mean, worked through this program's own numbers?",
+         note:"53 terms, each with a live example computed from this program's own ledger."},
+  data:{label:"Data Strategy", q:"How does scattered, multi-system data actually become these numbers?",
+        note:"Staging architecture, IDS guardrails, a discrepancy-resolution flow, and a live parity check between this dashboard's own JavaScript and the SQL that independently re-derives it."}
+};
+function tabDrawerSysOfRecord(fams){
+  var srcs=[];
+  KPIS.forEach(function(k){
+    if(fams.indexOf(k.fam)>=0 && k.src!=="Derived — no separate source" && srcs.indexOf(k.src)<0) srcs.push(k.src);
+  });
+  return srcs;
+}
+function tabDrawerContent(tabId){
+  var d=TAB_DRAWER[tabId];
+  if(!d) return null;
+  if(d.fam){
+    var fams=KPI_FAMILIES.filter(function(f){ return d.fam.indexOf(f.key)>=0; });
+    return {label:d.label, q:fams.map(function(f){return f.q;}).join(" "),
+      note:fams.map(function(f){return f.why;}).join(" "), sys:tabDrawerSysOfRecord(d.fam)};
+  }
+  return {label:d.label, q:d.q, note:d.note, sys:null};
+}
+var tabDrawerTimer=null;
+function openTabDrawer(tabId, anchorEl){
+  if(anchorEl.getAttribute("aria-selected")==="true") return; // already on this tab — nothing to preview
+  var c=tabDrawerContent(tabId);
+  if(!c) return;
+  if(helpOpenAnchor) return; // a click-triggered glossary popover is open — don't steal it
+  helpOpenKey="tabdrawer:"+tabId;
+  var el=document.getElementById("helpPop");
+  el.hidden=false;
+  el.setAttribute("role","tooltip");
+  el.setAttribute("aria-label",c.label+" tab preview");
+  el.innerHTML='<b>'+c.label+'</b><p>'+c.q+'</p><p>'+c.note+'</p>'+
+    (c.sys&&c.sys.length? '<p style="margin:0;font-size:11px">System of record: '+c.sys.join(" &middot; ")+'</p>' : "");
+  positionHelpPop(el, anchorEl);
+}
+function closeTabDrawer(){
+  if(!helpOpenKey || helpOpenKey.indexOf("tabdrawer:")!==0) return;
+  helpOpenKey=null;
+  var el=document.getElementById("helpPop");
+  el.hidden=true; el.innerHTML=""; el.setAttribute("role","dialog");
+}
+function scheduleTabDrawer(tabId, anchorEl, delay){
+  clearTimeout(tabDrawerTimer);
+  tabDrawerTimer=setTimeout(function(){ openTabDrawer(tabId, anchorEl); }, delay);
+}
+function cancelTabDrawer(){ clearTimeout(tabDrawerTimer); closeTabDrawer(); }
+
+/* Global keyboard-shortcuts overlay (brainstorm-mode nav round, 2026-08-21) — the "?" panel from
+   this round's approved Tier-1 scope, gathering every real shortcut already scattered across this
+   file (arrow-key tab-rail nav, N/P/Escape in Presentation Mode, arrow keys/Escape in the Tour,
+   Escape on any popover) in one place for the first time, plus the new 1-9 tab-jump shortcut this
+   round adds. The tab-jump line is built from TAB_DRAWER's own real labels, not a hand-typed list
+   that could silently drift if TABS' order or membership ever changes. */
+var shortcutsLastFocus=null;
+function renderShortcutsOverlay(){
+  var tabLabels=TABS.slice(0,9).map(function(id){ return (TAB_DRAWER[id]||{}).label||id; }).join(", ");
+  document.getElementById("shortcutsCard").innerHTML=
+    '<button type="button" class="sc-close" id="shortcutsClose" aria-label="Close">&times;</button>'+
+    '<h2 id="shortcutsTitle">Keyboard shortcuts</h2>'+
+    '<dl>'+
+    '<dt>1&ndash;9</dt><dd>Jump directly to a tab &mdash; '+tabLabels+'. Glossary and Data Strategy are the '+
+      '10th and 11th tabs, past the 1&ndash;9 range, and stay reachable by click or arrow key only.</dd>'+
+    '<dt>&larr; &rarr;</dt><dd>Move within the tab rail (also &uarr; &darr; on the wide vertical rail). '+
+      'The same keys drive Presentation Mode’s beats and the Guided Tour’s stops while either is active.</dd>'+
+    '<dt>N&nbsp;&nbsp;P</dt><dd>Next / previous beat, while Presentation Mode is active.</dd>'+
+    '<dt>Esc</dt><dd>Close whatever’s open &mdash; a popover, this panel, Presentation Mode, or the Tour.</dd>'+
+    '<dt>?</dt><dd>Toggle this panel.</dd>'+
+    '</dl>';
+}
+function openShortcuts(){
+  closeHelp(); closeTabDrawer(); // one dialog open at a time — same mutual-exclusion idiom as enterPresent()/exitTour()
+  shortcutsLastFocus=document.activeElement;
+  renderShortcutsOverlay();
+  document.getElementById("shortcutsOverlay").hidden=false;
+  document.getElementById("shortcutsBtn").setAttribute("aria-expanded","true");
+  document.getElementById("shortcutsCard").focus();
+}
+function closeShortcuts(){
+  document.getElementById("shortcutsOverlay").hidden=true;
+  document.getElementById("shortcutsCard").innerHTML="";
+  document.getElementById("shortcutsBtn").setAttribute("aria-expanded","false");
+  // return focus to whatever had it before opening — the trigger button on a click-open, or the
+  // page's prior focus on a "?" keyboard-open — matching closeHelp()/exitPresent()'s existing pattern.
+  if(shortcutsLastFocus&&shortcutsLastFocus.focus) shortcutsLastFocus.focus();
+  shortcutsLastFocus=null;
+}
+function shortcutsOpen(){ return !document.getElementById("shortcutsOverlay").hidden; }
 
 function renderGlossary(q){
   q=(q||"").toLowerCase();
@@ -6920,6 +7084,14 @@ themeBtn.addEventListener("click",function(){
 document.getElementById("presentBtn").addEventListener("click",function(){
   if(state.presenting) exitPresent(); else enterPresent();
 });
+document.getElementById("shortcutsBtn").addEventListener("click",function(){
+  if(shortcutsOpen()) closeShortcuts(); else openShortcuts();
+});
+document.getElementById("shortcutsOverlay").addEventListener("click",function(e){
+  // click on the dimmed backdrop itself (not the card, not the close button inside it) dismisses,
+  // same "click away" idiom as the helpPop popover's own outside-click handler.
+  if(e.target.id==="shortcutsOverlay"||e.target.id==="shortcutsClose") closeShortcuts();
+});
 document.getElementById("presentBar").addEventListener("click",function(e){
   var p=e.target.closest("[data-p]");
   if(p){
@@ -6973,6 +7145,28 @@ window.addEventListener("keydown",function(e){
   }
   else if(e.key==="ArrowLeft") goToTourStop(state.tourIdx-1);
   else if(e.key==="Escape") exitTour();
+});
+
+// Global 1-9 tab-jump + "?" shortcuts panel (brainstorm-mode nav round, 2026-08-21) — deliberately
+// its own listener rather than folded into the tour/present ones above, since it's active whenever
+// those aren't (they own the keyboard while their own mode is running, matching the existing
+// mutual-exclusion convention every listener in this file already follows for its own mode/state).
+window.addEventListener("keydown",function(e){
+  var tag=(e.target&&e.target.tagName||"").toLowerCase();
+  if(tag==="input"||tag==="textarea") return;
+  if(e.metaKey||e.ctrlKey||e.altKey) return; // never hijack a browser/OS shortcut sharing this key
+  if(state.touring||state.presenting) return; // those modes own the keyboard while they're running
+  // e.key==="?" is what a real Shift+/ produces on a US keyboard; the shiftKey+"/" fallback
+  // covers layouts/input paths that report the unshifted key with shiftKey set instead of the
+  // shifted character (confirmed via live-browser probe: this project's own automated test
+  // environment's synthetic key dispatch does exactly that, 2026-08-21).
+  if(e.key==="?"||(e.shiftKey&&e.key==="/")){ if(shortcutsOpen()) closeShortcuts(); else openShortcuts(); return; }
+  if(e.key==="Escape"&&shortcutsOpen()){ closeShortcuts(); return; }
+  if(shortcutsOpen()) return; // reading the panel — don't also jump tabs underneath it
+  if(e.key>="1"&&e.key<="9"){
+    var id=TABS[+e.key-1]; // "1".."9" -> TABS[0..8]; TABS[9]/[10] (Glossary/Data Strategy) have no digit
+    if(id){ document.getElementById("t-"+id).click(); document.getElementById("t-"+id).focus(); }
+  }
 });
 
 /* Inline term-help delegation — one listener for every "i" icon on the page, present or future,
@@ -7040,7 +7234,16 @@ function activateTab(id){
   redrawCharts();
 }
 TABS.forEach(function(id){
-  document.getElementById("t-"+id).addEventListener("click",function(){ activateTab(id); });
+  var btn=document.getElementById("t-"+id);
+  btn.addEventListener("click",function(){ activateTab(id); closeTabDrawer(); });
+  // hover-preview mini-drawer (brainstorm-mode nav round, 2026-08-21) — a short debounce on
+  // mouseenter avoids flicker while a visitor's cursor is still scanning across the rail; focus
+  // opens immediately since a keyboard user arrow-keying between tabs (wired below) already made
+  // a deliberate stop, not a passing scan. mouseleave/blur close it right away either way.
+  btn.addEventListener("mouseenter",function(){ scheduleTabDrawer(id, btn, 350); });
+  btn.addEventListener("mouseleave",cancelTabDrawer);
+  btn.addEventListener("focus",function(){ scheduleTabDrawer(id, btn, 0); });
+  btn.addEventListener("blur",cancelTabDrawer);
 });
 // the rail is horizontal below 1050px and a vertical column at/above it (Tier 3) — keep
 // aria-orientation in sync with the CSS breakpoint that actually drives the visible layout
@@ -7446,7 +7649,11 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   galtonBucketOf:galtonBucketOf,galtonSpawnQueue:galtonSpawnQueue,galtonState:galtonState,
   galtonStart:galtonStart,galtonStepOnce:galtonStepOnce,galtonReset:galtonReset,
   renderGaltonStatic:renderGaltonStatic,num:num,
-  velocityPulseItems:velocityPulseItems,renderVelocityPulse:renderVelocityPulse};
+  velocityPulseItems:velocityPulseItems,renderVelocityPulse:renderVelocityPulse,
+  tabDrawer:TAB_DRAWER,tabDrawerContent:tabDrawerContent,tabDrawerSysOfRecord:tabDrawerSysOfRecord,
+  openTabDrawer:openTabDrawer,closeTabDrawer:closeTabDrawer,
+  tabs:TABS,openShortcuts:openShortcuts,closeShortcuts:closeShortcuts,shortcutsOpen:shortcutsOpen,
+  renderShortcutsOverlay:renderShortcutsOverlay};
 })();
 </script>
 </body>
