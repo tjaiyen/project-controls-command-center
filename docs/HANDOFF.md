@@ -30,7 +30,7 @@ anywhere in this repository. The method is the content, not the numbers.
 
 | | |
 |---|---|
-| Primary file | `index.html` — 7,124 lines, one file, no build step |
+| Primary file | `index.html` — 7,333 lines, one file, no build step |
 | Top-level JS functions | 176 (not re-audited this round — see §18 gap note) |
 | Tabs | 11 |
 | KPIs (with formula/threshold/phase/source/play each) | 20 |
@@ -44,7 +44,7 @@ anywhere in this repository. The method is the content, not the numbers.
 | Contracts | 6 |
 | Risks | 6 |
 | Delay events | 4 |
-| `stress.cjs` test assertions | 1,472, all passing |
+| `stress.cjs` test assertions | 1,505, all passing |
 | Companion pages | `otak.html` (fit brief), `architecture.html` (static pipeline map) |
 | Hosting | GitHub Pages, served directly from `main`, zero build |
 | Git history | 100 commits |
@@ -375,7 +375,7 @@ matches an independent recomputation, not just that *a* number is present.
 
 ## 11. Testing & verification
 
-**`stress.cjs`** (1,472 assertions, all passing) — stubs the DOM, loads `index.html`'s script
+**`stress.cjs`** (1,505 assertions, all passing) — stubs the DOM, loads `index.html`'s script
 verbatim into that stub, and exercises it exactly like a user would: every tab switch, every
 filter, every drawer, every slider drag, every keyboard interaction. 35 labeled sections:
 
@@ -555,7 +555,7 @@ Named explicitly, not silently dropped — from the most recent engagement/inter
    re-synced eight more times on 2026-08-21 — the six-families card, the Data Strategy UI/UX round,
    the Monte Carlo PERT draw-shape toggle, the megaproject-controls-doc upgrade round, the Kimi
    research-package round, the full-dashboard `/stress-test` pass, the EAC-spread live check, and
-   the total-float early-warning round, and the Monte Carlo captivation round): 1,472 assertions / 53 glossary terms / 28-check integrity
+   the total-float early-warning round, the Monte Carlo captivation round, and the Galton Engine round): 1,505 assertions / 53 glossary terms / 28-check integrity
    gate, matching §2 as of this writing.
 5. **The eleven-input ledger card is new this round** (2026-08-20) and only covers the Overview
    tab's own `PKGS` provenance — it does not touch or resolve gap #2 above (the risk register still
@@ -893,6 +893,46 @@ carried over from memory or an earlier pass:
   inspect needle's marker and readout updating on drag and surviving the CDF toggle, the
   playground's keyboard nudge/clamp/reset all producing the real live numbers — at desktop and
   mobile (375px, post-fix) width, zero console errors.
+- **2026-08-21 Galton Engine round**: TJ said "push then now plan and add the galton engine" —
+  the one item explicitly held out as a separate architecture decision from the captivation round
+  above (Canvas/WebGL vs. this page's zero-dependency SVG+CSS design). Chose Canvas 2D over
+  WebGL (2D falling dots don't need a shader pipeline). Design decisions stated up front, not
+  discovered after the fact: replays `activeMc.sims` — the same real, already-computed, seeded
+  runs the static histogram reads — never a second simulation; reuses the exact same 26-bin
+  structure (`renderMc()`'s bin logic extracted into a new shared `mcBinCounts()`, so the
+  animated and static charts can never silently disagree, rather than building the literal
+  "50 buckets" the brief proposed); animates a stratified sample of 500 (evenly spaced across the
+  sorted real outcomes, not a random subset) since animating all 10,000 individual beads is
+  unusable, and snaps every bucket to its TRUE full-data count the instant the drop finishes —
+  stated in the card's own lede, not silently implied. Speed modes 1x/5x/Instant/Step-by-Step,
+  and `prefers-reduced-motion` skips straight to the settled state.
+  Two real bugs found live-testing, both fixed, both now covered by a genuine regression test
+  (confirmed to actually fail against the pre-fix code, not just pass against the post-fix one —
+  B27/B35 discipline): (1) the "Done" completion message needed one phantom extra tick/click after
+  the last bead had already visually landed (the completion check ran at the TOP of
+  `galtonStepOnce()`, one call too late) — fixed by checking immediately after incrementing, in
+  the same call, via a small extracted `galtonFinish()` helper; (2) the real click-handler bug —
+  Step mode's own "halt after one step" behavior deliberately sets `running=false` between every
+  click (the pause IS the feature), but the click handler's reset trigger was `!running`, so
+  every single click in Step mode reset the whole run back to bead 1 instead of continuing —
+  invisible to a test that calls `galtonStepOnce()` directly (bypassing the click handler
+  entirely, which is exactly how the first version of this round's own tests exercised it) and
+  only found by firing real `click` events through the real handler. Fixed by keying the reset
+  trigger on `qi>=queue.length` only, never on `running`. Also fixed a mid-run speed-switch gap:
+  switching speed while a run was genuinely in flight left one stale leftover tick before the
+  next click reset properly — `galtonSetSpeed()` now resets immediately on any speed change made
+  mid-run. `node stress.cjs` run fresh (`1505 passed, 0 failed` — 1472 baseline + 33 new
+  assertions), `node verify.cjs` unchanged (pure UI, zero `PKGS` touched), and live-browser
+  confirmed real canvas pixel output (non-transparent pixel counts checked, not assumed),
+  Instant/Step modes both completing correctly end to end through the real click handler, the
+  interlock fix, and zero overflow across all 11 tabs at mobile (375px) width — the one overflow
+  reading that looked wrong during this pass turned out to be a stale/backgrounded browser tab
+  reporting `window.innerWidth: 0` (confirmed via a fresh tab reading the real 1280px with zero
+  overflow), not a real regression — reported here rather than silently discarded, per this
+  project's own "show the reproduction before dismissing a finding" discipline. Canvas pixel
+  rendering itself has no meaningful equivalent in the `stress.cjs` DOM stub (no real 2D context)
+  — accepted as live-browser-only coverage, the same class of limitation already stated for
+  `renderGanttScrubMarker()` and the tri-point playground's own pointer-drag half.
 
 Generated 2026-08-20, against the tip of the eleven-input-ledger-card engagement round; extended
 2026-08-21 for the six-KPI-families card round, again 2026-08-21 for the Data Strategy tab UI/UX
@@ -902,6 +942,7 @@ draw-shape round, again 2026-08-21 for the Monte Carlo run-count round, again 20
 megaproject-controls-doc upgrade round, again 2026-08-21 for the Kimi research-package round, again
 2026-08-21 for the second full-dashboard `/stress-test` pass, again 2026-08-21 for the Monte Carlo
 mode-vs-bounds clarification, again 2026-08-21 for the EAC-spread live check, again 2026-08-21
-for the total-float early-warning round, and again 2026-08-21 for the Monte Carlo captivation
-round (see git log for exact commits — each document update was written before its own round's
-commit lands, per the project's "verify, then document" ordering).
+for the total-float early-warning round, again 2026-08-21 for the Monte Carlo captivation round,
+and again 2026-08-21 for the Galton Engine round (see git log for exact commits — each document
+update was written before its own round's commit lands, per the project's "verify, then document"
+ordering).

@@ -620,6 +620,7 @@ ok(cpliKpi.sub().includes(trueMin.id), "CPLI KPI names true driving path " + tru
 
 // CPLI math explainer (2026-08-19) — worked example against the actual driving path
 function idx(v) { return v.toFixed(3); }
+function num(v) { return v.toLocaleString("en-US"); } // matches index.html's own num(), reimplemented independently
 function days(v) { return (v > 0 ? "+" : "") + v + "d"; }
 has("cpliMathBody", "CPLI = (remaining duration", "CPLI math panel states the formula");
 has("cpliMathBody", trueMin.id, "CPLI math panel's worked example names the true driving path, not a hardcoded one");
@@ -1362,6 +1363,121 @@ try {
   const p80check = contribs2[Math.floor(0.80 * N)], p95check = contribs2[Math.floor(0.95 * N)];
   ok(G.pertPlayStats._html.includes(m(p80check)), "playground's P80 stat matches an independent reproduction of the exact same seeded sample sequence", m(p80check));
   ok(G.pertPlayStats._html.includes(m(p95check)), "playground's P95 stat matches an independent reproduction of the exact same seeded sample sequence", m(p95check));
+}
+
+// D2.8 — Galton engine (brainstorm-mode round, 2026-08-21). Canvas pixel rendering has no
+// meaningful equivalent in this stub (no real 2D context, no real layout engine) — accepted as
+// live-browser-only coverage, the same class of limitation already stated for the pointer-drag
+// half of the tri-point playground and renderGanttScrubMarker(). What IS testable and tested
+// here: every data-layer function feeding the canvas (independently recomputed, never trusted
+// against its own output), the button/label wiring, and the interlock fix found live-testing
+// this round (switching speed mid-run used to leave one stale leftover tick).
+{
+  ok(idsA.includes("galtonCanvas") && idsA.includes("galtonRun") && idsA.includes("galtonRead"), "markup contains the canvas, the Simulate trigger, and the live readout");
+  ["galtonSpeed1", "galtonSpeed5", "galtonSpeedInstant", "galtonSpeedStep"].forEach(id => ok(idsA.includes(id), "markup contains the " + id + " speed control"));
+
+  // mcBinCounts() ground truth — independently recomputed from P.getActiveMc().sims, never by
+  // calling P.mcBinCounts() and trusting it (this is the shared function renderMc() itself now
+  // reads from, extracted this round specifically so the histogram and the Galton engine can
+  // never silently disagree — worth its own independent check for exactly that reason).
+  const sims = P.getActiveMc().sims;
+  const loCheck = sims[Math.floor(0.02 * sims.length)], hiCheckRaw = sims[Math.floor(0.98 * sims.length)];
+  const hiCheck = hiCheckRaw > loCheck ? hiCheckRaw : loCheck + Math.max(1, Math.abs(loCheck) * 0.001);
+  const bwCheck = (hiCheck - loCheck) / 26, countsCheck = new Array(26).fill(0);
+  sims.forEach(v => { if (v < loCheck || v > hiCheck) return; countsCheck[Math.min(25, Math.floor((v - loCheck) / bwCheck))]++; });
+  const bc = P.mcBinCounts();
+  ok(Math.abs(bc.lo - loCheck) < 1e-9 && Math.abs(bc.hi - hiCheck) < 1e-9 && bc.bins === 26, "mcBinCounts() range/bin-count matches independent recomputation");
+  ok(JSON.stringify(bc.counts) === JSON.stringify(countsCheck), "mcBinCounts() per-bin counts match an independent recomputation from the raw sims array", bc.counts.join(",") + " vs " + countsCheck.join(","));
+  has("mcChart", "budget, median, budget plus remaining contingency", "renderMc()'s own chart description still reads correctly after the mcBinCounts() extraction — the refactor changed where the bins are computed, not what renderMc() itself renders");
+
+  // galtonSample() — stratified across the SORTED real outcomes, not a random subset
+  const sampleCheck = P.galtonSample();
+  ok(sampleCheck.length === Math.min(P.galtonSampleN, sims.length), "sample length matches min(GALTON_SAMPLE_N, activeMc.n)", String(sampleCheck.length));
+  const n = sims.length, N = sampleCheck.length;
+  ok(sampleCheck[0] === sims[0] && sampleCheck[N - 1] === sims[Math.floor((N - 1) * n / N)], "sample's first/last entries match the independent stratified-index formula, not a random draw", sampleCheck[0] + " / " + sampleCheck[N - 1]);
+
+  // galtonBucketOf() — independently recomputed
+  ok(P.galtonBucketOf(bc.lo, bc) === 0, "the lowest real value buckets into bin 0");
+  ok(P.galtonBucketOf(bc.hi, bc) === 25, "the highest real value buckets into the last bin (25), not an off-by-one 26th bucket");
+
+  // galtonSpawnQueue() — every queued bead's bucket/color matches the same real BAC/BAC+cont
+  // thresholds mcBinCounts()/renderMc() already use, independently recomputed per item
+  const queueCheck = P.galtonSpawnQueue(bc);
+  ok(queueCheck.length === sampleCheck.length, "spawn queue has one entry per sampled value");
+  let bucketMismatch = 0;
+  queueCheck.forEach((item, i) => { if (item.bucket !== P.galtonBucketOf(sampleCheck[i], bc)) bucketMismatch++; });
+  ok(bucketMismatch === 0, "every queued bead's bucket assignment matches an independent recomputation from its own real value", String(bucketMismatch) + " mismatches");
+  // color is a one-line ternary on the bucket's own midpoint vs. the same BAC/BAC+cont
+  // thresholds renderMc() already uses for the static histogram (verified elsewhere) — checking
+  // it's actually a real color string, not undefined/empty, is the meaningful new-code check here
+  ok(queueCheck.every(item => typeof item.col === "string" && item.col.length > 0), "every queued bead carries a real, non-empty color string");
+
+  // static labels — the real activeMc.n and sample size, not hardcoded copy. These are set via
+  // .textContent (plain numbers, no markup needed), so checked directly, not via has() (which
+  // only sees .innerHTML writes — the same static-markup-vs-rendered-innerHTML boundary this
+  // file has already hit and documented elsewhere, e.g. the pkgCaption/vConf notes).
+  ok(G.galtonNReal.textContent.includes(num(P.getActiveMc().n) + " real runs"), "the 'real runs' label states the real, live run count, not a hardcoded '4,000' or '10,000' string — the exact staleness class this file has already caught twice this session");
+  ok(G.galtonNSample.textContent.includes(num(Math.min(P.galtonSampleN, P.getActiveMc().n))), "the sample-size label matches the real, live sample count");
+  ok(G.galtonRunLabel.textContent.includes(num(P.getActiveMc().n) + " runs"), "the Simulate button's own label states the real run count");
+
+  // speed control wiring
+  fire(G.galtonSpeed5, "click");
+  ok(G.galtonSpeed5.getAttribute("aria-pressed") === "true" && G.galtonSpeed1.getAttribute("aria-pressed") === "false", "clicking 5x presses it and un-presses 1x");
+  fire(G.galtonSpeedInstant, "click");
+  ok(G.galtonSpeedInstant.getAttribute("aria-pressed") === "true" && G.galtonSpeed5.getAttribute("aria-pressed") === "false", "clicking Instant presses it and un-presses 5x");
+
+  // the interlock fix (live-testing finding, 2026-08-21): switching speed mid-run must reset
+  // immediately, not leave one stale leftover tick for the next click to inherit
+  P.galtonState.running = true; P.galtonState.qi = 3; P.galtonState.queue = queueCheck;
+  fire(G.galtonSpeedStep, "click");
+  ok(P.galtonState.running === false && P.galtonState.qi === 0, "switching speed while a run is genuinely mid-flight (qi<queue.length) resets running/qi immediately, not on the next tick");
+  ok(G.galtonRead.textContent.includes("Click Simulate to watch it build"), "switching speed mid-run redraws the settled rest-state readout immediately");
+
+  // switching speed when NOT mid-run (already finished, or never started) must NOT reset —
+  // pre-registered the negative case too, not just the positive one
+  P.galtonState.running = false; P.galtonState.qi = 0; P.galtonState.queue = [];
+  G.galtonRead.textContent = "sentinel — should not be touched";
+  fire(G.galtonSpeed1, "click");
+  ok(G.galtonRead.textContent === "sentinel — should not be touched", "switching speed when nothing is running does NOT force an unnecessary redraw");
+
+  // reduced motion (this stub's matchMedia always reports matches:true, i.e. "reduce" is always
+  // on here — real behavioral coverage of the reduced-motion branch, not a source-text check)
+  P.galtonState.speed = 1; P.galtonState.step = false;
+  fire(G.galtonRun, "click");
+  ok(G.galtonRead.textContent.includes("Reduced motion is on"), "galtonStart() takes the reduced-motion branch under this harness's matchMedia stub, skipping straight to the settled state");
+  ok(G.galtonRead.textContent.includes("All " + num(P.getActiveMc().n) + " real runs"), "the reduced-motion readout states the real run count");
+
+  // step mode, driven directly (bypasses the timer-paced 1x/5x path entirely — no setTimeout
+  // reliance, so this exercises the real increment/snap logic deterministically)
+  P.galtonReset();
+  const stepQueue = P.galtonSpawnQueue(P.mcBinCounts());
+  P.galtonState.queue = stepQueue; P.galtonState.running = true;
+  P.galtonState.step = true;
+  P.galtonStepOnce();
+  ok(P.galtonState.qi === 1, "one manual step advances qi by exactly one");
+  ok(G.galtonRead.textContent.includes("1 of " + num(stepQueue.length) + " sampled beads dropped"), "readout states progress after one step");
+  ok(P.galtonState.running === false, "step mode halts after exactly one step (running goes false), rather than auto-continuing like 1x/5x");
+  // drain the rest and confirm the snap-to-true-counts on completion
+  while (P.galtonState.qi < stepQueue.length) { P.galtonState.running = true; P.galtonStepOnce(); }
+  ok(G.galtonRead.textContent.includes("Done"), "readout states completion once every queued bead has landed");
+  ok(G.galtonRead.textContent.includes(num(P.getActiveMc().n) + " real runs"), "completion readout states the real run count");
+
+  // The click handler itself, end to end, driven by real fire("click") events on #galtonRun —
+  // not by calling galtonStepOnce() directly. This is the ONLY layer that caught the real bug
+  // found live-testing this round: step mode's own "halt after one step" behavior sets
+  // running=false between every click by design (the pause IS the feature), so the click
+  // handler's ORIGINAL reset condition (!galtonState.running) fired on every single click,
+  // resetting instead of continuing — invisible to a test that drives galtonStepOnce() directly,
+  // since that bypasses the click handler's own reset logic entirely.
+  P.galtonReset();
+  fire(G.galtonSpeedStep, "click");
+  const queueLen = P.galtonSample().length; // 500 today
+  for (let i = 0; i < queueLen - 1; i++) fire(G.galtonRun, "click");
+  ok(!G.galtonRead.textContent.includes("Done") && G.galtonRead.textContent.includes((queueLen - 1) + " of " + queueLen), "(queueLen-1) real clicks through the real click handler show progress, not a premature Done");
+  fire(G.galtonRun, "click"); // the queueLen-th click
+  ok(G.galtonRead.textContent.includes("Done"), "the real click handler's " + queueLen + "th click shows Done, not a reset back to \"1 of " + queueLen + "\" — the exact bug this round found live");
+  fire(G.galtonRun, "click"); // one click after Done
+  ok(G.galtonRead.textContent.includes("1 of " + queueLen), "clicking again after Done correctly starts a fresh run at 1, not stuck or double-reset");
 }
 
 /* ---- AI & data tab ---- */

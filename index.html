@@ -976,6 +976,28 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         </details>
       </div>
 
+      <div class="sec-h" style="margin-top:34px"><h2>Watch the distribution get built</h2><span class="tag">galton engine</span></div>
+      <p class="lede">The histogram above is real, but static. This replays the same real
+        outcomes as beads falling into the same 26 buckets &mdash; not a second simulation:
+        <span id="galtonNReal"></span> real, already-computed runs drive the final bucket
+        heights, exactly as shown above. Animating all of them individually would be visual
+        noise, so <span id="galtonNSample"></span> are actually shown falling &mdash; a stratified
+        sample spaced evenly across the sorted real outcomes, not a random subset &mdash; and every
+        bucket snaps to its true, full count the instant the drop finishes.</p>
+      <div class="card" style="margin-top:15px">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between">
+          <button class="btn" id="galtonRun" type="button">Simulate <span id="galtonRunLabel"></span></button>
+          <div role="group" aria-label="Playback speed" style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn" id="galtonSpeed1" type="button" aria-pressed="true">1&times;</button>
+            <button class="btn" id="galtonSpeed5" type="button" aria-pressed="false">5&times;</button>
+            <button class="btn" id="galtonSpeedInstant" type="button" aria-pressed="false">Instant</button>
+            <button class="btn" id="galtonSpeedStep" type="button" aria-pressed="false">Step-by-step</button>
+          </div>
+        </div>
+        <canvas id="galtonCanvas" style="margin-top:12px;width:100%;height:260px;display:block"></canvas>
+        <p class="lede" id="galtonRead" style="margin-top:8px;font-size:12.5px" aria-live="polite"></p>
+      </div>
+
       <div class="sec-h" style="margin-top:34px"><h2>Tri-point curve playground</h2><span class="tag">tactile beta-pert</span></div>
       <p class="lede">Drag any of the three pins &mdash; minimum, mode, maximum &mdash; or focus a pin
         and use the arrow keys, and this account&rsquo;s own future-efficiency curve reshapes live,
@@ -3703,13 +3725,21 @@ function pertPlaySetHandle(key,v){
   state.pertPlay=bounds;
   renderPertPlay();
 }
-function renderMc(){
-  var W=980,H=260,PL=64,PR=18,PT=18,PB=40;
+/* Shared 26-bin histogram computation (extracted 2026-08-21 for the Galton Engine below) — the
+   canvas replay animates real beads falling into these SAME buckets, never a separately-invented
+   "50 buckets" scheme, so the animated version can never silently disagree with this static
+   chart. mcChartRange()'s own lo/hi (98% window) is reused unchanged. */
+function mcBinCounts(){
   var range=mcChartRange(), lo=range.lo, hi=range.hi;
   var bins=26, bw=(hi-lo)/bins, counts=[], i;
   for(i=0;i<bins;i++) counts.push(0);
   activeMc.sims.forEach(function(v){ if(v<lo||v>hi) return;
     counts[Math.min(bins-1,Math.floor((v-lo)/bw))]++; });
+  return {lo:lo,hi:hi,bins:bins,bw:bw,counts:counts};
+}
+function renderMc(){
+  var W=980,H=260,PL=64,PR=18,PT=18,PB=40;
+  var bc=mcBinCounts(), lo=bc.lo, hi=bc.hi, bins=bc.bins, bw=bc.bw, counts=bc.counts;
   var mx=Math.max.apply(null,counts);
   var X=function(v){ return PL+((Math.min(hi,Math.max(lo,v))-lo)/(hi-lo))*(W-PL-PR); };
   /* Color the bar by which side of the budget / budget+contingency line its own range
@@ -3755,6 +3785,143 @@ function renderMcCdf(){
     "Cumulative probability of the forecast at completion across "+activeMc.n+" simulated completions — the probability of finishing at or under a given cost — marked with budget, median, budget plus remaining contingency, the rail reference-class estimate, and a drag-to-inspect percentile needle.");
   renderMcStatsRead();
   renderMcInspectOut();
+}
+
+/* ---------- Galton engine (real-data particle replay) ---------- */
+/* Canvas 2D — this page's first use of Canvas or WebGL, a deliberate architecture call TJ made
+   explicitly (held out as its own decision, separate from the rest of the "captivation round",
+   then approved 2026-08-21). WebGL was the other option on the table; Canvas 2D was chosen
+   because this is 2D falling dots, not anything that needs a shader pipeline.
+   Replays activeMc.sims — the SAME real, already-computed, seeded runs the static histogram
+   above reads — never a second simulation; reproducibility is unaffected. Buckets are
+   mcBinCounts()'s own 26 bins, so the animated version can never silently disagree with the
+   static chart beside it. Animating all activeMc.n (10,000) individual beads is unusable (visual
+   noise, no perf budget); a stratified sample of GALTON_SAMPLE_N drives the visible drop instead
+   — evenly spaced across the SORTED real outcomes, not a random subset, so the sample's own
+   shape stays faithful to what it's sampling — and every bucket snaps to its TRUE, full-data
+   count the instant the drop finishes, so what's left on screen at rest is always the real
+   number, never a sample-only approximation. Stated in the card's own lede, not silently implied
+   (this project's "no silent caps" discipline). */
+var GALTON_SAMPLE_N=500;
+var galtonState={running:false,speed:1,step:false,queue:[],qi:0,localCounts:null,timer:null};
+function galtonSample(){
+  var sims=activeMc.sims, n=sims.length, N=Math.min(GALTON_SAMPLE_N,n), out=[], i;
+  for(i=0;i<N;i++) out.push(sims[Math.floor(i*n/N)]);
+  return out;
+}
+function galtonBucketOf(v,bc){ return Math.min(bc.bins-1,Math.max(0,Math.floor((v-bc.lo)/bc.bw))); }
+function galtonSpawnQueue(bc){
+  return galtonSample().map(function(v){
+    var b=galtonBucketOf(v,bc), mid=bc.lo+(b+0.5)*bc.bw;
+    return {v:v,bucket:b,col:mid<T.bac?C("ok"):mid<(T.bac+T.contRemaining)?C("warn"):C("bad")};
+  });
+}
+function galtonCanvasSize(){
+  var canvas=document.getElementById("galtonCanvas");
+  var rect=canvas.getBoundingClientRect ? canvas.getBoundingClientRect() : {width:0};
+  var dpr=(typeof window!=="undefined"&&window.devicePixelRatio)||1;
+  // rect.width reads 0 while the Cost tab is hidden (e.g. first page load, a different tab
+  // active) — 760 fallback matches this file's other charts' own design width, not a guess.
+  var W=Math.max(300,rect.width||760), H=260;
+  if(canvas.width!==Math.round(W*dpr)||canvas.height!==Math.round(H*dpr)){
+    canvas.width=Math.round(W*dpr); canvas.height=Math.round(H*dpr);
+  }
+  return {W:W,H:H,dpr:dpr};
+}
+/* counts: the bar heights to draw (either bc.counts, the true rest-state, or a growing
+   in-progress localCounts array); bead: {x,y,col} for the single most-recently-landed bead, or
+   null — a brief per-step flash rather than a continuously-tracked physics trajectory, the
+   simplification that keeps this both buildable and testable without a full particle-trajectory
+   system this page has no other precedent for. */
+function galtonDrawFrame(bc,counts,bead){
+  var canvas=document.getElementById("galtonCanvas"); if(!canvas||!canvas.getContext) return;
+  var sz=galtonCanvasSize(), ctx=canvas.getContext("2d"); if(!ctx) return;
+  var W=sz.W,H=sz.H,PL=44,PR=16,PT=10,PB=10;
+  ctx.setTransform(sz.dpr,0,0,sz.dpr,0,0);
+  ctx.clearRect(0,0,W,H);
+  var mx=Math.max.apply(null,bc.counts)||1; // always scaled against the TRUE max, never the
+    // sample's own smaller max — so a growing in-progress bar visibly approaches its real final
+    // height rather than looking artificially tall against a shrunken sample-only ceiling.
+  var bw=(W-PL-PR)/bc.bins, i;
+  for(i=0;i<bc.bins;i++){
+    var mid=bc.lo+(i+0.5)*bc.bw;
+    var col=mid<T.bac?C("ok"):mid<(T.bac+T.contRemaining)?C("warn"):C("bad");
+    var h=(counts[i]/mx)*(H-PT-PB);
+    ctx.fillStyle=col; ctx.globalAlpha=0.78;
+    ctx.fillRect(PL+i*bw,H-PB-h,Math.max(1,bw-2),Math.max(1,h));
+  }
+  ctx.globalAlpha=1;
+  var X=function(v){ return PL+((Math.min(bc.hi,Math.max(bc.lo,v))-bc.lo)/(bc.hi-bc.lo))*(W-PL-PR); };
+  [[T.bac,C("ok")],[T.bac+T.contRemaining,C("bad")]].forEach(function(t){
+    ctx.strokeStyle=t[1]; ctx.setLineDash([4,3]); ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(X(t[0]),PT); ctx.lineTo(X(t[0]),H-PB); ctx.stroke();
+  });
+  ctx.setLineDash([]);
+  if(bead){
+    ctx.fillStyle=bead.col; ctx.globalAlpha=0.95;
+    ctx.beginPath(); ctx.arc(bead.x,bead.y,4,0,Math.PI*2); ctx.fill();
+    ctx.globalAlpha=1;
+  }
+}
+function galtonReset(){
+  if(galtonState.timer!=null){ clearTimeout(galtonState.timer); galtonState.timer=null; }
+  galtonState.running=false; galtonState.queue=[]; galtonState.qi=0;
+  galtonState.localCounts=mcBinCounts().counts.map(function(){ return 0; });
+}
+/* Called on load and from redrawCharts() (theme toggle / tab switch) — always redraws the TRUE
+   rest state, never a leftover in-progress frame; also the one place canvas sizing gets
+   re-checked once the Cost tab is actually visible (getBoundingClientRect reads real numbers
+   only once un-hidden), so a first-load-on-a-different-tab canvas fixes itself on tab switch. */
+function renderGaltonStatic(){
+  galtonReset();
+  var bc=mcBinCounts();
+  document.getElementById("galtonNReal").textContent=num(activeMc.n)+" real runs";
+  document.getElementById("galtonNSample").textContent=num(Math.min(GALTON_SAMPLE_N,activeMc.n));
+  document.getElementById("galtonRunLabel").textContent=num(activeMc.n)+" runs";
+  galtonDrawFrame(bc,bc.counts,null);
+  document.getElementById("galtonRead").textContent=
+    "Showing the real, settled distribution — the same "+num(activeMc.n)+" runs behind the histogram above. Click Simulate to watch it build.";
+}
+function galtonFinish(bc){
+  galtonDrawFrame(bc,bc.counts,null); // snap to the TRUE full counts, not the sample-implied ones
+  galtonState.running=false;
+  document.getElementById("galtonRead").textContent=
+    "Done — "+num(galtonState.queue.length)+" sampled beads dropped; buckets now show all "+num(activeMc.n)+" real runs' true counts.";
+}
+function galtonStepOnce(){
+  var bc=mcBinCounts();
+  if(galtonState.qi>=galtonState.queue.length){ galtonFinish(bc); return; } // already-empty/already-drained guard
+  var item=galtonState.queue[galtonState.qi];
+  galtonState.localCounts[item.bucket]++;
+  galtonState.qi++;
+  // this WAS the last item — finish on the SAME call, not a phantom extra tick/click after the
+  // final bead has already visually landed (found live-testing this round: a while-loop drove
+  // this to qi===queue.length and never saw "Done" without one more call — a real, if minor, UX
+  // gap for Step mode too, not just a test artifact).
+  if(galtonState.qi>=galtonState.queue.length){ galtonFinish(bc); return; }
+  var W=galtonCanvasSize().W, bw=(W-44-16)/bc.bins;
+  var beadX=44+item.bucket*bw+bw/2, beadY=260-10-(galtonState.localCounts[item.bucket]/(Math.max.apply(null,bc.counts)||1))*(260-10-10);
+  galtonDrawFrame(bc,galtonState.localCounts,{x:beadX,y:beadY,col:item.col});
+  document.getElementById("galtonRead").textContent=
+    num(galtonState.qi)+" of "+num(galtonState.queue.length)+" sampled beads dropped.";
+  if(galtonState.step){ galtonState.running=false; return; }
+  var delay=galtonState.speed===5?6:26;
+  galtonState.timer=setTimeout(galtonStepOnce,delay);
+}
+function galtonStart(){
+  var reduce=window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  galtonReset();
+  var bc=mcBinCounts();
+  galtonState.queue=galtonSpawnQueue(bc);
+  if(reduce || galtonState.speed==="instant"){
+    galtonDrawFrame(bc,bc.counts,null);
+    document.getElementById("galtonRead").textContent=
+      (reduce?"Reduced motion is on — showing the settled result directly. ":"")+
+      "All "+num(activeMc.n)+" real runs are reflected in the buckets above.";
+    return;
+  }
+  galtonState.running=true;
+  galtonStepOnce();
 }
 
 /* Tween a displayed number from its last value to a new one over ~380ms, rather than snapping —
@@ -6957,6 +7124,44 @@ document.getElementById("pertPlayReset").addEventListener("click",function(){
   state.pertPlay=null;
   renderPertPlay();
 });
+/* Galton engine controls (brainstorm-mode round, 2026-08-21). Step mode's Simulate button
+   advances exactly one bead per click, matching "Step-by-Step" from the brief literally, rather
+   than auto-advancing on a timer the way 1x/5x do. */
+document.getElementById("galtonRun").addEventListener("click",function(){
+  if(galtonState.step){
+    // Reset trigger is qi>=queue.length ONLY — never galtonState.running. Step mode's own
+    // "halt after one step" behavior deliberately sets running=false between every click (the
+    // pause IS the feature), so using !running as the reset signal made every single click reset
+    // instead of continuing — a real bug found live-testing this round, not caught by the earlier
+    // stress.cjs pass because that ran galtonStepOnce() directly, bypassing this click handler.
+    if(galtonState.qi>=galtonState.queue.length){
+      galtonReset();
+      galtonState.queue=galtonSpawnQueue(mcBinCounts());
+    }
+    galtonState.running=true;
+    galtonStepOnce();
+  } else {
+    galtonStart();
+  }
+});
+function galtonSetSpeed(sp){
+  // Switching speed mid-run used to leave one stale leftover tick from the OLD run before the
+  // next click properly reset (galtonStepOnce()'s own step-flag check would halt the old timer
+  // chain, but only on its NEXT scheduled fire, not immediately) — found live-testing this
+  // round. Resetting to the settled rest state here, on the speed change itself, closes that gap:
+  // switching speeds always hands back a clean, predictable state, never a stale in-between one.
+  var wasMidRun=galtonState.running && galtonState.qi<galtonState.queue.length;
+  galtonState.speed=sp; galtonState.step=(sp==="step");
+  document.getElementById("galtonSpeed1").setAttribute("aria-pressed",String(sp===1));
+  document.getElementById("galtonSpeed5").setAttribute("aria-pressed",String(sp===5));
+  document.getElementById("galtonSpeedInstant").setAttribute("aria-pressed",String(sp==="instant"));
+  document.getElementById("galtonSpeedStep").setAttribute("aria-pressed",String(sp==="step"));
+  if(wasMidRun) renderGaltonStatic();
+}
+document.getElementById("galtonSpeed1").addEventListener("click",function(){ galtonSetSpeed(1); });
+document.getElementById("galtonSpeed5").addEventListener("click",function(){ galtonSetSpeed(5); });
+document.getElementById("galtonSpeedInstant").addEventListener("click",function(){ galtonSetSpeed("instant"); });
+document.getElementById("galtonSpeedStep").addEventListener("click",function(){ galtonSetSpeed("step"); });
 document.getElementById("resetWhatIf").addEventListener("click",function(){
   document.getElementById("sCpi").value=T.cpi;
   document.getElementById("sSpi").value=T.spi;
@@ -7033,7 +7238,7 @@ window.addEventListener("scroll",function(){ document.getElementById("tip").clas
    pre-existing pattern) silently reset the scrubber's cursor to hidden while the slider value and
    HUD text stayed on whatever month was last scrubbed — the display and the control disagreeing
    with each other, silently, on the single most ordinary action in the app. */
-function redrawCharts(){ renderScurve(); renderWaterfall(); renderCont(); renderRisk(); syncMcView(); renderPertPlay(); renderGantt(); renderScurveScrub(); renderGateLine(); renderCdeFlow(); }
+function redrawCharts(){ renderScurve(); renderWaterfall(); renderCont(); renderRisk(); syncMcView(); renderPertPlay(); renderGaltonStatic(); renderGantt(); renderScurveScrub(); renderGateLine(); renderCdeFlow(); }
 document.getElementById("mcViewHist").addEventListener("click",function(){ state.mcView="hist"; syncMcView(); });
 document.getElementById("mcViewCdf").addEventListener("click",function(){ state.mcView="cdf"; syncMcView(); });
 /* Draw-shape toggle (triangular <-> PERT) — mirrors mcView's own set-state -> recompute -> re-
@@ -7076,7 +7281,7 @@ renderDataStrategy();
 renderMcFilter();
 document.getElementById("mcDistTri").setAttribute("aria-pressed", String(state.mcDist==="triangular"));
 document.getElementById("mcDistPert").setAttribute("aria-pressed", String(state.mcDist==="pert"));
-syncMcView(); renderMcMath(); renderPertPlay(); renderScen(); renderPrint();
+syncMcView(); renderMcMath(); renderPertPlay(); renderGaltonStatic(); renderScen(); renderPrint();
 renderArch(); renderGuards(); renderStatControl(); renderZscoreMath(); renderEwmaControl(); renderEwmaMath(); renderIngestGuards();
 renderGlossary("");
 document.getElementById("sCpi").value=T.cpi;
@@ -7117,7 +7322,11 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   layers:LAYERS,renderLayersGrid:renderLayersGrid,
   pertPlayRow:pertPlayRow,pertPlayDomain:pertPlayDomain,pertPlayBounds:pertPlayBounds,
   pertPlayClamp:pertPlayClamp,pertPlaySetHandle:pertPlaySetHandle,renderPertPlay:renderPertPlay,
-  renderMcInspectOut:renderMcInspectOut,renderMcInspectMarker:renderMcInspectMarker};
+  renderMcInspectOut:renderMcInspectOut,renderMcInspectMarker:renderMcInspectMarker,
+  mcBinCounts:mcBinCounts,galtonSampleN:GALTON_SAMPLE_N,galtonSample:galtonSample,
+  galtonBucketOf:galtonBucketOf,galtonSpawnQueue:galtonSpawnQueue,galtonState:galtonState,
+  galtonStart:galtonStart,galtonStepOnce:galtonStepOnce,galtonReset:galtonReset,
+  renderGaltonStatic:renderGaltonStatic,num:num};
 })();
 </script>
 </body>
