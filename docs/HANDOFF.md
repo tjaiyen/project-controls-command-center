@@ -30,7 +30,7 @@ anywhere in this repository. The method is the content, not the numbers.
 
 | | |
 |---|---|
-| Primary file | `index.html` — 7,865 lines, one file, no build step |
+| Primary file | `index.html` — 7,874 lines, one file, no build step |
 | Top-level JS functions | 176 (not re-audited this round — see §18 gap note) |
 | Tabs | 11 |
 | KPIs (with formula/threshold/phase/source/play each) | 20 |
@@ -44,7 +44,7 @@ anywhere in this repository. The method is the content, not the numbers.
 | Contracts | 6 |
 | Risks | 6 |
 | Delay events | 4 |
-| `stress.cjs` test assertions | 1,664, all passing |
+| `stress.cjs` test assertions | 1,692, all passing |
 | Companion pages | `otak.html` (fit brief), `architecture.html` (static pipeline map) |
 | Hosting | GitHub Pages, served directly from `main`, zero build |
 | Git history | 100 commits |
@@ -356,7 +356,7 @@ Three layers, each catching a different failure mode:
    actual cost, no package with EV > BAC. A different failure class than `GUARDS` (a record that's
    internally consistent but individually implausible vs. one that's inconsistent with the rest of
    the ledger).
-3. **`pipeline/run_pipeline.py`** (54 checks, SQL/DuckDB, offline) — the same ledger built twice,
+3. **`pipeline/run_pipeline.py`** (64 checks, SQL/DuckDB, offline) — the same ledger built twice,
    independently, in two different languages. See §12.
 
 ---
@@ -375,7 +375,7 @@ matches an independent recomputation, not just that *a* number is present.
 
 ## 11. Testing & verification
 
-**`stress.cjs`** (1,664 assertions, all passing) — stubs the DOM, loads `index.html`'s script
+**`stress.cjs`** (1,692 assertions, all passing) — stubs the DOM, loads `index.html`'s script
 verbatim into that stub, and exercises it exactly like a user would: every tab switch, every
 filter, every drawer, every slider drag, every keyboard interaction. 41 labeled sections:
 
@@ -434,9 +434,19 @@ portfolio: {'bac': 1240.0, 'pv': 847.0, 'ev': 819.7, 'ac': 857.6}
 ALL CHECKS PASSED
 ```
 
-54 PASS, 0 FAIL — matching both `index.html`'s own "54 checks" prose and `README.md`'s claim
+64 PASS, 0 FAIL — matching both `index.html`'s own "64 checks" prose and `README.md`'s claim
 exactly, and the portfolio totals match the JS-side tie-out in §2 to the decimal. Requires
-`pip install duckdb`; no other dependency, no network access, no credentials.
+`pip install duckdb`; no other dependency, no network access, no credentials. (Count grew from 54
+to 64 on 2026-08-21, `/stress-test` round: `schema.yml` declared 10 guardrail tests — claim_id
+unique/not_null, package_id not_null + referential integrity, pv/ev/ac_delta ≥ 0 on
+`stg_progress_claims`, plus package_id/bac not_null and bac≥1 on `fct_control_account` — that
+`run_pipeline.py` documented but never actually ran; all 10 are now real checks. Also fixed a
+mislabeled check() string that printed "ev <= pv" for what was actually testing ev≤bac.)
+The raw claim rows are synthesized to sum back to the dashboard's own PV/EV/AC totals by
+construction (a residual-cents plug, see `run_pipeline.py`'s own `distribute()` comment) — so this
+proof covers the SQL aggregation/formula layer agreeing with the JS layer, not an independently-
+sourced dataset reproducing the dashboard's numbers. Worth stating plainly rather than implying
+more than a synthetic single-source demo can prove.
 
 ---
 
@@ -452,7 +462,7 @@ exactly, and the portfolio totals match the JS-side tie-out in §2 to the decima
   flags this distinction explicitly ("A verified snapshot, not a live render"). The diagram's own
   *drawing* still has no automated check tying it to `index.html`'s `#arch` diagram — if the
   pipeline architecture changes again, update both by hand. Its **prose counts** (20 KPIs, 28
-  guards, 54 SQL checks, 17 actions) are a different story: `stress.cjs`'s `E.1. architecture.html
+  guards, 64 SQL checks, 17 actions) are a different story: `stress.cjs`'s `E.1. architecture.html
   sync` section now reads this file's own source the same way it already read `otak.html`'s, and
   asserts those counts against `index.html`'s live arrays — added 2026-08-21 after a live, 3rd
   stale "twenty-seven" instance was found in this file's own `aria-label` (§18 gap #3/#9).
@@ -554,14 +564,16 @@ Named explicitly, not silently dropped — from the most recent engagement/inter
    2026-08-21; **§18 gap #9 below adds the automated sync test this gap has been naming since
    2026-08-20** — that structural risk is now closed, not just the 3rd stale instance.
 4. ~~**`README.md`'s own stated counts lag behind this document**~~ — **Resolved 2026-08-20** (and
-   re-synced ten more times on 2026-08-21 — the six-families card, the Data Strategy UI/UX round,
+   re-synced eleven more times on 2026-08-21 — the six-families card, the Data Strategy UI/UX round,
    the Monte Carlo PERT draw-shape toggle, the megaproject-controls-doc upgrade round, the Kimi
    research-package round, the full-dashboard `/stress-test` pass, the EAC-spread live check, the
    total-float early-warning round, the Monte Carlo captivation round, the Galton Engine round, the
    drift-catching round, the tab-rail navigation round (320px mobile-overflow fix, hover-preview
-   mini-drawers, 1&ndash;9/"?" keyboard shortcuts), and the altitude-grouped-rail round (5 nav
-   groups, Gate 5 status pill, sticky in-tab anchor rail, return breadcrumb)): 1,664 assertions /
-   53 glossary terms / 28-check integrity gate, matching §2 as of this writing.
+   mini-drawers, 1&ndash;9/"?" keyboard shortcuts), the altitude-grouped-rail round (5 nav
+   groups, Gate 5 status pill, sticky in-tab anchor rail, return breadcrumb), and the whole-repo
+   `/stress-test` round (pipeline coverage 54&rarr;64 checks, 3 stale citation dates corrected, the
+   `#cntGate5` CSS bug)): 1,692 assertions / 53 glossary terms / 28-check integrity gate / 64-check
+   SQL pipeline, matching §2 as of this writing.
 5. **The eleven-input ledger card is new this round** (2026-08-20) and only covers the Overview
    tab's own `PKGS` provenance — it does not touch or resolve gap #2 above (the risk register still
    has no independent drill-down drawer of its own).
@@ -1095,6 +1107,86 @@ carried over from memory or an earlier pass:
   scrollTo({behavior:"instant"})` and `matchMedia` both still read correctly in that state,
   confirming it's this tool's own quirk, not a page bug; a `resize_window` + fresh `navigate`
   immediately before a check reliably clears it.)
+- **2026-08-21 whole-repo `/stress-test` round**: TJ asked for a full adversarial pass across the
+  repo, not just the just-shipped nav round. Two independent reviews: a direct pass (index.html's
+  CSS/security/verify.cjs) plus a fresh-context agent (`pipeline/`, `otak.html`, `architecture.html`,
+  doc-claim accuracy, a `stress.cjs` test-quality sample). 9 findings, ranked most severe first —
+  all 9 driven to a resolution, one of the 9 turning out to be a false positive on reproduction:
+  1. **HIGH, confirmed live**: `#cntGate5` (the Gate 5 status pill added last round) carried the
+     exact same `[hidden]`-vs-class-selector CSS bug the `.shortcuts-overlay` fix addressed —
+     `.tabs .cnt{display:inline-block}` (author origin, equal specificity) beat the UA's own
+     `[hidden]{display:none}`. Forcing `hidden=true` live measured a real, painted 65×34px box
+     regardless. Dormant only because Gate 5 is currently blocked (pill correctly shown); the
+     moment it clears, an empty colored blob would have permanently rendered after "Operating
+     Framework." Fixed with `.tabs .cnt:not([hidden])`, with a new structural regression guard
+     (this DOM-stub harness has no real CSS engine and can't see the bug itself — same blind spot
+     that let it ship in the first place, called out explicitly this time).
+  2. **MEDIUM**: `pipeline/models/schema.yml` declared 10 guardrail tests `run_pipeline.py` never
+     actually ran (only 4 were implemented, and one of those 4 had a mislabeled `check()` string —
+     "ev <= pv" printed for what was actually testing `ev<=bac`). All 10 missing checks
+     implemented (claim_id unique/not_null, package_id not_null + referential integrity to
+     `dim_control_account`, pv/ev/ac_delta ≥0 on `stg_progress_claims`; package_id/bac not_null +
+     bac≥1 on `fct_control_account`) and the mislabel fixed. Check count grew 54→64, confirmed live
+     (`python3 pipeline/run_pipeline.py`, fresh venv, 64 PASS / 0 FAIL) — every "54/64 checks"
+     reference across `index.html`, `architecture.html`, `README.md`, this doc, and `stress.cjs`
+     updated in lockstep (current-state claims only — historical §19 entries citing the old count
+     as accurate-at-the-time were correctly left untouched).
+  3. **MEDIUM**: `architecture.html`'s self-reported "verified... on 2026-08-18" banner was stale
+     (file edited again 2026-08-20/21 without bumping it) — updated to 2026-08-21, the date this
+     round's `stress.cjs` `E.1` pass actually re-confirmed its counts live.
+  4. **MEDIUM**: the Sound Transit R2026-11 citation (appears in both `otak.html` and `index.html`)
+     self-reported "verified 19 Aug 2026," but the commit that wrote the claim landed 18 Aug — no
+     real re-check on the 19th. Actually re-verified fresh via WebSearch against soundtransit.org's
+     own resolution PDF (content confirmed accurate — real "adaptive program management framework,"
+     December 2026 Board consideration) and re-dated 21 Aug, the date that real re-check happened.
+     Two adjacent citations caught the same way while checking this one: the Flyvbjerg/PMI
+     reference-class-forecasting citation was ALSO genuinely re-verified today (confirmed via a
+     live PMI.org page) and re-dated 21 Aug; the Sound Transit P6-scheduling-spec citation could
+     NOT be fully re-verified today (the source PDF exceeded WebFetch's 10MB limit) — dated back to
+     18 Aug, matching the commit that did the real work, rather than falsely claiming a fresh check.
+  5. *(meta, not independently fixable)* — the D18 test added for `#cntGate5` in the SAME commit
+     that fixed the shortcuts-overlay bug checked only the `.hidden` JS property, the exact blind
+     spot documented three paragraphs away in that commit's own D19 comments. The lesson from one
+     instance hadn't generalized. Addressed by extending live-browser CSS verification to every
+     `hidden`-toggled element this round (all were probed: `helpPop`/`presentBar`/`tourBar`/
+     `cphDrill` confirmed correct; only `cntGate5` was broken), not just the one that broke.
+  6. **LOW**: the pipeline's "SQL == dashboard" proof is partly circular by construction (raw
+     claim rows are reverse-engineered from the JS totals via a residual-cents plug) — README/
+     HANDOFF §12 now state this plainly rather than implying an independently-sourced dataset.
+  7. **LOW**: 7 existence-only `stress.cjs` assertions (funding-tier `why` text, Galton bead
+     colors, all 11 tab-drawer contents, 11 glossary-term resolutions) passed regardless of correct
+     vs. garbled content. Strengthened with real independent-re-derivation checks for all of them
+     except the architecture-node captions (already well-covered by an adjacent distinctness check
+     + 2 specific spot-checks, left as-is rather than over-engineered).
+  8. **LOW**: `verify.cjs` carried a comment claiming an "S-curve monotonicity invariant (EV≤PV,
+     AC≥EV)" check existed — no such check was ever implemented anywhere. On inspection the
+     invariant as stated isn't even valid (SPI/CPI can legitimately exceed 1 for a package ahead of
+     schedule or under budget) — the comment described something that would have been WRONG to
+     implement, not just missing. Removed rather than implemented.
+  9. **FALSE POSITIVE, confirmed by reproduction**: flagged `state.textSize` restored from
+     `localStorage` as unbounded, risking a throw on `TEXT_ZOOM[oob].zoom`. Live-browser
+     reproduction (`localStorage.pccTextSize="999"`, fresh reload) contradicted the prediction —
+     `applyTextSize()` already clamps `state.textSize` at its own top
+     (`Math.max(0,Math.min(TEXT_ZOOM.length-1,...))`) before ever indexing `TEXT_ZOOM`, a guard
+     missed on first static read. The redundant duplicate clamp initially added was reverted rather
+     than left as dead-weight code — exactly the "never dismiss a finding as a false positive
+     without reproducing it first" discipline this file's own `verify.md` states, applied to a
+     finding of my own, not just an external one.
+
+  `node stress.cjs` run fresh (`1692 passed, 0 failed` — 1665 baseline + 27 new/strengthened
+  assertions; the `#cntGate5` regression guard and both pipeline-count tripwires independently
+  confirmed to fail against pre-round `index.html` via a git-stash round-trip before confirmed
+  passing against the fix). `node verify.cjs` exits 0. `python3 pipeline/run_pipeline.py` (fresh
+  venv) confirmed 64 PASS / 0 FAIL live. Live-browser confirmed at 1280px: all 11 tabs switch
+  cleanly, zero horizontal overflow, `#cntGate5` correctly shows "Gate 5 blocked" (real current
+  state) and correctly collapses to `display:none`/0×0 when forced hidden.
+  **Accepted limitations, stated explicitly**: the architecture-node caption existence check
+  (finding #7's one un-strengthened instance) stays as-is — already well-covered by neighbors, not
+  worth individually re-deriving. The Sound Transit P6-spec citation's exact sub-clause text
+  (01 32 13.25) was not independently re-verified this round (10MB PDF, tool limit) — the document
+  itself is confirmed real and the general claim (Sound Transit requires P6 scheduling) matches
+  industry-standard practice for agencies this size, but the precise sub-clause detail rests on a
+  PRIOR round's own verification pass, not this one's.
 
 Generated 2026-08-20, against the tip of the eleven-input-ledger-card engagement round; extended
 2026-08-21 for the six-KPI-families card round, again 2026-08-21 for the Data Strategy tab UI/UX
@@ -1107,6 +1199,7 @@ mode-vs-bounds clarification, again 2026-08-21 for the EAC-spread live check, ag
 for the total-float early-warning round, again 2026-08-21 for the Monte Carlo captivation round,
 again 2026-08-21 for the Galton Engine round, again 2026-08-21 for the third full-dashboard
 `/stress-test` pass, again 2026-08-21 for the "how the dashboard catches drift" round, again
-2026-08-21 for the tab-rail navigation round, and again 2026-08-21 for the altitude-grouped-rail
-round (see git log for exact commits — each document update was written before its own round's
-commit lands, per the project's "verify, then document" ordering).
+2026-08-21 for the tab-rail navigation round, again 2026-08-21 for the altitude-grouped-rail
+round, and again 2026-08-21 for the whole-repo `/stress-test` round (see git log for exact commits
+— each document update was written before its own round's commit lands, per the project's "verify,
+then document" ordering).

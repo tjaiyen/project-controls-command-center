@@ -159,7 +159,16 @@ a{color:rgb(var(--c-accent))}
   cursor:pointer;letter-spacing:.02em;transition:color .15s,border-color .15s,background .15s}
 .tabs button:hover{color:rgb(var(--c-ink))}
 .tabs button[aria-selected="true"]{color:rgb(var(--c-ink));border-bottom-color:rgb(var(--c-accent))}
-.tabs .cnt{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:999px;
+/* :not([hidden]) on display — REGRESSION of the exact same bug class as the .shortcuts-overlay
+   fix below, found in this same commit by a /stress-test pass (2026-08-21): #cntGate5 (Gate 5's
+   status pill, added this round) is toggled via .hidden, but this rule's display:inline-block —
+   equal specificity to [hidden], author origin — beat the UA's own [hidden]{display:none}. Live-
+   confirmed: forcing hidden=true still left it a real, painted 65x34px box (blockified to `block`
+   as a flex item of .tabs button, per CSS display's blockification rules — a genuine box either
+   way). Dormant today only because Gate 5 is currently blocked, so the pill is meant to be shown;
+   the moment it clears, an empty colored blob would have permanently rendered after the tab
+   label. #cntOver/#cntAct are never hidden, so :not([hidden]) changes nothing for them. */
+.tabs .cnt:not([hidden]){display:inline-block;margin-left:6px;padding:1px 6px;border-radius:999px;
   font:600 10px/1.6 ui-monospace,monospace;background:rgb(var(--c-mut) / .18);color:rgb(var(--c-mut))}
 .tabs button[aria-selected="true"] .cnt{background:rgb(var(--c-accent) / .18);color:rgb(var(--c-code))}
 /* attention-required variant, distinct from the neutral count pill above (Gate 5 status, altitude-
@@ -957,7 +966,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
           in May 2026 &mdash; tiering funded, partially funded, and deferred projects under a real
           affordability gap. Not a reproduction of their actual criteria or figures, which are far
           more complex than two ratios; this program's own two-axis model is its own, stated above.
-          (Sound Transit board resolution R2026-11, verified 19&nbsp;Aug&nbsp;2026 &mdash; a real,
+          (Sound Transit board resolution R2026-11, verified 21&nbsp;Aug&nbsp;2026 &mdash; a real,
           external citation, not this program's own data.)</p>
       </div>
     </div>
@@ -1189,7 +1198,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
           other checks it against the base rate for programs of this type. A forecast that only does the
           first can still be optimistic in a way an entire asset class already tells you to expect.
           (Bent Flyvbjerg's published megaproject research, via PMI's research summary, verified
-          19&nbsp;Aug&nbsp;2026 &mdash; a real, external citation, not this program's own data.)</p>
+          21&nbsp;Aug&nbsp;2026 &mdash; a real, external citation, not this program's own data.)</p>
         <p class="lede" id="mcRcfRead" style="margin-top:8px;font-size:12.8px"></p>
         <div class="outbox" id="rcfGapTile" style="margin-top:8px"></div>
       </div>
@@ -1274,7 +1283,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
           contracts). This tab's own DCMA-style logic &mdash; CPLI, BEI, float erosion &mdash; is
           built from the same real methodology those specifications require, independently
           re-verified directly against the primary specification document, not cited secondhand.
-          (Sound Transit 2023 Standard Division 01 Specifications, verified 19&nbsp;Aug&nbsp;2026 &mdash;
+          (Sound Transit 2023 Standard Division 01 Specifications, verified 18&nbsp;Aug&nbsp;2026 &mdash;
           a real, external citation, not this program's own data.)</p>
         <p style="margin-top:8px">Named precisely, not just &ldquo;DCMA-style&rdquo;: the
           <b style="color:rgb(var(--c-code))">DCMA 14-Point Assessment</b> is the specific schedule-health
@@ -1444,7 +1453,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
           The same model runs in this repository: <code>pipeline/run_pipeline.py</code> synthesizes the raw
           monthly claims deterministically, builds the ledger through <code>fct_control_account.sql</code>
           in DuckDB, and proves the result identical to what this page computes in JavaScript &mdash;
-          54 checks, two independent stacks, one set of numbers. That equality is the integrity argument.</p></div>
+          64 checks, two independent stacks, one set of numbers. That equality is the integrity argument.</p></div>
       <div id="archDetail" aria-live="polite"></div>
       <div class="card" style="margin-top:14px" id="archStoryCard">
         <div class="eyebrow">Follow one box through the pipeline</div>
@@ -5992,7 +6001,7 @@ function renderArch(){
   for(i=0;i<6;i++) a+=arrow(160,29+i*38,222,120);
   s+=box(222,90,140,60,"staging","dbt staging","stg_progress_claims",false);
   s+=box(402,90,168,60,"marts","marts","fct_control_account",false);
-  s+=box(610,90,150,60,"gate","integrity gate","dbt tests · 54 checks",true);
+  s+=box(610,90,150,60,"gate","integrity gate","dbt tests · 64 checks",true);
   s+=box(800,30,172,52,"dashboard","This dashboard","browser derivation",false);
   s+=box(800,100,172,52,"brief","Executive brief","print one-pager",false);
   s+=box(800,170,172,52,"narrative","AI narrative draft","prose only · verified",false);

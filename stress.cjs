@@ -279,10 +279,18 @@ ok(idsA.includes("t-port") && idsA.includes("p-port"), "portfolio tab/panel wire
   // pre-registered by hand against pct=ev/bac and cpi for each line before running
   const expectedTier = { "link-lrt": "Partially funded", sounder: "Fully funded",
     stride: "Pursuing added funding", fleet: "Fully funded" };
+  // why text independently re-derived from the same farAlong/healthy branching fundingTier()
+  // itself uses (/stress-test finding, 2026-08-21: the prior version only checked ft.why was a
+  // non-empty string, which passes for any placeholder text — this checks it's the SPECIFIC real
+  // reason for THIS line's own pct/cpi, not just present).
+  const expectedWhy = { "link-lrt": "too far along to defer cleanly, but spending faster than plan — needs a supplemental ask, not a cut",
+    sounder: "far along and performing to plan — the strongest case to protect",
+    stride: "early and underperforming at once — the most exposed line if the program had to absorb a cut today",
+    fleet: "far along and performing to plan — the strongest case to protect" };
   lines.forEach(l => {
     const ft = P.fundingTier(l);
     ok(ft.tier === expectedTier[l.id], "funding tier for " + l.id + " = " + expectedTier[l.id], ft.tier);
-    ok(typeof ft.why === "string" && ft.why.length > 0, l.id + "'s funding tier carries a reason, not just a label");
+    ok(ft.why === expectedWhy[l.id], l.id + "'s funding-tier reason is the specific real one for its own pct/cpi, not just non-empty text", ft.why);
   });
   // the rule genuinely has two independent inputs, not one axis wearing a new label — this
   // dataset's 4 real lines don't happen to expose that (progress and health move together here),
@@ -1424,10 +1432,28 @@ try {
   let bucketMismatch = 0;
   queueCheck.forEach((item, i) => { if (item.bucket !== P.galtonBucketOf(sampleCheck[i], bc)) bucketMismatch++; });
   ok(bucketMismatch === 0, "every queued bead's bucket assignment matches an independent recomputation from its own real value", String(bucketMismatch) + " mismatches");
-  // color is a one-line ternary on the bucket's own midpoint vs. the same BAC/BAC+cont
-  // thresholds renderMc() already uses for the static histogram (verified elsewhere) — checking
-  // it's actually a real color string, not undefined/empty, is the meaningful new-code check here
-  ok(queueCheck.every(item => typeof item.col === "string" && item.col.length > 0), "every queued bead carries a real, non-empty color string");
+  // color category independently re-derived from the same BAC/BAC+contRemaining thresholds
+  // galtonSpawnQueue() itself uses (/stress-test finding, 2026-08-21: the prior version only
+  // checked item.col was a non-empty string — passes even if every bucket got the identical
+  // color, which would silently defeat the whole point of coloring beads by outcome. This checks
+  // the actual branching: items independently classified into the same threshold tier must share
+  // one col value, and different tiers must NOT collide on the same value — real, distinguishing
+  // per-tier color, not just "a string exists". C()'s own CSS-variable resolution isn't
+  // reproducible in this DOM-stub harness (getComputedStyle has no real CSS engine here), so this
+  // checks structure/consistency rather than the literal color string.
+  const bac = P.totals.bac, contHi = P.totals.bac + P.totals.contRemaining;
+  const tierOf = mid => mid < bac ? "ok" : mid < contHi ? "warn" : "bad";
+  const colByTier = {};
+  let tierMismatch = 0;
+  queueCheck.forEach((item, i) => {
+    const mid = bc.lo + (item.bucket + 0.5) * bc.bw;
+    const tier = tierOf(mid);
+    if (colByTier[tier] === undefined) colByTier[tier] = item.col;
+    else if (colByTier[tier] !== item.col) tierMismatch++;
+  });
+  ok(tierMismatch === 0, "every queued bead in the same real threshold tier (ok/warn/bad) shares one consistent color", String(tierMismatch) + " mismatches");
+  const distinctTiers = Object.keys(colByTier).length, distinctColors = new Set(Object.values(colByTier)).size;
+  ok(distinctTiers < 2 || distinctColors === distinctTiers, "distinct threshold tiers present in this sample get distinct colors, not one color reused for every bucket", distinctTiers + " tiers / " + distinctColors + " colors");
 
   // static labels — the real activeMc.n and sample size, not hardcoded copy. These are set via
   // .textContent (plain numbers, no markup needed), so checked directly, not via has() (which
@@ -3593,9 +3619,19 @@ console.log("== D9.1. the CDE flow diagram (data strategy) ==");
    ========================================================================= */
 console.log("== D10. inline term help ==");
 ok(P.gloss.length === 53, "GLOSS grew to 53 entries (52 prior + ncr, the quality-NCR-register upgrade, 2026-08-21)", String(P.gloss.length));
-["cde", "ids", "wbs", "abs", "zscore", "ewma", "gbm", "raid", "capa", "cbsobs", "excusablecompensable"].forEach(k => {
+// title independently re-typed per term (/stress-test finding, 2026-08-21: the prior version only
+// checked g.p/g.e() were non-empty, which passes even for a totally wrong or swapped-in entry) —
+// guards that findGloss(k) actually resolves to the RIGHT term, not just SOME term.
+const expectedGlossTitle = { cde: "CDE — Common Data Environment", ids: "IDS — Information Delivery Specification",
+  wbs: "WBS — Work Breakdown Structure", abs: "ABS — Asset Breakdown Structure",
+  zscore: "Z-score anomaly check", ewma: "EWMA — Exponentially Weighted Moving Average control chart",
+  gbm: "Geometric Brownian Motion & Maximum Likelihood Estimation", raid: "RAID — Risks, Assumptions, Issues, Decisions",
+  capa: "CAPA — Corrective and Preventive Action", cbsobs: "CBS/OBS — Cost & Organizational Breakdown Structure",
+  excusablecompensable: "Excusable-compensable vs. non-excusable delay" };
+Object.keys(expectedGlossTitle).forEach(k => {
   const g = P.findGloss(k);
-  ok(!!g && typeof g.p === "string" && g.p.length > 0, "findGloss resolves new term '" + k + "'");
+  ok(!!g && g.t === expectedGlossTitle[k], "findGloss('" + k + "') resolves to the exact expected term title, not a swapped/wrong entry", g && g.t);
+  ok(typeof g.p === "string" && g.p.length > 0, "'" + k + "' carries real definition prose");
   ok(typeof g.e() === "string" && g.e().length > 0, "'" + k + "' example function returns text");
 });
 ok(P.findGloss("does-not-exist") === undefined, "findGloss returns undefined for an unknown key");
@@ -4002,6 +4038,34 @@ console.log("== D16. tab-rail hover-preview mini-drawer (brainstorm-mode nav rou
     ok(!!c && typeof c.label === "string" && c.label.length > 0, "tabDrawerContent('" + id + "') returns a labeled entry");
     ok(typeof c.q === "string" && c.q.length > 0, "'" + id + "' drawer states a core question");
   });
+  // The 6 fam-mapped tabs (cost/sched/risk/del, checked in full below) reuse KPI_FAMILIES text, so
+  // an independent re-typed copy here would just be checking that copy against itself. The 7
+  // NON-fam tabs (over/port/ai/fw/act/gloss/data) are hand-authored static strings instead — a
+  // /stress-test finding (2026-08-21) that only the length>0 checks above covered these, which
+  // pass for any placeholder text. This is a real independent re-typed copy of TAB_DRAWER's own
+  // literal q/note text for each of those 7, checked exact — not read back from the app and
+  // trusted against itself.
+  const expectedNonFam = {
+    over: { q: "Where do I start, and what does this program look like right now?",
+      note: "Six KPI families explained, a live root-cause trace, an editable ledger demo, a guided Tour, and the five-signal Velocity Pulse strip." },
+    port: { q: "How is this program doing against the rest of the agency's portfolio?",
+      note: "Agency-level rollup across 4 lines of business — one line read live off this program's own totals, three shown as summaries only." },
+    ai: { q: "Can the numbers on every other tab be trusted?",
+      note: "Pipeline architecture, the SQL model, a live 28-check integrity gate, and control charts on the one series with genuine variance." },
+    fw: { q: "What governance does this program actually run on?",
+      note: "Phase playbook, WBS/CBS/OBS/ABS mapping, phase-gate governance with a live Gate 5 hard stop, and the full KPI reference library." },
+    act: { q: "What's open, who owns it, and what's gone stale?",
+      note: "A RAID/CAPA register with proactive staleness detection and an owner-accountability rollup." },
+    gloss: { q: "What does this term mean, worked through this program's own numbers?",
+      note: "53 terms, each with a live example computed from this program's own ledger." },
+    data: { q: "How does scattered, multi-system data actually become these numbers?",
+      note: "Staging architecture, IDS guardrails, a discrepancy-resolution flow, and a live parity check between this dashboard's own JavaScript and the SQL that independently re-derives it." },
+  };
+  Object.keys(expectedNonFam).forEach(id => {
+    const c = P.tabDrawerContent(id);
+    ok(c.q === expectedNonFam[id].q, "'" + id + "' drawer's q is the exact expected text, not garbled/placeholder", c.q);
+    ok(c.note === expectedNonFam[id].note, "'" + id + "' drawer's note is the exact expected text, not garbled/placeholder", c.note);
+  });
   // Content grounding: fam-mapped tabs reuse KPI_FAMILIES' own real q/why fields verbatim — not a
   // re-typed copy that could silently drift from the family's own framing elsewhere on the page.
   ok(P.tabDrawerContent("cost").q === P.kpiFamilies.filter(f => f.key === "Cost")[0].q,
@@ -4162,6 +4226,17 @@ console.log("== D18. altitude-grouped tab rail + Gate 5 status pill (nav round 2
   ok(G.cntGate5.hidden === false, "Gate 5 tab pill is shown while Gate 5 is blocked");
   ok(G.cntGate5.textContent.indexOf("Gate 5 blocked") >= 0, "Gate 5 tab pill states the real blocked status, not a generic label");
   ok(G.cntGate5.className.indexOf("warn") >= 0, "Gate 5 tab pill carries the warn (red) modifier class while blocked — not the neutral count-pill styling");
+  // REGRESSION GUARD (/stress-test, 2026-08-21): #cntGate5 shared the EXACT same [hidden]-vs-
+  // class-selector CSS bug the .shortcuts-overlay fix (D19 below) documents — .tabs .cnt's own
+  // display:inline-block (author origin, specificity 0,2,0) beat the UA's [hidden]{display:none}.
+  // Live-confirmed: forcing hidden=true still left a real, painted 65x34px box. Dormant only
+  // because Gate 5 is currently blocked (pill correctly visible); the moment it clears, an empty
+  // colored blob would have permanently rendered after "Operating Framework". This DOM-stub
+  // harness has no real CSS engine and can't see the bug itself (G.cntGate5.hidden===false above
+  // only proves the JS *property* is right, the exact blind spot that let this ship in the first
+  // place) — this guards the source text instead, so a future edit can't silently drop the fix.
+  ok(/\.tabs \.cnt:not\(\[hidden\]\)\{/.test(indexSrc),
+    "the .tabs .cnt display rule is qualified with :not([hidden]), same fix pattern as .shortcuts-overlay");
 }
 
 console.log("== D19. in-tab sticky anchor rail, Cost/Schedule (nav round 2, 2026-08-21) ==");
@@ -4308,8 +4383,11 @@ ok(otakSrc.includes("adaptive program") && otakSrc.includes("management framewor
 ok(otakSrc.includes(">If the") && otakSrc.includes("practice's scope touches Sound Transit's ST3 realignment"),
   "the ST3 tie-in stays conditional (\"if the practice's scope touches\"), not presumptuous, matching the fit brief's existing tone");
 // /stress-test finding (2026-08-19): the ST3 claim lacked a citation date the way the East-Link
-// claim right above it has — now matches
-ok(otakSrc.includes("R2026-11") && otakSrc.includes("verified 19&nbsp;Aug&nbsp;2026"),
+// claim right above it has — now matches. Date bumped 19->21 Aug 2026 (/stress-test finding,
+// 2026-08-21): the commit that actually wrote this claim landed 18 Aug, with no record of a real
+// re-check on the 19th — corrected by ACTUALLY re-verifying R2026-11 fresh this round (WebSearch
+// against soundtransit.org's own resolution PDF, content still matches) and stamping that real date.
+ok(otakSrc.includes("R2026-11") && otakSrc.includes("verified 21&nbsp;Aug&nbsp;2026"),
   "the ST3 claim now carries a source citation + verified date, matching the East-Link claim's format");
 
 /* =========================================================================
@@ -4326,19 +4404,22 @@ console.log("== E.1. architecture.html sync ==");
 ok(archSrc.includes("20 metrics, 6 families") && archSrc.includes("20 metrics across cost, schedule, risk, change, delivery, and compliance."),
   "architecture.html's '20 metrics' prose is present in both the diagram box and the legend table");
 ok(P.kpis.length === 20, "index.html's live KPIS array actually has 20 entries, matching architecture.html's claim", String(P.kpis.length));
-ok(archSrc.includes("28 live checks (browser)") && archSrc.includes("28 browser checks plus a separate 54-check SQL pipeline"),
+ok(archSrc.includes("28 live checks (browser)") && archSrc.includes("28 browser checks plus a separate 64-check SQL pipeline"),
   "architecture.html's '28 checks' prose is present in both the diagram box and the legend table");
 ok(P.guards.length === 28, "index.html's live GUARDS array actually has 28 entries, matching architecture.html's claim", String(P.guards.length));
-ok(archSrc.includes("+ 54-check SQL pipeline"),
-  "architecture.html still cites the 54-check SQL pipeline figure (static — pipeline/run_pipeline.py isn't executed from this harness, so this stays a text-presence check, not a live recomputation)");
+ok(archSrc.includes("+ 64-check SQL pipeline"),
+  // pipeline count grew 54->64 in the same /stress-test round that added this check (2026-08-21):
+  // schema.yml declared 10 guardrail tests run_pipeline.py documented but never ran; all 10 are
+  // now real, confirmed live (`python3 pipeline/run_pipeline.py`, 64 PASS / 0 FAIL) — see HANDOFF §12.
+  "architecture.html still cites the 64-check SQL pipeline figure (static — pipeline/run_pipeline.py isn't executed from this harness, so this stays a text-presence check, not a live recomputation)");
 ok(archSrc.includes("17 tracked items"), "architecture.html's '17 tracked items' prose is present");
 ok(P.actions.length === 17, "index.html's live ACTIONS array actually has 17 entries, matching architecture.html's claim", String(P.actions.length));
 // regression guard for the specific live bug this round caught and fixed: the #archSvg
 // aria-label's own integrity-gate count (independent of the diagram-box/legend-table copies
 // checked above — a 3rd, easily-missed location) must say twenty-eight, never twenty-seven again.
 ok(!archSrc.includes("twenty-seven"), "architecture.html no longer says 'twenty-seven' anywhere (the stale #archSvg aria-label instance this round found and fixed)");
-ok(archSrc.includes("twenty-eight plus fifty-four check integrity gate"),
-  "the #archSvg aria-label states the integrity gate count correctly (twenty-eight), matching every other count in the file");
+ok(archSrc.includes("twenty-eight plus sixty-four check integrity gate"),
+  "the #archSvg aria-label states the integrity gate count correctly (twenty-eight/sixty-four), matching every other count in the file");
 
 /* =========================================================================
    F. COMPLIANCE SWEEPS
@@ -4419,7 +4500,10 @@ ok(!/twelve[\s-]?input/i.test(indexSrc) && !/twelve[\s-]?input/i.test(fs.readFil
     pkgKeys.join(","));
 }
 ok(!/55 checks/.test(indexSrc), "no stale '55 checks' pipeline claim in index.html");
-ok((indexSrc.match(/54 checks/g) || []).length >= 2, "'54 checks' (the verified pipeline count) appears in index.html");
+// pipeline count grew 54->64 in the /stress-test round that closed the schema.yml coverage gap
+// (2026-08-21, see HANDOFF §12) — this tripwire now guards the CURRENT real count the same way.
+ok(!/54 checks/.test(indexSrc), "no stale '54 checks' pipeline claim in index.html");
+ok((indexSrc.match(/64 checks/g) || []).length >= 2, "'64 checks' (the verified pipeline count) appears in index.html");
 
 /* =========================================================================
    G. TEXT-SIZE LOCALSTORAGE PERSISTENCE (2026-08-20) — deliberately runs LAST.

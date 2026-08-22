@@ -92,17 +92,51 @@ for p in PKGS:
     check(f"{p['id']} cpi recomputed", abs(q["cpi"] - p["ev"] / p["ac"]) < 1e-9)
     check(f"{p['id']} eac recomputed", abs(q["eac"] - p["bac"] / (p["ev"] / p["ac"])) < 1e-6)
 
-# --- 5. Guardrail checks in SQL (the same invariants dbt tests enforce) ----
+# --- 5. Guardrail checks in SQL (the same invariants schema.yml declares) --
 # Materialize the model so the guardrails test the artifact, not the query.
+# Every test schema.yml declares gets a real check here — a /stress-test pass (2026-08-21) found
+# only 4 of schema.yml's declared tests were actually implemented (and one of those 4 had a
+# mislabeled check() string, "ev <= pv" printed for what was actually an ev<=bac test — fixed
+# below too), silently understating what README/HANDOFF's "enforces the guardrails in
+# models/schema.yml" claim promised. All 10 checks below map 1:1 to a schema.yml test declaration.
 con.execute("create table fct_control_account as " + MODEL.read_text())
+
+# fct_control_account model-level invariants (schema.yml's 3 dbt_utils.expression_is_true tests)
 bad1 = con.execute("select count(*) from fct_control_account where ev > bac + 0.000001").fetchone()[0]
 bad2 = con.execute("select count(*) from fct_control_account where pct_complete > 1").fetchone()[0]
 bad3 = con.execute("select count(*) from fct_control_account where spi not between 0.5 and 1.5").fetchone()[0]
-dup  = con.execute("select count(*) - count(distinct package_id) from fct_control_account").fetchone()[0]
-check("guardrail: ev <= pv everywhere", bad1 == 0, f"{bad1} violations")
+check("guardrail: ev <= bac everywhere", bad1 == 0, f"{bad1} violations")
 check("guardrail: pct_complete <= 1 everywhere", bad2 == 0, f"{bad2} violations")
 check("guardrail: spi within [0.5, 1.5]", bad3 == 0, f"{bad3} violations")
+
+# fct_control_account.package_id: [unique, not_null]; fct_control_account.bac: [not_null, >=1]
+dup       = con.execute("select count(*) - count(distinct package_id) from fct_control_account").fetchone()[0]
+pkg_null  = con.execute("select count(*) from fct_control_account where package_id is null").fetchone()[0]
+bac_null  = con.execute("select count(*) from fct_control_account where bac is null").fetchone()[0]
+bac_low   = con.execute("select count(*) from fct_control_account where bac < 1").fetchone()[0]
 check("guardrail: package_id unique", dup == 0, f"{dup} duplicates")
+check("guardrail: package_id not null (fct_control_account)", pkg_null == 0, f"{pkg_null} nulls")
+check("guardrail: bac not null", bac_null == 0, f"{bac_null} nulls")
+check("guardrail: bac >= 1 everywhere", bac_low == 0, f"{bac_low} violations")
+
+# stg_progress_claims.claim_id: [unique, not_null]; .package_id: [not_null, relationships to
+# dim_control_account]; .pv_delta/.ev_delta/.ac_delta: each >= 0
+claim_dup   = con.execute("select count(*) - count(distinct claim_id) from stg_progress_claims").fetchone()[0]
+claim_null  = con.execute("select count(*) from stg_progress_claims where claim_id is null").fetchone()[0]
+claimpkg_null = con.execute("select count(*) from stg_progress_claims where package_id is null").fetchone()[0]
+orphan      = con.execute("""select count(*) from stg_progress_claims s
+                              left join dim_control_account d on s.package_id = d.package_id
+                              where d.package_id is null""").fetchone()[0]
+pv_neg      = con.execute("select count(*) from stg_progress_claims where pv_delta < 0").fetchone()[0]
+ev_neg      = con.execute("select count(*) from stg_progress_claims where ev_delta < 0").fetchone()[0]
+ac_neg      = con.execute("select count(*) from stg_progress_claims where ac_delta < 0").fetchone()[0]
+check("guardrail: claim_id unique", claim_dup == 0, f"{claim_dup} duplicates")
+check("guardrail: claim_id not null", claim_null == 0, f"{claim_null} nulls")
+check("guardrail: package_id not null (stg_progress_claims)", claimpkg_null == 0, f"{claimpkg_null} nulls")
+check("guardrail: package_id relationships to dim_control_account", orphan == 0, f"{orphan} orphaned rows")
+check("guardrail: pv_delta >= 0 everywhere", pv_neg == 0, f"{pv_neg} negative rows")
+check("guardrail: ev_delta >= 0 everywhere", ev_neg == 0, f"{ev_neg} negative rows")
+check("guardrail: ac_delta >= 0 everywhere", ac_neg == 0, f"{ac_neg} negative rows")
 
 # --- 6. Emit the proof artifact --------------------------------------------
 out = {

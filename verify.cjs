@@ -116,7 +116,6 @@ const phaseKeys = ["plan","env","pe","fd","proc","con","close"];
 for (const k of P.kpis) for (const ph of k.ph)
   if (!phaseKeys.includes(ph)) { failed = true; console.error("unknown phase", ph, "on", k.id); }
 
-// S-curve monotonicity invariants: EV<=PV, AC>=EV at all elapsed months
 console.log("\nHeadline tie-out:");
 console.log("  BAC", got.bac.toFixed(1), "| PV", got.pv.toFixed(1), "| EV", got.ev.toFixed(1), "| AC", got.ac.toFixed(1));
 console.log("  SPI", got.spi.toFixed(3), "| CPI", got.cpi.toFixed(3), "| EAC", got.eac.toFixed(1), "| VAC", got.vac.toFixed(1));

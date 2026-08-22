@@ -3,6 +3,8 @@ node_modules/
 .claude/
 .impeccable/
 *.log
+__pycache__/
+*.pyc
 
 # Internal session research — comp anchors, gate scores, blocklists. Local only,
 # never published to the public repo.
