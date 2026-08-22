@@ -1480,6 +1480,76 @@ try {
   ok(G.galtonRead.textContent.includes("1 of " + queueLen), "clicking again after Done correctly starts a fresh run at 1, not stuck or double-reset");
 }
 
+// D2.9 — Velocity Pulse banner (brainstorm-mode round, 2026-08-21). Every one of the 5 pills
+// independently recomputed from the same raw literal data this file already uses elsewhere for
+// EAC drift / float erosion / milestone slip / EWMA / Non-Critical Progress Inflation, never by
+// calling P.velocityPulseItems() and trusting it against itself.
+{
+  const eacS = P.eacTrendSeries();
+  const dvCheck = (eacS[eacS.length - 1].eac - eacS[0].eac) / (eacS.length - 1);
+  const fs2 = P.floatErosionSeries();
+  const fDeltas = []; for (let i = 1; i < fs2.length; i++) fDeltas.push(fs2[i].float - fs2[i - 1].float);
+  const floatAllDownCheck = fDeltas.every(d => d < 0);
+  const floatRateCheck = (fs2[fs2.length - 1].float - fs2[0].float) / fDeltas.length;
+  const ms2 = P.revSvcDriftSeries();
+  const mDeltas = []; for (let i = 1; i < ms2.length; i++) mDeltas.push(ms2[i].slip - ms2[i - 1].slip);
+  const msAllUpCheck = mDeltas.every(d => d > 0);
+  const netSlipCheck = ms2[ms2.length - 1].slip - ms2[0].slip;
+  const ewmaSeries2 = P.cphCells[0].weeks.map(w => w.actual);
+  const e2 = P.deriveEwma(ewmaSeries2);
+  const eFlagsCheck = e2.points.filter(p => p.flag).length;
+  const eGapFirstCheck = e2.points[0].ucl - e2.points[0].ewma, eGapLastCheck = e2.points[e2.points.length - 1].ucl - e2.points[e2.points.length - 1].ewma;
+  const inflationFiringCheck = T.spi >= 1.00 && T.cpli < 0.90;
+
+  const items = P.velocityPulseItems();
+  ok(items.length === 5, "exactly 5 pulse signals, matching the source proposal's own 5-item list", String(items.length));
+  ok(Math.abs(dvCheck - 7.5375) < 0.01, "pre-registered: today's real EAC drift velocity is ~+$7.5M/mo, matching the source proposal's own cited figure", dvCheck.toFixed(4));
+  ok(items[0].v.includes(sgn(dvCheck)) && items[0].rag === (dvCheck > 1.0 ? "r" : "g"), "EAC velocity pill's value and rag state match an independent recomputation");
+  ok(Math.abs(floatRateCheck - (-9)) < 0.01, "pre-registered: today's real float erosion rate is exactly -9d/mo, matching the source proposal", floatRateCheck.toFixed(4));
+  ok(items[1].v.includes(days(floatRateCheck)) && items[1].rag === (floatAllDownCheck ? "r" : "g"), "float erosion pill's value and rag state match an independent recomputation");
+  ok(Math.abs(netSlipCheck - 24) < 0.01, "pre-registered: today's real net milestone slip is exactly +24d, matching the source proposal", netSlipCheck.toFixed(2));
+  ok(items[2].v.includes(days(netSlipCheck)) && items[2].rag === (msAllUpCheck ? "r" : "g"), "milestone slip pill's value and rag state match an independent recomputation");
+  ok(items[3].rag === (eFlagsCheck > 0 ? "r" : eGapLastCheck < eGapFirstCheck ? "a" : "g"), "CPH EWMA pill's 3-tier rag state (the one genuine amber case, grounded in deriveEwma()'s own real flag count and gap-trend direction, not an invented sigma rule) matches an independent recomputation");
+  ok(items[4].rag === (inflationFiringCheck ? "r" : "g") && items[4].v === (inflationFiringCheck ? "FIRING" : "Not firing"), "Non-Critical Progress Inflation pill matches an independent recomputation of the same T.spi>=1.00 && T.cpli<0.90 check the escalation matrix already uses");
+  ok(!inflationFiringCheck, "pre-registered: today's real SPI (0.968) is below 1.00, so the inflation pill should read green/not-firing today", "SPI=" + T.spi.toFixed(3));
+
+  // rendered markup + jump-to-tab wiring, and the 3-tier rag→pill-label mapping
+  items.forEach(it => {
+    has("velocityPulse", it.n, "pulse strip renders the '" + it.n + "' signal by its real name");
+    ok(G.velocityPulse._html.includes('data-jump-tab="' + it.jumpTab + '" data-jump-el="' + it.jumpEl + '"'), "'" + it.n + "' pill carries a real jump-to-tab/element target");
+  });
+  ok(G.velocityPulse._html.includes(">DRIFT<") === items.some(it => it.rag === "r"), "the 'DRIFT' label appears if and only if at least one real pill is in the red state");
+  const inflationItem = items[4];
+  ok(inflationItem.jumpOpenkpi === "spi", "the inflation pill jumps into the SPI KPI's own drawer (where the Non-Critical Progress Inflation state is already narrated), not a dead board link");
+  ok(G.velocityPulse._html.includes('data-jump-openkpi="spi"'), "the inflation pill's data-jump-openkpi attribute actually renders");
+}
+
+// D2.10 — EAC Drift Velocity → real escalation-rule cross-link (brainstorm-mode round,
+// 2026-08-21). ESC_PAT.eacDrift already existed; this closes the gap where it was never wired
+// into KPI_ESCALATION, so the "eac" KPI's own drawer had nothing to show.
+{
+  ok(!!P.kpiEscalation.eac, "KPI_ESCALATION now has a real entry for the eac KPI id");
+  ok(P.kpiEscalation.eac[0] === P.escPat.eacDrift, "eac's escalation entry is the SAME real ESC_PAT.eacDrift pattern the escalation matrix already uses, not a new/duplicate regex");
+  const realEacRow = P.escalation.filter(row => P.escPat.eacDrift.test(row[0]))[0];
+  ok(!!realEacRow && /EAC Drift Velocity/.test(realEacRow[0]), "the real escalation row ESC_PAT.eacDrift matches genuinely exists and is about EAC Drift Velocity, not a coincidental pattern match");
+  // end to end: opening the eac KPI drawer directly (not via the new jump link) must now show
+  // the escalation-rule fallback, where before this fix it showed nothing (actionsForKpi("eac")
+  // is empty, and KPI_ESCALATION.eac didn't exist)
+  ok(P.actionsForKpi("eac").length === 0, "pre-registered: no real ACTIONS item is tagged kpi:\"eac\" today, so the drawer must fall through to the escalation-rule fallback, not an action list");
+  fire(G.kboard, "click", { target: { closest: (sel) => (sel === "[data-kpi]" ? { dataset: { kpi: "eac" } } : null) } });
+  ok(P.state.kpi === "eac", "clicking the EAC KPI card sets state.kpi to eac");
+  has("kdetail", "No item has been opened for this yet", "the eac KPI's drawer now shows the real escalation-rule fallback, closing the previously-empty gap");
+  has("kdetail", "EAC Drift Velocity", "the eac KPI's drawer names the real escalation rule by its real text, not a placeholder");
+  fire(G.kboard, "click", { target: { closest: (sel) => (sel === "[data-kpi]" ? { dataset: { kpi: "eac" } } : null) } }); // close, reset for later tests
+
+  // the Cost tab's own #eacDriftOut jump button, end to end
+  has("eacDriftOut", 'data-jump-tab="over" data-jump-el="kboard" data-jump-openkpi="eac"', "the Cost tab's EAC drift card carries a real jump button straight into the eac KPI's own drawer");
+  fire(R.win, "click", { target: { closest: (sel) => (sel === "[data-jump-tab]" ? { dataset: { jumpTab: "over", jumpEl: "kboard", jumpOpenkpi: "eac" } } : null) } });
+  ok(P.state.kpi === "eac", "firing the real click handler on the drift card's jump button opens the eac KPI drawer, the same 'open on jump' idiom as jumpCphdrill/jumpActstale");
+  ok(G["p-over"].hidden === false, "the jump button also switches to the Overview tab");
+  fire(G.kboard, "click", { target: { closest: (sel) => (sel === "[data-kpi]" ? { dataset: { kpi: "eac" } } : null) } }); // close, reset for later tests
+}
+
 /* ---- AI & data tab ---- */
 console.log("== D3. AI & data tab ==");
 ok(idsA.includes("t-ai") && idsA.includes("p-ai"), "AI tab/panel pair exists");
@@ -1598,18 +1668,25 @@ ok(G.arch._html.includes("fct_control_account") && G.arch._html.includes("integr
   ok(Math.abs(sd - 316.3913276659495) < 1e-6, "independently-derived population stddev matches the hand-computed value from the plan", sd.toFixed(4));
   const maxAbsZ = Math.max(...zs.map(Math.abs));
   ok(maxAbsZ < 2.5, "pre-registered: this series genuinely has zero anomalies at the 2.5σ threshold — a real null result, not assumed", maxAbsZ.toFixed(3));
+  // Upgraded from a per-row table to a real bars() centered-bar chart (brainstorm-mode round,
+  // 2026-08-21) — z-scores now render inside #aiStatBars (bars()'s own container), not directly
+  // in #aiStatControl's innerHTML; each bar's visible label is its z-score via bars()'s own fmt
+  // callback, colored green/red by the same p.flag boolean, not a PASS/FLAG text pill anymore.
   zs.forEach((z, i) => {
-    ok(G.aiStatControl._html.includes("z = " + z.toFixed(2)),
-      "week " + i + "'s independently-recomputed z-score (" + z.toFixed(2) + ") appears verbatim in the rendered control");
+    ok(G.aiStatBars._html.includes("z = " + z.toFixed(2)),
+      "week " + i + "'s independently-recomputed z-score (" + z.toFixed(2) + ") appears verbatim in the rendered chart");
   });
   // the honest null result must be STATED, not a blank/dropped section — this is the exact
   // failure mode the plan calls out as unacceptable (dropping a feature because it found nothing)
   has("aiStatControl", "GREEN — 0 anomalies", "the control explicitly states the true zero-anomaly verdict");
   has("aiStatControl", "2.5", "the ±2.5σ threshold is stated in the rendered control");
-  ok((G.aiStatControl._html.match(/class="rowbar"/g) || []).length === 6,
-    "exactly one row per week (6 weeks of CPH history)", String((G.aiStatControl._html.match(/class="rowbar"/g) || []).length));
-  ok((G.aiStatControl._html.match(/>PASS</g) || []).length === 6 && (G.aiStatControl._html.match(/>FLAG</g) || []).length === 0,
-    "all 6 weeks render PASS, none FLAG — matches the independently-confirmed zero-anomaly result");
+  ok((G.aiStatBars._html.match(/class="rowbar hot"/g) || []).length === 6,
+    "exactly one bar per week (6 weeks of CPH history)", String((G.aiStatBars._html.match(/class="rowbar hot"/g) || []).length));
+  // bars() writes each item's color twice (the bar's own background AND the value text's color)
+  // — counting the ambiguous "var(--c-pill-g)" substring would double-count; anchoring on
+  // "background:" specifically (one per row) is the real per-row signal.
+  ok((G.aiStatBars._html.match(/background:var\(--c-pill-g\)/g) || []).length === 6 && (G.aiStatBars._html.match(/background:var\(--c-pill-r\)/g) || []).length === 0,
+    "all 6 weeks' bars render green, none red — matches the independently-confirmed zero-anomaly result");
   // the new "how this is actually computed" dbox (Phase 3, 2026-08-20) walks the last (most
   // recent) week's arithmetic — reuse the same independently-derived mean/sd/z above, formatted
   // the same way usd() rounds in the live app, rather than trusting the rendered panel's own math.
@@ -1652,9 +1729,34 @@ ok(G.arch._html.includes("fct_control_account") && G.arch._html.includes("integr
   // _html string, same as every other has() call in this file.
   has("aiEwmaControl", "&lambda;=0.2", "the smoothing parameter λ is stated in the rendered control");
   has("aiEwmaControl", "L=2.7", "the control-limit width L is stated in the rendered control");
-  ok((G.aiEwmaControl._html.match(/class="rowbar"/g) || []).length === 6, "exactly one row per week");
-  ok((G.aiEwmaControl._html.match(/>PASS</g) || []).length === 6 && (G.aiEwmaControl._html.match(/>FLAG</g) || []).length === 0,
-    "all 6 weeks render PASS, none FLAG — matches the independently-confirmed zero-breach result");
+  // Upgraded from a per-row table to a real SVG line+band chart (brainstorm-mode round,
+  // 2026-08-21, closing HANDOFF §18 gap #1's EWMA half) — every coordinate independently
+  // recomputed from the SAME points array above, never by calling P.renderEwmaChart() or
+  // trusting the app's own rendered geometry. The chart itself is written into #ewmaSvgChart's
+  // own innerHTML (a second document.getElementById(...).innerHTML= call, not nested inside
+  // #aiEwmaControl's own string) — checked against G.ewmaSvgChart._html, not G.aiEwmaControl._html,
+  // the same static-markup-vs-rendered-innerHTML boundary #aiStatBars just above hit too.
+  ok((G.ewmaSvgChart._html.match(/<circle /g) || []).length === 6, "exactly one point-dot per week");
+  // color strings are meaningless under this stub's getComputedStyle (returns "0 0 0" for every
+  // custom property, a documented limitation elsewhere in this file) — checking the radius
+  // instead, which renderEwmaChart() sets directly off p.flag (r="4.5" flagged, r="3.2" not), is
+  // stub-agnostic and just as real a signal of "none flagged" as the color would be live.
+  ok((G.ewmaSvgChart._html.match(/r="3\.2"/g) || []).length === 6 && (G.ewmaSvgChart._html.match(/r="4\.5"/g) || []).length === 0,
+    "all 6 weeks' point-dots render at the unflagged radius, none at the flagged radius — matches the independently-confirmed zero-breach result");
+  {
+    const W = 760, PL = 52, PR = 18, PT = 16, PB = 28, H = 220;
+    const loRaw = Math.min(...points.map((p, i) => Math.min(p.lcl, series[i])));
+    const hiRaw = Math.max(...points.map((p, i) => Math.max(p.ucl, series[i])));
+    const padV = (hiRaw - loRaw) * 0.08 || 1;
+    const loY = loRaw - padV, hiY = hiRaw + padV;
+    const X = i => PL + (i / (points.length - 1)) * (W - PL - PR);
+    const Y = v => PT + (1 - (v - loY) / (hiY - loY)) * (H - PT - PB);
+    const uclPts = points.map((p, i) => X(i).toFixed(1) + "," + Y(p.ucl).toFixed(1)).join(" ");
+    const ewmaPts = points.map((p, i) => X(i).toFixed(1) + "," + Y(p.ewma).toFixed(1)).join(" ");
+    ok(G.ewmaSvgChart._html.includes(uclPts), "the UCL band's rendered polyline points match an independent recomputation of the real per-point widening control limit, not a placeholder curve");
+    ok(G.ewmaSvgChart._html.includes(ewmaPts), "the EWMA line's rendered polyline points match an independent recomputation of the real EWMA path");
+    ok(G.ewmaSvgChart._html.includes("<polygon"), "the control-limit band renders as a real filled polygon (the 'per-point-varying-width uncertainty band' HANDOFF §18 gap #1 named), not just two separate dashed lines");
+  }
   // the "moved net, not monotonically" claim — verify it's actually true before trusting the
   // rendered prose says so (this exact false-monotonicity claim was caught and fixed while
   // building this feature, not assumed correct on the first draft).

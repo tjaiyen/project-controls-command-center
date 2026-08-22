@@ -30,7 +30,7 @@ anywhere in this repository. The method is the content, not the numbers.
 
 | | |
 |---|---|
-| Primary file | `index.html` — 7,333 lines, one file, no build step |
+| Primary file | `index.html` — 7,453 lines, one file, no build step |
 | Top-level JS functions | 176 (not re-audited this round — see §18 gap note) |
 | Tabs | 11 |
 | KPIs (with formula/threshold/phase/source/play each) | 20 |
@@ -44,7 +44,7 @@ anywhere in this repository. The method is the content, not the numbers.
 | Contracts | 6 |
 | Risks | 6 |
 | Delay events | 4 |
-| `stress.cjs` test assertions | 1,505, all passing |
+| `stress.cjs` test assertions | 1,541, all passing |
 | Companion pages | `otak.html` (fit brief), `architecture.html` (static pipeline map) |
 | Hosting | GitHub Pages, served directly from `main`, zero build |
 | Git history | 100 commits |
@@ -375,7 +375,7 @@ matches an independent recomputation, not just that *a* number is present.
 
 ## 11. Testing & verification
 
-**`stress.cjs`** (1,505 assertions, all passing) — stubs the DOM, loads `index.html`'s script
+**`stress.cjs`** (1,541 assertions, all passing) — stubs the DOM, loads `index.html`'s script
 verbatim into that stub, and exercises it exactly like a user would: every tab switch, every
 filter, every drawer, every slider drag, every keyboard interaction. 35 labeled sections:
 
@@ -536,10 +536,12 @@ For a future maintainer adding to this dashboard:
 
 Named explicitly, not silently dropped — from the most recent engagement/interactivity round:
 
-1. **EWMA and z-score control charts as real SVG line charts.** Currently rendered as tables with
-   per-row PASS/FLAG pills; a genuine dynamic-band chart (a per-point-varying-width uncertainty
-   band) is real new chart geometry that deserves its own session where verifying the SVG path
-   math is the only job, not one item alongside 13 others.
+1. ~~**EWMA and z-score control charts as real SVG line charts.**~~ — **Resolved 2026-08-21**
+   (the "how the dashboard catches drift" brainstorm round): `renderEwmaChart()` draws the real
+   per-point-varying-width uncertainty band this gap named, as a filled SVG polygon built directly
+   from `deriveEwma()`'s own real `ucl`/`lcl` points — the chart geometry, not a separately-fitted
+   curve. The z-score check was upgraded too, reusing `bars()`'s existing `center:true` mode (no
+   new geometry needed there — a fixed ±threshold doesn't vary per point the way EWMA's does).
 2. **A 4th independent drill-down drawer for the risk register** (`#risks`). Three drawer
    implementations already exist independently (KPI root-cause, crew cost-per-hour, Actions row
    detail); whether to extract a shared `renderDrillDrawer(config)` helper is a real question worth
@@ -555,7 +557,7 @@ Named explicitly, not silently dropped — from the most recent engagement/inter
    re-synced eight more times on 2026-08-21 — the six-families card, the Data Strategy UI/UX round,
    the Monte Carlo PERT draw-shape toggle, the megaproject-controls-doc upgrade round, the Kimi
    research-package round, the full-dashboard `/stress-test` pass, the EAC-spread live check, and
-   the total-float early-warning round, the Monte Carlo captivation round, and the Galton Engine round): 1,505 assertions / 53 glossary terms / 28-check integrity
+   the total-float early-warning round, the Monte Carlo captivation round, the Galton Engine round, and the drift-catching round): 1,541 assertions / 53 glossary terms / 28-check integrity
    gate, matching §2 as of this writing.
 5. **The eleven-input ledger card is new this round** (2026-08-20) and only covers the Overview
    tab's own `PKGS` provenance — it does not touch or resolve gap #2 above (the risk register still
@@ -933,6 +935,50 @@ carried over from memory or an earlier pass:
   rendering itself has no meaningful equivalent in the `stress.cjs` DOM stub (no real 2D context)
   — accepted as live-browser-only coverage, the same class of limitation already stated for
   `renderGanttScrubMarker()` and the tri-point playground's own pointer-drag half.
+- **2026-08-21 full-dashboard `/stress-test` pass, third round**: one review direct, one by an
+  independent fresh-context subagent. Sole finding: `docs/HANDOFF.md` stated the glossary term
+  count three different ways (44, "50 terms," 53) in three places, while `index.html` itself was
+  never wrong — every on-page reference reads `GLOSS.length` live, and `stress.cjs` already
+  asserted 53 as a passing test. Fixed both stale prose lines to 53, independently re-counted from
+  the raw `GLOSS` array source (53 `{k:"` entries) before fixing.
+- **2026-08-21 "how the dashboard catches drift" round**: TJ shared a 5-section brainstorm
+  proposal. Every cited number checked out against live computation before anything was proposed
+  — EAC velocity, float erosion rate, milestone slip, CPH EWMA gap, GBM μ̂/σ̂, CP-201's real dates,
+  EWMA λ/L, idle/rework percentages, staleness threshold — all exact matches, the most accurate
+  external proposal this session has seen. Approved 4 of the proposal's items; declined a third
+  Gantt trajectory layer and per-package float sparklines for the other 7 packages (both blocked
+  on historical data that only exists for CP-201, not fabrication-adjacent invention of it) and a
+  live "10-day Risk Review" countdown (no real trigger-date timestamp exists to count down from).
+  Shipped: (1) a "Velocity Pulse" banner (Overview tab) aggregating 5 already-real drift signals
+  for the first time — each pill's g/a/r state deliberately reuses that metric's OWN already-real
+  signal (`eacDriftVelocity()`'s `$1.0M/mo` threshold, `floatErosionSeries()`/`revSvcDriftSeries()`'s
+  own "every period moved the same direction" booleans, `deriveEwma()`'s real flag count and
+  gap-trend direction, the same `T.spi>=1.00 && T.cpli<0.90` check the escalation matrix already
+  uses) rather than the proposal's own uniform ±0.5σ/3-period/5-period sigma-based rule engine,
+  which exists nowhere in this codebase for any of these five metrics and would have been a new,
+  unverified statistical framework layered on top of five already-different real signals. The
+  Non-Critical Progress Inflation "floating chip" folded into this same banner as its 5th pill
+  rather than a second, competing standalone element. (2) The EAC Drift Velocity KPI's own drawer
+  had nothing to show — `ESC_PAT.eacDrift` (the real "> $1.0M/month" escalation row) already
+  existed but was never wired into `KPI_ESCALATION`; fixed with one line, plus a new jump button
+  on the Cost tab's own drift card straight into that drawer (`data-jump-openkpi`, mirroring the
+  `data-jump-cphdrill`/`data-jump-actstale` idiom). (3) Closed `docs/HANDOFF.md` §18 gap #1: the
+  EWMA control chart is now a real SVG line+band chart (`renderEwmaChart()`), the band a filled
+  polygon built directly from `deriveEwma()`'s own real per-point `ucl`/`lcl` values — the exact
+  "per-point-varying-width uncertainty band" the gap named, not a separately-fitted curve; the
+  z-score check was upgraded too, reusing `bars()`'s existing `center:true` mode rather than
+  hand-rolling new geometry it didn't need. Two real bugs caught and fixed while updating the
+  PRE-EXISTING tests these upgrades broke (not new bugs in the new code): a double-count (each
+  `bars()` row renders its color twice — background and text — so counting a bare color-string
+  match over-counted 2x), and the same static-markup-vs-rendered-innerHTML boundary this file has
+  hit before (checking `#aiEwmaControl`'s own `_html` instead of the SVG's real container,
+  `#ewmaSvgChart`, which the chart writes into via a second, separate `innerHTML=` call). `node
+  stress.cjs` run fresh (`1541 passed, 0 failed` — 1508 baseline + 33 new assertions, all passing
+  on the first run once the pre-existing tests were fixed), `node verify.cjs` unchanged (pure
+  narrative/UI, zero `PKGS` touched), and live-browser confirmed all five pulse pills' real values
+  and jump targets, the EAC drawer now showing the real escalation rule end to end through the new
+  jump button, and the EWMA chart's real SVG geometry (6 circles, a 12-point band polygon, 4
+  polylines) — at mobile (375px) and desktop width, zero console errors.
 
 Generated 2026-08-20, against the tip of the eleven-input-ledger-card engagement round; extended
 2026-08-21 for the six-KPI-families card round, again 2026-08-21 for the Data Strategy tab UI/UX
@@ -943,6 +989,7 @@ megaproject-controls-doc upgrade round, again 2026-08-21 for the Kimi research-p
 2026-08-21 for the second full-dashboard `/stress-test` pass, again 2026-08-21 for the Monte Carlo
 mode-vs-bounds clarification, again 2026-08-21 for the EAC-spread live check, again 2026-08-21
 for the total-float early-warning round, again 2026-08-21 for the Monte Carlo captivation round,
-and again 2026-08-21 for the Galton Engine round (see git log for exact commits — each document
-update was written before its own round's commit lands, per the project's "verify, then document"
-ordering).
+again 2026-08-21 for the Galton Engine round, again 2026-08-21 for the third full-dashboard
+`/stress-test` pass, and again 2026-08-21 for the "how the dashboard catches drift" round (see
+git log for exact commits — each document update was written before its own round's commit lands,
+per the project's "verify, then document" ordering).

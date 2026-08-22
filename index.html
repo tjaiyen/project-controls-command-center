@@ -760,6 +760,14 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
       <div class="kfilters" id="kfilters"></div>
       <div class="kboard" id="kboard"></div>
       <div id="kdetail" aria-live="polite"></div>
+
+      <div class="sec-h" style="margin-top:34px"><h2>Velocity Pulse</h2><span class="tag">catching drift, not just level</span></div>
+      <p class="lede">A KPI board reads level — where a number sits right now. These five already
+        exist scattered across the Cost, Schedule, and Delivery tabs; this strip is the only place
+        they're read together, as <em>trajectory</em> — not the number, but which direction it's
+        been moving and for how long. Click any pill to jump to its own tab and see the trend
+        behind it.</p>
+      <div class="card" style="margin-top:15px"><div id="velocityPulse"></div></div>
     </div>
   </section>
 
@@ -2565,6 +2573,56 @@ var LAYERS=[
  {n:"Layer 3 — Independent computed assurance",jumpTab:"ai",jumpEl:"aiGuards",
   x:function(){ return "Checks that every number in the two layers above is honest before it's allowed to move: the "+GUARDS.length+"-check integrity gate plus "+INGEST_GUARDS.length+" ingestion-validation checks, both re-run against the live ledger on every load."; }}
 ];
+/* Velocity Pulse (brainstorm-mode round, 2026-08-21) — five drift signals that already exist
+   independently on the Cost/Schedule/Delivery tabs, read together in one strip for the first
+   time. Every value and every g/r state is read live off the same real functions/booleans those
+   tabs already compute and display — eacDriftVelocity(), floatErosionSeries()'s own "allDown"
+   (every period eroded, no reversal) and revSvcDriftSeries()'s own "allUp", deriveEwma()'s real
+   flag count and UCL-gap trend, and the exact Non-Critical Progress Inflation boolean
+   (T.spi>=1.00 && T.cpli<0.90) the escalation matrix and SPI drawer already use. Deliberately
+   declined the source proposal's uniform "±0.5σ / 3-period / 5-period" sigma-based rule engine —
+   nothing like that exists anywhere in this codebase for any of these five metrics today, and
+   inventing one uniform statistical framework just for this strip's own coloring would be a new,
+   unverified mechanism layered on top of five already-real, already-different signals rather than
+   reusing them. Each pill's g/r state instead comes from whatever that metric's OWN tab already
+   uses to call it good or bad — CPH is the one genuine 3-tier case (g/a/r), because "gap
+   narrowing but not yet breached" is itself a real, already-narrated state in renderEwmaControl()'s
+   own prose, not an invented middle tier. */
+function velocityPulseItems(){
+  var dv=eacDriftVelocity();
+  var fs=floatErosionSeries(), fDeltas=[], fi;
+  for(fi=1;fi<fs.length;fi++) fDeltas.push(fs[fi].float-fs[fi-1].float);
+  var floatAllDown=fDeltas.every(function(d){ return d<0; });
+  var floatRate=(fs[fs.length-1].float-fs[0].float)/fDeltas.length;
+  var ms=revSvcDriftSeries(), mDeltas=[], mi;
+  for(mi=1;mi<ms.length;mi++) mDeltas.push(ms[mi].slip-ms[mi-1].slip);
+  var msAllUp=mDeltas.every(function(d){ return d>0; });
+  var netSlip=ms[ms.length-1].slip-ms[0].slip;
+  var ewmaSeries=CPH_CELLS[0].weeks.map(function(w){ return w.actual; });
+  var e=deriveEwma(ewmaSeries);
+  var eFlags=e.points.filter(function(p){ return p.flag; }).length;
+  var eGapFirst=e.points[0].ucl-e.points[0].ewma, eGapLast=e.points[e.points.length-1].ucl-e.points[e.points.length-1].ewma;
+  var eNarrowing=eGapLast<eGapFirst;
+  var inflationFiring=T.spi>=1.00 && T.cpli<0.90;
+  return [
+   {n:"EAC velocity",v:sgn(dv)+"/mo",rag:dv>1.0?"r":"g",note:dv>1.0?"Breached $1.0M/mo":"Within threshold",jumpTab:"cost",jumpEl:"eacDriftOut"},
+   {n:"Float erosion",v:days(floatRate)+"/mo",rag:floatAllDown?"r":"g",note:floatAllDown?"5/5 periods, unreversed":"Mixed direction",jumpTab:"sched",jumpEl:"floatErosionCard"},
+   {n:"Milestone slip",v:days(netSlip)+" net",rag:msAllUp?"r":"g",note:msAllUp?"5/5 periods, unreversed":"Mixed direction",jumpTab:"sched",jumpEl:"schedDriftCard"},
+   {n:"Crew CPH EWMA",v:sgnUsd(eGapLast-eGapFirst)+"/hr gap",rag:eFlags>0?"r":eNarrowing?"a":"g",note:eFlags>0?eFlags+" week(s) breached UCL":eNarrowing?"Gap narrowing, no breach yet":"Gap stable or widening",jumpTab:"ai",jumpEl:"aiEwmaControl"},
+   {n:"Non-Critical Progress Inflation",v:inflationFiring?"FIRING":"Not firing",rag:inflationFiring?"r":"g",note:"SPI≥1.00 & CPLI<0.90",jumpTab:"over",jumpEl:"kboard",jumpOpenkpi:"spi"}
+  ];
+}
+function renderVelocityPulse(){
+  document.getElementById("velocityPulse").innerHTML=velocityPulseItems().map(function(it){
+    return '<button type="button" class="rowbar hot" style="grid-template-columns:1fr auto;text-align:left;width:100%;border:none;'+
+      'background:none;cursor:pointer;font:inherit;color:inherit" data-jump-tab="'+it.jumpTab+'" data-jump-el="'+it.jumpEl+'"'+
+      (it.jumpOpenkpi?' data-jump-openkpi="'+it.jumpOpenkpi+'"':'')+'>'+
+      '<span><span style="font-size:12.5px">'+it.n+'</span><br><span class="tab-num mono" style="font-size:11px;color:rgb(var(--c-mut))">'+it.note+'</span></span>'+
+      '<span style="text-align:right"><span class="tab-num mono" style="font-size:13px">'+it.v+'</span><br>'+
+      '<span class="pill '+it.rag+(it.rag==="r"?" flash":"")+'" style="margin-top:3px">'+
+      (it.rag==="r"?"DRIFT":it.rag==="a"?"WATCH":"STEADY")+'</span></span></button>';
+  }).join("");
+}
 function renderLayersGrid(){
   document.getElementById("layersGrid").innerHTML = LAYERS.map(function(l){
     return '<div class="ledger-item"><div class="top"><span class="abbr">'+l.n+'</span></div>'+
@@ -3323,7 +3381,15 @@ function renderEacTrend(){
   document.getElementById("eacDriftOut").innerHTML=
     '<div><div class="k">EAC drift velocity (5-period avg)</div><div class="v '+(overThreshold?"ba":"ok")+'">'+sgn(dv)+'/mo</div></div>'+
     '<div><div class="k">vs. $1.0M/month threshold</div><div class="v '+(overThreshold?"ba":"ok")+'">'+
-    (overThreshold?"Breached":"Within threshold")+'</div></div>';
+    (overThreshold?"Breached":"Within threshold")+'</div></div>'+
+    // Root-cause jump (brainstorm-mode round, 2026-08-21) — closes a real gap a live read of
+    // this file found: this card stated a breach but carried no way to reach the escalation rule
+    // that applies (ESC_PAT.eacDrift existed, just wasn't wired to KPI_ESCALATION.eac until this
+    // round). data-jump-openkpi opens the eac KPI's own drawer on arrival, the same "open on
+    // jump" idiom as data-jump-cphdrill, so the reader lands on the rule directly, not a closed board.
+    '<div style="grid-column:1/-1;padding:12px 13px 4px"><button type="button" class="btn" '+
+    'style="min-height:auto;padding:1px 8px;font-size:12.5px" data-jump-tab="over" data-jump-el="kboard" '+
+    'data-jump-openkpi="eac">See root cause &rarr;</button></div>';
 }
 /* Cost diffusion (advanced-quant upgrade, 2026-08-23) — the caveat sentence is the card's FIRST
    element, above every numeric tile, on purpose: this is real arithmetic on real data, but n=6
@@ -5103,7 +5169,12 @@ var ESC_PAT={cpi:/^CPI /, cpli:/^CPLI /, tcpiGap:/^TCPI −/, tcpiBac:/^TCPI\(BA
 /* KPI -> ESCALATION rows, for KPIs whose rule has no ACTIONS item logged yet. Used only as a
    fallback in the KPI drawer when actionsForKpi() finds nothing — an honest "here is the rule,
    no item tracks it yet" rather than a silent gap. Patterns, not indices — same fix as above. */
-var KPI_ESCALATION={tcpi:[ESC_PAT.tcpiGap,ESC_PAT.tcpiBac], vac:[ESC_PAT.vacContingency]};
+/* eac: added (brainstorm-mode round, 2026-08-21) — ESC_PAT.eacDrift already existed (the real
+   "EAC Drift Velocity > $1.0M/month" escalation row), just never wired to the eac KPI's own
+   drawer. No ACTIONS item is tagged kpi:["eac"] today, so renderRootCause() falls through to
+   this escalation-rule fallback — the honest outcome (visible gap, not an invented action item),
+   not a workaround; see renderRootCause()'s own comment for why that fallback exists. */
+var KPI_ESCALATION={tcpi:[ESC_PAT.tcpiGap,ESC_PAT.tcpiBac], vac:[ESC_PAT.vacContingency], eac:[ESC_PAT.eacDrift]};
 /* Status-column icons for the escalation matrix — the one Tier-2 table that hadn't gotten one
    yet (/stress-test finding, 2026-08-19). Same 1.3/1.1 stroke convention as the guardrail icons:
    a bell for a rule actually firing, a checkmark for one currently dormant. */
@@ -5889,6 +5960,12 @@ function renderGuards(){
 /* Same visual family as renderGuards() above (.gate/.rowbar/.pill) on purpose — this should read
    as a sibling control, not a new kind of chrome. Runs once at init; no interactive state, so
    (like renderGuards) it's not called from redrawCharts(). */
+/* Upgraded from a per-row PASS/FLAG table to a real chart (brainstorm-mode round, 2026-08-21,
+   closing HANDOFF §18 gap #1's z-score half) — reuses bars()'s own existing center:true mode
+   (the same one the "Total float by package" chart already uses for a signed, zero-centered
+   bar list) rather than hand-rolling new SVG path math. A fixed ±threshold doesn't vary per
+   point the way EWMA's control limits do, so no new chart GEOMETRY is needed here — only the
+   EWMA chart below genuinely needed one. */
 function renderStatControl(){
   var series=CPH_CELLS[0].weeks.map(function(w){ return w.actual; });
   var z=deriveZScores(series);
@@ -5897,17 +5974,16 @@ function renderStatControl(){
   document.getElementById("aiStatControl").innerHTML=
    '<div class="gate"><b>Statistical control &middot; '+z.points.length+' weeks scored, &plusmn;'+z.threshold+'&sigma; threshold</b>'+
    '<span class="pill '+(flags?"r":"g")+'">'+(flags? flags+" FLAGGED":"GREEN — 0 anomalies, max |z| "+maxAbsZ.toFixed(2))+'</span></div>'+
-   z.points.map(function(p,i){
-     var w=CPH_CELLS[0].weeks[i];
-     return '<div class="rowbar" style="grid-template-columns:1fr auto 64px;cursor:default">'+
-       '<span style="font-size:12.5px">'+w.w+'</span>'+
-       '<span class="tab-num mono" style="font-size:11.5px;color:rgb(var(--c-mut))">'+usd(p.v)+'/hr &rarr; z = '+p.z.toFixed(2)+'</span>'+
-       '<span style="text-align:right"><span class="pill '+(p.flag?"r":"g")+'">'+(p.flag?"FLAG":"PASS")+'</span></span></div>';
-   }).join("")+
+   '<div id="aiStatBars" style="margin-top:6px"></div>'+
    '<p style="margin:11px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">Mean '+usd(z.mean)+'/hr, '+
    'population &sigma; '+usd(z.sd)+'/hr, across the '+z.points.length+' weeks above. '+
    (flags? "The flagged week"+(flags>1?"s":"")+" would warrant a look before this posts to the ledger."
      : "No week crosses the threshold — a genuine, honestly-computed null result, not a placeholder.")+'</p>';
+  bars("aiStatBars",z.points.map(function(p,i){
+    return {id:CPH_CELLS[0].weeks[i].w,v:p.z,center:true,c:p.flag?"var(--c-pill-r)":"var(--c-pill-g)"}; }),
+    function(v){ return "z = "+v.toFixed(2); },
+    function(o,i){ var p=z.points[i];
+      return "<b>"+o.id+"</b>"+usd(p.v)+"/hr &rarr; z = "+p.z.toFixed(2)+(p.flag?" &mdash; FLAG":" &mdash; pass"); });
 }
 /* The math explainer — walks the mean/variance/z arithmetic against the same 6-point CP-201
    series renderStatControl() already scored, using its last (most recent) week as the worked
@@ -5931,6 +6007,45 @@ function renderZscoreMath(){
 }
 /* Same visual family as renderStatControl() above — a sibling, complementary check, not new
    chrome. Advanced-quant upgrade, 2026-08-23. */
+/* Upgraded from a per-row PASS/FLAG table to a real SVG line+band chart (brainstorm-mode round,
+   2026-08-21, closing HANDOFF §18 gap #1's EWMA half — the genuinely new chart geometry the gap
+   named: "a per-point-varying-width uncertainty band"). Every coordinate is read straight off
+   deriveEwma()'s own real per-point ucl/lcl/ewma/v fields (index.html:1916) — the band polygon is
+   drawn from those points directly, not a separately-fitted curve, so the chart can never show a
+   band shape the underlying math didn't actually produce. Amber fill matches the ask ("shade the
+   narrowing buffer zone... in amber"); a flagged point draws in red, same "bad" color already
+   used everywhere else on this page for a breach. */
+function renderEwmaChart(e){
+  var W=760,H=220,PL=52,PR=18,PT=16,PB=28;
+  var pts=e.points;
+  var lo=Math.min.apply(null,pts.map(function(p){return Math.min(p.lcl,p.v);}));
+  var hi=Math.max.apply(null,pts.map(function(p){return Math.max(p.ucl,p.v);}));
+  var pad=(hi-lo)*0.08||1; lo-=pad; hi+=pad;
+  var X=function(i){ return PL+(i/(pts.length-1))*(W-PL-PR); };
+  var Y=function(v){ return PT+(1-(v-lo)/(hi-lo))*(H-PT-PB); };
+  var uclPts=pts.map(function(p,i){ return X(i).toFixed(1)+","+Y(p.ucl).toFixed(1); });
+  var lclPts=pts.map(function(p,i){ return X(i).toFixed(1)+","+Y(p.lcl).toFixed(1); }).reverse();
+  var band='<polygon points="'+uclPts.concat(lclPts).join(" ")+'" fill="'+C("warn")+'" opacity=".16"/>';
+  var uclLine='<polyline points="'+uclPts.join(" ")+'" fill="none" stroke="'+C("warn")+'" stroke-width="1.2" stroke-dasharray="3 3"/>';
+  var lclLine='<polyline points="'+lclPts.slice().reverse().join(" ")+'" fill="none" stroke="'+C("warn")+'" stroke-width="1.2" stroke-dasharray="3 3"/>';
+  var meanY=Y(e.mean).toFixed(1);
+  var meanLine='<line x1="'+PL+'" x2="'+(W-PR)+'" y1="'+meanY+'" y2="'+meanY+'" stroke="'+C("mut")+'" stroke-width="1" stroke-dasharray="2 4"/>';
+  var rawPts=pts.map(function(p,i){ return X(i).toFixed(1)+","+Y(p.v).toFixed(1); });
+  var rawLine='<polyline class="draw" points="'+rawPts.join(" ")+'" fill="none" stroke="'+C("mut")+'" stroke-width="1.6"/>';
+  var ewmaPts=pts.map(function(p,i){ return X(i).toFixed(1)+","+Y(p.ewma).toFixed(1); });
+  var ewmaLine='<polyline class="draw" points="'+ewmaPts.join(" ")+'" fill="none" stroke="'+C("accent")+'" stroke-width="2.2"/>';
+  var dots=pts.map(function(p,i){
+    return '<circle cx="'+X(i).toFixed(1)+'" cy="'+Y(p.ewma).toFixed(1)+'" r="'+(p.flag?4.5:3.2)+'" fill="'+(p.flag?C("bad"):C("accent"))+'">'+
+      '<title>'+CPH_CELLS[0].weeks[i].w+': actual '+usd(p.v)+'/hr, EWMA '+usd(p.ewma)+'/hr, UCL '+usd(p.ucl)+'/hr'+(p.flag?" — FLAG":"")+'</title></circle>';
+  }).join("");
+  var labels=pts.map(function(p,i){
+    return '<text x="'+X(i).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" font-size="10" font-family="ui-monospace,monospace" fill="'+C("mut")+'">'+CPH_CELLS[0].weeks[i].w+'</text>';
+  }).join("");
+  var yLabel='<text x="'+(PL-8)+'" y="'+(PT+4)+'" text-anchor="end" font-size="9.5" font-family="ui-monospace,monospace" fill="'+C("mut")+'">'+usd(hi)+'</text>'+
+    '<text x="'+(PL-8)+'" y="'+(H-PB)+'" text-anchor="end" font-size="9.5" font-family="ui-monospace,monospace" fill="'+C("mut")+'">'+usd(lo)+'</text>';
+  return svg(W,H,band+uclLine+lclLine+meanLine+rawLine+ewmaLine+dots+labels+yLabel,
+    "EWMA control chart: weekly crew cost-per-hour (grey line) against its exponentially weighted moving average (accent line), inside a dynamically widening amber upper/lower control-limit band. A red point marks a week whose EWMA breached the band.");
+}
 function renderEwmaControl(){
   var series=CPH_CELLS[0].weeks.map(function(w){ return w.actual; });
   var e=deriveEwma(series);
@@ -5940,13 +6055,10 @@ function renderEwmaControl(){
   document.getElementById("aiEwmaControl").innerHTML=
    '<div class="gate"><b>EWMA control chart &middot; '+e.points.length+' weeks scored, &lambda;='+e.lambda+' L='+e.L+'</b>'+
    '<span class="pill '+(flags?"r":"g")+'">'+(flags? flags+" BREACHED":"GREEN — 0 breaches")+'</span></div>'+
-   e.points.map(function(p,i){
-     var w=CPH_CELLS[0].weeks[i];
-     return '<div class="rowbar" style="grid-template-columns:1fr auto 64px;cursor:default">'+
-       '<span style="font-size:12.5px">'+w.w+'</span>'+
-       '<span class="tab-num mono" style="font-size:11.5px;color:rgb(var(--c-mut))">EWMA '+usd(p.ewma)+'/hr &middot; UCL '+usd(p.ucl)+'</span>'+
-       '<span style="text-align:right"><span class="pill '+(p.flag?"r":"g")+'">'+(p.flag?"FLAG":"PASS")+'</span></span></div>';
-   }).join("")+
+   '<div class="chart" id="ewmaSvgChart" style="margin-top:8px"></div>'+
+   '<div class="legend" style="margin-top:6px"><span><i style="background:'+C("mut")+'"></i>Actual $/hr</span>'+
+   '<span><i style="background:'+C("accent")+'"></i>EWMA</span>'+
+   '<span><i style="background:'+C("warn")+'"></i>Control-limit band</span></div>'+
    '<p style="margin:11px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">&lambda;='+e.lambda+' and L='+e.L+
    ' are standard SPC parameter choices (a ~3&sigma;-equivalent control-limit width), not derived from this '+
    'program&rsquo;s own history. '+
@@ -5956,6 +6068,7 @@ function renderEwmaControl(){
    'in weeks 2&ndash;3 before rising), and its gap to the upper control limit narrowed from '+usd(gapFirst)+
    '/hr at week 1 to '+usd(gapLast)+'/hr by week 6 &mdash; the kind of persistent-drift signal a per-point z-score '+
    'alone would not surface.</p>';
+  document.getElementById("ewmaSvgChart").innerHTML=renderEwmaChart(e);
 }
 /* The math explainer — walks the recursive EWMA update and the dynamic-band formula for one
    real step (t=6, the last week) against the same series renderEwmaControl() already scored. */
@@ -6899,6 +7012,11 @@ window.addEventListener("click",function(e){
     // button opens the crew idle/rework/baseline drill on arrival, same "open on jump" idiom
     // as jumpActstale above, so the reader lands directly on the 3-way split, not a collapsed toggle.
     else if(j.dataset.jumpCphdrill!==undefined) pre=function(){ state.cphDrill=true; renderCph(); };
+    // data-jump-openkpi="<id>" (brainstorm-mode round, 2026-08-21) — the Cost tab's own EAC
+    // drift card jump button opens that KPI's drawer on arrival, same "open on jump" idiom as
+    // jumpCphdrill above, so the reader lands on the root-cause/escalation content directly,
+    // not a closed board they'd still have to click into themselves.
+    else if(j.dataset.jumpOpenkpi) pre=function(){ state.kpi=j.dataset.jumpOpenkpi; renderDetail(); syncKpiAriaExpanded(); };
     jumpToEl(j.dataset.jumpTab,j.dataset.jumpEl,pre);
     return;
   }
@@ -7262,6 +7380,7 @@ renderExecSummary();
 renderLedgerCard();
 renderFamiliesGrid();
 renderLayersGrid();
+renderVelocityPulse();
 renderPhases(); renderStrip(); renderPortfolio(); renderAudienceFilters(); renderFilters(); renderBoard(); renderDetail();
 renderScurve(); renderScurveMath();
 document.getElementById("scurveScrub").max=String(MT);
@@ -7326,7 +7445,8 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   mcBinCounts:mcBinCounts,galtonSampleN:GALTON_SAMPLE_N,galtonSample:galtonSample,
   galtonBucketOf:galtonBucketOf,galtonSpawnQueue:galtonSpawnQueue,galtonState:galtonState,
   galtonStart:galtonStart,galtonStepOnce:galtonStepOnce,galtonReset:galtonReset,
-  renderGaltonStatic:renderGaltonStatic,num:num};
+  renderGaltonStatic:renderGaltonStatic,num:num,
+  velocityPulseItems:velocityPulseItems,renderVelocityPulse:renderVelocityPulse};
 })();
 </script>
 </body>
