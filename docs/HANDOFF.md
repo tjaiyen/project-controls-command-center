@@ -44,7 +44,7 @@ anywhere in this repository. The method is the content, not the numbers.
 | Contracts | 6 |
 | Risks | 6 |
 | Delay events | 4 |
-| `stress.cjs` test assertions | 1,719, all passing |
+| `stress.cjs` test assertions | 1,740, all passing |
 | Companion pages | `otak.html` (fit brief), `architecture.html` (static pipeline map) |
 | Hosting | GitHub Pages, served directly from `main`, zero build |
 | Git history | 100 commits |
@@ -145,7 +145,7 @@ browser's dev console to independently sanity-check a number.
 | `CONTRACTS` | 6 | Award value, approved/pending change, contingency allocation, per contract | Risk & Change tab's commercial register (a third axis, distinct from control accounts) |
 | `ACTIONS` | 17 | RAID register: Issue/Task/Decision, owner, opened/due/touch dates, root/corrective/preventive fields | Actions tab |
 | `CPH_CELLS` | 1 crew, 6 weeks | Crew cost-per-hour history for CP-201's tunnel crew | Delivery tab, AI & Data's z-score/EWMA control charts |
-| `GLOSS` | 54 | Term/definition/live-computed worked example, each independently traceable to real data | Glossary tab + every inline "i" help icon site-wide |
+| `GLOSS` | 55 | Term/definition/live-computed worked example, each independently traceable to real data | Glossary tab + every inline "i" help icon site-wide |
 | `LEDGER_INPUTS` | 11 | Name/abbr/description/live-computed worked example, one per raw `PKGS` field — human-facing metadata for the ledger card, not a second copy of the data itself | Overview tab's ledger card |
 | `KPI_LEDGER` / `KPI_LEDGER_MIXED` / `KPI_LEDGER_NONE` | 14 / 3 / 6 | Which raw ledger fields actually feed each KPI, stated honestly — pure-ledger, mixed with another register, or not ledger-derived at all | KPI drawer's "Computed from the ledger" / "Not from the ledger" box |
 | `PROGRAM` | 32 fields | Everything not per-package: contingency, funding, safety (TRIR), RFI aging, subcontractor turnaround, change-order pipeline | Cost, Schedule, Delivery, Risk & Change tabs |
@@ -203,14 +203,14 @@ Beyond the core EVM block, three more derivation families exist:
 |---|---|---|
 | 1 | **Overview** (`over`) | A "Six lenses, not one blended score" card explaining what each of the 6 KPI families (Cost/Schedule/Risk/Change/Delivery/Compliance) actually asks and why it can't be folded into the others, a "Three layers, not one number" card naming this dashboard's own leading-telemetry / confirming-EVM / independent-assurance architecture for the first time (each layer real, already built, just never named as one system), directly above the 20-KPI board with drill-down detail (formula/threshold/source/play per card, plus a "computed from the ledger" / "not from the ledger" provenance box, honestly stated per KPI), a live root-cause-to-owner trace, the eleven-input ledger card (all 11 raw fields, a per-package inspector, and a live "change one input, watch the KPIs move" demo — reads a local snapshot, never mutates the real ledger), a 10-stop guided Tour with tab-jumping evidence links (§18 gap #8 — this doc previously called it "five-chapter," a stale phrase with no matching code), an executive summary. |
 | 2 | **Portfolio** (`port`) | Agency-level rollup across 4 lines of business — one reads live off this program's own totals (never duplicated, `GUARDS`-checked), three are summary-only illustrative peers. |
-| 3 | **Cost** (`cost`) | EVM S-curve + variance bridge, an estimate-to-budget baseline bridge reconciled to the ledger, four-method EAC, a forecast-reliability section (EAC trend, forecast-accuracy scorecard, monthly cash flow), what-if forecasting with 3 live sliders + scenario comparison, Monte Carlo completion distribution (10,000 runs, seeded/reproducible, a Triangular/PERT draw-shape toggle), the cost-diffusion (GBM) card. |
+| 3 | **Cost** (`cost`) | EVM S-curve + variance bridge, an estimate-to-budget baseline bridge reconciled to the ledger, four-method EAC, a forecast-reliability section (EAC trend, forecast-accuracy scorecard, monthly cash flow), what-if forecasting with 3 live sliders + scenario comparison, Monte Carlo completion distribution (10,000 runs, seeded/reproducible, a Triangular/PERT draw-shape toggle, an opt-in AACE 57R-09 risk-driver layer), the cost-diffusion (GBM) card — now with a log-return strip plot + fitted-curve overlay, a "Math unlocked" plain-language drawer, and an EVM-vs-GBM methodology comparison (what each method assumes, never a forward-projected figure). |
 | 4 | **Schedule** (`sched`) | DCMA-style schedule health — SPI, SPI(t)/Earned Schedule, CPLI, BEI, the full objective metric triad the DCMA 14-Point Assessment and ANSI/EIA-748 sit under, named explicitly (checks 13/14, with the other 12 stated as a real gap) — a Gantt-style bar with baseline vs. forecast, a fragnet-based delay & TIA register tied to package float, revenue-service forecast drift, statistical control charts (z-score + EWMA) over crew cost-per-hour. |
 | 5 | **Risk & Change** (`risk`) | A priced risk register (probability × impact heat map + sensitivity tornado chart), a contract commercial register (a third axis distinct from control accounts), change pipeline with proposed-vs-settled pricing defense, the settle-vs-DRB EMV decision tree with an **interactive slider + chart** (§8). |
 | 6 | **Delivery** (`del`) | Leading indicators (productivity factor by package, RFI/submittal aging, a quality NCR register with real open counts and per-item aging read live off the Actions/RAID register), the crew cost-per-hour module with a drill-down into idle/rework/baseline attribution. |
 | 7 | **AI & Data** (`ai`) | The pipeline architecture diagram (now interactive — §8), the SQL model, a live 28-check integrity gate + 2 ingestion-validation checks, statistical control (z-score/EWMA) with worked-math accordions, and AI narrative generation under a verification contract (§10). |
 | 8 | **Operating Framework** (`fw`) | Phase playbook, the WBS/CBS/OBS/ABS control-account mapping (with a worked "100% Rule" proof, now carrying an illustrative ABS tag per row alongside WBS/CBS/OBS), Board phase-gate governance with a live Gate-5 hard stop, escalation matrix, a live Working-Backward/inversion worked example, reporting cadence, stakeholder interface map, the 20-metric KPI reference library. |
 | 9 | **Actions** (`act`) | A RAID/CAPA register with proactive staleness detection, owner accountability rollup, a worked-math accordion for `actionStatus()`'s threshold logic. |
-| 10 | **Glossary** (`gloss`) | 54 terms, each with a live-computed worked example, filterable by search — the same content the inline "i" help icons pull from site-wide. |
+| 10 | **Glossary** (`gloss`) | 55 terms, each with a live-computed worked example, filterable by search — the same content the inline "i" help icons pull from site-wide. |
 | 11 | **Data Strategy** (`data`) | A real-world plan for connecting scattered, multi-system data — ISO 19650 CDE staging architecture as an interactive flow diagram (§8), a 4-tile IDS guardrail status grid with a genuinely live 2-check ingestion-validation panel embedded in it, automated guardrails, a discrepancy-resolution decision flow folded into that same diagram, a Category/Trigger/Routing proactive-error-recovery table, a Dual-Stack Parity card citing this program's own real, live CPI against the actual SQL that independently re-derives it. |
 
 Plus, outside the tab body: **Presentation Mode** (a scripted 2-set walkthrough with presenter
@@ -375,7 +375,7 @@ matches an independent recomputation, not just that *a* number is present.
 
 ## 11. Testing & verification
 
-**`stress.cjs`** (1,719 assertions, all passing) — stubs the DOM, loads `index.html`'s script
+**`stress.cjs`** (1,740 assertions, all passing) — stubs the DOM, loads `index.html`'s script
 verbatim into that stub, and exercises it exactly like a user would: every tab switch, every
 filter, every drawer, every slider drag, every keyboard interaction. 41 labeled sections:
 
@@ -1241,6 +1241,41 @@ carried over from memory or an earlier pass:
   subsequent runs, most plausibly a race against a mid-edit intermediate file state rather than a
   real product bug — noted rather than hidden, not chased further given non-reproduction.
 
+- **2026-08-21 GBM/MLE brainstorm round (items 1-4)**: a second external blueprint (this one
+  proposing a full "cone of uncertainty" fan chart, milestone-date PDF popups, and an EVM-vs-GBM
+  P80-completion comparison) was ground against `deriveGbmParams()`'s own comment before anything
+  was proposed — that comment already states n=6 (5 log-returns) is "genuinely too thin to trust
+  as a fitted forecasting model" and already declined a smaller, closely related ask ("Stochastic
+  TCPI") for exactly that reason. Nearly the entire blueprint required projecting that same
+  fragile &sigma;&#770; forward in time — the fan chart, the PDF popups, the P80 comparison, a
+  "High Confidence" convergence pulse (a **false claim**, directly contradicting the card's own
+  finding) — all **declined outright, not deferred**, the same standard already applied to the
+  Control Tower round's DCMA-14/trade-stacking declines. A "Historical Window Slider" was also
+  declined: `AC_HISTORY` **is** 5 real points, full stop, nothing to slice into a longer/shorter
+  lookback. "Outlier Scrubbing" tied to named historical events was declined too — `AC_HISTORY`
+  carries only `{month, ac}`, no cause/event field; inventing "March 2026: utility relocation
+  surge" would have been fabricated narrative, not real data. Four items were real and honest: (1)
+  a log-return strip plot (5 real points, each labeled by its real month pair, not a histogram —
+  n=5 can't honestly form one) with (2) a fitted Gaussian curve drawn over them, correctness-
+  checked to center on `rbar` (the sample mean the 5 points actually distribute around) and NOT
+  `muHatMle` (a different, Ito-adjusted quantity, `rbar + 0.5*sigma^2`) — verified as a real,
+  checkable distinction (`rbar != muHatMle` whenever `sigmaHatMle > 0`), not a rounding artifact;
+  (3) EVM-vs-GBM reframed as a methodology comparison (what CPI-extrapolation assumes vs. what GBM
+  admits) rather than a forecast comparison, explicitly stating what was declined and why, right on
+  the card; (4) a "Math unlocked" plain-language drift/volatility drawer, zero new computation.
+  `node stress.cjs`: 1719&rarr;1740 assertions (21 new + 2 count-fix updates: `GLOSS` 54&rarr;55
+  for the new `gbmvsevm` term, `details.dbox` panel count 12&rarr;13 for the new drawer). All
+  passing, including a direct check that `renderGbmLogReturns()` — the one new render function
+  baking literal `C()` colors into SVG — is wired into `redrawCharts()`, otherwise a theme toggle
+  would leave it showing stale colors. `node verify.cjs`: headline tie-out unchanged (this round
+  touches zero `PKGS`-derived value, pure visualization/narrative on numbers `deriveGbmParams()`
+  already computed). Live-browser confirmed via direct DOM read (real CPI 0.956, real drift
+  6.83%/month, real 5-point log-return geometry, zero `NaN` in the SVG path/circle coordinates) —
+  **the Browser-pane screenshot tool itself malfunctioned this session** (blank captures across a
+  fresh tab, ref-based clicks, and multiple wait/retry attempts, with zero console errors and valid
+  DOM state throughout), so this round is verified by direct DOM inspection rather than a visual
+  screenshot; stated as a real, accepted limitation, not silently substituted for the real thing.
+
 Generated 2026-08-20, against the tip of the eleven-input-ledger-card engagement round; extended
 2026-08-21 for the six-KPI-families card round, again 2026-08-21 for the Data Strategy tab UI/UX
 round, again 2026-08-21 for the "96→100" brainstorm round's Tier 0/1 items, again 2026-08-21 for
@@ -1253,6 +1288,7 @@ for the total-float early-warning round, again 2026-08-21 for the Monte Carlo ca
 again 2026-08-21 for the Galton Engine round, again 2026-08-21 for the third full-dashboard
 `/stress-test` pass, again 2026-08-21 for the "how the dashboard catches drift" round, again
 2026-08-21 for the tab-rail navigation round, again 2026-08-21 for the altitude-grouped-rail
-round, again 2026-08-21 for the whole-repo `/stress-test` round, and again 2026-08-21 for the
-Control Tower brainstorm round items 1-4 (see git log for exact commits — each document update was
-written before its own round's commit lands, per the project's "verify, then document" ordering).
+round, again 2026-08-21 for the whole-repo `/stress-test` round, again 2026-08-21 for the
+Control Tower brainstorm round items 1-4, and again 2026-08-21 for the GBM/MLE brainstorm round
+items 1-4 (see git log for exact commits — each document update was written before its own round's
+commit lands, per the project's "verify, then document" ordering).

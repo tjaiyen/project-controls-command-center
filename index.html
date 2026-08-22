@@ -1066,7 +1066,14 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
             not measuring anything.</p>
           <div class="tw" style="min-width:0"><table id="fcastTable"></table></div></div>
         <div class="card"><h3>Cost diffusion &mdash; drift &amp; volatility<button type="button" class="help-ic" data-help="gbm" aria-label="What does this term mean?" aria-expanded="false">i</button></h3>
-          <div id="costGbm"></div></div>
+          <div id="costGbm"></div>
+          <div class="chart" id="gbmLogReturns" style="margin-top:14px"></div>
+          <details class="dbox" style="margin-top:14px">
+            <summary>Math unlocked &mdash; what drift and volatility actually mean</summary>
+            <div id="gbmMathUnlocked"></div>
+          </details>
+          <div class="dbox" style="margin-top:14px;border-left-color:rgb(var(--c-info) / .55)" id="gbmVsEvm"></div>
+        </div>
       </div>
       <div class="card" style="margin-top:15px"><h3>Monthly spend rate &mdash; planned vs. actual</h3>
         <p class="lede" style="font-size:12.5px;margin-top:5px">Everything else on this tab is cumulative,
@@ -3612,6 +3619,89 @@ function renderGbmDiffusion(){
     'to '+g.n+' monthly log-returns of this program&rsquo;s own actual-cost history (population-variance MLE '+
     'for &sigma;&#770;; the confidence interval uses the unbiased sample variance and Student&rsquo;s t at '+
     'df='+(g.n-1)+', not a z-approximation, which would understate the true uncertainty at this sample size).</p>';
+}
+/* Log-return strip plot + fitted-shape overlay (GBM/MLE brainstorm round, items 1-2, 2026-08-21).
+   The honest version of the blueprint's "log-return histogram with Gaussian overlay": n=5 real
+   points cannot form a histogram shape (5 bars would be visual noise pretending to be a
+   distribution), so this draws the 5 real values as a strip/dot plot instead, each labeled by the
+   two real months it spans, with a curve drawn OVER them showing the Gaussian shape those same
+   5 points imply -- never presented as a forecast, only as "the shape this data implies."
+   Correctness note: the curve is centered on rbar (the sample mean log-return MLE actually fits),
+   NOT muHatMle -- muHatMle is a DIFFERENT, Ito-adjusted quantity (the geometric drift of the
+   underlying price process, rbar + 0.5*sigma^2), not the mean of the log-return distribution
+   these 5 points are draws from. Centering the curve on muHatMle would silently mismatch the
+   curve to the dots it's supposed to explain. */
+function renderGbmLogReturns(){
+  var series=acHistorySeries(), g=deriveGbmParams(series.map(function(p){ return p.ac; }));
+  var pairs=g.logReturns.map(function(v,i){ return {v:v, from:series[i].m, to:series[i+1].m}; });
+  var W=560,H=170,PL=44,PR=20,PT=14,PB=34;
+  var spread=Math.max(g.sigmaHatMle*3.2, Math.max.apply(null,pairs.map(function(p){return Math.abs(p.v-g.rbar);}))*1.35);
+  var lo=g.rbar-spread, hi=g.rbar+spread;
+  function X(v){ return PL+((v-lo)/(hi-lo))*(W-PL-PR); }
+  var baseY=H-PB;
+  function gaussPdf(x){ return (1/(g.sigmaHatMle*Math.sqrt(2*Math.PI)))*Math.exp(-Math.pow(x-g.rbar,2)/(2*g.sigmaHatMle*g.sigmaHatMle)); }
+  var peakPdf=gaussPdf(g.rbar), curveH=H-PT-PB-26; // -26 leaves headroom above the dots' own row
+  var steps=60, curvePts=[];
+  for(var i=0;i<=steps;i++){ var x=lo+(hi-lo)*(i/steps);
+    curvePts.push(X(x).toFixed(1)+","+(baseY-26-(gaussPdf(x)/peakPdf)*curveH).toFixed(1)); }
+  var curvePath="M"+curvePts.join(" L");
+  var dots=pairs.map(function(p){
+    return '<circle cx="'+X(p.v).toFixed(1)+'" cy="'+baseY+'" r="6" fill="'+C("accent")+'" stroke="'+C("bg")+'" stroke-width="1.5" class="hot">'+
+      '<title>'+p.from+' &rarr; '+p.to+': '+pct(p.v,2)+' log-return</title></circle>';
+  }).join("");
+  var body=
+    '<line x1="'+PL+'" x2="'+(W-PR)+'" y1="'+baseY+'" y2="'+baseY+'" stroke="'+C("grid")+'" stroke-width="1"/>'+
+    '<path d="'+curvePath+'" fill="none" stroke="'+C("info")+'" stroke-width="1.8" opacity=".85"/>'+
+    '<line x1="'+X(g.rbar).toFixed(1)+'" x2="'+X(g.rbar).toFixed(1)+'" y1="'+PT+'" y2="'+baseY+'" stroke="'+C("info")+'" stroke-width="1.2" stroke-dasharray="2 2" opacity=".6"/>'+
+    '<text x="'+X(g.rbar).toFixed(1)+'" y="'+(PT+9)+'" text-anchor="middle" font-size="9.5" font-family="ui-monospace,monospace" fill="'+C("info")+'">r&#772; '+pct(g.rbar,2)+'</text>'+
+    dots+
+    '<text x="'+PL+'" y="'+(H-8)+'" font-size="9.5" font-family="ui-monospace,monospace" fill="'+C("mut")+'">'+pct(lo,1)+'</text>'+
+    '<text x="'+(W-PR)+'" y="'+(H-8)+'" text-anchor="end" font-size="9.5" font-family="ui-monospace,monospace" fill="'+C("mut")+'">'+pct(hi,1)+'</text>';
+  document.getElementById("gbmLogReturns").innerHTML=
+    '<p class="lede" style="font-size:11.8px;margin-bottom:6px">The '+g.n+' real log-returns behind the numbers above -- '+
+    'hover a point for the two real months it spans. The curve is the Gaussian shape MLE fits '+
+    '<em>to these 5 points</em> (centered on r&#772;, the sample mean log-return -- not &mu;&#770;, a '+
+    'different, Ito-adjusted quantity), drawn to show what the fit actually implies, never as a '+
+    'projection of anything future.</p>'+
+    svg(W,H,body,"The "+g.n+" real log-returns as a strip plot, with the MLE-fitted Gaussian shape drawn over them.");
+}
+/* Plain-language "Math unlocked" drawer (item 4) -- zero new computation, reuses g's already-real
+   numbers, same pattern as this project's own established low-risk narrative-only additions. */
+function renderGbmMathUnlocked(){
+  var g=deriveGbmParams(acHistorySeries().map(function(p){ return p.ac; }));
+  document.getElementById("gbmMathUnlocked").innerHTML=
+    '<p style="margin:10px 0 0;font-size:12.5px"><b style="color:rgb(var(--c-code))">Drift (&mu;&#770;)</b> is the '+
+    'persistent trend after stripping out month-to-month noise -- this program\'s own fitted drift is '+
+    pct(g.muHatMle,2)+' per month, meaning costs are growing systematically by that much every period, on top '+
+    'of whatever random wobble any single month shows.</p>'+
+    '<p style="margin:10px 0 0;font-size:12.5px"><b style="color:rgb(var(--c-code))">Volatility (&sigma;&#770;)</b> is '+
+    'how much any single month can deviate from that trend -- '+pct(g.sigmaHatMle,2)+' here. A higher number means '+
+    'less predictable, not necessarily worse: two programs with the same drift but different volatility carry '+
+    'genuinely different risk, which a single CPI number can\'t distinguish.</p>'+
+    '<p style="margin:10px 0 0;font-size:12.5px"><b style="color:rgb(var(--c-code))">Why MLE, not a guess?</b> Maximum '+
+    'Likelihood Estimation picks the &mu;/&sigma; pair that makes the '+g.n+' real observed log-returns the most '+
+    'probable outcome, out of every possible &mu;/&sigma; pair -- a specific, defensible answer to "what does this '+
+    'data actually support," not a subjective contingency percentage picked by feel.</p>';
+}
+/* EVM vs. GBM -- reframed as a METHODOLOGY comparison (item 3), not a forecast comparison. The
+   declined items (fan chart, P80-completion-vs-EAC) would need projecting sigmaHatMle forward in
+   time, the exact move this file's own deriveGbmParams() comment already ruled out for a smaller
+   ask (Stochastic TCPI). This compares what each method ASSUMES, using numbers already on the
+   page, without ever projecting either one to a future date. */
+function renderGbmVsEvm(){
+  var g=deriveGbmParams(acHistorySeries().map(function(p){ return p.ac; }));
+  document.getElementById("gbmVsEvm").innerHTML=
+    '<h4>What CPI-extrapolation assumes vs. what GBM admits <button type="button" class="help-ic" data-help="gbmvsevm" aria-label="What does this term mean?" aria-expanded="false">i</button></h4>'+
+    '<p>Classical EAC (BAC&divide;CPI) implicitly assumes the remaining work happens at exactly today\'s CPI ('+
+    idx(T.cpi)+'), every month, with zero variance around it -- a single deterministic line. It is not that this is '+
+    'wrong, it is that the assumption is invisible unless someone says it out loud. GBM\'s own MLE fit makes the '+
+    'opposite move: it names a real volatility ('+pct(g.sigmaHatMle,2)+'/period) instead of assuming it away -- the '+
+    'more honest failure mode, even though (as the caveat above states plainly) this program\'s own '+g.n+' data '+
+    'points are too few to trust that volatility figure as a forecasting input on their own.</p>'+
+    '<p style="margin-top:8px;font-size:12.5px;color:rgb(var(--c-mut))">Deliberately not shown: a GBM-projected P80 '+
+    'completion figure alongside EAC. That comparison would mean simulating this same thin-sample &sigma;&#770; '+
+    'forward to a future date -- trusting it a second time, the identical reasoning that already declined a '+
+    'Stochastic TCPI figure elsewhere in this build.</p>';
 }
 function renderFcastTable(){
   var rows2=forecastAccuracy();
@@ -6689,6 +6779,10 @@ var GLOSS=[
   e:function(){ var g=deriveGbmParams(acHistorySeries().map(function(p2){return p2.ac;}));
     return "Fit to this program's own "+g.n+" real log-returns: drift "+pct(g.muHatMle,2)+"/period, volatility "+pct(g.sigmaHatMle,2)+
       "/period. With only "+g.n+" data points the 90% confidence interval is wide enough that the dashboard's own card states plainly, before showing any number, that this is too thin a sample to trust as a forecast — the arithmetic is real, the caveat is the point."; }},
+ {k:"gbmvsevm", t:"CPI-extrapolation vs. GBM — what each method assumes", p:"Classical EAC (BAC÷CPI) assumes the remaining work happens at exactly today's cost-efficiency, every month, with zero variance — a real assumption, just an invisible one unless someone states it. GBM's own MLE fit makes the opposite move: it names a real volatility figure instead of assuming it away. Neither method is being projected forward here — this compares what each one assumes about the future, not which one predicts it better.",
+  e:function(){ var g=deriveGbmParams(acHistorySeries().map(function(p2){return p2.ac;}));
+    return "This program's CPI ("+idx(T.cpi)+") implies zero month-to-month variance in the remaining work's efficiency. GBM's own fit puts that variance at "+pct(g.sigmaHatMle,2)+
+      "/period — real, even though "+g.n+" data points is too few to trust the figure as a forecasting input on its own."; }},
  {k:"raid", t:"RAID — Risks, Assumptions, Issues, Decisions", p:"A single register discipline for tracking everything that isn't yet a scheduled task but still needs an owner and a resolution: a Risk not yet realized, an Assumption the plan depends on, an Issue that's already happened, a Decision that needs making and recording.",
   e:function(){ var byType={}; ACTIONS.forEach(function(a){byType[a.type]=(byType[a.type]||0)+1;});
     return "This program's Actions register carries "+(byType.Issue||0)+" Issues, "+(byType.Task||0)+" Tasks, and "+(byType.Decision||0)+
@@ -7881,7 +7975,7 @@ window.addEventListener("scroll",function(){ document.getElementById("tip").clas
    pre-existing pattern) silently reset the scrubber's cursor to hidden while the slider value and
    HUD text stayed on whatever month was last scrubbed — the display and the control disagreeing
    with each other, silently, on the single most ordinary action in the app. */
-function redrawCharts(){ renderScurve(); renderWaterfall(); renderCont(); renderRisk(); syncMcView(); renderPertPlay(); renderGaltonStatic(); renderGantt(); renderScurveScrub(); renderGateLine(); renderCdeFlow(); }
+function redrawCharts(){ renderScurve(); renderWaterfall(); renderCont(); renderRisk(); syncMcView(); renderPertPlay(); renderGaltonStatic(); renderGantt(); renderScurveScrub(); renderGateLine(); renderCdeFlow(); renderGbmLogReturns(); }
 document.getElementById("mcViewHist").addEventListener("click",function(){ state.mcView="hist"; syncMcView(); });
 document.getElementById("mcViewCdf").addEventListener("click",function(){ state.mcView="cdf"; syncMcView(); });
 /* Draw-shape toggle (triangular <-> PERT) — mirrors mcView's own set-state -> recompute -> re-
@@ -7916,7 +8010,7 @@ renderMcConfCallout();
 document.getElementById("mcInspect").value=String(state.mcInspect);
 document.getElementById("vInspect").textContent="P"+state.mcInspect;
 renderWaterfall(); renderWaterfallMath(); renderBaseline(); renderEac(); renderCont(); renderTable();
-renderEacTrend(); renderFcastTable(); renderGbmDiffusion(); renderCashflow();
+renderEacTrend(); renderFcastTable(); renderGbmDiffusion(); renderGbmLogReturns(); renderGbmMathUnlocked(); renderGbmVsEvm(); renderCashflow();
 renderGantt(); renderSchedule(); renderRisk(); renderDrbEmv(); renderContracts(); renderDelivery(); renderFramework(); renderActions(); renderActionsMath();
 document.getElementById("sDrbP").value=DRB_ASSUMPTIONS.pOwnerWins;
 document.getElementById("sDrbLegal").value=DRB_ASSUMPTIONS.legalCost;
@@ -7979,7 +8073,8 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   renderShortcutsOverlay:renderShortcutsOverlay,
   getJumpFrom:function(){ return jumpFrom; },renderJumpBreadcrumb:renderJumpBreadcrumb,
   hideJumpBreadcrumb:hideJumpBreadcrumb,jumpToEl:jumpToEl,
-  renderSchedule:renderSchedule,renderMcRiskFilter:renderMcRiskFilter};
+  renderSchedule:renderSchedule,renderMcRiskFilter:renderMcRiskFilter,
+  renderGbmLogReturns:renderGbmLogReturns,renderGbmMathUnlocked:renderGbmMathUnlocked,renderGbmVsEvm:renderGbmVsEvm};
 })();
 </script>
 </body>

@@ -3618,7 +3618,7 @@ console.log("== D9.1. the CDE flow diagram (data strategy) ==");
    (returns the active tab to "over" at the end, since D9 above left "data" active)
    ========================================================================= */
 console.log("== D10. inline term help ==");
-ok(P.gloss.length === 54, "GLOSS grew to 54 entries (53 prior + riskdriver, the Risk-Driver Monte Carlo upgrade, 2026-08-21)", String(P.gloss.length));
+ok(P.gloss.length === 55, "GLOSS grew to 55 entries (54 prior + gbmvsevm, the GBM/MLE brainstorm round, 2026-08-21)", String(P.gloss.length));
 // title independently re-typed per term (/stress-test finding, 2026-08-21: the prior version only
 // checked g.p/g.e() were non-empty, which passes even for a totally wrong or swapped-in entry) —
 // guards that findGloss(k) actually resolves to the RIGHT term, not just SOME term.
@@ -3763,11 +3763,11 @@ ok(/\.finished\.then\(/.test(indexSrc) && !/\.onfinish=/.test(indexSrc),
   // first run of this exact check)
   const markupOnly = indexSrc.slice(0, indexSrc.indexOf("<script>"));
   const detailsCount = (markupOnly.match(/<details class="dbox"/g) || []).length;
-  // 12 as of the ledger-card upgrade (2026-08-20), up from 11 — 1 new panel added (the
-  // per-package ledger inspector on the Overview tab). Updated here, not just to make the count
-  // pass, since a stale expectation is exactly the kind of thing this check exists to catch on
-  // the NEXT panel added after this one.
-  ok(detailsCount === 12, "exactly 12 details.dbox panels exist for this to wire", String(detailsCount));
+  // 13 as of the GBM/MLE brainstorm round (2026-08-21), up from 12 — 1 new panel added (the
+  // "Math unlocked" drift/volatility explainer on the Cost tab). Updated here, not just to make
+  // the count pass, since a stale expectation is exactly the kind of thing this check exists to
+  // catch on the NEXT panel added after this one.
+  ok(detailsCount === 13, "exactly 13 details.dbox panels exist for this to wire", String(detailsCount));
 }
 
 // Extended growup/draw-in (2026-08-19) — source-level only, same stub limitation as above;
@@ -4436,6 +4436,63 @@ console.log("== D21. Control Tower brainstorm round 1-4 (2026-08-21) ==");
   const riskDriverTerm = P.findGloss("riskdriver");
   ok(!!riskDriverTerm, "riskdriver glossary term exists");
   ok(riskDriverTerm.e().indexOf("No named risk events") >= 0, "riskdriver's worked example correctly reflects the current (empty) toggle state");
+}
+
+console.log("== D22. GBM/MLE brainstorm round, items 1-4 (2026-08-21) ==");
+{
+  const g = P.deriveGbmParams(P.acHistorySeries().map(p => p.ac));
+  ok(g.n === 5, "sanity: still 5 real log-returns behind this program's own AC history");
+
+  // Item 1/2 — log-return strip plot + fitted curve. Independently re-derive all 5 real values
+  // and their real month-pair labels from the raw AC_HISTORY series, not read back from the
+  // rendered SVG and trusted against itself.
+  P.renderGbmLogReturns();
+  const svgHtml = G.gbmLogReturns._html;
+  const series = P.acHistorySeries();
+  for (let i = 0; i < g.logReturns.length; i++) {
+    const from = series[i].m, to = series[i + 1].m;
+    ok(svgHtml.indexOf(from + " &rarr; " + to) >= 0, "the strip plot labels log-return #" + i + " with its own real month pair (" + from + "->" + to + ")");
+  }
+  // Correctness guard (pre-registered): the fitted curve/reference line must center on rbar, the
+  // sample mean the 5 points actually distribute around -- NOT muHatMle, a different, Ito-adjusted
+  // quantity (rbar + 0.5*sigma^2). Centering on muHatMle would silently mismatch the curve to the
+  // dots it's meant to explain. rbar !== muHatMle whenever sigmaHatMle > 0, so this is a real,
+  // checkable distinction, not a rounding artifact.
+  ok(Math.abs(g.rbar - g.muHatMle) > 1e-6, "sanity: rbar and muHatMle are genuinely different numbers for this program's real data (the Ito adjustment is non-zero)", "rbar=" + g.rbar.toFixed(5) + " muHatMle=" + g.muHatMle.toFixed(5));
+  ok(svgHtml.indexOf("r&#772; " + pct(g.rbar, 2)) >= 0, "pre-registered: the reference line/label is centered on rbar, not muHatMle");
+  ok(svgHtml.indexOf(pct(g.muHatMle, 2)) === -1 || pct(g.muHatMle, 2) === pct(g.rbar, 2), "the muHatMle value does not appear mislabeled as the curve's own center");
+  ok(svgHtml.indexOf("never as a projection of anything future") >= 0, "the chart's own caption states plainly this is not a forecast");
+
+  // Item 3 — EVM vs GBM methodology comparison. Must compare what each method ASSUMES, using
+  // real numbers already on the page, and must explicitly NOT contain a forward-projected
+  // completion figure (the declined item) -- checked directly, not just absent by omission.
+  P.renderGbmVsEvm();
+  const evmHtml = G.gbmVsEvm._html;
+  ok(evmHtml.indexOf(idx(T.cpi)) >= 0, "the comparison cites this program's own real live CPI, not a hand-typed figure");
+  ok(evmHtml.indexOf(pct(g.sigmaHatMle, 2)) >= 0, "the comparison cites the real sigmaHatMle, not a hand-typed figure");
+  ok(evmHtml.indexOf("Deliberately not shown") >= 0 && evmHtml.indexOf("Stochastic TCPI") >= 0, "the comparison explicitly states what it declined and why, not just silently omitting it");
+  ok(evmHtml.indexOf("P80") === -1 || evmHtml.toLowerCase().indexOf("completion figure") >= 0, "no forward-projected P80-completion figure is being asserted as real (the one 'P80' mention, if any, is the declined-item disclosure itself)");
+
+  // Item 4 — Math Unlocked drawer, plain-language, real numbers.
+  P.renderGbmMathUnlocked();
+  const mathHtml = G.gbmMathUnlocked._html;
+  ok(mathHtml.indexOf(pct(g.muHatMle, 2)) >= 0 && mathHtml.indexOf(pct(g.sigmaHatMle, 2)) >= 0, "the drawer cites the real, live-computed drift and volatility, not placeholder text");
+  ok(mathHtml.indexOf("Maximum Likelihood Estimation") >= 0, "the drawer explains MLE in plain language");
+
+  // 13th details.dbox panel actually exists in markup (cross-checked against A's own count above).
+  ok(indexSrc.indexOf('<summary>Math unlocked') >= 0, "the new Math-unlocked <details> panel exists in markup");
+
+  // Glossary term + theme-toggle correctness (the SVG bakes literal C() colors, so it MUST be in
+  // redrawCharts() or a theme switch would leave the chart showing stale colors).
+  const gbmVsEvmTerm = P.findGloss("gbmvsevm");
+  ok(!!gbmVsEvmTerm, "gbmvsevm glossary term exists");
+  ok(gbmVsEvmTerm.e().indexOf(idx(T.cpi)) >= 0, "gbmvsevm's worked example cites the real live CPI");
+  ok(/redrawCharts\(\)\{[^}]*renderGbmLogReturns\(\)/.test(indexSrc), "renderGbmLogReturns() is wired into redrawCharts() -- otherwise a theme toggle would leave the chart's baked-in C() colors stale");
+
+  // verify.cjs invariant: this whole round is pure narrative/visualization on already-real numbers
+  // -- must never touch T (portfolio totals) or any PKGS-derived value. Spot-checked here too,
+  // not just left to the separate `node verify.cjs` run.
+  ok(T.bac === 1240.0 && T.ac === 857.6, "sanity: the canonical portfolio totals are untouched by this round", "BAC=" + T.bac + " AC=" + T.ac);
 }
 
 /* =========================================================================
