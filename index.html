@@ -422,7 +422,7 @@ h4{font-size:.86rem;margin:0 0 5px}
 .rcRoot{display:block;margin-top:4px;font-size:11.8px;color:rgb(var(--c-mut))}
 @keyframes jumpFlash{0%,100%{background:transparent}30%{background:rgb(var(--c-accent) / .18)}}
 .jump-flash{animation:jumpFlash 1.5s ease-out}
-.ok{color:var(--c-pill-g)} .wa{color:var(--c-pill-a)} .ba{color:var(--c-pill-r)} .inf{color:var(--c-pill-i)}
+.ok{color:var(--c-pill-g)} .wa{color:var(--c-pill-a)} .ba{color:var(--c-pill-r)}
 
 /* tables */
 .tw{overflow-x:auto;margin-top:14px;border:1px solid var(--c-line);border-radius:11px;
@@ -4553,12 +4553,24 @@ function renderMcFilter(){
     return '<button class="btn'+(on?" on":"")+'" data-pkg="'+r.id+'" aria-pressed="'+on+'">'+r.id+'</button>';
   }).join("");
 }
+/* Focus restoration after a filter-button click rebuilds its own container (/stress-test finding,
+   2026-08-22): a click handler that calls a renderX() rebuilding the whole button group destroys
+   the exact button .click() just fired on, silently dropping keyboard focus to <body> -- a real
+   regression for anyone tabbing/arrow-navigating right after. #phases below avoids this by
+   mutating aria-pressed on existing nodes instead of rebuilding; every group here rebuilds its
+   whole list every time (to recompute on/pressed state or live counts), so re-focusing the
+   equivalent new node after rebuild is the fix that fits their existing shape, not a rewrite. */
+function refocusFilter(containerId,dataAttr,value){
+  var el=document.querySelector('#'+containerId+' ['+dataAttr+'="'+value+'"]');
+  if(el) el.focus();
+}
 document.getElementById("mcFilter").addEventListener("click",function(e){
   var b=e.target.closest("[data-pkg]"); if(!b) return;
   var id=b.dataset.pkg, idx2=state.mcIncluded.indexOf(id);
   if(idx2>=0) state.mcIncluded.splice(idx2,1); else state.mcIncluded.push(id);
   renderMcFilter(); recomputeActiveMc(); syncMcView();
   document.getElementById("mcOneRun").innerHTML=""; mcRunCount=0;
+  refocusFilter("mcFilter","data-pkg",id);
 });
 
 /* AACE 57R-09 risk-driver toggle (brainstorm-mode upgrade, 2026-08-21) — same on/off .btn pattern
@@ -4591,6 +4603,7 @@ document.getElementById("mcRiskFilter").addEventListener("click",function(e){
   if(idx2>=0) state.riskIncluded.splice(idx2,1); else state.riskIncluded.push(id);
   renderMcRiskFilter(); recomputeActiveMc(); syncMcView();
   document.getElementById("mcOneRun").innerHTML=""; mcRunCount=0;
+  refocusFilter("mcRiskFilter","data-risk",id);
 });
 
 /* ---------- print brief ---------- */
@@ -7305,6 +7318,7 @@ function renderGlossCatBar(){
 document.getElementById("glossCatBar").addEventListener("click",function(e){
   var b=e.target.closest("[data-glosscat]"); if(!b) return;
   state.glossCat=b.dataset.glosscat; renderGlossCatBar(); renderGlossary(document.getElementById("glossQ").value);
+  refocusFilter("glossCatBar","data-glosscat",state.glossCat);
 });
 function renderGlossary(q){
   q=(q||"").toLowerCase();
@@ -7479,6 +7493,12 @@ function goToTourStop(i){
   var b=TOUR_BEATS[i];
   activateTab(b.tab);
   renderTourBar();
+  // renderTourBar() just rebuilt #tourBar's whole innerHTML, destroying whatever Next/Back/dot
+  // button was just clicked (/stress-test finding, 2026-08-22, same class as the filter-button
+  // fix above) -- refocus the Next button specifically, the one a keyboard user repeatedly
+  // clicking through the tour actually lands back on.
+  var nextBtn=document.querySelector('#tourBar [data-t="next"]');
+  if(nextBtn) nextBtn.focus();
   if(b.anchor==="gate5Card"){
     // same live replay as Presentation Mode's Gate 5 beat — see goToBeat() above for why
     renderInversion(renderGates());
@@ -7768,11 +7788,13 @@ document.getElementById("phases").addEventListener("click",function(e){
 document.getElementById("kfilters").addEventListener("click",function(e){
   var b=e.target.closest("[data-fam]"); if(!b) return;
   state.fam=b.dataset.fam; renderFilters(); renderBoard();
+  refocusFilter("kfilters","data-fam",state.fam);
 });
 document.getElementById("audienceFilters").addEventListener("click",function(e){
   var b=e.target.closest("[data-aud]"); if(!b) return;
   state.audience=b.dataset.aud; state.fam="All";
   renderAudienceFilters(); renderFilters(); renderBoard();
+  refocusFilter("audienceFilters","data-aud",state.audience);
 });
 function syncKpiAriaExpanded(){
   // direct attribute toggle, not a full renderBoard() re-render, for a state change this small —

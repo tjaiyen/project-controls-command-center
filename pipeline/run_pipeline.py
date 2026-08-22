@@ -98,7 +98,9 @@ for p in PKGS:
 # only 4 of schema.yml's declared tests were actually implemented (and one of those 4 had a
 # mislabeled check() string, "ev <= pv" printed for what was actually an ev<=bac test — fixed
 # below too), silently understating what README/HANDOFF's "enforces the guardrails in
-# models/schema.yml" claim promised. All 10 checks below map 1:1 to a schema.yml test declaration.
+# models/schema.yml" claim promised. All 14 checks below map 1:1 to a schema.yml test declaration.
+# (/stress-test finding, 2026-08-22: this comment itself still said "10" after later rounds grew
+# the real count to 14 — the exact class of drift this comment already exists to warn against.)
 con.execute("create table fct_control_account as " + MODEL.read_text())
 
 # fct_control_account model-level invariants (schema.yml's 3 dbt_utils.expression_is_true tests)

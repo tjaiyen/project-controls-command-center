@@ -37,17 +37,17 @@ anywhere in this repository. The method is the content, not the numbers.
 | KPI families (`KPI_FAMILIES` — Cost/Schedule/Risk/Change/Delivery/Compliance) | 6, each with its own operational question + why-it-matters card on Overview |
 | JS integrity-gate checks (`GUARDS`) | 28, re-run on every page load |
 | Ingestion-validation checks (`INGEST_GUARDS`) | 2 |
-| SQL/DuckDB parity checks (`pipeline/run_pipeline.py`) | 54, independently verified this session — see §12 |
-| Glossary terms (each with a live-computed worked example) | 53 |
-| Actions/RAID register items | 17 (6 Issue, 10 Task, 1 Decision) |
+| SQL/DuckDB parity checks (`pipeline/run_pipeline.py`) | 64, independently re-run and verified this pass |
+| Glossary terms (each with a live-computed worked example) | 55 |
+| Actions/RAID register items | 15 (4 Issue, 10 Task, 1 Decision) |
 | Control accounts / packages | 8 |
 | Contracts | 6 |
 | Risks | 6 |
 | Delay events | 4 |
-| `stress.cjs` test assertions | 1,834, all passing |
+| `stress.cjs` test assertions | 1,846, all passing |
 | Companion pages | `otak.html` (fit brief), `architecture.html` (static pipeline map) |
 | Hosting | GitHub Pages, served directly from `main`, zero build |
-| Git history | 100 commits |
+| Git history | 117 commits |
 
 Current EVM tie-out (verify live in the browser console via `__PCC__.totals`, or `node verify.cjs`):
 
@@ -251,7 +251,7 @@ Everything below is a real DOM interaction, independently covered by `stress.cjs
   display state only and never mutate `DRB_ASSUMPTIONS`; a small SVG chart makes the "escalating
   can never beat settling" structural finding visible across the whole probability range instead
   of asserting it as one static delta.
-- **51-term glossary** with live search filter, plus a click-driven inline "i" help icon next to
+- **55-term glossary** with live search filter, plus a click-driven inline "i" help icon next to
   jargon anywhere on the page — both read from the same `GLOSS` array, so there's one source of
   truth for every definition.
 - **1 six-KPI-families card** (Overview: `KPI_FAMILIES`) — each of the 6 family tiles carries its
@@ -375,7 +375,7 @@ matches an independent recomputation, not just that *a* number is present.
 
 ## 11. Testing & verification
 
-**`stress.cjs`** (1,834 assertions, all passing) — stubs the DOM, loads `index.html`'s script
+**`stress.cjs`** (1,846 assertions, all passing) — stubs the DOM, loads `index.html`'s script
 verbatim into that stub, and exercises it exactly like a user would: every tab switch, every
 filter, every drawer, every slider drag, every keyboard interaction. 41 labeled sections:
 
@@ -1377,6 +1377,48 @@ carried over from memory or an earlier pass:
   corrected `role="group"` markup and two of the retargeted jump buttons (BAC&rarr;baseline
   bridge, TCPI&rarr;Overview KPI board) actually work end to end.
 
+- **2026-08-22 second whole-repo `/stress-test` pass** (own review + an independent
+  fresh-context reviewer, genuinely non-overlapping this time — own review swept doc/data drift
+  in sections neither of the last 3 narrowly-scoped stress-test rounds had re-touched, the
+  reviewer swept code/pipeline/accessibility ground neither had). Own review found and fixed 4
+  real stale figures in §2's at-a-glance table, none caught by the last 3 rounds because they only
+  re-verified their OWN round's specific claims: SQL/DuckDB parity checks stated as 54 (real: 64,
+  §12 elsewhere in this same file already said 64 — only the summary table had drifted), Glossary
+  terms stated as 53 (real: 55), git history stated as 100 commits (real: 117), and Actions/RAID
+  register items stated as "17 (6 Issue, 10 Task, 1 Decision)" — independently recounted directly
+  from the `ACTIONS` array (real: 15 total, 4 Issue/10 Task/1 Decision; the original "17"/"6" both
+  came from a regex that, unscoped to each object, picked up 2 extra "Issue"-shaped string matches
+  elsewhere in the block). The independent reviewer, covering different ground, found: (1) a
+  **systemic** focus-loss bug across 5 more controls (`mcFilter`, `mcRiskFilter`, `kfilters`,
+  `audienceFilters`, the tour bar's Next button) — the SAME defect class the Glossary round's own
+  stress-test pass had just fixed for the category filter specifically, but that fix relocated the
+  bug rather than eliminating it (it matched the `mcFilter` pattern exactly, which turned out to
+  have the identical issue); confirmed live in a real browser (not just read) that clicking each
+  control dropped `document.activeElement` to `&lt;body&gt;`, and confirmed `#phases` — a sibling
+  control mutating `aria-pressed` on existing nodes instead of rebuilding — correctly keeps focus,
+  proving the fix pattern already existed in this file, just wasn't applied consistently. Fixed by
+  adding one shared `refocusFilter()` helper and calling it after each of the 6 rebuild-then-lose-
+  focus sites (5 filter groups + the tour's `goToTourStop()`), re-verified live in the browser for
+  all 6 (real `BUTTON`, never `&lt;body&gt;`) since the DOM-stub's own `querySelector()` limitation
+  (documented elsewhere in this file) makes the actual restoration unexercisable through
+  `stress.cjs` — the new regression tests instead assert the source code still calls the
+  restoration function at each site, proven to actually catch a reverted fix by reproducing one
+  and confirming the test fails, then restoring; (2) a stale pipeline comment claiming "10 checks"
+  when the real, already-correct count elsewhere in the same file is 14; (3) one genuinely dead
+  CSS rule (`.inf`), confirmed via a full-file word-boundary sweep to have zero markup/JS
+  consumers while its underlying color token remains genuinely in use elsewhere. The reviewer also
+  independently hand-recomputed TCPI and both EAC methods from the raw ledger and confirmed the
+  SQL pipeline's own arithmetic — not just its guardrail existence checks — matches the JS side
+  exactly; confirmed zero `eval`/`exec`/shell-injection surface in `pipeline/run_pipeline.py`;
+  exhaustively checked all 21 non-Glossary cross-tab jump targets (all resolve); confirmed
+  `otak.html`'s own numeric claims (20 KPIs, 7 Partial + 1 Gap requirements) still match live
+  reality; and found no named-function dead code across all ~260 top-level functions. `node
+  stress.cjs`: 1834&rarr;1846 assertions, all passing. `node verify.cjs`: headline tie-out
+  unchanged. `python3 pipeline/run_pipeline.py`: still ALL CHECKS PASSED, 14/14. Live-browser
+  re-confirmed a clean console across a visual sweep of the 6 tabs (Risk & Change, Delivery, AI &
+  Data, Operating Framework, Actions, Data Strategy) neither of the last 2 rounds' own live-browser
+  checks had covered, plus the 6 focus-restoration fixes themselves.
+
 Generated 2026-08-20, against the tip of the eleven-input-ledger-card engagement round; extended
 2026-08-21 for the six-KPI-families card round, again 2026-08-21 for the Data Strategy tab UI/UX
 round, again 2026-08-21 for the "96→100" brainstorm round's Tier 0/1 items, again 2026-08-21 for
@@ -1392,6 +1434,7 @@ again 2026-08-21 for the Galton Engine round, again 2026-08-21 for the third ful
 round, again 2026-08-21 for the whole-repo `/stress-test` round, again 2026-08-21 for the
 Control Tower brainstorm round items 1-4, again 2026-08-21 for the GBM/MLE brainstorm round
 items 1-4, again 2026-08-21 for the `/stress-test` pass on that same round, again 2026-08-21
-for the Glossary brainstorm round items 1-3, and again 2026-08-22 for the `/stress-test` pass on
-that round (see git log for exact commits — each document update was written before its own
-round's commit lands, per the project's "verify, then document" ordering).
+for the Glossary brainstorm round items 1-3, again 2026-08-22 for the `/stress-test` pass on
+that round, and again 2026-08-22 for the second whole-repo `/stress-test` pass (see git log for
+exact commits — each document update was written before its own round's commit lands, per the
+project's "verify, then document" ordering).

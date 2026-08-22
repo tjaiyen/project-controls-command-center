@@ -4652,6 +4652,48 @@ console.log("== D23. Glossary upgrade round, items 1-3 (2026-08-21) ==");
   ok(!/role="tab"/.test(G.glossCatBar._html), "no leftover role=tab markup remains in the category bar's own rendered output");
 }
 
+console.log("== D24. whole-repo /stress-test round -- focus-restoration fix (2026-08-22) ==");
+{
+  // Independent reviewer finding: a systemic focus-loss bug across 5+ filter-style controls --
+  // each click handler calls a renderX() that rebuilds its container's whole innerHTML,
+  // destroying the exact button .click() just fired on, dropping focus to <body>. Confirmed live
+  // in a real browser for all 6 fixed call sites (mcFilter, mcRiskFilter, kfilters,
+  // audienceFilters, glossCatBar, the tour bar's Next button) -- not reproducible through THIS
+  // stub, though: makeEl()'s own querySelector() always returns a fresh, unrelated generic
+  // element regardless of the selector passed in (a pre-existing, already-documented stub
+  // limitation -- see wireAccountHighlight's identical caveat elsewhere in this file), and
+  // refocusFilter() is itself built on document.querySelector(). What IS checkable here: every
+  // one of the 6 fixed call sites actually calls the restoration function/logic in source, so a
+  // future edit that silently drops the call would still be caught even though the DOM-stub can't
+  // exercise the restoration itself.
+  ok(/renderMcFilter\(\); recomputeActiveMc\(\); syncMcView\(\);\s*\n\s*document\.getElementById\("mcOneRun"\)\.innerHTML="";\s*mcRunCount=0;\s*\n\s*refocusFilter\("mcFilter","data-pkg",id\);/.test(indexSrc),
+    "mcFilter's click handler calls refocusFilter after rebuilding");
+  ok(/refocusFilter\("mcRiskFilter","data-risk",id\);/.test(indexSrc), "mcRiskFilter's click handler calls refocusFilter after rebuilding");
+  ok(/refocusFilter\("glossCatBar","data-glosscat",state\.glossCat\);/.test(indexSrc), "glossCatBar's click handler calls refocusFilter after rebuilding");
+  ok(/refocusFilter\("kfilters","data-fam",state\.fam\);/.test(indexSrc), "kfilters' click handler calls refocusFilter after rebuilding");
+  ok(/refocusFilter\("audienceFilters","data-aud",state\.audience\);/.test(indexSrc), "audienceFilters' click handler calls refocusFilter after rebuilding");
+  ok(/renderTourBar\(\);\s*\n(?:\s*\/\/[^\n]*\n)*\s*var nextBtn=document\.querySelector\('#tourBar \[data-t="next"\]'\);\s*\n\s*if\(nextBtn\) nextBtn\.focus\(\);/.test(indexSrc),
+    "goToTourStop() refocuses the Next button after renderTourBar() rebuilds the tour bar");
+
+  // Sanity: refocusFilter() itself exists and is a real function, not just referenced.
+  ok(/function refocusFilter\(containerId,dataAttr,value\)\{/.test(indexSrc), "refocusFilter() is defined");
+
+  // #phases -- the ONE control the reviewer confirmed already does this right (mutates
+  // aria-pressed in place rather than rebuilding) -- re-confirmed still true, not regressed.
+  ok(!/document\.getElementById\("phases"\)\.innerHTML=/.test(indexSrc), "sanity: #phases still never rebuilds its own innerHTML (the pattern every other fix here now imitates via refocus instead)");
+}
+
+console.log("== D25. whole-repo /stress-test round -- pipeline comment + dead CSS (2026-08-22) ==");
+{
+  const fs2 = require("fs");
+  const pipelineSrc = fs2.readFileSync(DIR + "pipeline/run_pipeline.py", "utf8");
+  const realCheckCount = (pipelineSrc.match(/check\("guardrail/g) || []).length;
+  ok(realCheckCount === 14, "sanity: the pipeline really does have 14 real guardrail checks", String(realCheckCount));
+  ok(pipelineSrc.indexOf("All 14 checks below") >= 0, "the pipeline's own comment states the real, current check count, not a stale earlier one");
+  ok(indexSrc.indexOf(".inf{color:var(--c-pill-i)}") === -1, "the dead .inf CSS rule (zero markup/JS usages, confirmed by a full-file word-boundary sweep) has been removed");
+  ok(indexSrc.indexOf("--c-pill-i") >= 0, "the underlying --c-pill-i token itself is still used elsewhere (.pill.i/.ticon.i/RAG.i) -- only the unused .inf shorthand was dead, not the color");
+}
+
 /* =========================================================================
    E. otak.html — runtime + internal consistency
    ========================================================================= */
