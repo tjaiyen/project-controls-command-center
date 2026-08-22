@@ -145,7 +145,7 @@ browser's dev console to independently sanity-check a number.
 | `CONTRACTS` | 6 | Award value, approved/pending change, contingency allocation, per contract | Risk & Change tab's commercial register (a third axis, distinct from control accounts) |
 | `ACTIONS` | 17 | RAID register: Issue/Task/Decision, owner, opened/due/touch dates, root/corrective/preventive fields | Actions tab |
 | `CPH_CELLS` | 1 crew, 6 weeks | Crew cost-per-hour history for CP-201's tunnel crew | Delivery tab, AI & Data's z-score/EWMA control charts |
-| `GLOSS` | 44 | Term/definition/live-computed worked example, each independently traceable to real data | Glossary tab + every inline "i" help icon site-wide |
+| `GLOSS` | 53 | Term/definition/live-computed worked example, each independently traceable to real data | Glossary tab + every inline "i" help icon site-wide |
 | `LEDGER_INPUTS` | 11 | Name/abbr/description/live-computed worked example, one per raw `PKGS` field — human-facing metadata for the ledger card, not a second copy of the data itself | Overview tab's ledger card |
 | `KPI_LEDGER` / `KPI_LEDGER_MIXED` / `KPI_LEDGER_NONE` | 14 / 3 / 6 | Which raw ledger fields actually feed each KPI, stated honestly — pure-ledger, mixed with another register, or not ledger-derived at all | KPI drawer's "Computed from the ledger" / "Not from the ledger" box |
 | `PROGRAM` | 32 fields | Everything not per-package: contingency, funding, safety (TRIR), RFI aging, subcontractor turnaround, change-order pipeline | Cost, Schedule, Delivery, Risk & Change tabs |
@@ -210,7 +210,7 @@ Beyond the core EVM block, three more derivation families exist:
 | 7 | **AI & Data** (`ai`) | The pipeline architecture diagram (now interactive — §8), the SQL model, a live 28-check integrity gate + 2 ingestion-validation checks, statistical control (z-score/EWMA) with worked-math accordions, and AI narrative generation under a verification contract (§10). |
 | 8 | **Operating Framework** (`fw`) | Phase playbook, the WBS/CBS/OBS/ABS control-account mapping (with a worked "100% Rule" proof, now carrying an illustrative ABS tag per row alongside WBS/CBS/OBS), Board phase-gate governance with a live Gate-5 hard stop, escalation matrix, a live Working-Backward/inversion worked example, reporting cadence, stakeholder interface map, the 20-metric KPI reference library. |
 | 9 | **Actions** (`act`) | A RAID/CAPA register with proactive staleness detection, owner accountability rollup, a worked-math accordion for `actionStatus()`'s threshold logic. |
-| 10 | **Glossary** (`gloss`) | 50 terms, each with a live-computed worked example, filterable by search — the same content the inline "i" help icons pull from site-wide. |
+| 10 | **Glossary** (`gloss`) | 53 terms, each with a live-computed worked example, filterable by search — the same content the inline "i" help icons pull from site-wide. |
 | 11 | **Data Strategy** (`data`) | A real-world plan for connecting scattered, multi-system data — ISO 19650 CDE staging architecture as an interactive flow diagram (§8), a 4-tile IDS guardrail status grid with a genuinely live 2-check ingestion-validation panel embedded in it, automated guardrails, a discrepancy-resolution decision flow folded into that same diagram, a Category/Trigger/Routing proactive-error-recovery table, a Dual-Stack Parity card citing this program's own real, live CPI against the actual SQL that independently re-derives it. |
 
 Plus, outside the tab body: **Presentation Mode** (a scripted 2-set walkthrough with presenter
