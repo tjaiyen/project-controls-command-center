@@ -1733,7 +1733,7 @@ join dim_control_account b using (package_id)</pre></div>
       <input class="gsearch" id="glossQ" type="search" autocomplete="off"
         placeholder="Filter terms&hellip; try &ldquo;float&rdquo; or &ldquo;contingency&rdquo; (or press /)"
         aria-label="Filter glossary terms">
-      <div id="glossCatBar" role="tablist" aria-label="Glossary categories" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px"></div>
+      <div id="glossCatBar" role="group" aria-label="Filter by category" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px"></div>
       <div class="grid g2" id="glossList" style="margin-top:14px"></div>
       <p class="lede" id="glossCount" style="margin-top:13px;font-size:12.3px"></p>
     </div>
@@ -6679,7 +6679,7 @@ var G_UT=rows.filter(function(r){return r.id==="CP-601";})[0];
 var GLOSS=[
  {k:"controlaccount", cat:"data", jT:"cost", jE:"pkgTable", t:"Control account", p:"A slice of the project with its own budget and its own scoreboard. Instead of tracking one giant number, the program is broken into pieces small enough that one person can be accountable for each.",
   e:function(){ return "This program has "+rows.length+" control accounts. The tunnel ("+G_TUN.id+") is one: its own budget of "+m(G_TUN.bac)+", its own progress, its own forecast. When it drifts, you can see it without the other seven hiding it."; }},
- {k:"bac", cat:"cost", jT:"cost", jE:"eacTable", t:"BAC — Budget at Completion", p:"The total approved budget for the work — the number everyone promised at the start. It only changes when a formal change order changes it.",
+ {k:"bac", cat:"cost", jT:"cost", jE:"baseBridge", t:"BAC — Budget at Completion", p:"The total approved budget for the work — the number everyone promised at the start. It only changes when a formal change order changes it.",
   e:function(){ return m(T.bac)+" across all "+rows.length+" control accounts. The biggest single slice is the tunnel at "+m(G_TUN.bac)+"."; }},
  {k:"pv", cat:"cost", jT:"cost", jE:"scurve", t:"PV — Planned Value", p:"What the schedule said should be finished by today, expressed in dollars. It is the yardstick, not an achievement.",
   e:function(){ return "By the data date the plan called for "+m(T.pv)+" of work to be complete. Everything on this dashboard is measured against that yardstick."; }},
@@ -6695,9 +6695,9 @@ var GLOSS=[
   e:function(){ return "The bottom-up forecast is "+m(T.eac)+" (each package projected at its own efficiency). The quick portfolio version — budget divided by CPI — says "+m(T.eacIndep)+". A controls manager shows the spread, not one number."; }},
  {k:"vac", cat:"cost", jT:"cost", jE:"eacTable", t:"VAC — Variance at Completion", p:"Budget minus forecast. Negative means the program expects to finish over budget.",
   e:function(){ return sgn(T.vac)+". That is the number the board conversation is actually about."; }},
- {k:"tcpi", cat:"cost", jT:"cost", jE:"eacTable", t:"TCPI — To-Complete Performance Index", p:"The cost efficiency the remaining work must hit to land exactly on a target — usually the original budget. It is the honesty test: compare it to the CPI actually being achieved.",
+ {k:"tcpi", cat:"cost", jT:"over", jE:"kboard", t:"TCPI — To-Complete Performance Index", p:"The cost efficiency the remaining work must hit to land exactly on a target — usually the original budget. It is the honesty test: compare it to the CPI actually being achieved.",
   e:function(){ return "Required: "+idx(T.tcpi)+". Demonstrated so far: "+idx(T.cpi)+". The remaining work would have to outperform everything done to date — that gap is why this program escalates rather than hopes."; }},
- {k:"contingency", cat:"risk", jT:"fw", jE:"gate5Card", t:"Contingency", p:"Money set aside up front for the risks you can name. It is not profit and it is not slack — it is insurance with a drawdown rate you should watch like a fuel gauge.",
+ {k:"contingency", cat:"risk", jT:"cost", jE:"contChart", t:"Contingency", p:"Money set aside up front for the risks you can name. It is not profit and it is not slack — it is insurance with a drawdown rate you should watch like a fuel gauge.",
   e:function(){ return m(PROGRAM.contingency)+" set aside, "+m(PROGRAM.contingencyDrawn)+" spent ("+pct(T.contDrawn,0)+"), "+m(T.contRemaining)+" left — while the program is "+pct(T.pct,0)+" complete. Here the reserve is being consumed slower than value is earned, which is the healthy direction; the forecast overrun of "+m(Math.abs(T.vac))+" against "+m(T.contRemaining)+" left is not."; }},
  {k:"float", cat:"sched", jT:"sched", jE:"floats", t:"Total float", p:"How many days a piece of work can slip before it starts moving the final completion date. Positive float is breathing room. Zero means you are on the edge. Negative means the plan no longer fits in the time left.",
   e:function(){ return "The tunnel sits at "+days(G_TUN.float)+", utilities at "+days(G_UT.float)+". Those two packages are not just late — they are now setting the completion date themselves."; }},
@@ -6752,7 +6752,7 @@ var GLOSS=[
   e:function(){ return "Right now this board is drawing from the "+(state.mcDist==="pert"?"PERT":"triangular")+" shape — toggle \"Draw shape\" above the chart to compare how the same "+rows.length+"-account uncertainty reshapes the distribution."; }},
  {k:"riskdriver", cat:"risk", jT:"cost", jE:"mcRiskFilter", t:"Risk driver method (AACE 57R-09)", p:"A different kind of uncertainty than the cost-efficiency draw above. That one asks how much a control account's future performance might drift — continuous, always present. A risk driver is discrete: a specific, named, priced event that either happens in a given simulated run or doesn't, at its own real probability. AACE's 57R-09 recommended practice is combining both layers rather than picking one — the register captures what could go wrong by name, the efficiency draw captures the everyday drift that isn't any single named thing.",
   e:function(){ return state.riskIncluded.length? state.riskIncluded.length+" named risk"+(state.riskIncluded.length===1?"":"s")+" currently layered onto the Monte Carlo run — check the \"+ named risk events\" row above the chart to add or remove one and watch the distribution shift." : "No named risk events are currently layered in — the Monte Carlo chart is showing cost-efficiency uncertainty only. Check a risk in the \"+ named risk events\" row to add its own real probability-weighted event on top."; }},
- {k:"fundingtier", cat:"cost", jT:"port", jE:"fundingTierRead", t:"Funding tier", p:"A portfolio-level question, distinct from whether a single line is on budget: if the total program had to absorb a real funding constraint, which lines get protected first and which are most exposed? Crosses two axes — how far along a line is (sunk cost and momentum make an early cut expensive to reverse) against whether it's spending efficiently — rather than reading off a single cost index.",
+ {k:"fundingtier", cat:"risk", jT:"port", jE:"fundingTierRead", t:"Funding tier", p:"A portfolio-level question, distinct from whether a single line is on budget: if the total program had to absorb a real funding constraint, which lines get protected first and which are most exposed? Crosses two axes — how far along a line is (sunk cost and momentum make an early cut expensive to reverse) against whether it's spending efficiently — rather than reading off a single cost index.",
   e:function(){ var lines=portfolioRows(); return lines.map(function(l){ return l.name.replace(/&mdash;.*/,"").trim()+": "+fundingTier(l).tier; }).join(" · "); }},
  {k:"trir", cat:"field", jT:"del", jE:"compliance", t:"TRIR — Total Recordable Incident Rate", p:"The standard safety yardstick: recordable injuries per 200,000 hours worked — roughly 100 people working full time for a year. The one metric that can stop a job regardless of cost or schedule.",
   e:function(){ return PROGRAM.recordables+" recordable incidents across "+PROGRAM.hoursWorked.toLocaleString("en-US")+" work hours: "+(PROGRAM.recordables*200000/PROGRAM.hoursWorked).toFixed(2)+" versus an industry benchmark of "+PROGRAM.trirBenchmark.toFixed(2)+" — about "+pct(1-PROGRAM.trir/PROGRAM.trirBenchmark,0)+" better."; }},
@@ -6762,11 +6762,11 @@ var GLOSS=[
   e:function(){ var c=CPH_CELLS.map(deriveCph)[0], last=c.weeks[c.weeks.length-1];
     return "The tunnel liner crew's standard is "+usd(c.baseline)+"/hr; "+last.w+" ran "+usd(last.actual)+
     "/hr. Of the "+usd(c.totalOverrun)+" six-week overrun, "+usd(c.totalIdle)+" is idle time specifically — the part a staging fix recovers, not an engineering one."; }},
- {k:"ve", cat:"cost", jT:"cost", jE:"eacTable", t:"Value engineering (VE)", p:"A structured review that asks one question: can the same function be delivered for less money? Done before award it shapes the baseline; done during construction it becomes a shared-savings change.",
+ {k:"ve", cat:"cost", jT:"cost", jE:"baseBridge", t:"Value engineering (VE)", p:"A structured review that asks one question: can the same function be delivered for less money? Done before award it shapes the baseline; done during construction it becomes a shared-savings change.",
   e:function(){ var award=BASELINE.filter(function(b){return /^Engineer/.test(b.l);})[0];
     var ve=BASELINE.filter(function(b){return /Value engineering/.test(b.l);})[0];
     return "This program's baseline carries "+m(Math.abs(ve.v))+" of accepted VE — part of how the engineer's estimate of "+m(award.v)+" came down to a "+m(T.bac)+" baseline before construction started."; }},
- {k:"buyout", cat:"cost", jT:"cost", jE:"eacTable", t:"Buyout", p:"Letting the subcontracts and major purchases after the contract is won. When the market prices below the estimate, the difference is buyout savings — margin captured at the source, before any risk can touch it.",
+ {k:"buyout", cat:"cost", jT:"cost", jE:"baseBridge", t:"Buyout", p:"Letting the subcontracts and major purchases after the contract is won. When the market prices below the estimate, the difference is buyout savings — margin captured at the source, before any risk can touch it.",
   e:function(){ var buyout=BASELINE.filter(function(b){return /^Buyout/.test(b.l);})[0];
     return m(Math.abs(buyout.v))+" of buyout savings is baked into this baseline. The opposite — buyout above estimate — is an overrun that arrives on day one."; }},
  {k:"tia", cat:"sched", jT:"sched", jE:"tiaReg", t:"Time Impact Analysis (TIA)", p:"The disciplined way to answer \"how many days did that event cost?\": insert the delay into the schedule model as a small sub-network (a fragnet), re-run the dates, and read the difference. It turns an argument into arithmetic — and sets whether the event buys time, money, both, or neither.",
@@ -6788,11 +6788,11 @@ var GLOSS=[
   e:function(){ var series=CPH_CELLS[0].weeks.map(function(w){return w.actual;}), e2=deriveEwma(series), flags=e2.points.filter(function(p2){return p2.flag;}).length;
     return "Run against the tunnel crew's own 6-week $/hr series: "+flags+" of "+e2.points.length+" weeks currently breach the dynamic control limit ("+
       (flags?"a real, live flag":"a genuine null result — the honest answer, not a manufactured anomaly")+"). &lambda;="+e2.lambda+", L="+e2.L+" are standard SPC parameter choices, not derived from this program's own history."; }},
- {k:"gbm", cat:"cost", jT:"cost", jE:"costGbm", t:"Geometric Brownian Motion & Maximum Likelihood Estimation", p:"A way to fit a drift (average rate of change) and a volatility (how much it wobbles around that drift) directly to a program's own cost history, using Maximum Likelihood Estimation on the log-returns between consecutive periods — the same math finance uses to model a stock price's random walk, applied here to actual cost instead.",
+ {k:"gbm", cat:"risk", jT:"cost", jE:"costGbm", t:"Geometric Brownian Motion & Maximum Likelihood Estimation", p:"A way to fit a drift (average rate of change) and a volatility (how much it wobbles around that drift) directly to a program's own cost history, using Maximum Likelihood Estimation on the log-returns between consecutive periods — the same math finance uses to model a stock price's random walk, applied here to actual cost instead.",
   e:function(){ var g=deriveGbmParams(acHistorySeries().map(function(p2){return p2.ac;}));
     return "Fit to this program's own "+g.n+" real log-returns: drift "+pct(g.muHatMle,2)+"/period, volatility "+pct(g.sigmaHatMle,2)+
       "/period. With only "+g.n+" data points the 90% confidence interval is wide enough that the dashboard's own card states plainly, before showing any number, that this is too thin a sample to trust as a forecast — the arithmetic is real, the caveat is the point."; }},
- {k:"gbmvsevm", cat:"cost", jT:"cost", jE:"gbmVsEvm", t:"CPI-extrapolation vs. GBM — what each method assumes", p:"Classical EAC (BAC÷CPI) assumes the remaining work happens at exactly today's cost-efficiency, every month, with zero variance — a real assumption, just an invisible one unless someone states it. GBM's own MLE fit makes the opposite move: it names a real volatility figure instead of assuming it away. Neither method is being projected forward here — this compares what each one assumes about the future, not which one predicts it better.",
+ {k:"gbmvsevm", cat:"risk", jT:"cost", jE:"gbmVsEvm", t:"CPI-extrapolation vs. GBM — what each method assumes", p:"Classical EAC (BAC÷CPI) assumes the remaining work happens at exactly today's cost-efficiency, every month, with zero variance — a real assumption, just an invisible one unless someone states it. GBM's own MLE fit makes the opposite move: it names a real volatility figure instead of assuming it away. Neither method is being projected forward here — this compares what each one assumes about the future, not which one predicts it better.",
   e:function(){ var g=deriveGbmParams(acHistorySeries().map(function(p2){return p2.ac;}));
     return "This program's CPI ("+idx(T.cpi)+") implies zero month-to-month variance in the remaining work's efficiency. GBM's own fit puts that variance at "+pct(g.sigmaHatMle,2)+
       "/period — real, even though "+g.n+" data points is too few to trust the figure as a forecasting input on its own."; }},
@@ -7279,36 +7279,32 @@ function closeShortcuts(){
 }
 function shortcutsOpen(){ return !document.getElementById("shortcutsOverlay").hidden; }
 
-/* Category pill bar (brainstorm-mode upgrade, 2026-08-21) — role="tablist"/role="tab" per the
-   real ARIA tablist pattern (not decorative buttons): the category filter genuinely swaps which
-   panel of cards is showing, the same semantic the tab-rail itself already uses site-wide. Counts
-   are computed live from GLOSS, never hand-typed, so they can't silently drift from the real data
-   the way a hardcoded "38" elsewhere in an unrelated document already did once this session. */
+/* Category pill bar (brainstorm-mode upgrade, 2026-08-21; corrected same day, /stress-test
+   finding). Originally shipped as role="tablist"/role="tab" — WRONG per an independent reviewer's
+   finding: role="tab" implies swapping to a genuinely separate panel per selection (the real
+   APG tablist pattern, and what this page's own nav rail actually does); this control instead
+   re-filters one single shared #glossList, exactly the same shape as every OTHER filter-button
+   group already on this page (mcFilter, mcRiskFilter, kfilters, phases — all role="group" with
+   plain aria-pressed buttons, never role="tab"). Reusing tab semantics for a behavior that
+   differs from this page's one real tablist actively misleads assistive tech, and a since-removed
+   custom ArrowKey handler (rebuilding this bar's innerHTML on every click, which destroys and
+   recreates the very button DOM node .focus() had just targeted) broke keyboard nav after exactly
+   one arrow-press. Matching the established mcFilter pattern exactly fixes both: plain buttons
+   need no custom arrow-key handling at all, native Tab order already works. Counts are computed
+   live from GLOSS, never hand-typed, so they can't silently drift the way a hardcoded "38"
+   elsewhere in an unrelated document already did once this session. */
 function renderGlossCatBar(){
   var counts={}; GLOSS.forEach(function(g){ counts[g.cat]=(counts[g.cat]||0)+1; });
   var cats=[{k:"All",label:"All"}].concat(Object.keys(CATS).map(function(k){ return {k:k,label:CATS[k].label}; }));
   document.getElementById("glossCatBar").innerHTML=cats.map(function(c){
     var on=state.glossCat===c.k, n=c.k==="All"?GLOSS.length:(counts[c.k]||0);
-    return '<button class="btn'+(on?" on":"")+'" role="tab" aria-selected="'+on+'" aria-controls="glossList" '+
-      'data-glosscat="'+c.k+'">'+c.label+' <span style="opacity:.7">('+n+')</span></button>';
+    return '<button class="btn'+(on?" on":"")+'" aria-pressed="'+on+'" data-glosscat="'+c.k+'">'+
+      c.label+' <span style="opacity:.7">('+n+')</span></button>';
   }).join("");
 }
 document.getElementById("glossCatBar").addEventListener("click",function(e){
   var b=e.target.closest("[data-glosscat]"); if(!b) return;
   state.glossCat=b.dataset.glosscat; renderGlossCatBar(); renderGlossary(document.getElementById("glossQ").value);
-});
-document.getElementById("glossCatBar").addEventListener("keydown",function(e){
-  // ArrowLeft/ArrowRight/Home/End between category pills — the real tablist keyboard pattern,
-  // same convention this file already applies to its own tab-rail (activateTabByOffset() etc.),
-  // now extended to this second, smaller tablist rather than left as click-only.
-  var tabs=[].slice.call(document.querySelectorAll('#glossCatBar [role="tab"]'));
-  var i=tabs.indexOf(document.activeElement); if(i<0) return;
-  var to=null;
-  if(e.key==="ArrowRight") to=tabs[(i+1)%tabs.length];
-  else if(e.key==="ArrowLeft") to=tabs[(i-1+tabs.length)%tabs.length];
-  else if(e.key==="Home") to=tabs[0];
-  else if(e.key==="End") to=tabs[tabs.length-1];
-  if(to){ e.preventDefault(); to.focus(); to.click(); }
 });
 function renderGlossary(q){
   q=(q||"").toLowerCase();

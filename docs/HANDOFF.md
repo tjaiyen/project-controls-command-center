@@ -44,7 +44,7 @@ anywhere in this repository. The method is the content, not the numbers.
 | Contracts | 6 |
 | Risks | 6 |
 | Delay events | 4 |
-| `stress.cjs` test assertions | 1,828, all passing |
+| `stress.cjs` test assertions | 1,834, all passing |
 | Companion pages | `otak.html` (fit brief), `architecture.html` (static pipeline map) |
 | Hosting | GitHub Pages, served directly from `main`, zero build |
 | Git history | 100 commits |
@@ -375,7 +375,7 @@ matches an independent recomputation, not just that *a* number is present.
 
 ## 11. Testing & verification
 
-**`stress.cjs`** (1,828 assertions, all passing) — stubs the DOM, loads `index.html`'s script
+**`stress.cjs`** (1,834 assertions, all passing) — stubs the DOM, loads `index.html`'s script
 verbatim into that stub, and exercises it exactly like a user would: every tab switch, every
 filter, every drawer, every slider drag, every keyboard interaction. 41 labeled sections:
 
@@ -1339,6 +1339,44 @@ carried over from memory or an earlier pass:
   `/` key (correctly switched to Glossary and focused the search box) — the screenshot tool that
   malfunctioned during the prior round's verification worked cleanly this time.
 
+- **2026-08-22 `/stress-test` pass on the Glossary round**: own review + an independent
+  fresh-context reviewer, both real and substantially non-overlapping this time. Own review caught
+  3 jump-target specificity issues by spot-checking a handful of terms against where their
+  concept is actually rendered: `contingency` was pointing at Gate 5's card (contingency coverage
+  is only one of three checks there) when a purpose-built "Contingency vs. progress" chart already
+  existed on the Cost tab; `ve`/`buyout` were pointing at the generic 4-method EAC table (which
+  has no VE/Buyout line items at all) when the real baseline bridge — which literally names both
+  as bridge rows — already existed. The independent reviewer, checking the same class of thing
+  more exhaustively (10+ terms, read against the actual rendering code, not just existence),
+  found 2 more of the same defect (`bac`/`tcpi` also pointed at the EAC table, which has no BAC or
+  TCPI row) plus 3 findings this session's own review missed entirely: (1) a genuine category
+  inconsistency — `gbm`/`gbmvsevm` and `fundingtier` were categorized `cost` while their direct
+  conceptual siblings (`montecarlo`/`referenceclass`/`pertdist`/`riskdriver`, all uncertainty-
+  modeling methods; `fundingtier`, a governance/prioritization framework, not an EVM formula) sat
+  in `risk` — moved all three to match; (2) a real ARIA mismatch: the category filter shipped as
+  `role="tablist"`/`role="tab"`, but it re-filters one shared list rather than swapping to a
+  genuinely separate panel per selection — the actual APG tablist pattern, and what this page's
+  own nav rail does — while every OTHER filter-button group already on this page
+  (`mcFilter`/`mcRiskFilter`/`kfilters`/`phases`) correctly uses `role="group"`+`aria-pressed`;
+  this session's own code comment had claimed the tablist pattern was correct, which the reviewer
+  proved false by reading `renderGlossary()` directly, not by taking the comment's word for it;
+  (3) a real, confirmed focus-loss bug baked into the tablist version's own ArrowKey handler —
+  `to.focus(); to.click();` where the click handler immediately rebuilds the pill bar's entire
+  `innerHTML`, destroying the exact button node `.focus()` had just targeted, so arrow-key nav
+  worked exactly once per session and then silently stopped (confirmed by reading the code, not
+  just the DOM-stub's own documented `querySelectorAll` limitation). Fixed by matching the
+  established `role="group"`/`aria-pressed` convention exactly, which also eliminates the need for
+  any custom ArrowKey handler at all — deleted, not patched. The reviewer separately caught a
+  tautological test matching the exact pattern flagged in each of the two prior rounds' own
+  stress-test fixes: `sumOfCats===55` is mathematically guaranteed to pass for ANY partition of 55
+  items into any number of buckets, reproduced by mutating every single term's category to the
+  same value and confirming the assertion still passed; replaced with a check that verifies all 5
+  real categories are actually represented and each has at least one term, reproduced against the
+  same mutation to confirm it now correctly fails. `node stress.cjs`: 1828&rarr;1834 assertions,
+  all passing. `node verify.cjs`: headline tie-out unchanged. Live-browser re-confirmed the
+  corrected `role="group"` markup and two of the retargeted jump buttons (BAC&rarr;baseline
+  bridge, TCPI&rarr;Overview KPI board) actually work end to end.
+
 Generated 2026-08-20, against the tip of the eleven-input-ledger-card engagement round; extended
 2026-08-21 for the six-KPI-families card round, again 2026-08-21 for the Data Strategy tab UI/UX
 round, again 2026-08-21 for the "96→100" brainstorm round's Tier 0/1 items, again 2026-08-21 for
@@ -1353,7 +1391,7 @@ again 2026-08-21 for the Galton Engine round, again 2026-08-21 for the third ful
 2026-08-21 for the tab-rail navigation round, again 2026-08-21 for the altitude-grouped-rail
 round, again 2026-08-21 for the whole-repo `/stress-test` round, again 2026-08-21 for the
 Control Tower brainstorm round items 1-4, again 2026-08-21 for the GBM/MLE brainstorm round
-items 1-4, again 2026-08-21 for the `/stress-test` pass on that same round, and again 2026-08-21
-for the Glossary brainstorm round items 1-3 (see git log for exact commits — each document update
-was written before its own round's commit lands, per the project's "verify, then document"
-ordering).
+items 1-4, again 2026-08-21 for the `/stress-test` pass on that same round, again 2026-08-21
+for the Glossary brainstorm round items 1-3, and again 2026-08-22 for the `/stress-test` pass on
+that round (see git log for exact commits — each document update was written before its own
+round's commit lands, per the project's "verify, then document" ordering).

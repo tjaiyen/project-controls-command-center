@@ -4580,8 +4580,13 @@ console.log("== D23. Glossary upgrade round, items 1-3 (2026-08-21) ==");
     ok(G.glossCatBar._html.indexOf(P.cats[cat].label + ' <span style="opacity:.7">(' + realCounts[cat] + ')</span>') >= 0,
       "the '" + cat + "' pill's own count (" + realCounts[cat] + ") matches an independent recount");
   });
-  const sumOfCats = Object.values(realCounts).reduce((a, b) => a + b, 0);
-  ok(sumOfCats === 55, "sanity: the 5 category counts sum to all 55 terms — no term left uncategorized or double-counted", String(sumOfCats));
+  // /stress-test finding (independent reviewer, 2026-08-21): a sum-equals-55 check is
+  // mathematically guaranteed to pass for ANY partition of 55 items into any number of buckets —
+  // reproduced by the reviewer mutating every single term to the same category and confirming the
+  // old assertion still passed. A check that can actually fail: all 5 real categories are
+  // genuinely in use (not collapsed to fewer by a bug), and each carries at least one term.
+  ok(Object.keys(realCounts).length === 5, "pre-registered: all 5 real categories are actually represented, not collapsed to fewer by a mis-tagging bug", String(Object.keys(realCounts).length));
+  Object.keys(P.cats).forEach(cat => ok((realCounts[cat] || 0) > 0, "category '" + cat + "' has at least one real term, not silently empty"));
 
   // Clicking a category pill actually filters the card list, and All shows everything again.
   // G.glossQ.value must be explicitly cleared first -- the stub's makeEl() defaults every
@@ -4630,15 +4635,21 @@ console.log("== D23. Glossary upgrade round, items 1-3 (2026-08-21) ==");
   fire(R.win, "keydown", { key: "/", target: { tagName: "INPUT" }, preventDefault(){} });
   ok(P.state.tab === "over", "bare '/' does nothing while already typing in an input — the existing tag-guard still applies");
 
-  // Category tablist markup + ARIA. The ArrowRight/Left/Home/End keyboard handler itself queries
-  // document.querySelectorAll('#glossCatBar [role="tab"]'), which this DOM stub always returns []
-  // for (a documented, existing stub limitation — see makeEl()'s own querySelectorAll comment and
-  // wireAccountHighlight's identical caveat elsewhere in this file) — that interaction is
-  // live-browser-only coverage, not exercisable here, same accepted-limitation class as those
-  // prior cases. What IS checkable from this stub: the real markup carries the real ARIA roles.
+  // Category pill bar markup + ARIA (/stress-test finding, 2026-08-21 -- corrected from an
+  // initial role="tablist"/role="tab" implementation: that pattern implies swapping to a
+  // genuinely separate panel per selection, which this control does not do, it re-filters one
+  // shared #glossList -- role="group" + aria-pressed matches this page's OWN established pattern
+  // for every other filter-button group already on it, mcFilter/mcRiskFilter/kfilters/phases,
+  // none of which use role="tab" either). This also removes the need for any custom ArrowKey
+  // handler -- plain buttons get correct native Tab order for free, closing a real focus-loss bug
+  // the original tablist-shaped handler had (rebuilding this bar's innerHTML on every click
+  // destroyed the exact button .focus() had just targeted, breaking arrow-key nav after one press).
   P.state.glossCat = "All"; P.renderGlossCatBar();
-  ok(/role="tab" aria-selected="true"[^>]*data-glosscat="All"/.test(G.glossCatBar._html), "the All pill renders as the selected tab by default");
-  ok(/role="tablist"/.test(indexSrc) && /aria-label="Glossary categories"/.test(indexSrc), "the category bar declares role=tablist with a real accessible name in static markup");
+  ok(/class="btn on" aria-pressed="true" data-glosscat="All"/.test(G.glossCatBar._html), "the All pill renders as pressed by default");
+  ok(/id="glossCatBar" role="group" aria-label="Filter by category"/.test(indexSrc), "the category bar declares role=group with a real accessible name in static markup, matching this page's own established filter-button-group pattern");
+  // scoped to glossCatBar's own rendered output, not the whole page -- the main nav rail
+  // legitimately uses role="tab" for its own, genuinely-panel-swapping tabs elsewhere on this page.
+  ok(!/role="tab"/.test(G.glossCatBar._html), "no leftover role=tab markup remains in the category bar's own rendered output");
 }
 
 /* =========================================================================
