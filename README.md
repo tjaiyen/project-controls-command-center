@@ -7,9 +7,102 @@ multi-package capital transit program, plus a requirement-coverage fit brief.
 
 **Live:** https://tjaiyen.github.io/project-controls-command-center/
 
+**20 KPIs · 11 tabs · 1,846 tests passing · 64 independent SQL parity checks · zero dependencies**
+— every number below is computed live from one 11-input ledger, never typed, and provably identical
+whether re-derived in the browser's own JavaScript or an independent DuckDB/SQL pipeline.
+
+<p>
+  <img src="docs/screenshots/overview.png" alt="Overview tab — 20 live KPIs, executive summary, and the program's real forecast overrun" width="49%">
+  <img src="docs/screenshots/gate5-blocked.png" alt="Operating Framework tab — Gate 5 genuinely BLOCKED, three live checks, one failing at a real 0.588 contingency coverage ratio" width="49%">
+</p>
+
+*Left: the Overview board — a KPI is live if you can watch it change. Right: Gate 5, mid-lock — a
+governance gate that always shows green isn't checking anything; this one just failed, live,
+because it's actually computing the condition instead of asserting a status.*
+
+## What's on each tab
+
+11 tabs grouped into 5 altitudes on the rail — **Executive · Program Performance · Field &
+Assurance · Governance & Execution · Reference**. Global chrome: a live "Gate 5 blocked" status
+pill, a hover/focus-preview mini-drawer on every tab button (core question, real leading prose, a
+live-computed system-of-record), a global 1&ndash;9 tab-jump with a "?" shortcuts overlay
+gathering every shortcut on the page in one place, a sticky in-tab section-anchor rail on Cost and
+Schedule, and a "return to origin tab" breadcrumb after any cross-tab jump.
+
+<details>
+<summary><b>Every tab, every feature named</b> (click to expand)</summary>
+
+- **Overview** — a "Six lenses, not one blended score" card (why Cost/Schedule/Risk/Change/
+  Delivery/Compliance can't be folded into one number), a "Three layers, not one number" card
+  naming this dashboard's own leading-telemetry / confirming-EVM / independent-assurance
+  architecture, a KPI board with drill-down detail including a live root-cause-to-owner trace and
+  a float-specific companion panel linking the worst-float account to its real delay fragnet and
+  crew-level idle-time split, an eleven-input ledger card with a per-package inspector and a live
+  "change one input, watch the KPIs move" demo, a 10-stop guided Tour with tab-jumping evidence
+  links, and a "Velocity Pulse" strip reading 5 real drift signals together for the first time —
+  EAC velocity, float erosion rate, milestone slip, crew CPH EWMA gap, Non-Critical Progress
+  Inflation — each pill jumping to its own tab.
+- **Portfolio** — agency-level rollup across 4 lines of business, one read live off this program's
+  own totals, three summary-only.
+- **Cost** — EVM S-curve and variance bridge, an estimate-to-budget baseline bridge reconciled to
+  the ledger, four-method EAC with a live divergence check flagging when methods disagree by more
+  than ~5%, a forecast-reliability section (EAC trend, forecast-accuracy scorecard, monthly cash
+  flow), what-if forecasting with scenario comparison, Monte Carlo completion distribution with a
+  Triangular/PERT draw-shape toggle and a drag-to-inspect percentile needle, an AACE 57R-09
+  risk-driver layer (opt-in toggles for each of the priced risk register's own named events,
+  additive on top of the cost-efficiency draw — the canonical board-facing run provably untouched
+  unless something is checked on), a flashing "100% Contingency Breach" pill, an Optimism Gap tile
+  against the Flyvbjerg reference class (now also citing Flyvbjerg's own 0.5% "trifecta" —
+  on-budget, on-schedule, and on-benefits, all three), a tri-point Beta-PERT curve playground with
+  draggable/arrow-key-editable min/mode/max pins per control account, a canvas-based "Galton
+  engine" replaying real simulated outcomes as falling beads at 1x/5x/instant/step-by-step speed,
+  and a GBM/MLE cost-diffusion card — its honest "too thin to trust as a forecast" caveat leading
+  the card on purpose, paired with a real strip plot of the 5 actual log-returns and the Gaussian
+  shape MLE fits to them (centered on the sample mean, not the Itô-adjusted drift — a real
+  distinction the chart gets right), a plain-language "Math unlocked" drift/volatility explainer,
+  and an EVM-vs-GBM card comparing what each method *assumes* — never a forward-projected
+  P80-completion figure, which the card itself explains was deliberately declined.
+- **Schedule** — DCMA-style schedule health, named explicitly (SPI(t)/Earned Schedule, CPLI, BEI,
+  float erosion — the objective metric triad the DCMA 14-Point Assessment and ANSI/EIA-748 sit
+  under), a CPLI status-band summary strip alongside the per-package bars, a tracking Gantt with a
+  per-account hover tooltip that works the CPLI formula live, a fragnet-based delay & TIA register
+  tied to package float — including a real FS↔SS resequencing toggle on the one delay with an
+  actual recovery story, switching between CP-101's original Finish-to-Start impact and its real,
+  already-computed Start-to-Start recovered float — and revenue-service forecast drift.
+- **Risk & Change** — a priced risk register, a contract commercial register (a third axis distinct
+  from control accounts), and a change pipeline with proposed-vs-settled pricing defense.
+- **Delivery** — leading indicators (productivity factor, RFI/submittal aging, a quality NCR
+  register with real open counts and per-item aging) and a crew cost-per-hour module.
+- **AI & Data** — pipeline architecture, the SQL model, a live 28-check integrity gate, a real SVG
+  EWMA control chart with a dynamically widening control-limit band, a z-score control chart, and
+  narrative generation under a verification contract.
+- **Operating Framework** — a phase playbook, a WBS/CBS/OBS/ABS control-account mapping, Board
+  phase-gate governance with a live Gate-5 hard stop, an escalation matrix, a live
+  Working-Backward/inversion worked example, reporting cadence, a stakeholder interface map, and a
+  KPI reference library.
+- **Actions** — a RAID/CAPA register with proactive staleness detection and owner accountability
+  rollup.
+- **Glossary** — 55 terms with live worked examples, a click-driven inline "i" help icon next to
+  jargon anywhere on the page, a 5-category domain filter (Cost & EVM, Schedule & CPM,
+  Risk/Commercial & Governance, Field Telemetry & Quality, Data Strategy & Architecture — every
+  term individually categorized, every count live-derived from the real array), a real "See it
+  live" button on every card jumping straight to where that term is actually computed, and a bare
+  "/" keyboard shortcut jumping to the search box — chosen specifically over Cmd/Ctrl+K because
+  this file already refuses to hijack any browser-reserved shortcut.
+- **Data Strategy** — a real-world plan for connecting scattered, multi-system data: staging
+  architecture, a 4-tile IDS guardrail status grid with a live 2-check ingestion-validation panel,
+  a discrepancy-resolution decision flow, a Category/Trigger/Routing error-recovery table, and a
+  Dual-Stack Parity card citing this program's own real, live CPI against the actual SQL that
+  independently re-derives it.
+- **Motion** throughout (draw-in charts, staggered cards, growing histogram bars), with a
+  `prefers-reduced-motion` guard.
+
+</details>
+
+## Companion pages & proof harnesses
+
 | Page / path | What it is |
 |---|---|
-| [`index.html`](index.html) | The command center, 11 tabs grouped into 5 altitudes on the rail — Executive, Program Performance, Field & Assurance, Governance & Execution, Reference — with a live "Gate 5 blocked" status pill on Operating Framework, a hover/focus-preview mini-drawer on each tab rail button (core question, real leading prose, and a live-computed system-of-record, per tab), a global 1&ndash;9 tab-jump plus a "?" keyboard-shortcuts overlay gathering every shortcut on the page in one place, a sticky in-tab section-anchor rail on Cost and Schedule (mobile-collapsible), and a contextual "return to origin tab" breadcrumb after any cross-tab jump, alongside — Overview (a "Six lenses, not one blended score" card explaining what each KPI family — Cost, Schedule, Risk, Change, Delivery, Compliance — actually asks and why it can't be folded into the others, a "Three layers, not one number" card naming this dashboard's own leading-telemetry / confirming-EVM / independent-assurance architecture for the first time, each layer real and already built on its own tab, a KPI board with drill-down detail including a live root-cause-to-owner trace and a float-specific companion panel connecting the worst-float account to its real linked delay fragnet and crew-level idle-time split, an eleven-input ledger card with a per-package inspector and a live "change one input, watch the KPIs move" demo, a 10-stop guided Tour with tab-jumping evidence links, and a "Velocity Pulse" strip reading 5 already-real drift signals — EAC velocity, float erosion rate, milestone slip, crew CPH EWMA gap, Non-Critical Progress Inflation — together for the first time, each pill jumping to its own tab), Portfolio (agency-level rollup across 4 lines of business, one read live off this program's own totals, three summary-only), Cost (EVM S-curve and variance bridge, an estimate-to-budget baseline bridge reconciled to the ledger, four-method EAC with a live divergence check flagging when the methods disagree by more than ~5%, a forecast-reliability section — EAC trend, a forecast-accuracy scorecard, monthly cash flow — what-if forecasting with scenario comparison, Monte Carlo completion distribution with a Triangular/PERT draw-shape toggle, a drag-to-inspect percentile needle, an AACE 57R-09 risk-driver layer — opt-in toggles for each of the priced risk register's own named events, additive on top of the cost-efficiency draw, the canonical board-facing run provably untouched unless something is checked on — a flashing "100% Contingency Breach" pill, an Optimism Gap tile against the Flyvbjerg reference class card (now also citing Flyvbjerg's own 0.5% "trifecta" — on-budget, on-schedule, and on-benefits — base rate), a tri-point Beta-PERT curve playground with draggable/arrow-key-editable min/mode/max pins per control account, a canvas-based "Galton engine" replaying the same real simulated outcomes as falling beads at 1x/5x/instant/step-by-step speed, and a GBM/MLE cost-diffusion card — its honest "too thin to trust as a forecast" caveat leading the card on purpose, now paired with a real strip plot of the 5 actual log-returns and the Gaussian shape MLE fits to them (centered on the sample mean, not the Ito-adjusted drift, a real distinction the chart gets right), a plain-language "Math unlocked" drift/volatility explainer, and an EVM-vs-GBM card comparing what each method *assumes* — never a forward-projected P80-completion figure, which the card itself explains was deliberately declined, the same reasoning that already declined a Stochastic TCPI elsewhere in this build), Schedule (DCMA-style schedule health — the objective metric triad the DCMA 14-Point Assessment and ANSI/EIA-748 sit under, named explicitly: SPI(t)/Earned Schedule, CPLI, BEI, float erosion —, a CPLI status-band summary strip alongside the per-package bars, a tracking Gantt with a per-account hover tooltip that works the CPLI formula live, a fragnet-based delay & TIA register tied to package float — including a real FS&harr;SS resequencing toggle on the one delay with an actual recovery story, switching between CP-101's original Finish-to-Start impact and its real, already-computed Start-to-Start recovered float — revenue-service forecast drift), Risk & Change (priced risk register, a contract commercial register — a third axis distinct from control accounts —, change pipeline with proposed-vs-settled pricing defense), Delivery (leading indicators — productivity factor, RFI/submittal aging, a quality NCR register with real open counts and per-item aging —, a crew cost-per-hour module), AI & Data (pipeline architecture, the SQL model, a live 28-check integrity gate, a real SVG EWMA control chart with a dynamically widening control-limit band, a z-score control chart, and narrative generation under a verification contract), Operating Framework (phase playbook, a WBS/CBS/OBS/ABS control-account mapping, Board phase-gate governance with a live Gate-5 hard stop, escalation matrix, a live Working-Backward/inversion worked example, reporting cadence, stakeholder interface map, KPI reference library), Actions (a RAID/CAPA register with proactive staleness detection and owner accountability rollup), Glossary (55 terms with live worked examples, a click-driven inline "i" help icon next to jargon anywhere on the page, a 5-category domain filter — Cost & EVM, Schedule & CPM, Risk/Commercial & Governance, Field Telemetry & Quality, Data Strategy & Architecture, each term individually categorized and every count live-derived from the real array, badges deliberately left uncolored rather than reusing this dashboard's own red/amber/green pass-fail palette for a non-status purpose — a real "See it live" button on every card jumping straight to where that term is actually computed, reusing the same cross-tab jump mechanism used 15+ other places on the page, and a bare "/" keyboard shortcut jumping to the search box, chosen specifically over Cmd/Ctrl+K because this file already refuses to hijack any browser-reserved shortcut), and Data Strategy (a real-world plan for connecting scattered, multi-system data — staging architecture, a 4-tile IDS guardrail status grid with a live 2-check ingestion-validation panel embedded in it, a discrepancy-resolution decision flow, a Category/Trigger/Routing error-recovery table, a Dual-Stack Parity card citing this program's own real, live CPI against the actual SQL that independently re-derives it) — plus motion throughout (draw-in charts, staggered cards, growing histogram bars) with a `prefers-reduced-motion` guard |
 | [`architecture.html`](architecture.html) | A drawing-schedule-style map of the dashboard's own upstream→downstream data flow — six source systems through the ledger, KPI board, integrity gate, governance, to the three published outputs. A verified snapshot, not a live render |
 | [`otak.html`](otak.html) | Fit brief: requirement-by-requirement coverage against a Project Controls Manager posting, gaps included. Re-verified against live req #3775557 on 17 Aug 2026 |
 | [`pipeline/`](pipeline/) | The data layer made executable — `run_pipeline.py` synthesizes raw monthly claims deterministically, builds the ledger through `models/fct_control_account.sql` in DuckDB, enforces every guardrail declared in `models/schema.yml`, and proves the SQL output identical to the browser's JavaScript derivation (64 checks). The raw claim rows are synthesized to sum back to the dashboard's own real PV/EV/AC totals, so the proof covers the SQL aggregation/formula layer, not an independently-entered dataset. Requires `pip install duckdb` — no other dependencies |
