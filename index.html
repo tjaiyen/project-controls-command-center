@@ -1425,6 +1425,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
           <p class="lede" style="font-size:12.5px;margin-top:5px">Earned hours &divide; actual hours. Below
             1.00 means the crews are burning more hours than the estimate carried &mdash; visible weeks
             before it reaches CPI.</p>
+          <div id="pfArc"></div>
           <div id="prod"></div></div>
         <div class="card"><h3>Document control aging</h3>
           <p class="lede" style="font-size:12.5px;margin-top:5px">RFI and submittal turnaround are the
@@ -1441,6 +1442,15 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
             Spending ahead of drawdown is a cash-flow exposure; drawing ahead of spend is a compliance one.</p>
           <div id="funding"></div></div>
       </div>
+
+      <div class="sec-h" style="margin-top:34px"><h2>Field-to-boardroom cascade</h2><span class="tag">one root cause, five instruments</span></div>
+      <p class="lede">The Schedule tab already says it in one sentence: the same tunnel ground condition shows
+        up in the priced risk register, a quality NCR, a crew's weekly cost-per-hour, the Critical Float
+        Erosion Rate and the schedule-drift trend &mdash; one root cause showing up in five different
+        instruments. This walks four of those into where it actually lands: Field Friction (risk register +
+        NCR) &rarr; Delivery Impact (crew CPH) &rarr; Schedule Impact (float) &rarr; Gate 5's own governance
+        hard stop.</p>
+      <div class="card" style="margin-top:15px" id="cascadeCard"></div>
 
       <div class="sec-h" style="margin-top:34px"><h3>Quality NCR register<button type="button" class="help-ic" data-help="ncr" aria-label="What does this term mean?" aria-expanded="false">i</button></h3></div>
       <p class="lede">A rising ratio of unresolved Non-Conformance Reports is a leading indicator of
@@ -2716,9 +2726,12 @@ var state = {phase:"con", fam:"All", audience:"pcm", kpi:null, pkg:2, actFilter:
                      // layer) stays exactly what it has always been; checking a risk ON is what
                      // adds the new layer, never a default-on state that would silently change it.
   glossCat:"All", // glossary category filter (brainstorm-mode upgrade, 2026-08-21)
-  baseStep:0, baseDrawerOpen:false, veAccepted:true}; // estimate-to-budget bridge stepper/sandbox
+  baseStep:0, baseDrawerOpen:false, veAccepted:true, // estimate-to-budget bridge stepper/sandbox
                  // (brainstorm-mode upgrade, 2026-08-23) — veAccepted defaults true (the real,
                  // current state); unchecking it is what enters the hypothetical.
+  pfPkg:null, cascadeStep:0, cphIdleReduction:0}; // Delivery-tab upgrade (brainstorm-mode, 2026-08-23) —
+                 // pfPkg null = the PF gauge shows the portfolio; cphIdleReduction 0 = the CPH
+                 // sandbox renders at the real, unmodified figures until moved.
 
 /* Ledger card (Overview-tab upgrade, 2026-08-20) — the 11 raw inputs, a per-package inspector, and
    a live "change one input, watch the KPIs move" demo. The demo deliberately reads a LOCAL copy of
@@ -5451,6 +5464,7 @@ function renderRiskMath(ranked){
 
 /* ---------- delivery tab ---------- */
 function renderDelivery(){
+  renderPfArc();
   bars("prod",rows.slice().sort(function(a,b){return a.pf-b.pf;}).map(function(r){
     return {id:r.id,v:r.pf,c:r.pf<0.95?"var(--c-pill-r)":r.pf<1?"var(--c-pill-a)":"var(--c-pill-g)"}; }),idx,
     function(o){ var r=rows.filter(function(x){return x.id===o.id;})[0];
@@ -5460,6 +5474,7 @@ function renderDelivery(){
     '<p style="margin:12px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">Program factor <b style="color:rgb(var(--c-ink))">'+
     idx(T.pf)+'</b>. CP-201 and CP-601 are burning hours fastest — the same two packages already carrying '+
     'negative float, which is the signature of acceleration that is not working.</p>');
+  var a05=ACTIONS.filter(function(a){return a.id==="A-05";})[0];
   document.getElementById("docctl").innerHTML=
    [["RFIs open",PROGRAM.rfiOpen,""],["Aged past 30d",PROGRAM.rfiOver30,"ba"],
     ["Mean RFI age",PROGRAM.rfiAvgAge+"d (target "+PROGRAM.rfiTarget+")","ba"],
@@ -5470,7 +5485,11 @@ function renderDelivery(){
    '<p style="margin:12px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">RFIs are running at '+
    (PROGRAM.rfiAvgAge/PROGRAM.rfiTarget).toFixed(1)+'× target and submittals at '+
    (PROGRAM.subTurnaround/PROGRAM.subTarget).toFixed(1)+'×. Where design and construction run concurrently that is not an '+
-   'administrative nuisance — it is the documented root cause most delay claims are built on.</p>';
+   'administrative nuisance — it is the documented root cause most delay claims are built on. This ledger tracks RFI '+
+   'aging only in aggregate — there is no individual RFI-by-RFI record to drill into — but the specific aged item '+
+   'behind that average has already tripped the escalation matrix as an action.</p>'+
+   (a05?'<button type="button" class="btn" data-jump="A-05" '+
+     'style="margin-top:2px;min-height:auto;padding:3px 10px;font-size:12px">See '+a05.id+' &rarr;</button>':"");
   document.getElementById("compliance").innerHTML=
    [["TRIR",PROGRAM.trir.toFixed(2)+" (bench "+PROGRAM.trirBenchmark.toFixed(2)+")",PROGRAM.trir<=PROGRAM.trirBenchmark?"ok":"ba"],
     ["Recordables",PROGRAM.recordables+" / "+num(PROGRAM.hoursWorked)+" hrs","ok"]
@@ -5493,8 +5512,144 @@ function renderDelivery(){
     idx(T.fundIdx)+'</b> — the program has spent '+pct(sp)+' of budget but drawn only '+pct(fd)+
     ' of authorized funding. Actual cost to date exceeds grant drawdowns by '+m(T.ac-PROGRAM.fundDrawn)+
     ' — cash the program is fronting. That is a finance conversation, and it is invisible on every other panel in this tool.</p>';
+  renderCascade();
   renderNcr();
   renderCph();
+}
+
+/* Productivity-factor gauge (brainstorm-mode upgrade, 2026-08-23) — a hero radial read of the same
+   pf field the #prod bar chart below already renders; this doesn't replace that chart (it's still
+   the only place to compare all 8 packages side by side at once), it's a detail view for whichever
+   one is currently selected. Bands mirror #prod's own existing g/a/r thresholds (<0.95 / <1.00 /
+   else) exactly -- "Bleed/Drag/Optimal" are new descriptive names for real thresholds, not new
+   numbers. state.pfPkg is null for the portfolio-level reading, an id string to drill into one
+   package. */
+function pfBand(pf){
+  return pf<0.95 ? {cls:"bad",label:"Bleed"} : pf<1.00 ? {cls:"warn",label:"Drag"} : {cls:"ok",label:"Optimal"};
+}
+function renderPfArc(){
+  var sel=state.pfPkg, r=sel?rows.filter(function(x){return x.id===sel;})[0]:null;
+  var pf=r?r.pf:T.pf, ern=r?r.ernH:T.ernH, act=r?r.actH:T.actH;
+  var label=r?r.id:"Program", band=pfBand(pf);
+  var lo=0.80, hi=1.15;
+  var W=420,H=196,cx=210,cy=172,Rin=112,Rout=140,Rneedle=134;
+  function pt(R,frac){ var a=(180*(1-frac))*Math.PI/180; return [cx+R*Math.cos(a),cy-R*Math.sin(a)]; }
+  var ticks="",N=48,i;
+  for(i=0;i<N;i++){
+    var f=i/(N-1), v=lo+f*(hi-lo);
+    var col=v<0.95?C("bad"):v<1.00?C("warn"):C("ok");
+    var p0=pt(Rin,f),p1=pt(Rout,f);
+    ticks+='<line x1="'+p0[0].toFixed(1)+'" y1="'+p0[1].toFixed(1)+'" x2="'+p1[0].toFixed(1)+'" y2="'+p1[1].toFixed(1)+
+      '" stroke="'+col+'" stroke-width="5" stroke-linecap="round" opacity=".85"/>';
+  }
+  var nf=Math.max(0,Math.min(1,(pf-lo)/(hi-lo))), np=pt(Rneedle,nf);
+  var needle='<line x1="'+cx+'" y1="'+cy+'" x2="'+np[0].toFixed(1)+'" y2="'+np[1].toFixed(1)+
+    '" stroke="rgb(var(--c-ink))" stroke-width="3" stroke-linecap="round"/>'+
+    '<circle cx="'+cx+'" cy="'+cy+'" r="7" fill="rgb(var(--c-ink))"/>';
+  var t95=pt(Rout+11,(0.95-lo)/(hi-lo)), t100=pt(Rout+11,(1.00-lo)/(hi-lo));
+  var thresh='<text x="'+t95[0].toFixed(1)+'" y="'+t95[1].toFixed(1)+'" text-anchor="middle" font-size="10" font-family="ui-monospace,monospace" fill="'+C("mut")+'">0.95</text>'+
+    '<text x="'+t100[0].toFixed(1)+'" y="'+t100[1].toFixed(1)+'" text-anchor="middle" font-size="10" font-family="ui-monospace,monospace" fill="'+C("mut")+'">1.00</text>';
+  var bandColor=band.cls==="bad"?C("bad"):band.cls==="warn"?C("warn"):C("ok");
+  var readout='<text x="'+cx+'" y="'+(cy-32)+'" text-anchor="middle" font-size="30" font-weight="700" font-family="ui-monospace,monospace" fill="'+bandColor+'">'+idx(pf)+'</text>'+
+    '<text x="'+cx+'" y="'+(cy-13)+'" text-anchor="middle" font-size="11" font-family="ui-monospace,monospace" fill="'+C("mut")+'">'+label+' &middot; '+band.label+'</text>';
+  var chips='<button type="button" class="btn'+(!state.pfPkg?" on":"")+'" data-pkg="" style="min-height:auto;padding:3px 9px;font-size:11px;margin:2px">Program</button>'+
+    PKGS.map(function(p){
+      var pr=rows.filter(function(x){return x.id===p.id;})[0], b=pfBand(pr.pf);
+      var bc=b.cls==="bad"?C("bad"):b.cls==="warn"?C("warn"):C("ok");
+      return '<button type="button" class="btn'+(state.pfPkg===p.id?" on":"")+'" data-pkg="'+p.id+'" style="min-height:auto;padding:3px 9px;font-size:11px;margin:2px">'+
+        '<span class="mono">'+p.id+'</span> <span style="color:'+bc+'">'+idx(pr.pf)+'</span></button>';
+    }).join("");
+  document.getElementById("pfArc").innerHTML=
+    '<div style="display:flex;justify-content:center">'+svg(W,H,ticks+needle+thresh+readout,label+" productivity factor gauge, currently "+idx(pf))+'</div>'+
+    '<div style="display:flex;flex-wrap:wrap;gap:2px;justify-content:center;margin-top:4px">'+chips+'</div>'+
+    '<div style="display:flex;gap:22px;flex-wrap:wrap;justify-content:center;margin-top:12px">'+
+      '<div style="text-align:center"><div class="k" style="font:600 9.5px/1.3 ui-monospace,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgb(var(--c-mut))">Earned hours</div><div class="v mono" style="margin-top:5px;font:600 .98rem/1.2 inherit">'+num(Math.round(ern))+'</div></div>'+
+      '<div style="text-align:center"><div class="k" style="font:600 9.5px/1.3 ui-monospace,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgb(var(--c-mut))">Actual hours</div><div class="v mono" style="margin-top:5px;font:600 .98rem/1.2 inherit">'+num(Math.round(act))+'</div></div>'+
+    '</div>'+
+    '<p style="margin:14px 0 0;font-size:12px;color:rgb(var(--c-mut))"><b style="color:rgb(var(--c-ink))">Leading-indicator '+
+    'principle:</b> labor productivity typically moves weeks before cost indices reflect the same variance &mdash; a '+
+    'general project-controls pattern, not a lag specifically measured on this ledger. By the time CPI drops, the '+
+    'money is already spent; PF is a lever a controls manager can still pull in the field.</p>';
+  var host=document.getElementById("pfArc");
+  if(!host.dataset.wired){
+    host.dataset.wired="1";
+    host.addEventListener("click",function(e){
+      var t=e.target.closest("[data-pkg]"); if(!t) return;
+      state.pfPkg=t.dataset.pkg||null;
+      renderPfArc();
+    });
+  }
+}
+
+/* Field-to-boardroom cascade (brainstorm-mode upgrade, 2026-08-23) -- visualizes, step by step, a
+   causal chain this dashboard already narrates in one sentence on the Schedule tab (renderSchedDrift):
+   "the same tunnel condition carried by R-01, NCR-2026-014, the crew cost-per-hour spike on the
+   Delivery tab, and the Critical Float Erosion Rate ... one root cause showing up in five different
+   instruments." Every figure below is read live off the same real records that sentence already
+   names -- nothing here is a separately-asserted claim. */
+function cascadeStepContent(i){
+  var r01=RISKS.filter(function(x){return x.id==="R-01";})[0];
+  var ncr=ACTIONS.filter(function(x){return x.id==="NCR-2026-014";})[0];
+  var cph=deriveCph(CPH_CELLS[0]);
+  var d02=DELAYS.filter(function(x){return x.id==="D-02";})[0];
+  var cp201=rows.filter(function(x){return x.id==="CP-201";})[0];
+  var steps=[
+   {label:"Field Friction",
+    stat:m(r01.cost)+" priced exposure &middot; P"+r01.p+"/I"+r01.i,
+    banner:"<b>"+r01.id+"</b> (“"+r01.n+"”) is the priced risk register's own root cause &mdash; "+
+      pct(P_BAND[r01.p])+" probability &times; "+m(r01.cost)+" impact = "+m(P_BAND[r01.p]*r01.cost)+" exposure. "+
+      "The same condition surfaces days later as <b>"+ncr.id+"</b>: “"+ncr.title.replace(/&mdash;/g,"—")+".”",
+    jumpTab:"risk", jumpEl:"tornado", jumpLabel:"See "+r01.id+" on the risk register"},
+   {label:"Delivery Impact",
+    stat:usd(cph.totalIdle)+" idle &middot; "+usd(cph.totalRework)+" rework",
+    banner:"CP-201's tunnel crew runs "+usd(cph.totalOverrun)+" over standard across six weeks &mdash; "+
+      usd(cph.totalIdle)+" idle waiting on staging, plus "+usd(cph.totalRework)+" of productivity loss "+
+      "specifically tied to the same ground-condition rework named in R-01 and "+ncr.id+". This shows up "+
+      "here, in the crew's own weekly cost-per-hour, before it reaches CP-201's account-level CPI.",
+    jumpTab:"del", jumpEl:"cphCard", jumpLabel:"See the crew cost-per-hour breakdown"},
+   {label:"Schedule Impact",
+    stat:days(cp201.float)+" float &middot; "+days(d02.d)+" fragnet",
+    banner:"<b>"+d02.id+"</b> (“"+d02.n+"”) is inserted into the schedule model as a "+days(d02.d)+
+      " fragnet on "+d02.pkg+" &mdash; matching that package's own "+days(cp201.float)+" of total float "+
+      "exactly, not a separately-asserted number.",
+    jumpTab:"sched", jumpEl:"tiaReg", jumpLabel:"See "+d02.id+" on the delay register"},
+   {label:"Governance Impact",
+    stat:idx(T.contCoverage)+" coverage &middot; Gate 5 BLOCKED",
+    banner:"Contingency coverage reads <b>"+idx(T.contCoverage)+"</b> against a 1.00 requirement &mdash; the "+
+      "same live number that trips Gate 5's own hard stop. One priced risk, tracked honestly through four "+
+      "separate instruments, ends here: the program cannot advance to Gate 6 until this clears.",
+    jumpTab:"fw", jumpEl:"gate5Card", jumpLabel:"See Gate 5's live status"}
+  ];
+  return steps[i];
+}
+function renderCascade(){
+  var i=state.cascadeStep, s=cascadeStepContent(i);
+  var dots=[0,1,2,3].map(function(j){
+    var sj=cascadeStepContent(j);
+    return '<div style="flex:1;text-align:center;cursor:pointer" data-cstep="'+j+'">'+
+      '<div class="mono" style="font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:'+
+      (j===i?"rgb(var(--c-accent))":"rgb(var(--c-mut))")+'">'+sj.label+'</div>'+
+      '<div style="height:4px;border-radius:2px;margin-top:6px;background:'+
+      (j<=i?"rgb(var(--c-accent))":"var(--c-grid)")+'"></div></div>';
+  }).join("");
+  document.getElementById("cascadeCard").innerHTML=
+    '<div style="display:flex;gap:6px;margin-bottom:16px">'+dots+'</div>'+
+    '<div class="eyebrow">Step '+(i+1)+' of 4 &middot; '+s.label+'</div>'+
+    '<div class="mono" style="font-size:1.05rem;font-weight:600;margin:6px 0 10px;color:rgb(var(--c-ink))">'+s.stat+'</div>'+
+    '<p class="lede" style="font-size:12.8px">'+s.banner+'</p>'+
+    '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;flex-wrap:wrap">'+
+      '<button type="button" class="btn" data-jump-tab="'+s.jumpTab+'" data-jump-el="'+s.jumpEl+'" style="min-height:auto;padding:3px 10px;font-size:12px">'+s.jumpLabel+' &rarr;</button>'+
+      '<div style="display:flex;gap:8px">'+
+        '<button class="btn" type="button" id="cascadeBack"'+(i===0?" disabled":"")+'>&larr; Back</button>'+
+        '<button class="btn" type="button" id="cascadeNext"'+(i===3?" disabled":"")+'>Next &rarr;</button>'+
+      '</div></div>';
+  var card=document.getElementById("cascadeCard");
+  var back=document.getElementById("cascadeBack"), next=document.getElementById("cascadeNext");
+  if(back) back.addEventListener("click",function(){ state.cascadeStep=Math.max(0,state.cascadeStep-1); renderCascade(); });
+  if(next) next.addEventListener("click",function(){ state.cascadeStep=Math.min(3,state.cascadeStep+1); renderCascade(); });
+  card.querySelectorAll("[data-cstep]").forEach(function(d){
+    d.addEventListener("click",function(){ state.cascadeStep=+d.dataset.cstep; renderCascade(); });
+  });
 }
 
 /* Quality NCR register (megaproject-controls-doc upgrade, 2026-08-21) — genuinely computed off
@@ -5522,14 +5677,19 @@ function renderNcr(){
         that lets a track shrink under real pressure while still preferring Npx when there's
         room — combined with each column's own min-width:0 (already set below), this is what
         actually lets the row fit instead of just clipping symptoms one column at a time. */
-     return '<div class="rowbar" style="grid-template-columns:minmax(0,110px) 1fr minmax(0,90px) minmax(0,64px)"><span class="mono" style="font-size:11px">'+n.id+'</span>'+
+     return '<div class="rowbar" style="grid-template-columns:minmax(0,110px) 1fr minmax(0,90px) minmax(0,64px) minmax(0,86px)"><span class="mono" style="font-size:11px">'+n.id+'</span>'+
        '<span style="font-size:12.5px;white-space:normal;min-width:0">'+n.title+'</span>'+
        '<span class="tab-num mono" style="font-size:11px;color:rgb(var(--c-mut))">'+n.ageD+'d open</span>'+
        '<span style="text-align:right;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+sm.label+
-       '"><span class="pill '+sm.cls+'">'+sm.label+'</span></span></div>'; }).join("")+
+       '"><span class="pill '+sm.cls+'">'+sm.label+'</span></span>'+
+       '<span style="text-align:right"><button type="button" class="btn" data-jump="'+n.id+'" '+
+       'style="min-height:auto;padding:2px 8px;font-size:10.5px">View CAPA &rarr;</button></span></div>'; }).join("")+
    '<p style="margin:12px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">Only '+ncrs.length+' NCR'+(ncrs.length===1?"":"s")+
    ' exist on this synthetic ledger today &mdash; too few to compute a genuine generation-vs-closure rate, so this '+
-   'card reports real open counts and real per-item aging only, not a fabricated velocity trend.</p>';
+   'card reports real open counts and real per-item aging only, not a fabricated velocity trend. Each NCR&rsquo;s '+
+   'corrective/preventive action plan lives on the same Actions register every escalation on this dashboard reads '+
+   '&mdash; there is no separate CAPA log to fall out of sync with it, and no independent-auditor field to name '+
+   'someone this ledger does not actually track.</p>';
 }
 
 function renderCph(){
@@ -5548,6 +5708,7 @@ function renderCph(){
     ].join("")+'</div>'+
     '<div id="cphBars"></div>'+
     '<div id="cphDrill"'+(state.cphDrill?"":" hidden")+'></div>'+
+    '<div id="cphWhatIf"></div>'+
     '<p style="margin:12px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">Standard is '+usd(c.baseline)+
     '/hr. '+last.w+' ran '+sgnUsd(last.varPerHr)+'/hr over standard, with '+pct(last.idlePct)+
     ' of crew time idle. Root cause: '+(last.cause||"none logged")+'. Of the '+usd(c.totalOverrun)+
@@ -5563,6 +5724,7 @@ function renderCph(){
       return "<b>"+w.w+"</b>"+usd(w.actual)+"/hr actual vs "+usd(c.baseline)+"/hr standard<br>"+
         pct(w.idlePct)+" of crew time idle"; });
   if(state.cphDrill) renderCphDrill(c);
+  renderCphWhatIf(c);
   renderCphMath(c,last);
 }
 /* 3-way drill-down (brainstorm-mode upgrade, 2026-08-21) — reuses the .stagger/rise keyframe
@@ -5583,6 +5745,51 @@ function renderCphDrill(c){
     'weeks whose logged cause names the ground-condition rework compounding (R-01) &mdash; W-2 and W-1. The '+
     'remaining weeks&rsquo; non-idle residual is a small, honestly-unattributed baseline variance, not folded '+
     'into either named driver.</p></div>';
+}
+/* "What-if logistics recovery" sandbox (brainstorm-mode upgrade, 2026-08-23) — one real lever: scale
+   every week's own logged idlePct by the slider, then run it through the exact same
+   idleLeakage = idlePct * hrsPerWeek * standard formula deriveCph() already uses, never a separately
+   invented savings model. state.cphIdleReduction is 0 by default so the card renders at the real,
+   unmodified figures until a visitor actually moves the slider. */
+function cphTile(label,val,muted){
+  return '<div class="card ve-tile"><div class="k">'+label+'</div>'+
+    '<div class="v" style="color:'+(muted?"rgb(var(--c-mut))":"rgb(var(--c-ink))")+'">'+val+'</div></div>';
+}
+function renderCphWhatIf(c){
+  var reduction=state.cphIdleReduction||0;
+  var simIdle=c.weeks.reduce(function(s,w){
+    return s+(w.idlePct*(1-reduction/100))*c.hrsPerWeek*c.baseline;
+  },0);
+  var savings=c.totalIdle-simIdle;
+  var simOverrun=c.totalOverrun-savings;
+  var cp201=rows.filter(function(x){return x.id==="CP-201";})[0];
+  var simAc=cp201.ac-(savings/1e6);
+  var simCpi=cp201.ev/simAc;
+  document.getElementById("cphWhatIf").innerHTML=
+    '<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--c-line)">'+
+    '<div class="eyebrow">What-if &middot; logistics recovery</div>'+
+    '<p class="lede" style="font-size:12.5px;margin:4px 0 10px">Simulate unblocking jobsite staging: scale every '+
+      'week&rsquo;s own logged idle-time percentage down by the slider, run it through the same '+
+      '<code>idle% &times; hrs/week &times; standard</code> formula above, and see what the crew would actually '+
+      'have burned. Not a separate model &mdash; the real formula, run against a lower real input.</p>'+
+    '<label style="display:flex;align-items:center;gap:10px;font-size:12.5px">'+
+      '<span style="white-space:nowrap">Idle-time reduction</span>'+
+      '<input type="range" id="cphReductionSlider" min="0" max="100" step="5" value="'+reduction+'" style="flex:1">'+
+      '<span class="mono" style="min-width:38px;text-align:right">'+reduction+'%</span></label>'+
+    '<div class="grid" style="margin-top:14px">'+
+      cphTile("Simulated idle cost",usd(simIdle),reduction===0)+
+      cphTile("Simulated savings",usd(savings),reduction===0)+
+      cphTile("Simulated 6-wk overrun",usd(simOverrun),reduction===0)+
+      cphTile("CP-201 simulated CPI",simCpi.toFixed(4),reduction===0)+
+    '</div>'+
+    '<p style="margin:10px 0 0;font-size:11.5px;color:rgb(var(--c-mut))">Notice how little the last tile moves, '+
+      'even at 100% recovery: six weeks of idle time is small next to CP-201&rsquo;s whole-program actual cost. '+
+      'That is not a bug in the math &mdash; it is the entire argument for a leading indicator. This crew-level '+
+      'fix is worth doing on its own terms; waiting for it to visibly move the account CPI means waiting until '+
+      'it is too late for a fix this size to matter.</p>'+
+    '</div>';
+  var slider=document.getElementById("cphReductionSlider");
+  if(slider) slider.addEventListener("input",function(){ state.cphIdleReduction=+slider.value; renderCphWhatIf(c); });
 }
 
 /* The math explainer — deriveCph() already computes weeklyOverrun and idleLeakage per week;
@@ -7974,6 +8181,13 @@ document.getElementById("kdetail").addEventListener("click",function(e){
 document.getElementById("invCard").addEventListener("click",function(e){
   var b=e.target.closest("[data-jump]"); if(b) jumpToAction(b.dataset.jump);
 });
+// Delivery-tab data-jump targets (brainstorm-mode upgrade, 2026-08-23) -- docctl's "See A-05" link
+// and ncrCard's per-row "View CAPA" buttons both land here. Bound once on #p-del itself (never
+// replaced by innerHTML, unlike its children), same [data-jump] -> jumpToAction() idiom as
+// #kdetail/#invCard above, not a new mechanism.
+document.getElementById("p-del").addEventListener("click",function(e){
+  var b=e.target.closest("[data-jump]"); if(b) jumpToAction(b.dataset.jump);
+});
 // idle-tile drill-down toggle (brainstorm-mode upgrade, 2026-08-21) — a real button element, so
 // Enter/Space activation already works natively; only the click needs wiring, matching kboard above.
 document.getElementById("cphCard").addEventListener("click",function(e){
@@ -8229,7 +8443,7 @@ window.addEventListener("scroll",function(){ document.getElementById("tip").clas
    pre-existing pattern) silently reset the scrubber's cursor to hidden while the slider value and
    HUD text stayed on whatever month was last scrubbed — the display and the control disagreeing
    with each other, silently, on the single most ordinary action in the app. */
-function redrawCharts(){ renderScurve(); renderWaterfall(); renderBaseline(); renderVeSandbox(); renderCont(); renderRisk(); syncMcView(); renderPertPlay(); renderGaltonStatic(); renderGantt(); renderScurveScrub(); renderGateLine(); renderCdeFlow(); renderGbmLogReturns(); }
+function redrawCharts(){ renderScurve(); renderWaterfall(); renderBaseline(); renderVeSandbox(); renderCont(); renderRisk(); syncMcView(); renderPertPlay(); renderGaltonStatic(); renderGantt(); renderScurveScrub(); renderGateLine(); renderCdeFlow(); renderGbmLogReturns(); renderDelivery(); }
 document.getElementById("mcViewHist").addEventListener("click",function(){ state.mcView="hist"; syncMcView(); });
 document.getElementById("mcViewCdf").addEventListener("click",function(){ state.mcView="cdf"; syncMcView(); });
 /* Draw-shape toggle (triangular <-> PERT) — mirrors mcView's own set-state -> recompute -> re-
@@ -8304,7 +8518,8 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   guardrails:GUARDRAILS,discrepancySteps:DISCREPANCY_STEPS,rollout:ROLLOUT,dsNodes:DS_NODES,dsCaption:dsCaption,
   archNodes:ARCH_NODES,archCaption:archCaption,
   gloss:GLOSS,findGloss:findGloss,
-  miles:MILES,delays:DELAYS,spark:SPARK,baseline:BASELINE,baseSteps:baseSteps,veSandboxCalc:veSandboxCalc,renderBaseline:renderBaseline,guards:GUARDS,escPat:ESC_PAT,
+  miles:MILES,delays:DELAYS,spark:SPARK,baseline:BASELINE,baseSteps:baseSteps,veSandboxCalc:veSandboxCalc,renderBaseline:renderBaseline,
+  pfBand:pfBand,cascadeStepContent:cascadeStepContent,renderPfArc:renderPfArc,renderCascade:renderCascade,renderDelivery:renderDelivery,guards:GUARDS,escPat:ESC_PAT,
   mcParams:mcParams,triang:triang,dsStep:dsStep,
   gaussRnd:gaussRnd,gammaRnd:gammaRnd,betaRnd:betaRnd,pertRnd:pertRnd,mcDraw:mcDraw,computeMc:computeMc,
   recomputeActiveMc:recomputeActiveMc,syncMcDist:syncMcDist,renderMcMath:renderMcMath,

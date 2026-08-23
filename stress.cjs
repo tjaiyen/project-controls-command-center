@@ -4785,6 +4785,90 @@ console.log("== D26. estimate-to-budget bridge upgrade -- animated waterfall, st
   });
 }
 
+console.log("== D27. Delivery-tab upgrade -- PF gauge, field-to-boardroom cascade, CPH what-if, real cross-links (brainstorm-mode round, 2026-08-23) ==");
+{
+  // PF band boundaries, including the exact edges (0.95/1.00 must land on the amber/green side,
+  // not the red/amber side one epsilon below them)
+  const b1 = P.pfBand(0.90), b2 = P.pfBand(0.95), b3 = P.pfBand(0.999), b4 = P.pfBand(1.00), b5 = P.pfBand(1.05);
+  ok(b1.cls === "bad" && b1.label === "Bleed", "PF 0.90 bands as Bleed/bad", JSON.stringify(b1));
+  ok(b2.cls === "warn" && b2.label === "Drag", "PF exactly 0.95 bands as Drag/warn, not Bleed", JSON.stringify(b2));
+  ok(b3.cls === "warn", "PF 0.999 still bands as Drag, not Optimal", JSON.stringify(b3));
+  ok(b4.cls === "ok" && b4.label === "Optimal", "PF exactly 1.00 bands as Optimal/ok", JSON.stringify(b4));
+  ok(b5.cls === "ok", "PF 1.05 bands as Optimal", JSON.stringify(b5));
+
+  // real per-package PF values, independently re-verified against the earlier fact-check
+  const cp102 = P.rows.find(r => r.id === "CP-102"), cp201 = P.rows.find(r => r.id === "CP-201");
+  ok(Math.abs(cp102.pf - 1.02521) < 0.0001, "CP-102's real PF is ~1.025", String(cp102.pf));
+  ok(Math.abs(cp201.pf - 0.88889) < 0.0001, "CP-201's real PF is ~0.889", String(cp201.pf));
+  ok(Math.abs(P.totals.pf - 0.95936) < 0.0001, "portfolio PF is ~0.959", String(P.totals.pf));
+
+  // the gauge renders real content and the chip strip has exactly Program + 8 packages
+  const arcHtml = R.registry.pfArc._html;
+  ok((arcHtml.match(/data-pkg="/g) || []).length === 9, "PF chip strip has exactly 9 chips (Program + 8 packages)", String((arcHtml.match(/data-pkg="/g) || []).length));
+  ["CP-101", "CP-102", "CP-201", "CP-301", "CP-401", "CP-501", "CP-601", "CP-701"].forEach(id => {
+    ok(arcHtml.includes('data-pkg="' + id + '"'), "PF chip strip includes " + id);
+  });
+
+  // clicking a chip actually switches the gauge (real click, not decoration). #pfArc is wired ONCE
+  // (host.dataset.wired guard, matching bars()'s own host.dataset.tipWired -- #pfArc is a static,
+  // never-replaced host, unlike the baseline bridge's buttons in D26, so re-wiring per click would
+  // be wrong, not just untested); the listener bound during the initial runPage() render is still
+  // live, so fire directly rather than resetting it.
+  fire(R.registry.pfArc, "click", { target: { closest: () => ({ dataset: { pkg: "CP-201" } }) } });
+  ok(P.state.pfPkg === "CP-201", "clicking a package chip sets state.pfPkg", String(P.state.pfPkg));
+  ok(R.registry.pfArc._html.includes("CP-201 &middot; Bleed"),
+    "the gauge readout switches to CP-201's own band (Bleed, since 0.889 < 0.95)");
+  P.state.pfPkg = null; P.renderPfArc();
+
+  // cascade: every step's numbers trace to the real records used in the earlier fact-check
+  const r01 = P.risks.find(r => r.id === "R-01");
+  const s0 = P.cascadeStepContent(0), s1 = P.cascadeStepContent(1), s2 = P.cascadeStepContent(2), s3 = P.cascadeStepContent(3);
+  ok(s0.banner.includes("R-01") && s0.banner.includes("NCR-2026-014"), "cascade step 1 names both R-01 and NCR-2026-014");
+  ok(s0.stat.includes("18.5"), "cascade step 1's stat cites R-01's real $18.5M cost", s0.stat);
+  ok(s1.stat.includes("100,156") || s1.stat.includes("100156"), "cascade step 2's stat cites the real $100,156 idle figure", s1.stat);
+  ok(s1.stat.includes("37,212") || s1.stat.includes("37212"), "cascade step 2's stat cites the real $37,212 rework figure (not the brief's fabricated $145,880/68.7%/31.3% two-way split)", s1.stat);
+  ok(s2.banner.includes("D-02") && s2.stat.includes("40"), "cascade step 3 cites the real D-02 delay and CP-201's real -40d float");
+  ok(s3.stat.includes(P.totals.contCoverage.toFixed(3)), "cascade step 4's stat cites the live contCoverage figure exactly, not a hardcoded 0.588", s3.stat);
+  ok(s3.banner.includes("Gate 5"), "cascade step 4 names Gate 5 explicitly");
+
+  // real click-driven stepper (same stub-fidelity fix as the baseline bridge's Back/Next test —
+  // see D26 above for why freshRender-before-click is required, not a workaround)
+  function freshCascade() { ["cascadeBack", "cascadeNext"].forEach(id => { R.registry[id]._listeners = {}; }); P.renderCascade(); }
+  P.state.cascadeStep = 0; freshCascade();
+  fire(R.registry.cascadeNext, "click");
+  ok(P.state.cascadeStep === 1, "clicking cascade Next advances state.cascadeStep", String(P.state.cascadeStep));
+  P.state.cascadeStep = 3; freshCascade();
+  ok(R.registry.cascadeCard._html.includes('id="cascadeNext" disabled'), "cascade Next is disabled on the last step");
+  fire(R.registry.cascadeBack, "click");
+  ok(P.state.cascadeStep === 2, "clicking cascade Back decrements state.cascadeStep", String(P.state.cascadeStep));
+  P.state.cascadeStep = 0; freshCascade();
+
+  // real cross-links: docctl's A-05 link and ncrCard's View CAPA buttons both use the SAME real,
+  // pre-existing jumpToAction() mechanism (data-jump="<id>"), not a new invented one
+  ok(R.registry.docctl._html.includes('data-jump="A-05"'), "docctl links to the real A-05 action, not a fabricated RFI-042");
+  ok(R.registry.ncrCard._html.includes('data-jump="NCR-2026-014"') && R.registry.ncrCard._html.includes('data-jump="NCR-2026-021"'),
+    "ncrCard's View CAPA buttons target both real NCR ids");
+  fire(R.registry["p-del"], "click", { target: { closest: sel => sel === "[data-jump]" ? { dataset: { jump: "A-05" } } : null } });
+  ok(P.state.act === "A-05" && P.state.tab === "act", "firing the A-05 cross-link actually navigates via the real jumpToAction()", JSON.stringify({ act: P.state.act, tab: P.state.tab }));
+  P.state.act = null; P.state.tab = "over";
+
+  // CPH what-if: at 0% reduction it must reduce EXACTLY to the real, unmodified figures; at higher
+  // reduction, savings must increase monotonically and never exceed the real total idle cost
+  const cph = P.deriveCph(P.cphCells[0]);
+  P.state.cphIdleReduction = 0;
+  const w0 = cph.weeks.reduce((s, w) => s + w.idlePct * P.cphCells[0].hrsPerWeek * P.cphCells[0].baseline, 0);
+  ok(Math.abs(w0 - cph.totalIdle) < 0.01, "CPH what-if at 0% reduction reduces exactly to the real totalIdle", w0 + " vs " + cph.totalIdle);
+  const savingsAt50 = cph.totalIdle - cph.weeks.reduce((s, w) => s + (w.idlePct * 0.5) * P.cphCells[0].hrsPerWeek * P.cphCells[0].baseline, 0);
+  const savingsAt100 = cph.totalIdle - 0;
+  ok(savingsAt50 > 0 && savingsAt50 < savingsAt100, "simulated savings increase monotonically with reduction%, capped at the real totalIdle", savingsAt50 + " / " + savingsAt100);
+  ok(Math.abs(savingsAt100 - cph.totalIdle) < 0.01, "savings at 100% reduction exactly equals the real totalIdle, never more", String(savingsAt100));
+
+  // compliance sweep for this round's own brief
+  ["Labor 62%", "Equipment 26%", "Overhead 12%", "RFI-042", "Day 35", "TBM portal staging"].forEach(bad => {
+    ok(!indexSrc.includes(bad), 'fabricated Delivery-tab brief content never made it into index.html: "' + bad + '"');
+  });
+}
+
 /* =========================================================================
    E. otak.html — runtime + internal consistency
    ========================================================================= */
@@ -4872,11 +4956,13 @@ console.log("== F. sweeps ==");
   // counted the one mention both patterns matched — caught by running this exact check and getting
   // 4 instead of the predicted 3, not assumed correct after writing it.
   const instrumentMentions = indexSrc.match(/one root cause[^.]*?(four|five|six) (different )?instruments?/gi) || [];
-  // 4 as of the six-families card (2026-08-21) — its own cross-reference button intentionally
-  // repeats the same "one root cause ... five instruments" phrasing, correctly matching the other
-  // three (confirmed by the very next assertion below, which checks all mentions agree on the
-  // same number — it still passes, meaning this 4th mention says "five" like the rest).
-  ok(instrumentMentions.length === 4, "exactly 4 user-facing 'N instruments' mentions found (update this count if a 5th is intentionally added)", String(instrumentMentions.length));
+  // 5 as of the Delivery-tab field-to-boardroom cascade (brainstorm-mode upgrade, 2026-08-23) — its
+  // own intro paragraph intentionally repeats the same "one root cause ... five instruments"
+  // phrasing (naming all 5 canonical ones: risk register, NCR, crew CPH, float erosion rate,
+  // schedule-drift trend) before framing its own 4-step walkthrough as a genuine EXTENSION into
+  // Gate 5, not a 6th instrument — confirmed by the very next assertion below, which checks all
+  // mentions still agree on the same number ("five").
+  ok(instrumentMentions.length === 5, "exactly 5 user-facing 'N instruments' mentions found (update this count if a 6th is intentionally added)", String(instrumentMentions.length));
   const counts = instrumentMentions.map(s => (s.match(/four|five|six/i) || [""])[0].toLowerCase());
   ok(counts.every(c => c === counts[0]), "all 'N instruments' mentions agree on the same number", JSON.stringify(counts));
 }
