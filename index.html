@@ -1619,6 +1619,9 @@ join dim_control_account b using (package_id)</pre></div>
         change either way.</p>
       <div class="card" style="margin-top:12px">
         <button class="btn" id="aiNarrBtn" type="button">Draft the monthly narrative</button>
+        <label style="display:flex;align-items:center;gap:10px;font-size:12.5px;cursor:pointer;margin-top:10px">
+          <input type="checkbox" id="narrTamperToggle"> Try it &middot; simulate a drafting error &mdash; swap the
+          real EAC for a plausible-looking wrong number and watch the same verification below catch it</label>
         <div class="narr" id="aiNarr" style="margin-top:13px"></div>
         <div id="aiNarrChecks" style="margin-top:6px"></div>
       </div>
@@ -2769,9 +2772,13 @@ var state = {phase:"con", fam:"All", audience:"pcm", kpi:null, pkg:2, actFilter:
   ingestSimAc:0.8, ingestSimEv:0.75, circuitTripped:false, // Data Strategy-tab upgrade
                  // (brainstorm-mode, 2026-08-23) — ingestSim* defaults are a clean synthetic record
                  // (both real checks pass); circuitTripped false = the real, untripped state.
-  portDrill:null, portGapOpen:false, portGapFootnote:false, portShift:1.00, portInject:0}; // Portfolio-tab
+  portDrill:null, portGapOpen:false, portGapFootnote:false, portShift:1.00, portInject:0, // Portfolio-tab
                  // upgrade (brainstorm-mode, 2026-08-23) — portShift 1.00/portInject 0 = the real,
                  // unmodified state; the sandbox reduces exactly to real bacSum/eacSum/gap there.
+  narrTamper:false, ewmaDrillWeek:null}; // AI & Data-tab upgrade (brainstorm-mode, 2026-08-23) —
+                 // narrTamper false = the real, verified draft; checking it swaps in one simulated
+                 // bad figure to demo the gate catching it. ewmaDrillWeek null = the chart's weekly
+                 // idle/rework/baseline drill-down starts closed, same click-to-open idiom as cphDrill.
 
 /* Ledger card (Overview-tab upgrade, 2026-08-20) — the 11 raw inputs, a per-package inspector, and
    a live "change one input, watch the KPIs move" demo. The demo deliberately reads a LOCAL copy of
@@ -6855,7 +6862,7 @@ function archCaption(node){
     case "riskreg": return {t:"Risk register",x:"Feeds RISKS — the probability &times; impact heat map, the exposure total, and the DRB EMV decision tree's own pending-value input on the Risk &amp; Change tab."};
     case "staging": return {t:"dbt staging &middot; stg_progress_claims",x:"Raw records land here first, one row per source system above, before anything is reconciled across sources — nothing downstream ever reads a raw feed directly, only this staged version."};
     case "marts": return {t:"marts &middot; fct_control_account",x:"The reconciled per-control-account table — this IS the PKGS array every tab on this dashboard reads from, not a separate copy that merely happens to agree with it."};
-    case "gate": return {t:"Integrity gate",x:"54 dbt-side tests run against the mart before it's trusted. A separate "+GUARDS.length+"-check JS gate (this tab's own Integrity gate card, above) independently re-derives the same headline totals in a different language, from the same mart — two stacks, one set of numbers, not one gate wearing two names."};
+    case "gate": return {t:"Integrity gate",x:"64 dbt-side checks run against the mart before it's trusted. A separate "+GUARDS.length+"-check JS gate (this tab's own Integrity gate card, above) independently re-derives the same headline totals in a different language, from the same mart — two stacks, one set of numbers, not one gate wearing two names."};
     case "dashboard": return {t:"This dashboard",x:"Every chart, KPI card and table on this page is a pure function of the mart above — move the data date or edit a row and every downstream figure recomputes; nothing is cached separately."};
     case "brief": return {t:"Executive brief",x:"The print one-pager (the Print brief button on every tab) reads the identical mart — never a hand-copied summary that can drift from the live figures."};
     case "narrative": return {t:"AI narrative draft",x:"This tab's own narrative prose is drafted from the mart, then every cited figure is independently re-derived and checked before it's allowed to post — verified, not trusted on the model's say-so."};
@@ -7147,8 +7154,12 @@ function renderEwmaChart(e){
   var ewmaPts=pts.map(function(p,i){ return X(i).toFixed(1)+","+Y(p.ewma).toFixed(1); });
   var ewmaLine='<polyline class="draw" points="'+ewmaPts.join(" ")+'" fill="none" stroke="'+C("accent")+'" stroke-width="2.2"/>';
   var dots=pts.map(function(p,i){
-    return '<circle cx="'+X(i).toFixed(1)+'" cy="'+Y(p.ewma).toFixed(1)+'" r="'+(p.flag?4.5:3.2)+'" fill="'+(p.flag?C("bad"):C("accent"))+'">'+
-      '<title>'+CPH_CELLS[0].weeks[i].w+': actual '+usd(p.v)+'/hr, EWMA '+usd(p.ewma)+'/hr, UCL '+usd(p.ucl)+'/hr'+(p.flag?" — FLAG":"")+'</title></circle>';
+    // Click/Enter target for the per-week idle/rework/baseline drill-down (brainstorm-mode
+    // upgrade, 2026-08-23) — tabindex+role=button matches the flow-node idiom used on the
+    // pipeline diagram above, so the chart is keyboard-operable, not mouse-only.
+    return '<circle cx="'+X(i).toFixed(1)+'" cy="'+Y(p.ewma).toFixed(1)+'" r="'+(p.flag?4.5:3.2)+'" fill="'+(p.flag?C("bad"):C("accent"))+'" '+
+      'tabindex="0" role="button" data-wk="'+i+'" style="cursor:pointer" aria-label="'+CPH_CELLS[0].weeks[i].w+' — click for the idle/rework breakdown">'+
+      '<title>'+CPH_CELLS[0].weeks[i].w+': actual '+usd(p.v)+'/hr, EWMA '+usd(p.ewma)+'/hr, UCL '+usd(p.ucl)+'/hr'+(p.flag?" — FLAG":"")+' — click for the breakdown</title></circle>';
   }).join("");
   var labels=pts.map(function(p,i){
     return '<text x="'+X(i).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" font-size="10" font-family="ui-monospace,monospace" fill="'+C("mut")+'">'+CPH_CELLS[0].weeks[i].w+'</text>';
@@ -7179,8 +7190,37 @@ function renderEwmaControl(){
    ' The EWMA moved '+usd(last.ewma-first.ewma)+'/hr net over the six weeks (not monotonically &mdash; it dipped '+
    'in weeks 2&ndash;3 before rising), and its gap to the upper control limit narrowed from '+usd(gapFirst)+
    '/hr at week 1 to '+usd(gapLast)+'/hr by week 6 &mdash; the kind of persistent-drift signal a per-point z-score '+
-   'alone would not surface.</p>';
+   'alone would not surface.</p>'+
+   '<div id="ewmaWeekDrill" style="margin-top:8px"></div>';
   document.getElementById("ewmaSvgChart").innerHTML=renderEwmaChart(e);
+  renderEwmaWeekDrill();
+}
+/* Per-week idle/rework/baseline drill-down for the EWMA chart (brainstorm-mode upgrade,
+   2026-08-23) — click a week's point above. Reuses deriveCph()'s own real per-week fields
+   (idleLeakage/reworkVariance/baselineVariance, already computed for the Delivery-tab 3-way
+   split — index.html renderCphDrill()) rather than a second, parallel breakdown computed here;
+   this is the same numbers, one week at a time, with a jump-link to the full aggregate view. */
+function renderEwmaWeekDrill(){
+  var el=document.getElementById("ewmaWeekDrill"); if(!el) return;
+  if(state.ewmaDrillWeek===null){ el.innerHTML=""; return; }
+  var c=deriveCph(CPH_CELLS[0]), w=c.weeks[state.ewmaDrillWeek];
+  if(!w){ el.innerHTML=""; return; }
+  var overrun=w.idleLeakage+w.reworkVariance+w.baselineVariance;
+  var rows=[["Idle wait time",w.idleLeakage,"wa"],["Rework-driven productivity loss",w.reworkVariance,"ba"],
+    ["Baseline execution variance",w.baselineVariance,"ok"]];
+  el.innerHTML=
+   '<div class="dbox" style="margin-top:2px"><h4>'+w.w+' &middot; '+usd(w.actual)+'/hr actual, '+sgnUsd(w.actual-c.baseline)+
+   '/hr over standard</h4>'+
+   rows.map(function(r){
+     return '<div class="rowbar" style="grid-template-columns:1fr auto 74px;cursor:default">'+
+       '<span style="font-size:12.5px">'+r[0]+'</span>'+
+       '<span class="tab-num mono '+r[2]+'" style="font-size:12.5px">'+sgnUsd(r[1])+'</span>'+
+       '<span class="mono" style="font-size:11px;color:rgb(var(--c-mut));text-align:right">'+(overrun?pct(r[1]/overrun):"—")+'</span></div>';
+   }).join("")+
+   '<p style="margin:9px 0 0;font-size:12px;color:rgb(var(--c-mut))">Root cause logged: '+(w.cause||"none")+
+   '. Same per-week split the Delivery tab totals across all six weeks &mdash; '+
+   '<button type="button" class="btn" data-jump-tab="del" data-jump-el="cphCard" data-jump-cphdrill '+
+   'style="min-height:auto;padding:1px 8px;font-size:11.5px">see the full 6-week total &rarr;</button></p></div>';
 }
 /* The math explainer — walks the recursive EWMA update and the dynamic-band formula for one
    real step (t=6, the last week) against the same series renderEwmaControl() already scored. */
@@ -7343,6 +7383,17 @@ function renderNarr(){
   // changes) had recurred here undetected: FIGS[N].shown in the prose below used to be raw
   // positional access into this same array (2026-08-20 /stress-test finding, real).
   function fig(k){ return FIGS.filter(function(x){return x.key===k;})[0]; }
+  /* Tamper sandbox (brainstorm-mode upgrade, 2026-08-23) — "Try it" toggle above. Swaps only the
+     EAC entry's own .shown text for a simulated bad draft and points its own .chk() at the real
+     T.eac, so the SAME comparison pattern every other FIGS entry already uses (recompute vs. what's
+     displayed) now genuinely disagrees — not a separate fabricated verdict bolted on. -23.7 is an
+     arbitrary illustrative offset, explicitly labeled a simulated drafting error, not a claim about
+     the real ledger; the real $1,303.7M EAC is untouched everywhere else on this dashboard. */
+  if(state.narrTamper){
+    var eacFig=fig("eac"), badShown=m(T.eac-23.7);
+    eacFig.shown=badShown;
+    eacFig.chk=function(){ return badShown===m(T.eac); };
+  }
   document.getElementById("aiNarr").innerHTML=
    '<p>At <b>'+fig("pct").shown+'</b> complete, the program is earning '+pct(T.cpi,0)+' cents of budgeted work per dollar spent (CPI '+fig("cpi").shown+
    ') and delivering work at '+fig("spi").shown+' of the planned rate. The bottom-up forecast lands at '+fig("eac").shown+
@@ -8834,6 +8885,32 @@ document.getElementById("saveScen").addEventListener("click",function(){
 document.getElementById("clearScen").addEventListener("click",function(){ SCEN=[]; renderScen(); });
 document.getElementById("printBtn").addEventListener("click",function(){ renderPrint(); window.print(); });
 document.getElementById("aiNarrBtn").addEventListener("click",renderNarr);
+document.getElementById("narrTamperToggle").addEventListener("change",function(e){
+  state.narrTamper=e.target.checked; renderNarr(); });
+/* Delegated on #aiEwmaControl (the static card in the HTML markup itself), not #ewmaSvgChart —
+   that inner div is only created once renderEwmaControl() first runs, and this listener binds at
+   boot time BEFORE that first render call below, so document.getElementById("ewmaSvgChart") would
+   still be null here in a real browser (a real /stress-test finding: the stress.cjs DOM stub
+   masked this by auto-creating a phantom element for any id on first getElementById access, a
+   stub-fidelity gap in the lenient direction this time). #aiEwmaControl exists from page load, and
+   clicks on the SVG circles inside it still bubble up to it same as any other delegated handler on
+   this page (e.g. #portTable). Its own inner content is fully replaced on every
+   renderEwmaControl() call, so binding once on the container that's never itself replaced also
+   avoids the stale-listener trap the D31 portGapToggle fix documented. */
+document.getElementById("aiEwmaControl").addEventListener("click",function(e){
+  var t=e.target.closest("[data-wk]"); if(!t) return;
+  var i=+t.dataset.wk;
+  state.ewmaDrillWeek = state.ewmaDrillWeek===i ? null : i;
+  renderEwmaWeekDrill();
+});
+document.getElementById("aiEwmaControl").addEventListener("keydown",function(e){
+  if(e.key!=="Enter"&&e.key!==" ") return;
+  var t=e.target.closest("[data-wk]"); if(!t) return;
+  e.preventDefault();
+  var i=+t.dataset.wk;
+  state.ewmaDrillWeek = state.ewmaDrillWeek===i ? null : i;
+  renderEwmaWeekDrill();
+});
 /* first-visit cue — try/catch guards localStorage since it's absent in the stress.cjs DOM stub
    and can throw in a locked-down/private-browsing context; either failure just means "always show
    the tour as new," never a crash. */
@@ -8960,6 +9037,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   contracts:CONTRACTS,deriveContract:deriveContract,
   portfolioRows:portfolioRows,fundingTier:fundingTier,renderPortfolio:renderPortfolio,renderCont:renderCont,
   cphCells:CPH_CELLS,deriveCph:deriveCph,deriveZScores:deriveZScores,deriveEwma:deriveEwma,ingestGuards:INGEST_GUARDS,
+  renderNarr:renderNarr,renderEwmaControl:renderEwmaControl,renderEwmaWeekDrill:renderEwmaWeekDrill,
   renderIngestSim:renderIngestSim,renderCircuitDemo:renderCircuitDemo,renderWbsCrosswalk:renderWbsCrosswalk,
   deriveDrbEmv:deriveDrbEmv,drbAssumptions:DRB_ASSUMPTIONS,deriveGbmParams:deriveGbmParams,
   deriveEarnedSchedule:deriveEarnedSchedule,

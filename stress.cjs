@@ -5109,6 +5109,92 @@ console.log("== D31. Portfolio-tab upgrade -- LOB drill-down, funding-gap bar, s
   });
 }
 
+console.log("== D32. AI & Data-tab upgrade -- pipeline gate-count fix, narrative tamper sandbox, EWMA week drill-down (brainstorm-mode round, 2026-08-23) ==");
+{
+  function usd(v) { return (v < 0 ? "−" : "") + "$" + Math.round(Math.abs(v)).toLocaleString("en-US"); }
+
+  // A. real bug the brief's own (wrong) "54" figure surfaced: two spots in the same pipeline-gate
+  // node disagreed on the real check count (54 vs. 64) -- 64 is the real, live-verified number.
+  ok(!indexSrc.includes("54 dbt-side tests"), "the stale '54 dbt-side tests' caption is gone");
+  ok(indexSrc.includes("64 dbt-side checks"), "the gate-node caption now agrees with its own SVG label (64)");
+
+  // B. narrative tamper sandbox -- draft first, at the real, unmodified state
+  ok(P.state.narrTamper === false, "sanity: tamper sandbox starts off (the real, verified draft)");
+  fire(R.registry.aiNarrBtn, "click");
+  let narrHtml = R.registry.aiNarr._html, checksHtml = R.registry.aiNarrChecks._html;
+  ok(narrHtml.includes(m(T.eac)), "clean draft shows the real EAC", m(T.eac));
+  ok(checksHtml.includes("ALL 14 VERIFIED — cleared to publish"), "clean draft: all 14 figures verified, cleared to publish");
+  ok(!checksHtml.includes("BLOCK"), "clean draft has no BLOCK pill anywhere");
+
+  // flip the toggle: the EAC entry's own .shown is swapped for a simulated bad draft, and its own
+  // .chk() now points at the same real T.eac every other entry's chk() already compares against --
+  // same comparison pattern, genuinely disagreeing, not a separate fabricated verdict
+  fire(R.registry.narrTamperToggle, "change", { target: { checked: true } });
+  ok(P.state.narrTamper === true, "toggling the checkbox sets state.narrTamper");
+  narrHtml = R.registry.aiNarr._html; checksHtml = R.registry.aiNarrChecks._html;
+  const badEac = m(T.eac - 23.7);
+  ok(narrHtml.includes(badEac) && !narrHtml.includes(m(T.eac)), "tampered draft shows the simulated bad EAC, not the real one", badEac);
+  ok(checksHtml.includes("1 BLOCKED"), "tampered draft: gate correctly reports exactly 1 figure blocked");
+  const eacRow = checksHtml.match(/<div class="rowbar"[^>]*>[\s\S]*?EAC \(bottom-up\)[\s\S]*?<\/div>/);
+  ok(eacRow && eacRow[0].includes(">BLOCK<"), "the EAC row specifically shows BLOCK, not a generic failure elsewhere");
+  ok(checksHtml.includes(">PASS<"), "the other 13 figures still show PASS -- one bad figure doesn't fail the whole draft");
+
+  // the real ledger elsewhere on the page is untouched -- the tamper is scoped to this one demo,
+  // not a global mutation of T.eac itself (renderEac() ran once at page boot and was never re-run
+  // by this toggle, so its still-real HTML is the proof the underlying figure never moved)
+  ok(R.registry.eacTable._html.includes(m(T.eac)), "the Cost tab's real EAC table is untouched while the narrative demo is tampered");
+
+  // toggle off: restores exactly to the real, verified state
+  fire(R.registry.narrTamperToggle, "change", { target: { checked: false } });
+  ok(P.state.narrTamper === false, "toggling off resets state.narrTamper");
+  narrHtml = R.registry.aiNarr._html; checksHtml = R.registry.aiNarrChecks._html;
+  ok(narrHtml.includes(m(T.eac)), "toggled off: draft shows the real EAC again");
+  ok(checksHtml.includes("ALL 14 VERIFIED — cleared to publish"), "toggled off: back to all-clear");
+
+  // C. EWMA chart week drill-down -- real per-week idle/rework/baseline split, reused from
+  // deriveCph() (the same fields the Delivery-tab 3-way drill already totals), not a second
+  // parallel computation
+  const c = P.deriveCph(P.cphCells[0]);
+  ok(c.weeks.length === 6, "sanity: 6 real weeks of crew CPH data", String(c.weeks.length));
+  const ewmaChartHtml = R.registry.ewmaSvgChart._html;
+  for (let i = 0; i < 6; i++) ok(ewmaChartHtml.includes('data-wk="' + i + '"'), "week " + i + "'s chart point carries a data-wk click target");
+  ok(ewmaChartHtml.includes('role="button"'), "chart points are real keyboard-operable buttons, not mouse-only");
+  ok(P.state.ewmaDrillWeek === null && R.registry.ewmaWeekDrill._html === "", "sanity: drill-down starts closed");
+
+  // click W-2 (index 4) -- the reworkLinked branch: idle+rework real, baseline forced to exactly 0
+  const w2 = c.weeks[4];
+  ok(w2.w === "W-2" && w2.reworkLinked === true, "sanity: index 4 is W-2, the reworkLinked week", w2.w);
+  fire(R.registry.aiEwmaControl, "click", { target: { closest: sel => sel === "[data-wk]" ? { dataset: { wk: "4" } } : null } });
+  ok(P.state.ewmaDrillWeek === 4, "clicking W-2's point sets state.ewmaDrillWeek to 4");
+  let drillHtml = R.registry.ewmaWeekDrill._html;
+  ok(drillHtml.includes(usd(w2.idleLeakage)) && drillHtml.includes(usd(w2.reworkVariance)),
+    "W-2 drawer shows its real idle leakage and real rework-driven loss", usd(w2.idleLeakage) + " / " + usd(w2.reworkVariance));
+  ok(w2.baselineVariance === 0 && drillHtml.includes(usd(0)), "W-2 (reworkLinked) correctly forces baseline variance to exactly $0 -- one bucket, not a fabricated three-way split", w2.baselineVariance);
+  ok(drillHtml.includes("R-01"), "W-2's logged root cause (ground-condition rework R-01) is shown, not invented text like 'grouting'");
+  ok(drillHtml.includes("data-jump-cphdrill"), "drawer links out to the real full 6-week total on the Delivery tab, reusing the existing jump idiom");
+
+  // click W-2 again -- closes (toggle)
+  fire(R.registry.aiEwmaControl, "click", { target: { closest: sel => sel === "[data-wk]" ? { dataset: { wk: "4" } } : null } });
+  ok(P.state.ewmaDrillWeek === null, "clicking the SAME week again closes the drawer");
+  ok(R.registry.ewmaWeekDrill._html === "", "closed drawer renders nothing");
+
+  // keyboard: Enter on a different week (W-6, index 0, the non-reworkLinked branch) opens it too
+  const w0 = c.weeks[0];
+  ok(w0.w === "W-6" && w0.reworkLinked === false, "sanity: index 0 is W-6, the non-reworkLinked week", w0.w);
+  fire(R.registry.aiEwmaControl, "keydown", { key: "Enter", target: { closest: sel => sel === "[data-wk]" ? { dataset: { wk: "0" } } : null }, preventDefault(){} });
+  ok(P.state.ewmaDrillWeek === 0, "pressing Enter on W-6's point opens its drawer too, not just a mouse click");
+  drillHtml = R.registry.ewmaWeekDrill._html;
+  ok(w0.reworkVariance === 0, "sanity: W-6 (not reworkLinked) correctly has $0 rework-driven loss", w0.reworkVariance);
+  ok(drillHtml.includes(usd(w0.baselineVariance)), "W-6's non-zero baseline-execution variance (the other branch of the same real flag) is shown, including when negative", usd(w0.baselineVariance));
+  P.state.ewmaDrillWeek = null; P.renderEwmaWeekDrill(); // reset before later sections run
+
+  // compliance sweep for this round's own brief -- the fabricated pipeline/SPC/AI-narrative figures
+  ["JDE", "grouting", "Grouting", "Idle Standby Time", "$45,724", "$1,340", "$1,080/hr",
+    "54 DuckDB SQL Tests", "54 PASS / 0 FAIL", "hallucinat"].forEach(bad => {
+    ok(!indexSrc.includes(bad), 'fabricated AI & Data-tab brief content never made it into index.html: "' + bad + '"');
+  });
+}
+
 /* =========================================================================
    E. otak.html — runtime + internal consistency
    ========================================================================= */
