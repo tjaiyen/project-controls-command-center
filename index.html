@@ -2729,9 +2729,11 @@ var state = {phase:"con", fam:"All", audience:"pcm", kpi:null, pkg:2, actFilter:
   baseStep:0, baseDrawerOpen:false, veAccepted:true, // estimate-to-budget bridge stepper/sandbox
                  // (brainstorm-mode upgrade, 2026-08-23) — veAccepted defaults true (the real,
                  // current state); unchecking it is what enters the hypothetical.
-  pfPkg:null, cascadeStep:0, cphIdleReduction:0}; // Delivery-tab upgrade (brainstorm-mode, 2026-08-23) —
+  pfPkg:null, cascadeStep:0, cphIdleReduction:0, // Delivery-tab upgrade (brainstorm-mode, 2026-08-23) —
                  // pfPkg null = the PF gauge shows the portfolio; cphIdleReduction 0 = the CPH
                  // sandbox renders at the real, unmodified figures until moved.
+  d02Bypass:false}; // Schedule-tab upgrade (brainstorm-mode, 2026-08-23) — false = the real state
+                 // (D-02 in effect); true enters the "what if this fragnet were never inserted" simulation.
 
 /* Ledger card (Overview-tab upgrade, 2026-08-20) — the 11 raw inputs, a per-package inspector, and
    a live "change one input, watch the KPIs move" demo. The demo deliberately reads a LOCAL copy of
@@ -5107,6 +5109,32 @@ function renderSchedule(){
               : "Finish-to-Start logic as originally sequenced &mdash; the weather delay costs "+days(d.d)+" outright, no recovery.")+
         '</span></div></div>';
     }
+    if(d.id==="D-02"){
+      // Insert/bypass fragnet toggle (brainstorm-mode upgrade, 2026-08-23) — the day count already
+      // ties to CP-201's own float by construction (comment above), so "bypassed" is real
+      // arithmetic (float + d.d), never a separately invented simulated number. Deliberately does
+      // NOT touch T.cpli: the driving path today is CP-601 (via D-01), not CP-201, even though
+      // CP-201 carries the larger absolute float deficit — a real, non-obvious finding this toggle
+      // exists specifically to surface, not hide.
+      var cp201=rows.filter(function(r){return r.id==="CP-201";})[0], bp=state.d02Bypass;
+      var simFloat=cp201.float+d.d, simCpli=cp201.cpRem>0?(cp201.cpRem+simFloat)/cp201.cpRem:1;
+      return '<div style="padding:9px 0;border-bottom:1px solid var(--c-line)">'+
+        '<div style="display:flex;gap:9px;align-items:baseline;flex-wrap:wrap">'+
+        '<span class="mono" style="font-size:11px;color:rgb(var(--c-code))">'+d.id+'</span>'+
+        '<span style="flex:1;min-width:200px;font-size:12.8px">'+d.n+
+          ' <span style="color:rgb(var(--c-mut))">('+d.pkg+')</span></span>'+
+        '<span class="pill '+(bp?"g":d.cl)+'">'+(bp?"Bypassed (simulated)":d.cls)+'</span>'+
+        '<span class="tab-num mono" style="font-size:12.5px">'+(bp?days(simFloat):days(d.d))+'</span></div>'+
+        '<div style="margin-top:5px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">'+
+        '<button type="button" class="btn'+(!bp?" on":"")+'" data-d02="real" aria-pressed="'+(!bp)+'" style="font-size:11px;padding:3px 9px">Real (D-02 in effect)</button>'+
+        '<button type="button" class="btn'+(bp?" on":"")+'" data-d02="bypass" aria-pressed="'+bp+'" style="font-size:11px;padding:3px 9px">Bypass D-02 (simulate without it)</button>'+
+        '<span style="font-size:11.5px;color:rgb(var(--c-mut))">&rarr; '+
+          (bp? "Without this fragnet, CP-201&rsquo;s own float would read "+days(simFloat)+" (CPLI "+idx(simCpli)+
+            ") instead of "+days(cp201.float)+". The portfolio&rsquo;s driving-path CPLI stays at "+idx(T.cpli)+
+            " either way &mdash; that number is set by CP-601 via D-01, a completely separate delay."
+            : "Fragnet inserted; package under owner review. Toggle to see CP-201&rsquo;s schedule without it.")+
+        '</span></div></div>';
+    }
     return '<div style="padding:9px 0;border-bottom:1px solid var(--c-line)">'+
       '<div style="display:flex;gap:9px;align-items:baseline;flex-wrap:wrap">'+
       '<span class="mono" style="font-size:11px;color:rgb(var(--c-code))">'+d.id+'</span>'+
@@ -5135,8 +5163,8 @@ function renderSchedule(){
     '<span class="pill r" style="margin-left:6px">'+cpliBands.r+' red</span>';
 }
 document.getElementById("tiaReg").addEventListener("click",function(e){
-  var b=e.target.closest("[data-d04]"); if(!b) return;
-  state.d04Logic=b.dataset.d04; renderSchedule();
+  var b=e.target.closest("[data-d04]"); if(b){ state.d04Logic=b.dataset.d04; renderSchedule(); return; }
+  var b2=e.target.closest("[data-d02]"); if(b2){ state.d02Bypass=(b2.dataset.d02==="bypass"); renderSchedule(); }
 });
 
 /* The math explainer — CPLI's formula is already stated as prose above the bars; this panel

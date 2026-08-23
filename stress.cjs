@@ -4869,6 +4869,41 @@ console.log("== D27. Delivery-tab upgrade -- PF gauge, field-to-boardroom cascad
   });
 }
 
+console.log("== D28. D-02 insert/bypass fragnet toggle (brainstorm-mode round, 2026-08-23) ==");
+{
+  // real math: bypassing D-02 is float + d.d, not an invented number
+  const d02 = P.delays.find(d => d.id === "D-02"), cp201 = P.rows.find(r => r.id === "CP-201");
+  ok(d02.d === 40 && cp201.float === -40, "sanity: D-02's real day count exactly matches CP-201's real float deficit", JSON.stringify({ d: d02.d, float: cp201.float }));
+  const simFloat = cp201.float + d02.d, simCpli = (cp201.cpRem + simFloat) / cp201.cpRem;
+  ok(simFloat === 0, "bypassing D-02 gives CP-201 exactly 0 simulated float", String(simFloat));
+  ok(Math.abs(simCpli - 1.0) < 0.0001, "bypassing D-02 gives CP-201 exactly 1.0000 simulated CPLI", simCpli.toFixed(4));
+
+  // the honest, non-obvious finding this toggle exists to surface: the driving path is CP-601
+  // (via D-01), not CP-201, so bypassing D-02 must NOT move the portfolio's own T.cpli
+  const cp601 = P.rows.find(r => r.id === "CP-601");
+  ok(cp601.cpli < cp201.cpli, "sanity: CP-601's real CPLI is genuinely worse than CP-201's despite CP-201's larger float deficit", JSON.stringify({ cp601: cp601.cpli, cp201: cp201.cpli }));
+  ok(Math.abs(P.totals.cpli - cp601.cpli) < 0.0001, "sanity: the portfolio's driving-path CPLI is set by CP-601, not CP-201", JSON.stringify({ totalsCpli: P.totals.cpli, cp601: cp601.cpli }));
+
+  // real click-driven toggle -- #tiaReg's click listener is bound ONCE, top-level, outside any
+  // render function (unlike D26/D27's per-render-replaced buttons), so no freshRender dance needed
+  const tiaHtml0 = R.registry.tiaReg._html;
+  ok(tiaHtml0.includes('data-d02="real"') && tiaHtml0.includes('data-d02="bypass"'), "D-02's row renders both toggle buttons");
+  ok(!tiaHtml0.includes("Bypassed"), "D-02 starts in its real (not bypassed) state");
+  fire(R.registry.tiaReg, "click", { target: { closest: sel => sel === "[data-d02]" ? { dataset: { d02: "bypass" } } : null } });
+  ok(P.state.d02Bypass === true, "clicking Bypass actually sets state.d02Bypass", String(P.state.d02Bypass));
+  const tiaHtml1 = R.registry.tiaReg._html;
+  ok(tiaHtml1.includes("Bypassed (simulated)"), "the bypassed state renders visibly");
+  ok(tiaHtml1.includes(idx(1.0)), "the bypassed row shows the real simulated CPLI (1.000)", idx(1.0));
+  ok(tiaHtml1.includes(idx(P.totals.cpli)), "the bypassed row's own explanation still cites the real, unchanged portfolio CPLI");
+  fire(R.registry.tiaReg, "click", { target: { closest: sel => sel === "[data-d02]" ? { dataset: { d02: "real" } } : null } });
+  ok(P.state.d02Bypass === false, "clicking Real reverts state.d02Bypass", String(P.state.d02Bypass));
+
+  // compliance sweep for this round's own brief
+  ["0.882", "15/17", "liquidated damages", "milestone impact", "predecessor", "successor"].forEach(bad => {
+    ok(!indexSrc.includes(bad), 'fabricated Schedule-tab brief content never made it into index.html: "' + bad + '"');
+  });
+}
+
 /* =========================================================================
    E. otak.html — runtime + internal consistency
    ========================================================================= */
