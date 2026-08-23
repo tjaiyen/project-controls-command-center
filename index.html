@@ -721,6 +721,10 @@ rect.acc-hover{stroke:rgb(var(--c-accent));stroke-width:2px}
    and ring both clear permanently on first interaction */
 #tourBtn.first-visit{position:relative;animation:fvRing 1.8s ease-in-out 3}
 @keyframes fvRing{0%,100%{box-shadow:0 0 0 0 rgb(var(--c-accent) / 0)}50%{box-shadow:0 0 0 5px rgb(var(--c-accent) / .16)}}
+/* Portfolio live-line indicator dot (brainstorm-mode upgrade, 2026-08-23) -- a plain opacity pulse,
+   distinct from fvRing above (a box-shadow ring sized for a button, not a 6px dot). */
+@keyframes livePulse{0%,100%{opacity:1}50%{opacity:.35}}
+@media(prefers-reduced-motion:reduce){.live-dot{animation:none}}
 .fv-badge{display:none;align-items:center;gap:5px;margin-left:9px;padding:2px 8px;border-radius:99px;
   background:rgb(var(--c-accent) / .14);color:rgb(var(--c-code));font:600 10px/1.6 ui-monospace,monospace;
   letter-spacing:.03em;vertical-align:2px}
@@ -949,7 +953,10 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
       <div class="strip" id="portStrip"></div>
 
       <div class="sec-h" style="margin-top:30px"><h3>Portfolio rollup</h3></div>
+      <p class="lede" style="font-size:12.5px">Click <b>Link Light Rail Extensions</b>' own row to drill into
+        its 8 real control accounts &mdash; the only line with anything underneath it to drill into.</p>
       <div class="tw"><table id="portTable"></table></div>
+      <div id="portDrill" aria-live="polite"></div>
 
       <div class="note"><b>Funding gap, illustrative.</b> The net variance at completion summed across
         all four lines &mdash; the same VAC math every control account on this dashboard already uses,
@@ -957,6 +964,17 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         gap concept large transit agencies track (Sound Transit's own is a genuine, independently
         verified $34.5B) &mdash; not an attempt to reproduce that number. Three of these four lines are
         synthetic and carry no real-world figure at all.</div>
+
+      <div class="sec-h" style="margin-top:30px"><h3>Portfolio funding gap</h3></div>
+      <p class="lede">The same total the footer row above already sums, drawn as one bar instead of read
+        off a table &mdash; total authorized baseline against total forecast, across all four lines.</p>
+      <div class="card" style="margin-top:15px" id="fundingGapBar"></div>
+
+      <div class="sec-h" style="margin-top:30px"><h3>Portfolio stress-test sandbox</h3></div>
+      <p class="lede">Simulate a portfolio-wide efficiency shift and a capital infusion, and watch the
+        funding gap above recompute live. Real formula, hypothetical inputs &mdash; the same pattern as
+        every other what-if sandbox on this dashboard.</p>
+      <div class="card" style="margin-top:15px" id="portSandbox"></div>
 
       <div class="sec-h" style="margin-top:30px"><h3>Funding tier &mdash; if the gap above had to be closed<button type="button" class="help-ic" data-help="fundingtier" aria-label="What does this term mean?" aria-expanded="false">i</button></h3></div>
       <p class="lede">Status above asks whether a line is on budget right now. This asks the natural
@@ -2748,9 +2766,12 @@ var state = {phase:"con", fam:"All", audience:"pcm", kpi:null, pkg:2, actFilter:
   actView:"table", actOwnerFilter:null, // Actions-tab upgrade (brainstorm-mode, 2026-08-23) —
                  // actView toggles Register/Board (same 17 real items, two layouts); actOwnerFilter
                  // is a second, independent filter dimension layered on top of the existing status one.
-  ingestSimAc:0.8, ingestSimEv:0.75, circuitTripped:false}; // Data Strategy-tab upgrade
+  ingestSimAc:0.8, ingestSimEv:0.75, circuitTripped:false, // Data Strategy-tab upgrade
                  // (brainstorm-mode, 2026-08-23) — ingestSim* defaults are a clean synthetic record
                  // (both real checks pass); circuitTripped false = the real, untripped state.
+  portDrill:null, portGapOpen:false, portGapFootnote:false, portShift:1.00, portInject:0}; // Portfolio-tab
+                 // upgrade (brainstorm-mode, 2026-08-23) — portShift 1.00/portInject 0 = the real,
+                 // unmodified state; the sandbox reduces exactly to real bacSum/eacSum/gap there.
 
 /* Ledger card (Overview-tab upgrade, 2026-08-20) — the 11 raw inputs, a per-package inspector, and
    a live "change one input, watch the KPIs move" demo. The demo deliberately reads a LOCAL copy of
@@ -2934,8 +2955,13 @@ function renderPortfolio(){
     '<thead><tr><th scope="col">Line of business</th><th scope="col">BAC</th><th scope="col">AC</th>'+
     '<th scope="col">EV</th><th scope="col">CPI</th><th scope="col">P50 EAC</th><th scope="col">Status</th>'+
     '<th scope="col">Funding tier</th></tr></thead><tbody>'+
-    lines.map(function(l){ var ft=fundingTier(l); return '<tr style="cursor:default"><td>'+l.name+
-      (l.detail?' <span class="pill i" style="margin-left:5px">full detail &rarr; other tabs</span>':
+    lines.map(function(l){ var ft=fundingTier(l);
+      // Live-row drill-down + tag polish (brainstorm-mode upgrade, 2026-08-23) — only the one line
+      // with real detail underneath it (l.detail) becomes clickable; the copy itself ("full detail
+      // -> other tabs" / "summary only") is unchanged, real, and already accurate -- only a small
+      // live-dot is added, not new label text.
+      return '<tr data-port="'+l.id+'" '+(l.detail?'tabindex="0" role="button" aria-controls="portDrill" aria-pressed="'+(state.portDrill===l.id)+'" style="cursor:pointer'+(state.portDrill===l.id?';background:rgb(var(--c-accent) / .08)':''):'style="cursor:default"')+'"><td>'+l.name+
+      (l.detail?' <span class="pill i" style="margin-left:5px"><span class="live-dot" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:currentColor;margin-right:4px;animation:livePulse 1.8s ease-in-out infinite"></span>full detail &rarr; other tabs</span>':
         ' <span class="mono" style="font-size:10.5px;color:rgb(var(--c-mut))">summary only</span>')+'</td>'+
       '<td class="tab-num">'+m(l.bac)+'</td><td class="tab-num">'+m(l.ac)+'</td><td class="tab-num">'+m(l.ev)+'</td>'+
       '<td class="tab-num">'+idx(l.cpi)+'</td><td class="tab-num">'+m(l.eac)+'</td>'+
@@ -2944,10 +2970,143 @@ function renderPortfolio(){
     '</tbody><tfoot><tr style="cursor:default;font-weight:600"><td>Total capital program</td>'+
     '<td class="tab-num">'+m(bacSum)+'</td><td class="tab-num">'+m(acSum)+'</td><td class="tab-num">'+m(evSum)+'</td>'+
     '<td class="tab-num">'+idx(evSum/acSum)+'</td><td class="tab-num">'+m(bacSum-vacSum)+'</td><td></td><td></td></tr></tfoot>';
+  renderPortDrill(lines);
+  renderFundingGapBar(lines,bacSum,vacSum);
+  renderPortSandbox(lines,bacSum,vacSum);
   var tiered=lines.map(function(l){ return {l:l,ft:fundingTier(l)}; });
   document.getElementById("fundingTierRead").innerHTML=
     tiered.map(function(x){ return '<li><b style="color:rgb(var(--c-ink))">'+x.l.name.replace(/&mdash;.*/,'')+
       '</b> &mdash; <span class="'+({g:"ok",a:"wa",r:"ba"}[x.ft.cls])+'">'+x.ft.tier+'</span>: '+x.ft.why+'</li>'; }).join("");
+}
+/* Link Light Rail drill-down (brainstorm-mode upgrade, 2026-08-23) -- the one line with real detail
+   underneath it (l.detail===true) already IS this program's own 8 real control accounts; this just
+   surfaces them from the Portfolio tab itself instead of only "other tabs." Reuses PKGS/rows
+   directly, no new numbers. */
+function renderPortDrill(lines){
+  var el=document.getElementById("portDrill"); if(!el) return;
+  if(!state.portDrill){ el.innerHTML=""; return; }
+  var line=lines.filter(function(l){return l.id===state.portDrill;})[0];
+  if(!line||!line.detail){ el.innerHTML=""; return; }
+  el.innerHTML='<div class="drawer"><div class="dh"><div>'+
+    '<div class="eyebrow">Portfolio drill-down</div>'+
+    '<h3 style="margin:0">'+line.name.replace(/&mdash;.*/,'')+' &mdash; 8 real control accounts</h3></div>'+
+    '<button class="btn" id="portDrillClose" type="button">Close &times;</button></div>'+
+    '<table style="width:100%;margin-top:10px;border-collapse:collapse"><thead><tr>'+
+    '<th style="text-align:left;font-size:11px;color:rgb(var(--c-mut))">Account</th>'+
+    '<th style="text-align:left;font-size:11px;color:rgb(var(--c-mut))">Scope</th>'+
+    '<th style="text-align:right;font-size:11px;color:rgb(var(--c-mut))">BAC</th>'+
+    '<th style="text-align:right;font-size:11px;color:rgb(var(--c-mut))">CPI</th>'+
+    '<th style="text-align:right;font-size:11px;color:rgb(var(--c-mut))">EAC</th></tr></thead><tbody>'+
+    rows.map(function(r){
+      return '<tr><td class="mono" style="font-size:12px;padding:4px 0">'+r.id+'</td>'+
+        '<td style="font-size:12px">'+r.n.replace(/&amp;/g,"&")+'</td>'+
+        '<td class="tab-num mono" style="font-size:12px;text-align:right">'+m(r.bac)+'</td>'+
+        '<td class="tab-num mono" style="font-size:12px;text-align:right">'+idx(r.cpi)+'</td>'+
+        '<td class="tab-num mono" style="font-size:12px;text-align:right">'+m(r.eac)+'</td></tr>';
+    }).join("")+
+    '</tbody></table>'+
+    '<p style="margin:10px 0 0;font-size:11.5px;color:rgb(var(--c-mut))">These 8 rows sum to exactly '+
+    m(line.bac)+' BAC and '+m(line.eac)+' EAC &mdash; the same figures this line shows in the table above, '+
+    'because this IS that line, not a separate number that happens to agree.</p>'+
+    '<button class="btn" id="portDrillClose2" type="button" style="margin-top:12px">Close</button></div>';
+}
+/* Portfolio funding-gap bar (brainstorm-mode upgrade, 2026-08-23) -- the same bacSum/vacSum the
+   table footer already computes (eacSum = bacSum - vacSum, algebraically the same number, not a
+   new calculation), drawn as one comparison bar plus a real per-line variance breakdown. Declined
+   the brief's own invented portfolio totals and invented per-line variances -- the real numbers
+   are computed fresh here every render, never hand-typed. */
+function renderFundingGapBar(lines,bacSum,vacSum){
+  var el=document.getElementById("fundingGapBar"); if(!el) return;
+  var eacSum=bacSum-vacSum, gap=vacSum, maxV=Math.max(bacSum,eacSum)*1.06;
+  var open=state.portGapOpen;
+  el.innerHTML=
+   '<div style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px">'+
+     '<div><div class="k" style="font:600 9.5px/1.3 ui-monospace,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgb(var(--c-mut))">Total authorized (BAC)</div>'+
+     '<div class="v mono" style="margin-top:5px;font:600 1.1rem/1.2 inherit">'+m(bacSum)+'</div></div>'+
+     '<div><div class="k" style="font:600 9.5px/1.3 ui-monospace,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgb(var(--c-mut))">Total forecast (EAC)</div>'+
+     '<div class="v mono" style="margin-top:5px;font:600 1.1rem/1.2 inherit;color:'+(gap<0?"rgb(var(--c-bad))":"rgb(var(--c-ink))")+'">'+m(eacSum)+'</div></div>'+
+     '<div><div class="k" style="font:600 9.5px/1.3 ui-monospace,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgb(var(--c-mut))">Funding gap</div>'+
+     '<div class="v mono" style="margin-top:5px;font:600 1.1rem/1.2 inherit;color:'+(gap<0?"rgb(var(--c-bad))":"rgb(var(--c-ok))")+'">'+sgn(gap)+'</div></div>'+
+   '</div>'+
+   '<div style="height:22px;border-radius:5px;background:var(--c-grid);overflow:hidden;position:relative">'+
+     '<div style="height:100%;width:'+((bacSum/maxV)*100).toFixed(1)+'%;background:rgb(var(--c-info))"></div>'+
+   '</div>'+
+   '<div style="height:22px;border-radius:5px;background:var(--c-grid);overflow:hidden;position:relative;margin-top:6px">'+
+     '<div style="height:100%;width:'+((Math.min(eacSum,bacSum)/maxV)*100).toFixed(1)+'%;background:'+(gap<0?"rgb(var(--c-bad))":"rgb(var(--c-ok))")+'"></div>'+
+     (gap<0?'<div style="height:100%;width:'+((( eacSum-bacSum)/maxV)*100).toFixed(1)+'%;background:repeating-linear-gradient(45deg,rgb(var(--c-bad) / .55),rgb(var(--c-bad) / .55) 4px,transparent 4px,transparent 8px);display:inline-block"></div>':"")+
+   '</div>'+
+   '<div style="display:flex;justify-content:space-between;font-size:10.5px;color:rgb(var(--c-mut));margin-top:4px">'+
+     '<span>Authorized</span><span>Forecast'+(gap<0?" (hatched = shortfall)":"")+'</span></div>'+
+   '<button type="button" class="btn" id="portGapToggle" style="margin-top:14px;min-height:auto;padding:3px 10px;font-size:12px">'+
+     (open?"Hide":"Show")+' line-of-business breakdown &rarr;</button>'+
+   (open?'<div style="margin-top:12px">'+
+     lines.slice().sort(function(a,b){return a.vac-b.vac;}).map(function(l){
+       return '<div class="rowbar" style="grid-template-columns:1fr auto 64px;cursor:default">'+
+         '<span style="font-size:12.5px">'+l.name.replace(/&mdash;.*/,'')+'</span>'+
+         '<span class="tab-num mono" style="font-size:12.5px;color:'+(l.vac<0?"rgb(var(--c-bad))":"rgb(var(--c-ok))")+'">'+sgn(l.vac)+'</span>'+
+         '<span class="mono" style="font-size:11px;color:rgb(var(--c-mut));text-align:right">'+(l.vac<0?"overrun":"favorable")+'</span></div>';
+     }).join("")+
+     '<p style="margin:10px 0 0;font-size:11.5px;color:rgb(var(--c-mut))">Not every line drives the gap the same '+
+     'direction &mdash; one of these four is genuinely favorable (CPI &gt; 1.00), which the other three&rsquo;s '+
+     'overruns have to absorb.</p></div>':"")+
+   '<p style="margin-top:14px"><button type="button" class="btn" id="portGapFootnote" style="min-height:auto;padding:2px 8px;font-size:11px;color:rgb(var(--c-mut))">i Governance standard disclaimer</button></p>'+
+   (state.portGapFootnote?'<p style="margin-top:6px;font-size:11.5px;color:rgb(var(--c-mut))">Calculated via standard '+
+     'portfolio variance math (&Sigma;BAC &minus; &Sigma;EAC), rolled from each line&rsquo;s own already-published '+
+     'numbers above. Does not represent an external agency&rsquo;s actual debt-service model or legislative '+
+     'affordability index &mdash; those are materially more complex than this arithmetic and this program makes '+
+     'no claim to reproduce one.</p>':"");
+  var toggle=document.getElementById("portGapToggle"), fn=document.getElementById("portGapFootnote");
+  if(toggle) toggle.addEventListener("click",function(){ state.portGapOpen=!state.portGapOpen; renderFundingGapBar(lines,bacSum,vacSum); });
+  if(fn) fn.addEventListener("click",function(){ state.portGapFootnote=!state.portGapFootnote; renderFundingGapBar(lines,bacSum,vacSum); });
+}
+/* Portfolio stress-test sandbox (brainstorm-mode upgrade, 2026-08-23) -- two real levers only. A
+   portfolio SPI slider was in the original brief but is declined: none of the 3 summary lines carry
+   a planned-value field at all (portfolioLine() takes only bac/ac/ev), so "portfolio SPI" has no
+   real number to anchor a slider to. Efficiency shift is modeled as a multiplicative scale on each
+   line's own real CPI -- an explicit, stated assumption for what a hypothetical uniform shift means
+   applied to lines with no underlying activity detail, not a claim about how any one of them would
+   actually perform. At the default (shift=1.00, injection=$0) this reduces EXACTLY to the real
+   bacSum/eacSum/gap -- verified in stress.cjs, not just asserted here. */
+function renderPortSandbox(lines,bacSum,vacSum){
+  var el=document.getElementById("portSandbox"); if(!el) return;
+  var eacSum0=bacSum-vacSum;
+  var shift=state.portShift, inject=state.portInject;
+  var simEacSum=lines.reduce(function(s,l){ return s+l.bac/(l.cpi*shift); },0);
+  var simAvail=bacSum+inject;
+  var simGap=simAvail-simEacSum;
+  var targetShift=eacSum0/bacSum;
+  el.innerHTML=
+   '<div class="eyebrow">Try it &middot; portfolio-wide what-if</div>'+
+   '<h3 style="margin:6px 0 3px">Simulate an efficiency shift and a capital infusion</h3>'+
+   '<p class="lede" style="font-size:12.5px;margin:0 0 12px"><b>Assumption, stated plainly:</b> the efficiency '+
+     'slider scales every line&rsquo;s own real CPI by the same factor &mdash; the honest way to extend a real '+
+     'number into a portfolio-wide hypothetical, not a claim about how any one line would actually perform.</p>'+
+   '<label style="display:flex;align-items:center;gap:10px;font-size:12.5px;margin-bottom:10px">'+
+     '<span style="white-space:nowrap;min-width:170px">Portfolio efficiency shift</span>'+
+     '<input type="range" id="portShiftSlider" min="0.85" max="1.15" step="0.01" value="'+shift+'" style="flex:1">'+
+     '<span class="mono" style="min-width:48px;text-align:right">'+idx(shift)+'</span></label>'+
+   '<label style="display:flex;align-items:center;gap:10px;font-size:12.5px">'+
+     '<span style="white-space:nowrap;min-width:170px">Capital infusion</span>'+
+     '<input type="range" id="portInjectSlider" min="0" max="150" step="5" value="'+inject+'" style="flex:1">'+
+     '<span class="mono" style="min-width:48px;text-align:right">'+m(inject)+'</span></label>'+
+   '<div class="grid" style="margin-top:14px">'+
+     [["Simulated total EAC",m(simEacSum)],["Simulated funding gap",sgn(simGap)]].map(function(t){
+       return '<div class="card ve-tile"><div class="k">'+t[0]+'</div><div class="v" style="color:'+
+         (t[0]==="Simulated funding gap"&&simGap<0?"rgb(var(--c-bad))":"rgb(var(--c-ink))")+'">'+t[1]+'</div></div>';
+     }).join("")+
+   '</div>'+
+   '<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">'+
+     '<button type="button" class="btn" id="portPresetBase" style="min-height:auto;padding:3px 10px;font-size:12px">Base live state</button>'+
+     '<button type="button" class="btn" id="portPresetStress" style="min-height:auto;padding:3px 10px;font-size:12px">Stressed (&minus;10% efficiency)</button>'+
+     '<button type="button" class="btn" id="portPresetTarget" style="min-height:auto;padding:3px 10px;font-size:12px">Target recovery (close the gap)</button>'+
+   '</div>';
+  var sS=document.getElementById("portShiftSlider"), iS=document.getElementById("portInjectSlider");
+  if(sS) sS.addEventListener("input",function(){ state.portShift=+sS.value; renderPortSandbox(lines,bacSum,vacSum); });
+  if(iS) iS.addEventListener("input",function(){ state.portInject=+iS.value; renderPortSandbox(lines,bacSum,vacSum); });
+  var pBase=document.getElementById("portPresetBase"), pStress=document.getElementById("portPresetStress"), pTarget=document.getElementById("portPresetTarget");
+  if(pBase) pBase.addEventListener("click",function(){ state.portShift=1.00; state.portInject=0; renderPortSandbox(lines,bacSum,vacSum); });
+  if(pStress) pStress.addEventListener("click",function(){ state.portShift=0.90; state.portInject=0; renderPortSandbox(lines,bacSum,vacSum); });
+  if(pTarget) pTarget.addEventListener("click",function(){ state.portShift=Math.round(targetShift*100)/100; state.portInject=0; renderPortSandbox(lines,bacSum,vacSum); });
 }
 
 /* Audience-scoped KPI view (/brainstorm 2026-08-19, Design Guide triage) — each KPI's own tier[]
@@ -3754,8 +3913,18 @@ function renderCont(){
     '<div class="legend"><span><i style="background:'+C("ok")+'"></i>% complete (earned)</span>'+
     '<span><i style="background:'+C("warn")+'"></i>% contingency drawn</span></div>'+
     '<p class="lede" style="font-size:12.5px;margin-top:10px">Drawdown is <b style="color:rgb(var(--c-ink))">'+
-    pct(T.contDrawn)+'</b> at <b style="color:rgb(var(--c-ink))">'+pct(T.pct)+
-    '</b> complete — index '+idx(T.contDrawn/T.pct)+', still trailing progress. That half is healthy. The problem is the level: '+
+    pct(T.contDrawn)+'</b> at <b style="color:rgb(var(--c-ink))">'+pct(T.pct)+'</b> complete — index '+
+    idx(T.contDrawn/T.pct)+
+    // Live crossover check (brainstorm-mode upgrade, 2026-08-23) — this sentence used to assert
+    // "still trailing progress... healthy" unconditionally, regardless of what T.contDrawn/T.pct
+    // actually were; a real gate has to be able to say the opposite too, or it isn't checking
+    // anything. Today's real numbers (57.6% drawn at 66.1% complete) stay on the healthy side, but
+    // this now reads that live, not asserts it.
+    (T.contDrawn>T.pct?
+      ', <b style="color:rgb(var(--c-bad))">crossed above progress</b> — reserve consumption is now '+
+      'outpacing value earned, the earliest reliable signal of an impending reset.'
+      :', still trailing progress. That half is healthy.')+
+    ' The problem is the level: '+
     m(T.contRemaining)+' remains against '+m(T.overrun+T.riskExposure)+' of forecast overrun plus priced risk.</p>';
 }
 
@@ -8511,6 +8680,20 @@ document.getElementById("actBoard").addEventListener("keydown",function(e){
 document.getElementById("actDrill").addEventListener("click",function(e){
   if(e.target.id==="closeAct"){ state.act=null; renderActions(); }
 });
+// Portfolio drill-down (brainstorm-mode upgrade, 2026-08-23) — same closest("[data-x]")/toggle idiom
+// as every other row-click drawer on this dashboard, scoped to portTable's own live row only.
+document.getElementById("portTable").addEventListener("click",function(e){
+  var tr=e.target.closest("[data-port]"); if(!tr||tr.getAttribute("role")!=="button") return;
+  state.portDrill = state.portDrill===tr.dataset.port? null : tr.dataset.port; renderPortfolio();
+});
+document.getElementById("portTable").addEventListener("keydown",function(e){
+  if(e.key!=="Enter"&&e.key!==" ") return;
+  var tr=e.target.closest("[data-port]"); if(!tr||tr.getAttribute("role")!=="button") return; e.preventDefault();
+  state.portDrill = state.portDrill===tr.dataset.port? null : tr.dataset.port; renderPortfolio();
+});
+document.getElementById("portDrill").addEventListener("click",function(e){
+  if(e.target.id==="portDrillClose"||e.target.id==="portDrillClose2"){ state.portDrill=null; renderPortfolio(); }
+});
 var body=document.getElementById("pkgBody");
 body.addEventListener("click",function(e){ var tr=e.target.closest("tr"); if(tr) select(+tr.dataset.i); });
 body.addEventListener("keydown",function(e){
@@ -8775,7 +8958,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   firingEscalations:firingEscalations,
   wbs:WBS,gates:GATES,gate5Checks:GATE5_CHECKS,glNodes:GL_NODES,glCaption:glCaption,glNodeState:glNodeState,
   contracts:CONTRACTS,deriveContract:deriveContract,
-  portfolioRows:portfolioRows,fundingTier:fundingTier,
+  portfolioRows:portfolioRows,fundingTier:fundingTier,renderPortfolio:renderPortfolio,renderCont:renderCont,
   cphCells:CPH_CELLS,deriveCph:deriveCph,deriveZScores:deriveZScores,deriveEwma:deriveEwma,ingestGuards:INGEST_GUARDS,
   renderIngestSim:renderIngestSim,renderCircuitDemo:renderCircuitDemo,renderWbsCrosswalk:renderWbsCrosswalk,
   deriveDrbEmv:deriveDrbEmv,drbAssumptions:DRB_ASSUMPTIONS,deriveGbmParams:deriveGbmParams,

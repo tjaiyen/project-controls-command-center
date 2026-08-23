@@ -5025,6 +5025,90 @@ console.log("== D30. Data Strategy-tab upgrade -- WBS/ABS crosswalk table, inges
   });
 }
 
+console.log("== D31. Portfolio-tab upgrade -- LOB drill-down, funding-gap bar, stress-test sandbox, live crossover check (brainstorm-mode round, 2026-08-23) ==");
+{
+  // real portfolio totals, independently re-derived (not trusted from the fact-check)
+  const lines = P.portfolioRows();
+  ok(lines.length === 4, "sanity: 4 real lines of business", String(lines.length));
+  const bacSum = lines.reduce((s, l) => s + l.bac, 0);
+  const vacSum = lines.reduce((s, l) => s + l.vac, 0);
+  ok(Math.abs(bacSum - 2680.0) < 0.01, "real portfolio BAC sum is $2,680.0M, not the brief's fabricated $2,190.0M", bacSum.toFixed(1));
+  ok(Math.abs((bacSum - vacSum) - 2800.76) < 0.01, "real portfolio EAC sum is ~$2,800.8M, not the brief's fabricated $2,248.5M", (bacSum - vacSum).toFixed(2));
+  const sounder = lines.find(l => l.name.indexOf("Sounder") === 0);
+  ok(sounder.vac > 0, "Sounder is genuinely favorable (CPI>1.00) -- the brief called it a +$10.0M overrun, backwards", sounder.vac.toFixed(2));
+
+  // real per-line drill-down: clicking the live row shows the real 8 control accounts, and they
+  // genuinely sum to that line's own real bac/eac
+  const link = lines.find(l => l.detail);
+  ok(link.id === "link-lrt", "sanity: the one detailed line is Link Light Rail", link.id);
+  fire(R.registry.portTable, "click", { target: { closest: sel => sel === "[data-port]" ? { dataset: { port: "link-lrt" }, getAttribute: () => "button" } : null } });
+  ok(P.state.portDrill === "link-lrt", "clicking the Link row sets state.portDrill", String(P.state.portDrill));
+  const drillHtml = R.registry.portDrill._html;
+  const pkgSum = P.pkgs.reduce((s, p) => s + p.bac, 0);
+  ok(P.pkgs.every(p => drillHtml.includes(p.id)), "drill-down lists all 8 real control accounts");
+  ok(Math.abs(pkgSum - link.bac) < 0.01, "the 8 accounts genuinely sum to Link's own real BAC", pkgSum.toFixed(1) + " vs " + link.bac.toFixed(1));
+  fire(R.registry.portTable, "click", { target: { closest: sel => sel === "[data-port]" ? { dataset: { port: "link-lrt" }, getAttribute: () => "button" } : null } });
+  ok(P.state.portDrill === null, "clicking the SAME row again closes the drawer (toggle)");
+
+  // summary-only rows must NOT be clickable -- role="button" only applies to the one detailed line
+  const portHtml = R.registry.portTable._html;
+  const summaryRowMatch = portHtml.match(/<tr data-port="sounder"[^>]*>/);
+  ok(summaryRowMatch && !summaryRowMatch[0].includes('role="button"'), "a summary-only row (Sounder) is NOT rendered as a clickable button", summaryRowMatch ? summaryRowMatch[0] : "not found");
+
+  // funding gap bar: real totals, real per-line breakdown, toggle behavior. portGapToggle is a
+  // per-render-replaced button inside a container (fundingGapBar) that's itself re-rendered every
+  // time renderPortfolio() runs (which happens repeatedly during page init and from the drill-down
+  // tests just above) -- same stub-fidelity gap as D26's Back/Next buttons: the flat id-registry
+  // never "forgives" a stale listener the way a real DOM child-replacement would. Reset + one clean
+  // render immediately before each click, matching that established fix.
+  function freshPortfolio() { ["portGapToggle", "portGapFootnote"].forEach(id => { if (R.registry[id]) R.registry[id]._listeners = {}; }); P.renderPortfolio(); }
+  P.state.portGapOpen = false; freshPortfolio();
+  let gapHtml = R.registry.fundingGapBar._html;
+  ok(gapHtml.includes("$2,680.0M") && gapHtml.includes("$2,800.8M"), "funding gap bar shows the real totals, not the brief's fabricated ones", gapHtml.match(/\$[\d,]+\.\dM/g));
+  fire(R.registry.portGapToggle, "click");
+  ok(P.state.portGapOpen === true, "clicking the breakdown toggle opens it");
+  gapHtml = R.registry.fundingGapBar._html;
+  ok(gapHtml.includes("favorable") && gapHtml.includes("overrun"), "the LOB breakdown correctly distinguishes favorable from overrun lines, not calling everything an overrun");
+  freshPortfolio();
+  fire(R.registry.portGapToggle, "click");
+  ok(P.state.portGapOpen === false, "clicking again closes it");
+  P.state.portGapOpen = false; freshPortfolio();
+
+  // sandbox: at defaults, reduces EXACTLY to the real totals (the load-bearing invariant every
+  // other what-if sandbox this session has been held to)
+  P.state.portShift = 1.00; P.state.portInject = 0; P.renderPortfolio();
+  let sbHtml = R.registry.portSandbox._html;
+  ok(sbHtml.includes("$2,800.8M"), "sandbox at default state (shift=1.00, injection=$0) shows the exact real EAC total", sbHtml.match(/\$[\d,]+\.\dM/g));
+  ok(sbHtml.includes(sgn(vacSum)), "sandbox at default state shows the exact real funding gap", sgn(vacSum));
+
+  // stressed preset must make the gap WORSE, not better
+  fire(R.registry.portPresetStress, "click");
+  ok(P.state.portShift === 0.90, "Stressed preset sets shift to 0.90");
+  const stressedEac = lines.reduce((s, l) => s + l.bac / (l.cpi * 0.90), 0);
+  ok(stressedEac > (bacSum - vacSum), "the stressed scenario's simulated EAC is genuinely worse than the real one", stressedEac.toFixed(1) + " vs " + (bacSum - vacSum).toFixed(1));
+
+  // target-recovery preset must land close to a closed gap (not exact, since it's rounded to a real
+  // 2-decimal slider step, not solved to machine precision)
+  fire(R.registry.portPresetTarget, "click");
+  const targetShift = (bacSum - vacSum) / bacSum;
+  ok(Math.abs(P.state.portShift - Math.round(targetShift * 100) / 100) < 0.001, "Target recovery preset sets the real closed-form break-even shift (EAC/BAC), not a guessed round number", P.state.portShift);
+  fire(R.registry.portPresetBase, "click");
+  ok(P.state.portShift === 1.00 && P.state.portInject === 0, "Base live state preset resets to the real, unmodified defaults");
+
+  // live crossover check: today's real data must NOT fire it (progress leads drawdown); the check
+  // itself must be conditional on live T.contDrawn/T.pct, not a hardcoded assertion either way
+  P.renderCont();
+  ok(P.totals.contDrawn < P.totals.pct, "sanity: today's real drawdown genuinely trails progress (57.6% vs 66.1%), matching the fact-check", JSON.stringify({ drawn: P.totals.contDrawn, pct: P.totals.pct }));
+  const contHtml = R.registry.contChart._html;
+  ok(contHtml.includes("still trailing progress") && !contHtml.includes("crossed above progress"),
+    "the real (non-crossed) state renders the healthy sentence, not the crossover warning");
+
+  // compliance sweep for this round's own brief
+  ["$2,190.0M", "$2,248.5M", "0.925", "48.2%", "32.6%", "1.48x", "Month 4"].forEach(bad => {
+    ok(!indexSrc.includes(bad), 'fabricated Portfolio-tab brief content never made it into index.html: "' + bad + '"');
+  });
+}
+
 /* =========================================================================
    E. otak.html — runtime + internal consistency
    ========================================================================= */
