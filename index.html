@@ -1788,6 +1788,10 @@ join dim_control_account b using (package_id)</pre></div>
         Board built on numbers that quietly stopped meaning the same thing across systems. The goal
         isn't &ldquo;connect the systems&rdquo; &mdash; it's making disagreement between systems
         something the process catches and resolves, not something a report silently averages over.</p>
+      <p class="lede" style="margin-top:10px">Not an abstract claim &mdash; this program's own real
+        crosswalk, all 8 control accounts, contractor WBS scope resolved against the owner's ABS
+        asset code:</p>
+      <div class="tw"><table id="wbsCrosswalk"></table></div>
 
       <div class="sec-h" style="margin-top:30px"><h3>Architecture &mdash; a governed staging pipeline, not a direct feed</h3></div>
       <p class="lede">The AEC industry's own real, named version of "stage before trust" is the
@@ -1846,6 +1850,7 @@ join dim_control_account b using (package_id)</pre></div>
         <span id="guardCountLede">28</span>-check integrity gate is a working small-scale version of the same pattern.
         <button type="button" class="btn" data-jump-tab="ai" data-jump-el="aiGuards" style="margin-left:6px">See it live &rarr;</button></p>
       <div class="ledgerGrid" id="guardrailGrid"></div>
+      <div class="card" style="margin-top:15px" id="ingestSim"></div>
 
       <div class="sec-h" style="margin-top:30px"><h3>When systems disagree</h3></div>
       <p class="lede">Most reporting tools skip this entirely. The actual process, step by step
@@ -1858,6 +1863,7 @@ join dim_control_account b using (package_id)</pre></div>
       <p class="lede">Detecting a problem and recovering from one are different capabilities.
         Most tools only do the first.</p>
       <div class="tw"><table id="recoveryTable"></table></div>
+      <div class="card" style="margin-top:15px" id="circuitDemo"></div>
       <div class="dbox" style="margin-top:14px"><h4>Already proven at small scale, here</h4><p>The <button type="button" class="btn" style="min-height:auto;padding:1px 8px;font-size:12.5px" data-jump-tab="ai" data-jump-el="aiGuards">integrity gate</button>,
         the <button type="button" class="btn" style="min-height:auto;padding:1px 8px;font-size:12.5px" data-jump-tab="fw" data-jump-el="escTable">escalation matrix</button>,
         the <button type="button" class="btn" style="min-height:auto;padding:1px 8px;font-size:12.5px" data-jump-tab="act" data-jump-el="actFilters" data-jump-actstale="1">Actions register's stale-flag</button>,
@@ -2739,9 +2745,12 @@ var state = {phase:"con", fam:"All", audience:"pcm", kpi:null, pkg:2, actFilter:
                  // sandbox renders at the real, unmodified figures until moved.
   d02Bypass:false, // Schedule-tab upgrade (brainstorm-mode, 2026-08-23) — false = the real state
                  // (D-02 in effect); true enters the "what if this fragnet were never inserted" simulation.
-  actView:"table", actOwnerFilter:null}; // Actions-tab upgrade (brainstorm-mode, 2026-08-23) —
+  actView:"table", actOwnerFilter:null, // Actions-tab upgrade (brainstorm-mode, 2026-08-23) —
                  // actView toggles Register/Board (same 17 real items, two layouts); actOwnerFilter
                  // is a second, independent filter dimension layered on top of the existing status one.
+  ingestSimAc:0.8, ingestSimEv:0.75, circuitTripped:false}; // Data Strategy-tab upgrade
+                 // (brainstorm-mode, 2026-08-23) — ingestSim* defaults are a clean synthetic record
+                 // (both real checks pass); circuitTripped false = the real, untripped state.
 
 /* Ledger card (Overview-tab upgrade, 2026-08-20) — the 11 raw inputs, a per-package inspector, and
    a live "change one input, watch the KPIs move" demo. The demo deliberately reads a LOCAL copy of
@@ -7038,6 +7047,89 @@ function renderIngestGuards(targetId){
        '<span style="text-align:right"><span class="pill '+(r.pass?"g":"r")+'">'+(r.pass?"PASS":"FAIL")+'</span></span></div>';
    }).join("");
 }
+/* Ingestion what-if simulator (brainstorm-mode upgrade, 2026-08-23) — the guard grid above only
+   ever shows both real INGEST_GUARDS checks PASSING, because the real ledger is clean; there is no
+   way to see a quarantine happen without a hypothetical bad record. This runs the SAME two real
+   rules (ac >= 0, ev <= bac — literally INGEST_GUARDS[0]/[1]'s own logic, not a re-invented set)
+   against one synthetic incoming record instead of the whole ledger. Declined the brief's other two
+   scenarios (range-restriction, cross-system reconciliation) because no such checks exist in this
+   data model — see the source comment on INGEST_GUARDS itself for why only 2 of 6 are honest here. */
+function renderIngestSim(){
+  var el=document.getElementById("ingestSim"); if(!el) return;
+  var ac=state.ingestSimAc, ev=state.ingestSimEv, bac=1.0;
+  var checks=[
+   {n:INGEST_GUARDS[0].n, pass:ac>=0},
+   {n:INGEST_GUARDS[1].n, pass:ev<=bac}
+  ];
+  var fails=checks.filter(function(c){return !c.pass;});
+  el.innerHTML=
+   '<div class="eyebrow">Try it &middot; simulate one incoming record</div>'+
+   '<h3 style="margin:6px 0 3px">Would this record pass ingestion?</h3>'+
+   '<p class="lede" style="font-size:12.5px;margin:0 0 12px">Drag the sliders to build one hypothetical '+
+     'incoming record for a $1.0M-BAC control account, and watch the two real rules above evaluate it live '+
+     '&mdash; the exact same logic, run against one new record instead of the whole ledger.</p>'+
+   '<label style="display:flex;align-items:center;gap:10px;font-size:12.5px;margin-bottom:10px">'+
+     '<span style="white-space:nowrap;min-width:140px">Actual cost ($M)</span>'+
+     '<input type="range" id="ingestSimAcSlider" min="-0.3" max="1.5" step="0.05" value="'+ac+'" style="flex:1">'+
+     '<span class="mono" style="min-width:52px;text-align:right">'+m(ac)+'</span></label>'+
+   '<label style="display:flex;align-items:center;gap:10px;font-size:12.5px">'+
+     '<span style="white-space:nowrap;min-width:140px">Earned value ($M)</span>'+
+     '<input type="range" id="ingestSimEvSlider" min="0" max="1.5" step="0.05" value="'+ev+'" style="flex:1">'+
+     '<span class="mono" style="min-width:52px;text-align:right">'+m(ev)+'</span></label>'+
+   '<div style="margin-top:14px">'+checks.map(function(c){
+     return '<div class="rowbar" style="grid-template-columns:1fr 64px;cursor:default">'+
+       '<span style="font-size:12.5px">'+c.n+'</span>'+
+       '<span style="text-align:right"><span class="pill '+(c.pass?"g":"r")+'">'+(c.pass?"PASS":"FAIL")+'</span></span></div>';
+   }).join("")+'</div>'+
+   '<p style="margin-top:12px">'+(fails.length?
+     '<span class="pill r flash">Quarantined &mdash; '+fails.length+' of 2 checks failed</span>'
+     :'<span class="pill g">Admitted &mdash; both real checks pass</span>')+'</p>'+
+   '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">'+
+     '<button type="button" class="btn" id="ingestSimBadAc" style="min-height:auto;padding:3px 10px;font-size:12px">Try a negative-cost entry</button>'+
+     '<button type="button" class="btn" id="ingestSimBadEv" style="min-height:auto;padding:3px 10px;font-size:12px">Try over-earned value</button>'+
+     '<button type="button" class="btn" id="ingestSimReset" style="min-height:auto;padding:3px 10px;font-size:12px">Reset to a clean record</button>'+
+   '</div>';
+  var acS=document.getElementById("ingestSimAcSlider"), evS=document.getElementById("ingestSimEvSlider");
+  if(acS) acS.addEventListener("input",function(){ state.ingestSimAc=+acS.value; renderIngestSim(); });
+  if(evS) evS.addEventListener("input",function(){ state.ingestSimEv=+evS.value; renderIngestSim(); });
+  var badAc=document.getElementById("ingestSimBadAc"), badEv=document.getElementById("ingestSimBadEv"), reset=document.getElementById("ingestSimReset");
+  if(badAc) badAc.addEventListener("click",function(){ state.ingestSimAc=-0.15; renderIngestSim(); });
+  if(badEv) badEv.addEventListener("click",function(){ state.ingestSimEv=1.2; renderIngestSim(); });
+  if(reset) reset.addEventListener("click",function(){ state.ingestSimAc=0.8; state.ingestSimEv=0.75; renderIngestSim(); });
+}
+/* Circuit breaker toggle demo (brainstorm-mode upgrade, 2026-08-23) — the "Proactive error
+   recovery" table above already describes this pattern in prose (RECOVERY_ROWS); this makes it
+   clickable. Explicitly illustrative (this program has no real external feed to actually break) —
+   reuses the REAL isStale()/stale-badge mechanism already live on the Actions register by name,
+   rather than inventing a second, parallel staleness concept. */
+function renderCircuitDemo(){
+  var el=document.getElementById("circuitDemo"); if(!el) return;
+  var tripped=state.circuitTripped;
+  el.innerHTML=
+   '<div class="eyebrow">Try it &middot; ingestion circuit breaker</div>'+
+   '<h3 style="margin:6px 0 3px">'+(tripped?"Circuit tripped":"Circuit healthy")+'</h3>'+
+   '<p class="lede" style="font-size:12.5px;margin:0 0 12px">Illustrative demo, not a live feed &mdash; this '+
+     'program has no real external feed to actually break. Trip the switch to see the fallback pattern the '+
+     'table above already describes in prose: three straight failed ingestion audits halt the feed and fall '+
+     'back to the last known-good snapshot, with a visible stale flag downstream &mdash; the same '+
+     '<code>isStale()</code>/stale-badge mechanism already live on the Actions register, reused here by name, '+
+     'not reinvented.</p>'+
+   '<label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer">'+
+     '<input type="checkbox" id="circuitToggle"'+(tripped?" checked":"")+'> Simulate 3 consecutive failed ingestion audits</label>'+
+   '<div class="card" style="margin-top:14px;padding:12px 14px'+(tripped?';border-color:rgb(var(--c-bad) / .5)':'')+'">'+
+     '<div style="display:flex;justify-content:space-between;align-items:baseline">'+
+       '<span style="font-size:13px;font-weight:600">Weekly timesheet feed (illustrative)</span>'+
+       '<span class="pill '+(tripped?"r":"g")+'">'+(tripped?"HALTED":"live")+'</span></div>'+
+     (tripped?
+       '<p style="margin:8px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">Falling back to the last known-good '+
+         'snapshot (illustrative: 2026-07-24) &mdash; downstream tiles reading this feed would carry a '+
+         '<span class="pill a" style="margin:0 2px">stale</span> badge until a human clears it, the same badge '+
+         'an ACTIONS item already carries after 10 days untouched.</p>'
+       :'<p style="margin:8px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">Passing validation normally.</p>')+
+   '</div>';
+  var t=document.getElementById("circuitToggle");
+  if(t) t.addEventListener("change",function(){ state.circuitTripped=t.checked; renderCircuitDemo(); });
+}
 
 /* The narrative: figures first, prose second, verification last. */
 function renderNarr(){
@@ -7493,8 +7585,29 @@ function renderCdeFlow(){
   selectDS(dsIdx);
 }
 
+/* Real WBS<->ABS crosswalk table (brainstorm-mode upgrade, 2026-08-23) — "The problem, stated
+   plainly" above was pure prose; this grounds it with the real WBS array (already real data,
+   already used for the Gate 5 wbsMapped check) instead of the brief's fabricated named-enterprise-
+   software identifier fields, none of which exist anywhere in this data model. */
+function renderWbsCrosswalk(){
+  var el=document.getElementById("wbsCrosswalk"); if(!el) return;
+  el.innerHTML=
+   '<caption class="tw-caption">Every control account, contractor WBS resolved against the owner ABS.</caption>'+
+   '<thead><tr><th scope="col">Control account</th><th scope="col">WBS scope</th><th scope="col">CBS</th>'+
+   '<th scope="col">OBS owner</th><th scope="col">ABS asset code</th></tr></thead><tbody>'+
+   WBS.map(function(w){
+     return '<tr style="cursor:default"><td class="mono" style="font-size:11.5px">'+w.ca+'</td>'+
+       '<td style="font-size:12px">'+w.scope+'</td>'+
+       '<td style="font-size:12px">'+w.cbs+'</td>'+
+       '<td style="font-size:12px">'+w.obs+'</td>'+
+       '<td class="mono" style="font-size:11px;color:rgb(var(--c-mut))">'+w.abs+'</td></tr>';
+   }).join("")+'</tbody>';
+}
 function renderDataStrategy(){
   renderCdeFlow();
+  renderWbsCrosswalk();
+  renderIngestSim();
+  renderCircuitDemo();
   // 4-tile status grid (UI/UX upgrade round, 2026-08-21) — was a plain 3-column table; same
   // GUARDRAILS data, same copy, reusing the .ledgerGrid/.ledger-item pattern built for the
   // Overview tab's six-KPI-families card. Tile 2 (Range/restriction) additionally embeds the
@@ -8664,6 +8777,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   contracts:CONTRACTS,deriveContract:deriveContract,
   portfolioRows:portfolioRows,fundingTier:fundingTier,
   cphCells:CPH_CELLS,deriveCph:deriveCph,deriveZScores:deriveZScores,deriveEwma:deriveEwma,ingestGuards:INGEST_GUARDS,
+  renderIngestSim:renderIngestSim,renderCircuitDemo:renderCircuitDemo,renderWbsCrosswalk:renderWbsCrosswalk,
   deriveDrbEmv:deriveDrbEmv,drbAssumptions:DRB_ASSUMPTIONS,deriveGbmParams:deriveGbmParams,
   deriveEarnedSchedule:deriveEarnedSchedule,
   risks:RISKS,pBand:P_BAND,tweenNum:tweenNum,mcQuantile:mcQuantile,

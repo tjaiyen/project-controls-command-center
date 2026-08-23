@@ -4966,6 +4966,65 @@ console.log("== D29. Actions-tab upgrade -- Kanban board, actionStatus() branchi
   });
 }
 
+console.log("== D30. Data Strategy-tab upgrade -- WBS/ABS crosswalk table, ingestion what-if sandbox, circuit breaker demo (brainstorm-mode round, 2026-08-23) ==");
+{
+  // real WBS crosswalk table -- all 8 real rows, real fields, no invented enterprise-software IDs
+  const crosswalkHtml = R.registry.wbsCrosswalk._html;
+  ok(P.wbs.length === 8, "sanity: 8 real WBS rows", String(P.wbs.length));
+  P.wbs.forEach(w => {
+    ok(crosswalkHtml.includes(w.ca) && crosswalkHtml.includes(w.scope) && crosswalkHtml.includes(w.abs),
+      "crosswalk table renders " + w.ca + "'s real scope/cbs/obs/abs fields");
+  });
+
+  // ingest simulator: default state must be a clean record that passes both REAL checks (the
+  // exact same predicates INGEST_GUARDS[0]/[1] themselves check, not a re-invented rule set)
+  P.state.ingestSimAc = 0.8; P.state.ingestSimEv = 0.75; P.renderIngestSim();
+  let simHtml = R.registry.ingestSim._html;
+  ok(simHtml.includes("Admitted"), "simulator starts on a clean, admitted record");
+  ok(!simHtml.includes("Quarantined"), "clean record does not show Quarantined");
+
+  // negative-AC preset must fail check 1 (INGEST_GUARDS[0]) specifically, not just "some" check
+  fire(R.registry.ingestSimBadAc, "click");
+  simHtml = R.registry.ingestSim._html;
+  ok(P.state.ingestSimAc < 0, "the negative-cost preset actually sets a negative ac", String(P.state.ingestSimAc));
+  ok(simHtml.includes("Quarantined"), "negative-cost record renders Quarantined");
+  ok(simHtml.includes(P.ingestGuards[0].n) && simHtml.split(P.ingestGuards[0].n)[1].split("</div>")[0].includes("FAIL"),
+    "check 1 (" + P.ingestGuards[0].n + ") specifically shows FAIL for the negative-cost record");
+
+  // over-earned-value preset must fail check 2 specifically
+  fire(R.registry.ingestSimReset, "click");
+  fire(R.registry.ingestSimBadEv, "click");
+  simHtml = R.registry.ingestSim._html;
+  ok(P.state.ingestSimEv > 1.0, "the over-earned-value preset actually sets ev above the illustrative $1.0M BAC", String(P.state.ingestSimEv));
+  ok(simHtml.includes("Quarantined"), "over-earned-value record renders Quarantined");
+  ok(simHtml.includes(P.ingestGuards[1].n) && simHtml.split(P.ingestGuards[1].n)[1].split("</div>")[0].includes("FAIL"),
+    "check 2 (" + P.ingestGuards[1].n + ") specifically shows FAIL for the over-earned-value record");
+
+  // reset returns to the clean, admitted state
+  fire(R.registry.ingestSimReset, "click");
+  ok(R.registry.ingestSim._html.includes("Admitted"), "Reset returns to the clean, admitted record");
+  ok(P.state.ingestSimAc === 0.8 && P.state.ingestSimEv === 0.75, "Reset restores the exact default values", JSON.stringify({ ac: P.state.ingestSimAc, ev: P.state.ingestSimEv }));
+
+  // circuit breaker: real click-driven toggle, explicitly illustrative framing
+  P.state.circuitTripped = false; P.renderCircuitDemo();
+  ok(R.registry.circuitDemo._html.includes("Circuit healthy"), "circuit starts healthy");
+  ok(R.registry.circuitDemo._html.includes("Illustrative demo, not a live feed"), "the demo explicitly discloses it is illustrative, not a real feed");
+  R.registry.circuitToggle.checked = true;
+  fire(R.registry.circuitToggle, "change");
+  ok(P.state.circuitTripped === true, "toggling the checkbox sets state.circuitTripped");
+  const trippedHtml = R.registry.circuitDemo._html;
+  ok(trippedHtml.includes("Circuit tripped") && trippedHtml.includes("HALTED") && trippedHtml.includes("stale"),
+    "tripped state renders HALTED and reuses the real 'stale' badge language, not an invented term");
+  R.registry.circuitToggle.checked = false;
+  fire(R.registry.circuitToggle, "change");
+  ok(P.state.circuitTripped === false, "un-toggling reverts state.circuitTripped");
+
+  // compliance sweep for this round's own brief
+  ["IDS-Rule-402", "Unmapped Cost Codes", "Orphan Activities: 0", "§2.5", "JDE Cost Code", "Unifier ID"].forEach(bad => {
+    ok(!indexSrc.includes(bad), 'fabricated Data Strategy-tab brief content never made it into index.html: "' + bad + '"');
+  });
+}
+
 /* =========================================================================
    E. otak.html — runtime + internal consistency
    ========================================================================= */
