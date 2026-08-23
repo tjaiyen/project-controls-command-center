@@ -690,8 +690,15 @@ pre.code b{color:rgb(var(--c-code));font-weight:600}
 /* Vertical bars (histogram, waterfall) grow from their own bottom edge; horizontal bars
    (tornado — width is the varying dimension, not height) grow from their own left edge instead —
    scaleY from bottom on a horizontal bar would squash it, not extend it. */
-#mcChart rect,#waterfall rect{transform-box:fill-box;transform-origin:bottom;animation:growup .6s ease-out backwards}
+#mcChart rect,#waterfall rect,#baseBridgeChart rect{transform-box:fill-box;transform-origin:bottom;animation:growup .6s ease-out backwards}
 #tornado rect,#gantt rect{transform-box:fill-box;transform-origin:left;animation:growright .6s ease-out backwards}
+/* Estimate-to-budget bridge (brainstorm-mode upgrade, 2026-08-23) — step-active ring mirrors the
+   stepper's current step onto its own bar; matches the .pill/.hot conventions already used by the
+   sibling #waterfall chart above rather than inventing a new highlight language. */
+#baseBridgeChart rect.step-active{stroke:rgb(var(--c-ink));stroke-width:2}
+.ve-tile{padding:12px 14px}
+.ve-tile .k{font-size:10.5px;color:rgb(var(--c-mut));text-transform:uppercase;letter-spacing:.04em}
+.ve-tile .v{font:600 1.15rem/1.3 ui-monospace,monospace;margin-top:4px}
 /* Hover lift on the visible bar marks only — scoped by container, not by .hot alone, since the
    S-curve's own .hot rects (data-mo) are deliberately transparent hit-targets, not bars; giving
    those the same treatment would make invisible rectangles flash visible on hover. */
@@ -1028,6 +1035,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         the budget being controlled today &mdash; because a controls manager who inherits a baseline
         should be able to defend how it was set, not just measure against it.</p>
       <div class="card" style="margin-top:15px" id="baseBridge"></div>
+      <div class="card" style="margin-top:15px" id="veSandbox"></div>
 
       <div class="grid">
         <div class="card">
@@ -2707,7 +2715,10 @@ var state = {phase:"con", fam:"All", audience:"pcm", kpi:null, pkg:2, actFilter:
                      // empty so the canonical MC's own long-standing behavior (zero discrete-risk
                      // layer) stays exactly what it has always been; checking a risk ON is what
                      // adds the new layer, never a default-on state that would silently change it.
-  glossCat:"All"}; // glossary category filter (brainstorm-mode upgrade, 2026-08-21)
+  glossCat:"All", // glossary category filter (brainstorm-mode upgrade, 2026-08-21)
+  baseStep:0, baseDrawerOpen:false, veAccepted:true}; // estimate-to-budget bridge stepper/sandbox
+                 // (brainstorm-mode upgrade, 2026-08-23) — veAccepted defaults true (the real,
+                 // current state); unchecking it is what enters the hypothetical.
 
 /* Ledger card (Overview-tab upgrade, 2026-08-20) — the 11 raw inputs, a per-package inspector, and
    a live "change one input, watch the KPIs move" demo. The demo deliberately reads a LOCAL copy of
@@ -3487,23 +3498,170 @@ function renderWaterfallMath(){
 }
 
 /* ---------- estimate-to-budget bridge ---------- */
+/* Five steps: the award-stage estimate (a full-height anchor), three floating deductions (VE, bid
+   climate, buyout), and the controlled BAC (a second full-height anchor). Built once, off BASELINE,
+   never a duplicated literal — the stepper banner, chart labels and tooltip percentages below all
+   read the same array. */
+function baseSteps(){
+  var run=0, out=[], SHORT=["Estimate","VE","Bid climate","Buyout","BAC"];
+  BASELINE.forEach(function(s,i){
+    if(i===0){ run=s.v; out.push({l:s.l,v:s.v,y0:0,y1:s.v,type:"total",sh:SHORT[i]}); }
+    else { var y0=run; run+=s.v; out.push({l:s.l,v:s.v,y0:y0,y1:run,type:"cut",sh:SHORT[i]}); }
+  });
+  out.push({l:"Controlled baseline (BAC)",v:run,y0:0,y1:run,type:"total",sh:SHORT[4]});
+  return out;
+}
+/* Grounded, per-step narrative — every fact traces to BASELINE/GATES, nothing invented (this
+   upgrade's own brainstorm brief proposed specific engineering scenarios and AACE class tags that
+   do not exist anywhere in the ledger; declined for exactly that reason, see docs/HANDOFF.md). */
+function baseStepBanner(i,steps){
+  var s=steps[i];
+  if(i===0) return "The Engineer&rsquo;s estimate set going into Gate 4 (Final Design &amp; Right-of-Way), "+
+    "ahead of releasing the construction RFP.";
+  if(i===steps.length-1) return "Locked at Gate 5 (Baseline Establishment) &mdash; the number every EVM "+
+    "metric on this dashboard is measured against from here on.";
+  if(/Value engineering/.test(s.l)) return "A structured value-engineering review trimmed "+m(Math.abs(s.v))+
+    " from the award-stage estimate before bids were solicited.";
+  if(/Bid climate/.test(s.l)) return "The gap between the independent estimate and what the market&rsquo;s "+
+    "competitive bids actually came in at &mdash; "+m(Math.abs(s.v))+".";
+  return "Subcontract and major-purchase buyout priced "+m(Math.abs(s.v))+" below the estimate &mdash; "+
+    "savings captured at the source, after award.";
+}
 function renderBaseline(){
-  var run=0;
+  var steps=baseSteps();
+  var W=980,H=280,PL=70,PR=18,PT=22,PB=54;
+  var maxY=steps[0].v*1.08;
+  var bw=(W-PL-PR)/steps.length;
+  var Y=function(v){ return PT+(1-v/maxY)*(H-PT-PB); };
+  var g="",k;
+  for(k=0;k<=4;k++){ var gv=maxY*k/4;
+    g+='<line x1="'+PL+'" x2="'+(W-PR)+'" y1="'+Y(gv).toFixed(1)+'" y2="'+Y(gv).toFixed(1)+'" stroke="var(--c-grid)"/>'+
+       '<text x="'+(PL-9)+'" y="'+(Y(gv)+3.5).toFixed(1)+'" text-anchor="end" font-size="10.5" font-family="ui-monospace,monospace" fill="'+C("mut")+'">'+m(gv).replace(".0M","M")+'</text>'; }
+  var body=steps.map(function(b,j){
+    var x=PL+j*bw+bw*0.16, w=bw*0.68;
+    var top=Y(Math.max(b.y0,b.y1)), bot=Y(Math.min(b.y0,b.y1));
+    var fill=b.type==="total"?C("accent"):C("ok");
+    var lbl=b.type==="total"?m(b.v):sgn(b.v);
+    var connector=j>0? '<line x1="'+(PL+(j-1)*bw+bw*0.84).toFixed(1)+'" x2="'+x.toFixed(1)+'" y1="'+Y(b.y0).toFixed(1)+
+      '" y2="'+Y(b.y0).toFixed(1)+'" stroke="'+C("mut")+'" stroke-width="1" stroke-dasharray="3 3" opacity=".55"/>' : "";
+    return connector+
+      '<rect x="'+x.toFixed(1)+'" y="'+top.toFixed(1)+'" width="'+w.toFixed(1)+'" height="'+Math.max(2,bot-top).toFixed(1)+
+      '" fill="'+fill+'" opacity="'+(b.type==="total"?".92":".82")+'" rx="2" data-step="'+j+'" style="animation-delay:'+(j*140)+'ms"'+
+      ' class="hot'+(j===state.baseStep?" step-active":"")+'"><title>'+b.l.replace(/&rsquo;/g,"’")+" "+lbl+'</title></rect>'+
+      '<text x="'+(x+w/2).toFixed(1)+'" y="'+(H-30)+'" text-anchor="middle" font-size="10" font-family="ui-monospace,monospace" fill="'+C("mut")+'">'+b.sh+'</text>'+
+      '<text x="'+(x+w/2).toFixed(1)+'" y="'+(H-16)+'" text-anchor="middle" font-size="9.5" font-family="ui-monospace,monospace" fill="'+(b.type==="total"?C("accent"):C("ok"))+'">'+lbl+'</text>';
+  }).join("");
+  var s=steps[state.baseStep];
+  var jumpBtn = state.baseStep===0
+    ? ' <button type="button" class="btn" style="min-height:auto;padding:1px 8px;font-size:11.5px" data-jump-tab="fw" data-jump-el="gateTable">See Gate 4 &rarr;</button>'
+    : state.baseStep===steps.length-1
+    ? ' <button type="button" class="btn" style="min-height:auto;padding:1px 8px;font-size:11.5px" data-jump-tab="fw" data-jump-el="gate5Card">See Gate 5 &rarr;</button>'
+    : "";
   document.getElementById("baseBridge").innerHTML=
-    BASELINE.map(function(s){ run+=s.v;
-      return '<div class="rowbar" style="grid-template-columns:1fr 84px 84px;cursor:default">'+
-        '<span style="font-size:12.5px">'+s.l+'</span>'+
-        '<span class="tab-num mono" style="font-size:12.5px;text-align:right;color:'+
-          (s.v<0?"var(--c-pill-g)":"rgb(var(--c-ink))")+'">'+(s.v<0?"&minus;":"")+m(Math.abs(s.v))+'</span>'+
-        '<span class="tab-num mono" style="font-size:12.5px;text-align:right;color:rgb(var(--c-mut))">'+m(run)+'</span></div>';
-    }).join("")+
-    '<div class="rowbar" style="grid-template-columns:1fr 84px 84px;cursor:default;border-top:1px solid rgb(var(--c-accent) / .40)">'+
-      '<span style="font-size:12.8px;font-weight:600">Baseline budget at completion</span><span></span>'+
-      '<span class="tab-num mono" style="font-size:12.8px;text-align:right;font-weight:600">'+m(run)+'</span></div>'+
-    '<p style="margin:12px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">The bridge reconciles exactly: '+m(run)+
+    '<div class="chart" id="baseBridgeChart">'+svg(W,H,g+body,
+      "Bridge from the Engineer's estimate at award to the controlled baseline budget, walked through value engineering, bid climate and buyout.")+'</div>'+
+    '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;flex-wrap:wrap">'+
+      '<div class="mono" style="font-size:11.5px;color:rgb(var(--c-mut))">Step '+(state.baseStep+1)+' of '+steps.length+' &mdash; '+s.sh+'</div>'+
+      '<div style="display:flex;gap:8px">'+
+        '<button class="btn" type="button" id="baseStepBack"'+(state.baseStep===0?" disabled":"")+'>&larr; Back</button>'+
+        '<button class="btn" type="button" id="baseStepNext"'+(state.baseStep===steps.length-1?" disabled":"")+'>Next &rarr;</button>'+
+      '</div></div>'+
+    '<p class="lede" style="margin-top:11px;font-size:12.8px">'+baseStepBanner(state.baseStep,steps)+jumpBtn+'</p>'+
+    (state.baseDrawerOpen? renderBaseDrawer() : '<p style="margin:10px 0 0"><button type="button" class="btn" id="baseDrawerOpen" style="min-height:auto;padding:2px 9px;font-size:11.5px">See the 8 control accounts that sum to '+m(T.bac)+' &rarr;</button></p>')+
+    '<p style="margin:12px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">The bridge reconciles exactly: '+m(steps[steps.length-1].v)+
     ' equals the sum of the eight control accounts in the ledger below. Contingency of '+m(PROGRAM.contingency)+
     ' ('+pct(PROGRAM.contingency/T.bac,0)+' of baseline) was sized from the priced risk register at award &mdash; '+
     'a derived number, not a flat allowance.</p>';
+
+  var host=document.getElementById("baseBridgeChart"), tip=document.getElementById("tip");
+  function baseTip(e){
+    var t=e.target; if(!t.classList||!t.classList.contains("hot")){ tip.classList.remove("on"); return; }
+    var b=steps[+t.dataset.step];
+    if(b.type==="total"){ tip.innerHTML="<b>"+b.l.replace(/&rsquo;/g,"’")+"</b>"+m(b.v); }
+    else { tip.innerHTML="<b>"+b.l+"</b>"+sgn(b.v)+"<br>"+pct(Math.abs(b.v)/steps[0].v,2)+" of the initial estimate"; }
+    tip.classList.add("on");
+    tip.style.left=Math.min(e.clientX+14,window.innerWidth-262)/curZoom()+"px";
+    tip.style.top=Math.min(e.clientY+14,window.innerHeight-130)/curZoom()+"px";
+  }
+  host.addEventListener("mousemove",baseTip);
+  host.addEventListener("click",function(e){
+    var t=e.target.closest(".hot"); if(!t) return;
+    state.baseStep=+t.dataset.step;
+    renderBaseline();
+  });
+  host.addEventListener("mouseleave",function(){ tip.classList.remove("on"); });
+
+  var back=document.getElementById("baseStepBack"), next=document.getElementById("baseStepNext");
+  if(back) back.addEventListener("click",function(){ state.baseStep=Math.max(0,state.baseStep-1); renderBaseline(); });
+  if(next) next.addEventListener("click",function(){ state.baseStep=Math.min(steps.length-1,state.baseStep+1); renderBaseline(); });
+  var dOpen=document.getElementById("baseDrawerOpen"), dClose=document.getElementById("baseDrawerClose");
+  if(dOpen) dOpen.addEventListener("click",function(){ state.baseDrawerOpen=true; renderBaseline(); });
+  if(dClose) dClose.addEventListener("click",function(){ state.baseDrawerOpen=false; renderBaseline(); });
+}
+/* Real per-account drill-down (declined the brief's fabricated per-package VE breakdown — no such
+   field exists on PKGS; this uses the ledger's actual BAC contributions instead, which genuinely do
+   sum to T.bac and reinforce the same "single ledger" point honestly). */
+function renderBaseDrawer(){
+  return '<div class="drawer"><div class="dh"><div><div class="eyebrow">Controlled baseline &middot; by control account</div>'+
+    '<h3 style="margin:0">'+PKGS.length+' accounts, summing to '+m(T.bac)+'</h3></div></div>'+
+    '<table style="width:100%;margin-top:10px;border-collapse:collapse"><thead><tr>'+
+    '<th style="text-align:left;font-size:11px;color:rgb(var(--c-mut))">Account</th>'+
+    '<th style="text-align:left;font-size:11px;color:rgb(var(--c-mut))">Scope</th>'+
+    '<th style="text-align:right;font-size:11px;color:rgb(var(--c-mut))">BAC</th>'+
+    '<th style="text-align:right;font-size:11px;color:rgb(var(--c-mut))">Share</th></tr></thead><tbody>'+
+    PKGS.map(function(p){
+      return '<tr><td class="mono" style="font-size:12px;padding:4px 0">'+p.id+'</td>'+
+        '<td style="font-size:12px">'+p.n+'</td>'+
+        '<td class="tab-num mono" style="font-size:12px;text-align:right">'+m(p.bac)+'</td>'+
+        '<td class="tab-num mono" style="font-size:12px;text-align:right;color:rgb(var(--c-mut))">'+pct(p.bac/T.bac,1)+'</td></tr>';
+    }).join("")+
+    '</tbody></table>'+
+    '<button class="btn" id="baseDrawerClose" type="button" style="margin-top:12px">Close</button></div>';
+}
+/* "Defend the baseline" sandbox — one real macro toggle (declined the brief's itemized per-VE-item
+   list; those line items don't exist and its two example amounts don't even sum to the real
+   $46.0M). Reversing
+   VE has to move BOTH BAC and EAC, not just BAC: the reinstated scope still has to execute at SOME
+   efficiency, so it's modeled at the portfolio's own current blended CPI, stated as an assumption,
+   not asserted as fact. At the default (VE accepted), this reduces to T.bac/T.eac/T.vac/T.contCoverage
+   exactly — verified live, not just at commit time. */
+function veSandboxCalc(){
+  var VE=Math.abs(BASELINE.filter(function(b){return /Value engineering/.test(b.l);})[0].v);
+  var bacAlt = state.veAccepted? T.bac : T.bac+VE;
+  var eacAlt = state.veAccepted? T.eac : T.eac+VE/T.cpi;
+  var vacAlt = bacAlt-eacAlt;
+  var overrunAlt = Math.abs(Math.min(0,vacAlt));
+  var coverageAlt = T.contRemaining/(overrunAlt+T.riskExposure);
+  return {ve:VE,bac:bacAlt,eac:eacAlt,vac:vacAlt,coverage:coverageAlt};
+}
+function veTile(label,val,ok){
+  return '<div class="card ve-tile"><div class="k">'+label+'</div>'+
+    '<div class="v" style="color:'+(ok?"rgb(var(--c-ink))":C("bad"))+'">'+val+'</div></div>';
+}
+function renderVeSandbox(){
+  var c=veSandboxCalc();
+  var worse = !state.veAccepted && c.coverage < T.contCoverage-0.0005;
+  document.getElementById("veSandbox").innerHTML=
+    '<div class="eyebrow">Defend the baseline &middot; what-if</div>'+
+    '<h3 style="margin:6px 0 3px">If value engineering had not been accepted&hellip;</h3>'+
+    '<p class="lede" style="font-size:12.5px;margin:0 0 12px">Toggle the real '+m(c.ve)+' VE line off to see how the '+
+      'baseline and contingency coverage would read instead. <b>Assumption, stated plainly:</b> the reinstated scope '+
+      'is modeled as executing at the portfolio&rsquo;s own current blended CPI ('+idx(T.cpi)+') &mdash; the honest '+
+      'way to extend a real number into a hypothetical, not a claim about how that scope would actually have performed.</p>'+
+    '<label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">'+
+      '<input type="checkbox" id="veToggle"'+(state.veAccepted?" checked":"")+'> Value engineering accepted (real, current state)</label>'+
+    '<div class="grid" style="margin-top:14px">'+
+      veTile("Baseline (BAC)",m(c.bac),state.veAccepted)+
+      veTile("Forecast (EAC)",m(c.eac),state.veAccepted)+
+      veTile("Variance (VAC)",sgn(c.vac),state.veAccepted)+
+      veTile("Contingency coverage",idx(c.coverage),c.coverage>=1.0)+
+    '</div>'+
+    (worse?'<p style="margin-top:12px"><span class="pill r flash">Contingency Reserve Deficit &mdash; coverage falls to '+
+      idx(c.coverage)+' from the real '+idx(T.contCoverage)+'</span></p>':"")+
+    '<button class="btn" id="veReset" type="button" style="margin-top:14px">Reset to controlled baseline</button>';
+  var t=document.getElementById("veToggle"), r=document.getElementById("veReset");
+  if(t) t.addEventListener("change",function(){ state.veAccepted=t.checked; renderVeSandbox(); });
+  if(r) r.addEventListener("click",function(){ state.veAccepted=true; renderVeSandbox(); });
 }
 
 /* ---------- EAC methods ---------- */
@@ -8071,7 +8229,7 @@ window.addEventListener("scroll",function(){ document.getElementById("tip").clas
    pre-existing pattern) silently reset the scrubber's cursor to hidden while the slider value and
    HUD text stayed on whatever month was last scrubbed — the display and the control disagreeing
    with each other, silently, on the single most ordinary action in the app. */
-function redrawCharts(){ renderScurve(); renderWaterfall(); renderCont(); renderRisk(); syncMcView(); renderPertPlay(); renderGaltonStatic(); renderGantt(); renderScurveScrub(); renderGateLine(); renderCdeFlow(); renderGbmLogReturns(); }
+function redrawCharts(){ renderScurve(); renderWaterfall(); renderBaseline(); renderVeSandbox(); renderCont(); renderRisk(); syncMcView(); renderPertPlay(); renderGaltonStatic(); renderGantt(); renderScurveScrub(); renderGateLine(); renderCdeFlow(); renderGbmLogReturns(); }
 document.getElementById("mcViewHist").addEventListener("click",function(){ state.mcView="hist"; syncMcView(); });
 document.getElementById("mcViewCdf").addEventListener("click",function(){ state.mcView="cdf"; syncMcView(); });
 /* Draw-shape toggle (triangular <-> PERT) — mirrors mcView's own set-state -> recompute -> re-
@@ -8105,7 +8263,7 @@ document.getElementById("vConf").textContent="P"+Math.round(state.mcConfidence*1
 renderMcConfCallout();
 document.getElementById("mcInspect").value=String(state.mcInspect);
 document.getElementById("vInspect").textContent="P"+state.mcInspect;
-renderWaterfall(); renderWaterfallMath(); renderBaseline(); renderEac(); renderCont(); renderTable();
+renderWaterfall(); renderWaterfallMath(); renderBaseline(); renderVeSandbox(); renderEac(); renderCont(); renderTable();
 renderEacTrend(); renderFcastTable(); renderGbmDiffusion(); renderGbmLogReturns(); renderGbmMathUnlocked(); renderGbmVsEvm(); renderCashflow();
 renderGantt(); renderSchedule(); renderRisk(); renderDrbEmv(); renderContracts(); renderDelivery(); renderFramework(); renderActions(); renderActionsMath();
 document.getElementById("sDrbP").value=DRB_ASSUMPTIONS.pOwnerWins;
@@ -8146,7 +8304,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   guardrails:GUARDRAILS,discrepancySteps:DISCREPANCY_STEPS,rollout:ROLLOUT,dsNodes:DS_NODES,dsCaption:dsCaption,
   archNodes:ARCH_NODES,archCaption:archCaption,
   gloss:GLOSS,findGloss:findGloss,
-  miles:MILES,delays:DELAYS,spark:SPARK,baseline:BASELINE,guards:GUARDS,escPat:ESC_PAT,
+  miles:MILES,delays:DELAYS,spark:SPARK,baseline:BASELINE,baseSteps:baseSteps,veSandboxCalc:veSandboxCalc,renderBaseline:renderBaseline,guards:GUARDS,escPat:ESC_PAT,
   mcParams:mcParams,triang:triang,dsStep:dsStep,
   gaussRnd:gaussRnd,gammaRnd:gammaRnd,betaRnd:betaRnd,pertRnd:pertRnd,mcDraw:mcDraw,computeMc:computeMc,
   recomputeActiveMc:recomputeActiveMc,syncMcDist:syncMcDist,renderMcMath:renderMcMath,

@@ -3775,8 +3775,8 @@ ok(/\.finished\.then\(/.test(indexSrc) && !/\.onfinish=/.test(indexSrc),
 // after this exact automation harness was observed giving a premature "stuck at scale(0)"
 // read on a bare timeout wait — re-checked via getAnimations()[0].finished and confirmed
 // correct: settles at transform:none, not stuck).
-ok(indexSrc.includes("#mcChart rect,#waterfall rect{transform-box:fill-box;transform-origin:bottom;animation:growup"),
-  "waterfall bars (vertical) reuse growup, same as the Monte Carlo histogram");
+ok(indexSrc.includes("#mcChart rect,#waterfall rect,#baseBridgeChart rect{transform-box:fill-box;transform-origin:bottom;animation:growup"),
+  "waterfall bars (vertical) reuse growup, same as the Monte Carlo histogram and the estimate-to-budget bridge");
 ok(indexSrc.includes('#tornado rect,#gantt rect{transform-box:fill-box;transform-origin:left;animation:growright'),
   "tornado + tracking-Gantt bars (horizontal — width is the varying dimension) share the distinct growright, not growup, which would squash them");
 ok(indexSrc.includes('#scurve path.draw,#mcChart polyline.draw{stroke-dasharray:2400'),
@@ -4692,6 +4692,97 @@ console.log("== D25. whole-repo /stress-test round -- pipeline comment + dead CS
   ok(pipelineSrc.indexOf("All 14 checks below") >= 0, "the pipeline's own comment states the real, current check count, not a stale earlier one");
   ok(indexSrc.indexOf(".inf{color:var(--c-pill-i)}") === -1, "the dead .inf CSS rule (zero markup/JS usages, confirmed by a full-file word-boundary sweep) has been removed");
   ok(indexSrc.indexOf("--c-pill-i") >= 0, "the underlying --c-pill-i token itself is still used elsewhere (.pill.i/.ticon.i/RAG.i) -- only the unused .inf shorthand was dead, not the color");
+}
+
+console.log("== D26. estimate-to-budget bridge upgrade -- animated waterfall, stepper, real drill-down, VE sandbox (brainstorm-mode round, 2026-08-23) ==");
+{
+  // baseSteps() must reconcile exactly to the live T.bac -- the whole point of this bridge is that
+  // it can be walked back to its estimate, not just look like it can.
+  const steps = P.baseSteps();
+  ok(steps.length === 5, "5 bridge steps: estimate, VE, bid climate, buyout, controlled BAC", String(steps.length));
+  ok(Math.abs(steps[steps.length - 1].v - P.totals.bac) < 0.001,
+    "the bridge's own final step reconciles exactly to the live T.bac, not a separately hand-typed number",
+    steps[steps.length - 1].v + " vs " + P.totals.bac);
+  ok(steps[0].v === 1318.0, "the bridge starts at the real Engineer's estimate, $1,318.0M", String(steps[0].v));
+
+  const bbHtml = R.registry.baseBridge._html;
+  ok(bbHtml.includes("baseBridgeChart"), "#baseBridge renders the SVG chart mount");
+  ok(bbHtml.includes("Step 1 of 5"), "stepper starts on step 1 of 5");
+  ok(bbHtml.includes('id="baseStepBack" disabled'), "Back is disabled on step 1 (nothing to go back to)");
+  ok(bbHtml.includes('id="baseStepNext">Next'), "Next is enabled on step 1");
+
+  // Real click-driven state, not decoration. The stub's getElementById returns one persistent
+  // object per id forever (it never actually parses innerHTML into real child nodes), so it can't
+  // model what the real DOM does on every renderBaseline() call: replace #baseBridge's children
+  // outright, which recreates these buttons as fresh nodes with zero prior listeners. Multiple
+  // earlier renders during page init (redrawCharts() runs at load too) leave stale listeners
+  // stacked on the stub's persistent objects — harmless in a real browser (old nodes are gone),
+  // but it would make a naive repeated-fire() test here flaky for a stub-fidelity reason, not an
+  // app bug. Fix: reset each button's stub listeners and force one clean render immediately before
+  // testing a click, matching what a fresh DOM node actually looks like.
+  function freshRender() {
+    ["baseStepNext", "baseStepBack", "baseDrawerOpen", "baseDrawerClose"].forEach(id => { R.registry[id]._listeners = {}; });
+    P.renderBaseline();
+  }
+  P.state.baseStep = 0; freshRender();
+  fire(R.registry.baseStepNext, "click");
+  ok(P.state.baseStep === 1, "clicking Next actually advances state.baseStep", String(P.state.baseStep));
+  freshRender(); fire(R.registry.baseStepNext, "click");
+  ok(P.state.baseStep === 2, "clicking Next again advances by exactly one more step", String(P.state.baseStep));
+  P.state.baseStep = 4; freshRender();
+  ok(R.registry.baseBridge._html.includes('id="baseStepNext" disabled'), "Next is disabled on the last step");
+  ok(R.registry.baseBridge._html.includes("Gate 5"), "the final step's banner links to the real Gate 5 card, not an invented board resolution");
+  fire(R.registry.baseStepBack, "click");
+  ok(P.state.baseStep === 3, "Back decrements state.baseStep", String(P.state.baseStep));
+  P.state.baseStep = 0; freshRender();
+
+  // real per-account drill-down, not the brief's fabricated per-VE-item breakdown
+  ok(!indexSrc.includes("VE-01") && !indexSrc.includes("VE-02"),
+    "no fabricated itemized VE-01/VE-02 line items anywhere in index.html (declined per the brainstorm-mode fact-check)");
+  fire(R.registry.baseDrawerOpen, "click");
+  ok(P.state.baseDrawerOpen === true, "opening the drawer sets state");
+  const drawerHtml = R.registry.baseBridge._html;
+  ok(P.pkgs.every(p => drawerHtml.includes(p.id)), "the drawer lists all 8 real control accounts by their real ids");
+  const acctSum = P.pkgs.reduce((s, p) => s + p.bac, 0);
+  ok(Math.abs(acctSum - P.totals.bac) < 0.001, "the 8 accounts in the drawer genuinely sum to the live BAC", acctSum + " vs " + P.totals.bac);
+  freshRender();
+  fire(R.registry.baseDrawerClose, "click");
+  ok(P.state.baseDrawerOpen === false, "closing the drawer clears state");
+
+  // VE sandbox: at the real default state it must reduce EXACTLY to today's live figures
+  P.state.veAccepted = true;
+  const calcOn = P.veSandboxCalc();
+  ok(Math.abs(calcOn.bac - P.totals.bac) < 0.001 && Math.abs(calcOn.eac - P.totals.eac) < 0.001 &&
+     Math.abs(calcOn.vac - P.totals.vac) < 0.001 && Math.abs(calcOn.coverage - P.totals.contCoverage) < 0.0001,
+    "sandbox at 'VE accepted' (the real state) reduces exactly to T.bac/T.eac/T.vac/T.contCoverage",
+    JSON.stringify(calcOn) + " vs bac=" + P.totals.bac + " eac=" + P.totals.eac + " vac=" + P.totals.vac + " cov=" + P.totals.contCoverage);
+
+  // toggling VE off must make the picture WORSE, not better -- the reinstated scope still has to
+  // execute at some efficiency, so EAC rises faster than BAC (dividing by a sub-1.0 CPI); a naive
+  // "just add 46 to BAC" model would have shown coverage IMPROVING, which would be the wrong lesson
+  P.state.veAccepted = false;
+  const calcOff = P.veSandboxCalc();
+  ok(calcOff.bac > calcOn.bac, "reversing VE raises the hypothetical BAC", calcOff.bac + " vs " + calcOn.bac);
+  ok(calcOff.coverage < calcOn.coverage,
+    "reversing VE makes contingency coverage WORSE, not better -- confirms the reinstated scope is modeled as executing at the portfolio's own sub-1.0 CPI, not treated as free budget headroom",
+    calcOff.coverage + " vs " + calcOn.coverage);
+  P.state.veAccepted = true;
+
+  // the checkbox is really wired to state, not decorative markup
+  R.registry.veToggle.checked = false;
+  fire(R.registry.veToggle, "change");
+  ok(P.state.veAccepted === false, "unchecking the VE toggle actually flips state.veAccepted");
+  R.registry.veToggle.checked = true;
+  fire(R.registry.veToggle, "change");
+  ok(P.state.veAccepted === true, "re-checking it flips state back");
+  fire(R.registry.veReset, "click");
+  ok(P.state.veAccepted === true, "Reset restores the real, controlled-baseline state");
+
+  // compliance sweep: none of the brainstorm brief's fabricated specifics (invented AACE estimate
+  // classes, an invented board resolution, invented per-package VE dollar figures) made it in
+  ["AACE Class 3", "AACE Class 1", "BR-2026-04", "22.5M", "14.2M", "9.3M"].forEach(bad => {
+    ok(!indexSrc.includes(bad), 'fabricated brainstorm-brief content never made it into index.html: "' + bad + '"');
+  });
 }
 
 /* =========================================================================
