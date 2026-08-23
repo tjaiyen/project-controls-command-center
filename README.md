@@ -11,6 +11,13 @@ multi-package capital transit program, plus a requirement-coverage fit brief.
 — every number below is computed live from one 11-input ledger, never typed, and provably identical
 whether re-derived in the browser's own JavaScript or an independent DuckDB/SQL pipeline.
 
+<p align="center">
+  <img src="docs/screenshots/tour.gif" alt="The dashboard's own guided Tour advancing through its first six stops — Overview, Cost, Schedule, and the honesty-test beat comparing required vs. demonstrated cost efficiency, each stop narrated against this program's own live numbers" width="820">
+</p>
+
+*The dashboard's own 10-stop guided Tour, narrated stop by stop — not a scripted demo recording,
+the same "Take the tour" button and the same live numbers a visitor gets.*
+
 <p>
   <img src="docs/screenshots/overview.png" alt="Overview tab — 20 live KPIs, executive summary, and the program's real forecast overrun" width="49%">
   <img src="docs/screenshots/gate5-blocked.png" alt="Operating Framework tab — Gate 5 genuinely BLOCKED, three live checks, one failing at a real 0.588 contingency coverage ratio" width="49%">
