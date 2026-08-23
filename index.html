@@ -1717,12 +1717,17 @@ join dim_control_account b using (package_id)</pre></div>
         what, and who has gone quiet on something that's still open &mdash; before it becomes a surprise.</p>
       <div class="tw"><table id="ownerTable"></table></div>
 
-      <div class="sec-h" style="margin-top:30px"><h3>Register</h3></div>
+      <div class="sec-h" style="margin-top:30px"><h3>Register</h3>
+        <div style="display:flex;gap:4px;margin-left:auto" role="group" aria-label="Register view">
+          <button type="button" class="btn" id="actViewTable" style="min-height:auto;padding:3px 10px;font-size:12px">Table</button>
+          <button type="button" class="btn" id="actViewBoard" style="min-height:auto;padding:3px 10px;font-size:12px">Board</button>
+        </div></div>
       <p class="lede">Task, Issue or Decision &mdash; the RAID<button type="button" class="help-ic" data-help="raid" aria-label="What does this term mean?" aria-expanded="false">i</button> distinction matters, because a Decision
         pending a follow-up action fails silently in a way a missed Task doesn't. Filter by status, click a
-        row for the full trail.</p>
+        row (or a board card) for the full trail.</p>
       <div class="kfilters" id="actFilters"></div>
-      <div class="tw"><table id="actTable"></table></div>
+      <div class="tw" id="actTableWrap"><table id="actTable"></table></div>
+      <div id="actBoard" hidden></div>
       <div id="actDrill" aria-live="polite"></div>
 
       <div class="note"><b>How status is derived.</b> Nothing below is hand-set. Each item carries an
@@ -2732,8 +2737,11 @@ var state = {phase:"con", fam:"All", audience:"pcm", kpi:null, pkg:2, actFilter:
   pfPkg:null, cascadeStep:0, cphIdleReduction:0, // Delivery-tab upgrade (brainstorm-mode, 2026-08-23) —
                  // pfPkg null = the PF gauge shows the portfolio; cphIdleReduction 0 = the CPH
                  // sandbox renders at the real, unmodified figures until moved.
-  d02Bypass:false}; // Schedule-tab upgrade (brainstorm-mode, 2026-08-23) — false = the real state
+  d02Bypass:false, // Schedule-tab upgrade (brainstorm-mode, 2026-08-23) — false = the real state
                  // (D-02 in effect); true enters the "what if this fragnet were never inserted" simulation.
+  actView:"table", actOwnerFilter:null}; // Actions-tab upgrade (brainstorm-mode, 2026-08-23) —
+                 // actView toggles Register/Board (same 17 real items, two layouts); actOwnerFilter
+                 // is a second, independent filter dimension layered on top of the existing status one.
 
 /* Ledger card (Overview-tab upgrade, 2026-08-20) — the 11 raw inputs, a per-package inspector, and
    a live "change one input, watch the KPIs move" demo. The demo deliberately reads a LOCAL copy of
@@ -5621,6 +5629,7 @@ function cascadeStepContent(i){
   var cph=deriveCph(CPH_CELLS[0]);
   var d02=DELAYS.filter(function(x){return x.id==="D-02";})[0];
   var cp201=rows.filter(function(x){return x.id==="CP-201";})[0];
+  var a09=ACTIONS.filter(function(x){return x.id==="A-09";})[0];
   var steps=[
    {label:"Field Friction",
     stat:m(r01.cost)+" priced exposure &middot; P"+r01.p+"/I"+r01.i,
@@ -5645,8 +5654,10 @@ function cascadeStepContent(i){
     stat:idx(T.contCoverage)+" coverage &middot; Gate 5 BLOCKED",
     banner:"Contingency coverage reads <b>"+idx(T.contCoverage)+"</b> against a 1.00 requirement &mdash; the "+
       "same live number that trips Gate 5's own hard stop. One priced risk, tracked honestly through four "+
-      "separate instruments, ends here: the program cannot advance to Gate 6 until this clears.",
-    jumpTab:"fw", jumpEl:"gate5Card", jumpLabel:"See Gate 5's live status"}
+      "separate instruments, lands here &mdash; and converts into a named, dated action: <b>"+a09.id+"</b> ("+
+      a09.title+"), owned by the "+a09.owner.toLowerCase()+", due "+a09.due+". A failed board gate is only "+
+      "real governance once it has an owner and a clock, not just a red status.",
+    jumpTab:"fw", jumpEl:"gate5Card", jumpLabel:"See Gate 5's live status", actionJump:a09.id}
   ];
   return steps[i];
 }
@@ -5666,7 +5677,10 @@ function renderCascade(){
     '<div class="mono" style="font-size:1.05rem;font-weight:600;margin:6px 0 10px;color:rgb(var(--c-ink))">'+s.stat+'</div>'+
     '<p class="lede" style="font-size:12.8px">'+s.banner+'</p>'+
     '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;flex-wrap:wrap">'+
-      '<button type="button" class="btn" data-jump-tab="'+s.jumpTab+'" data-jump-el="'+s.jumpEl+'" style="min-height:auto;padding:3px 10px;font-size:12px">'+s.jumpLabel+' &rarr;</button>'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
+        '<button type="button" class="btn" data-jump-tab="'+s.jumpTab+'" data-jump-el="'+s.jumpEl+'" style="min-height:auto;padding:3px 10px;font-size:12px">'+s.jumpLabel+' &rarr;</button>'+
+        (s.actionJump?'<button type="button" class="btn" data-jump="'+s.actionJump+'" style="min-height:auto;padding:3px 10px;font-size:12px">See '+s.actionJump+' &rarr;</button>':"")+
+      '</div>'+
       '<div style="display:flex;gap:8px">'+
         '<button class="btn" type="button" id="cascadeBack"'+(i===0?" disabled":"")+'>&larr; Back</button>'+
         '<button class="btn" type="button" id="cascadeNext"'+(i===3?" disabled":"")+'>Next &rarr;</button>'+
@@ -6487,11 +6501,15 @@ function renderActions(){
   document.getElementById("ownerTable").innerHTML=
    '<thead><tr><th scope="col">Owner</th><th scope="col">Open</th><th scope="col">Escalated</th>'+
    '<th scope="col">Flagged stale</th><th scope="col">Next due</th></tr></thead><tbody>'+
-   ownerRows.map(function(o){ return '<tr style="cursor:default"><td>'+o.owner+'</td>'+
+   ownerRows.map(function(o){ var on=state.actOwnerFilter===o.owner;
+     return '<tr data-ownerf="'+o.owner+'" tabindex="0" role="button" aria-pressed="'+on+'" style="cursor:pointer'+
+       (on?';background:rgb(var(--c-accent) / .08)':'')+'"><td>'+o.owner+(on?' <span class="pill i" style="margin-left:5px">filtered</span>':'')+'</td>'+
      '<td class="tab-num">'+o.open+'</td>'+
      '<td class="tab-num'+(o.escalated?' ba':'')+'">'+o.escalated+'</td>'+
      '<td class="tab-num'+(o.stale?' wa':'')+'">'+o.stale+'</td>'+
      '<td class="mono" style="font-size:11.5px">'+o.nextDue+'</td></tr>'; }).join("")+'</tbody>';
+  // click-to-filter (brainstorm-mode upgrade, 2026-08-23) — clicking an already-selected owner
+  // clears the filter (toggle), not a second, separate "clear" control to keep track of.
 
   var FILTERS=["All","Escalated","Overdue","Due soon","In progress","Blocked","Verified","Stale"];
   document.getElementById("actFilters").innerHTML=FILTERS.map(function(f){
@@ -6503,14 +6521,18 @@ function renderActions(){
   }).join("");
 
   var list = rows.filter(function(r){
+    if(state.actOwnerFilter && r.owner!==state.actOwnerFilter) return false;
     if(state.actFilter==="All") return true;
     if(state.actFilter==="Stale") return r.stale;
     return STATUS_META[r.status] && STATUS_META[r.status].label===state.actFilter;
   }).sort(function(a,b){ return actDays(b.due)-actDays(a.due); });
 
+  var capParts=[];
+  if(state.actOwnerFilter) capParts.push('owner "'+state.actOwnerFilter+'"');
+  if(state.actFilter!=="All") capParts.push('status "'+state.actFilter+'"');
   document.getElementById("actTable").innerHTML=
    '<caption class="tw-caption">Actions &amp; RAID register — '+
-   (state.actFilter==="All"? "showing all "+list.length+" items" : "filtered to \""+state.actFilter+"\", "+list.length+" of "+rows.length+" items")+
+   (capParts.length? "filtered to "+capParts.join(" &amp; ")+", "+list.length+" of "+rows.length+" items" : "showing all "+list.length+" items")+
    ', sorted by due date.</caption>'+
    '<thead><tr><th scope="col">ID</th><th scope="col">Type</th><th scope="col">Item</th>'+
    '<th scope="col">Owner</th><th scope="col">Due</th><th scope="col">Status</th></tr></thead><tbody>'+
@@ -6523,7 +6545,49 @@ function renderActions(){
      '<td class="mono" style="font-size:11.5px">'+r.due+'</td>'+
      '<td><span class="pill '+sm.cls+'">'+sm.label+'</span></td></tr>'; }).join("")+'</tbody>';
 
+  var viewTable=document.getElementById("actViewTable"), viewBoard=document.getElementById("actViewBoard");
+  viewTable.classList.toggle("on",state.actView==="table"); viewTable.setAttribute("aria-pressed",String(state.actView==="table"));
+  viewBoard.classList.toggle("on",state.actView==="board"); viewBoard.setAttribute("aria-pressed",String(state.actView==="board"));
+  document.getElementById("actTableWrap").hidden = state.actView!=="table";
+  document.getElementById("actBoard").hidden = state.actView!=="board";
+  if(state.actView==="board") renderActBoard(list);
+
   renderActDrill(rows);
+}
+/* Kanban board view (brainstorm-mode upgrade, 2026-08-23) — the SAME filtered `list` the table
+   renders, laid out as 4 lanes instead of rows. Lanes group by STATUS_META's own real color class
+   (r/a/i/g) rather than inventing a separate taxonomy: escalated/overdue/blocked share "r" and
+   share a lane, matching how the rest of this dashboard already treats them as one severity tier. */
+function renderActBoard(list){
+  var LANES=[
+   {cls:"r", label:"Needs attention", statuses:["escalated","overdue","blocked"]},
+   {cls:"a", label:"Due soon",        statuses:["due-soon"]},
+   {cls:"i", label:"In progress",     statuses:["in-progress","not-started"]},
+   {cls:"g", label:"Closed",          statuses:["verified","closed"]}
+  ];
+  document.getElementById("actBoard").innerHTML=
+   '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;align-items:start">'+
+   LANES.map(function(lane){
+     var items=list.filter(function(r){ return lane.statuses.indexOf(r.status)>=0; });
+     return '<div class="card" style="padding:12px"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">'+
+       '<span class="pill '+lane.cls+'">'+lane.label+'</span>'+
+       '<span class="mono" style="font-size:11px;color:rgb(var(--c-mut))">'+items.length+'</span></div>'+
+       (items.length? items.map(function(r){ var sm=STATUS_META[r.status];
+         return '<div data-act="'+r.id+'" tabindex="0" role="button" aria-controls="actDrill" aria-pressed="'+(state.act===r.id)+'" class="'+(r.stale?"stale-glow":"")+'" '+
+           'style="cursor:pointer;padding:8px 9px;border-radius:8px;border:1px solid var(--c-line);margin-bottom:7px;'+
+           (state.act===r.id?"background:rgb(var(--c-accent) / .08);":"")+'">'+
+           '<div style="display:flex;justify-content:space-between;gap:6px;align-items:baseline">'+
+           '<span class="mono" style="font-size:10.5px;color:rgb(var(--c-code))">'+r.id+'</span>'+
+           typeIcon(r.type)+'</div>'+
+           '<div style="font-size:12px;margin:4px 0;line-height:1.35">'+r.title+'</div>'+
+           '<div style="display:flex;justify-content:space-between;gap:6px;align-items:baseline">'+
+           '<span style="font-size:11px;color:rgb(var(--c-mut))">'+r.owner+'</span>'+
+           '<span class="pill '+sm.cls+'" style="font-size:9.5px">'+sm.label+'</span></div>'+
+           (r.stale?'<div style="margin-top:4px"><span class="pill a" style="font-size:9.5px">stale</span></div>':'')+
+           '</div>'; }).join("")
+         : '<p style="font-size:11.5px;color:rgb(var(--c-mut));margin:0">Nothing here.</p>')+
+       '</div>';
+   }).join("")+'</div>';
 }
 
 function renderActDrill(rows){
@@ -6543,6 +6607,8 @@ function renderActDrill(rows){
   if(a.verified) body+='<p style="margin:12px 0 0;font-size:12px;color:rgb(var(--c-mut))">Closed '+a.due+
     ' &middot; verified by <b style="color:rgb(var(--c-ink))">'+a.verifiedBy+'</b> on '+a.verifiedDate+
     ' &mdash; a status someone other than the owner confirmed, not a self-report.</p>';
+  body+='<details class="dbox" style="margin-top:14px"><summary>How this status was calculated</summary>'+
+    '<div id="actStatusMath" style="margin-top:8px"></div></details>';
   el.innerHTML='<div class="drawer"><div class="dh"><div>'+
     '<div class="eyebrow">'+a.type+' &middot; '+a.src+'</div>'+
     '<h3 style="margin:0">'+a.id+' &mdash; '+a.title+'</h3></div>'+
@@ -6552,6 +6618,42 @@ function renderActDrill(rows){
     ' &middot; opened '+a.opened+' &middot; due '+a.due+
     (a.pkg?' &middot; package '+a.pkg:'')+'</span></div>'+
     '<div style="margin-top:12px">'+body+'</div></div>';
+  renderActStatusMath(a);
+}
+/* actionStatus() branching-logic trace (brainstorm-mode upgrade, 2026-08-23) — walks the SAME
+   sequential branches actionStatus() itself evaluates, in the same order, against this specific
+   item's own real d/opened values. Not a re-implementation: if actionStatus() ever changes, this
+   trace only reads its already-computed a.status/sm.label for the final result, so it can't drift
+   out of sync with the function it's explaining. */
+function statusTrace(a){
+  var d=actDays(a.due), od=actDays(a.opened);
+  var rows=[{q:"Done?",v:a.done?"Yes":"No"}];
+  if(a.done){ rows[0].result=a.verified?"Verified":"Closed"; return rows; }
+  rows.push({q:"Blocked?",v:a.blocked?"Yes":"No"});
+  if(a.blocked){ rows[rows.length-1].result="Blocked"; return rows; }
+  rows.push({q:"d &ge; +5d?",v:"d = "+days(d)});
+  if(d>=5){ rows[rows.length-1].result="Escalated"; return rows; }
+  rows.push({q:"d &gt; 0d?",v:"d = "+days(d)});
+  if(d>0){ rows[rows.length-1].result="Overdue"; return rows; }
+  rows.push({q:"d &ge; &minus;7d?",v:"d = "+days(d)});
+  if(d>=-7){ rows[rows.length-1].result="Due soon"; return rows; }
+  rows.push({q:"Opened &le; 3d ago?",v:"opened "+od+"d ago"});
+  rows[rows.length-1].result=od<=3?"Not started":"In progress";
+  return rows;
+}
+function renderActStatusMath(a){
+  var el=document.getElementById("actStatusMath"); if(!el) return;
+  var trace=statusTrace(a);
+  el.innerHTML='<p style="margin:0 0 8px;font-size:11.5px;color:rgb(var(--c-mut))">d = data date ('+
+    PROGRAM.dataDate+') &minus; due date. Each branch below is checked in order; the first one that '+
+    'matches sets the status &mdash; exactly what <code>actionStatus()</code> does, walked against '+
+    a.id+'&rsquo;s own real numbers.</p>'+
+    trace.map(function(r,i){
+      return '<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;'+
+        (i<trace.length-1?"border-bottom:1px solid var(--c-line);":"")+'font-size:12.5px">'+
+        '<span style="color:'+(r.result?"rgb(var(--c-ink))":"rgb(var(--c-mut))")+(r.result?";font-weight:600":"")+'">'+r.q+'</span>'+
+        '<span class="mono" style="color:rgb(var(--c-mut))">'+r.v+(r.result?' &rarr; <b style="color:rgb(var(--c-ink))">'+r.result+'</b>':'')+'</span></div>';
+    }).join("");
 }
 
 /* ---------- AI & data tab ---------- */
@@ -8259,6 +8361,18 @@ document.getElementById("actFilters").addEventListener("click",function(e){
   var b=e.target.closest("[data-actf]"); if(!b) return;
   state.actFilter=b.dataset.actf; renderActions();
 });
+// Owner-row click-to-filter (brainstorm-mode upgrade, 2026-08-23) — same toggle idiom as the
+// register's own row-click above, a second real filter dimension (owner) layered on top of the
+// existing status filter, not a replacement for it.
+document.getElementById("ownerTable").addEventListener("click",function(e){
+  var tr=e.target.closest("[data-ownerf]"); if(!tr) return;
+  state.actOwnerFilter = state.actOwnerFilter===tr.dataset.ownerf? null : tr.dataset.ownerf; renderActions();
+});
+document.getElementById("ownerTable").addEventListener("keydown",function(e){
+  if(e.key!=="Enter"&&e.key!==" ") return;
+  var tr=e.target.closest("[data-ownerf]"); if(!tr) return; e.preventDefault();
+  state.actOwnerFilter = state.actOwnerFilter===tr.dataset.ownerf? null : tr.dataset.ownerf; renderActions();
+});
 document.getElementById("actTable").addEventListener("click",function(e){
   var tr=e.target.closest("[data-act]"); if(!tr) return;
   state.act = state.act===tr.dataset.act? null : tr.dataset.act; renderActions();
@@ -8267,6 +8381,19 @@ document.getElementById("actTable").addEventListener("keydown",function(e){
   if(e.key!=="Enter"&&e.key!==" ") return;
   var tr=e.target.closest("[data-act]"); if(!tr) return; e.preventDefault();
   state.act = state.act===tr.dataset.act? null : tr.dataset.act; renderActions();
+});
+// Board view (brainstorm-mode upgrade, 2026-08-23) — same data-act idiom as the table's own rows,
+// on a second container, so a card click behaves identically to a row click.
+document.getElementById("actViewTable").addEventListener("click",function(){ state.actView="table"; renderActions(); });
+document.getElementById("actViewBoard").addEventListener("click",function(){ state.actView="board"; renderActions(); });
+document.getElementById("actBoard").addEventListener("click",function(e){
+  var c=e.target.closest("[data-act]"); if(!c) return;
+  state.act = state.act===c.dataset.act? null : c.dataset.act; renderActions();
+});
+document.getElementById("actBoard").addEventListener("keydown",function(e){
+  if(e.key!=="Enter"&&e.key!==" ") return;
+  var c=e.target.closest("[data-act]"); if(!c) return; e.preventDefault();
+  state.act = state.act===c.dataset.act? null : c.dataset.act; renderActions();
 });
 document.getElementById("actDrill").addEventListener("click",function(e){
   if(e.target.id==="closeAct"){ state.act=null; renderActions(); }
@@ -8530,7 +8657,7 @@ renderScurveScrub(); // after renderGantt() above, so the Gantt reference marker
 
 /* expose for verification */
 window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM,eacs:EACS,mc:MC,
-  actions:ACTIONS,actionStatus:actionStatus,isStale:isStale,
+  actions:ACTIONS,actionStatus:actionStatus,isStale:isStale,statusTrace:statusTrace,renderActions:renderActions,
   escalation:ESCALATION,kpiEscalation:KPI_ESCALATION,actionsForKpi:actionsForKpi,jumpToAction:jumpToAction,
   firingEscalations:firingEscalations,
   wbs:WBS,gates:GATES,gate5Checks:GATE5_CHECKS,glNodes:GL_NODES,glCaption:glCaption,glNodeState:glNodeState,

@@ -4904,6 +4904,68 @@ console.log("== D28. D-02 insert/bypass fragnet toggle (brainstorm-mode round, 2
   });
 }
 
+console.log("== D29. Actions-tab upgrade -- Kanban board, actionStatus() branching drawer, owner click-filter, cascade->A-09 (brainstorm-mode round, 2026-08-23) ==");
+{
+  // real counts this round's own fact-check established
+  ok(P.actions.length === 17, "sanity: 17 real actions", String(P.actions.length));
+  const byType = { Task: 0, Issue: 0, Decision: 0 };
+  P.actions.forEach(a => byType[a.type]++);
+  ok(byType.Task === 10 && byType.Issue === 6 && byType.Decision === 1, "real Task/Issue/Decision breakdown is 10/6/1, not the brief's double-counted 10+6+1+2=19", JSON.stringify(byType));
+
+  // statusTrace() must always end on the SAME result actionStatus() itself already computed --
+  // it's a trace of that function, not a second implementation that could drift from it
+  P.actions.forEach(a => {
+    const withStatus = Object.assign({}, a, { status: P.actionStatus(a) });
+    const trace = P.statusTrace(withStatus);
+    const finalResult = trace[trace.length - 1].result;
+    const expected = { verified: "Verified", closed: "Closed", blocked: "Blocked", escalated: "Escalated", overdue: "Overdue", "due-soon": "Due soon", "not-started": "Not started", "in-progress": "In progress" }[withStatus.status];
+    ok(finalResult === expected, "statusTrace(" + a.id + ") ends on the same result actionStatus() itself computed", JSON.stringify({ id: a.id, traceResult: finalResult, actionStatus: withStatus.status, expected }));
+  });
+
+  // A-01's real math, independently re-verified (not just trusted from the fact-check)
+  const a01 = P.actions.find(a => a.id === "A-01");
+  ok(a01.title === "CP-201 cost performance index below threshold", "A-01's real title is NOT the brief's fabricated 'CP-201 CPI Breach'", a01.title);
+  const a01WithStatus = Object.assign({}, a01, { status: P.actionStatus(a01) });
+  ok(a01WithStatus.status === "escalated", "A-01 really is escalated (d=+21 >= +5)", a01WithStatus.status);
+
+  // A-09's real fields, independently re-verified
+  const a09 = P.actions.find(a => a.id === "A-09");
+  ok(a09.due === "2026-08-06" && a09.owner === "Program director", "A-09's real due date and owner match the brief", JSON.stringify({ due: a09.due, owner: a09.owner }));
+  ok(P.cascadeStepContent(3).actionJump === "A-09", "the cascade's Governance Impact step now links to the real A-09, not a fabricated closing node");
+  const savedCascadeStep = P.state.cascadeStep;
+  P.state.cascadeStep = 3; P.renderCascade();
+  ok(R.registry.cascadeCard._html.includes('data-jump="A-09"'), "the cascade card actually renders the A-09 cross-link button on its Governance Impact step");
+  P.state.cascadeStep = savedCascadeStep; P.renderCascade();
+
+  // real click-driven behavior. #actViewTable/#actViewBoard/#ownerTable/#actBoard listeners are all
+  // bound ONCE, top-level (same as tiaReg in D28) -- no freshRender workaround needed.
+  fire(R.registry.actViewBoard, "click");
+  ok(P.state.actView === "board", "clicking Board actually switches state.actView", P.state.actView);
+  ok(R.registry.actTableWrap.hidden === true && R.registry.actBoard.hidden === false, "switching to Board view hides the table and shows the board", JSON.stringify({ tableHidden: R.registry.actTableWrap.hidden, boardHidden: R.registry.actBoard.hidden }));
+  const boardHtml = R.registry.actBoard._html;
+  ok(boardHtml.includes("Needs attention") && boardHtml.includes("Due soon") && boardHtml.includes("In progress") && boardHtml.includes("Closed"), "board renders all 4 real lanes");
+  const boardCardCount = (boardHtml.match(/data-act="/g) || []).length;
+  ok(boardCardCount === 17, "board shows all 17 real items across its 4 lanes when unfiltered", String(boardCardCount));
+  fire(R.registry.actViewTable, "click");
+  ok(P.state.actView === "table", "clicking Table reverts state.actView", P.state.actView);
+
+  // owner click-to-filter: a real owner's real open count must match what the filtered list shows
+  const pm = P.actions.filter(a => { const s = P.actionStatus(a); return a.owner === "Package manager" && s !== "verified" && s !== "closed"; });
+  ok(pm.length === 3, "sanity: Package manager really has 3 open items", String(pm.length));
+  fire(R.registry.ownerTable, "click", { target: { closest: () => ({ dataset: { ownerf: "Package manager" } }) } });
+  ok(P.state.actOwnerFilter === "Package manager", "clicking an owner row sets state.actOwnerFilter", String(P.state.actOwnerFilter));
+  const actHtmlFiltered = R.registry.actTable._html;
+  ok(actHtmlFiltered.includes("3 of 17 items") || actHtmlFiltered.includes('filtered to owner "Package manager"'),
+    "the register caption reflects the real owner filter", actHtmlFiltered.match(/<caption[^>]*>([^<]*)/)[1]);
+  fire(R.registry.ownerTable, "click", { target: { closest: () => ({ dataset: { ownerf: "Package manager" } }) } });
+  ok(P.state.actOwnerFilter === null, "clicking the SAME owner row again clears the filter (toggle, not a separate clear control)", String(P.state.actOwnerFilter));
+
+  // compliance sweep for this round's own brief
+  ["6,000 PSI", "batch plant moisture", "J. Smith", "CP-201 CPI Breach", "5-Whys", "5-whys", "Quality NCRs (2)"].forEach(bad => {
+    ok(!indexSrc.includes(bad), 'fabricated Actions-tab brief content never made it into index.html: "' + bad + '"');
+  });
+}
+
 /* =========================================================================
    E. otak.html — runtime + internal consistency
    ========================================================================= */
