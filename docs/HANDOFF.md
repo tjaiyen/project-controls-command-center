@@ -44,7 +44,7 @@ anywhere in this repository. The method is the content, not the numbers.
 | Contracts | 6 |
 | Risks | 6 |
 | Delay events | 4 |
-| `stress.cjs` test assertions | 2,226, all passing (/stress-test, 2026-08-24) |
+| `stress.cjs` test assertions | 2,260, all passing (Gate 5 solvency sandbox round, 2026-08-24) |
 | Companion pages | `otak.html` (fit brief), `architecture.html` (static pipeline map) |
 | Hosting | GitHub Pages, served directly from `main`, zero build |
 | Git history | 130 commits |
@@ -375,9 +375,9 @@ matches an independent recomputation, not just that *a* number is present.
 
 ## 11. Testing & verification
 
-**`stress.cjs`** (2,226 assertions, all passing) — stubs the DOM, loads `index.html`'s script
+**`stress.cjs`** (2,260 assertions, all passing) — stubs the DOM, loads `index.html`'s script
 verbatim into that stub, and exercises it exactly like a user would: every tab switch, every
-filter, every drawer, every slider drag, every keyboard interaction. 41 labeled sections:
+filter, every drawer, every slider drag, every keyboard interaction. 57 labeled sections:
 
 ```
 A. static structure          B/B2. runtime + portfolio tab       C. narrative vs. data
@@ -1430,6 +1430,34 @@ carried over from memory or an earlier pass:
   Data, Operating Framework, Actions, Data Strategy) neither of the last 2 rounds' own live-browser
   checks had covered, plus the 6 focus-restoration fixes themselves.
 
+- **2026-08-24 Gate 5 solvency what-if sandbox round** (`gate5SandboxCalc()`/`renderGate5Sandbox()`):
+  a brainstorm-mode brief proposing Gate 5 upgrades was independently fact-checked against source
+  first — most of it (the LaTeX drawer, solid-hex "ruby" backgrounds, `role="region"` elsewhere,
+  the "READY TO AUTHORIZE" label) was fabricated or already-shipped under different names ("one
+  root cause, five instruments" already covered its "Thread Weaver" ask; "Working Backward from
+  Gate 5" already covered its inversion-engine ask). Two items were real and new: a 3-lever what-if
+  sandbox (sponsor capital, R-01 mitigation %, value engineering $) against the exact
+  `contRemaining ÷ (overrun + riskExposure)` formula Gate 5 itself runs, and `aria-live="polite"` +
+  `role="region"` on 4 containers confirmed genuinely missing it (`gate5Card`, `invCard`,
+  `rootCauseThread`, the new sandbox card) while 15+ other places in the file already had the
+  pattern. `stress.cjs` grew 2226&rarr;2260: pre-registered values for every lever (at all-zero the
+  sandbox reduces exactly to live `T.contCoverage`; +$50M sponsor capital moves only the numerator;
+  100% R-01 mitigation removes exactly R-01's own real exposure and nothing else; all-3-levers-at-max
+  clears the gate against today's real ledger, stated as a prediction before checking) plus a
+  source-string accessibility check (the DOM stub can't see static-HTML-only attributes, so a
+  stub-attribute check would have silently passed on a missing one too — caught live, fixed to grep
+  `indexSrc` instead). `node verify.cjs`: unchanged. Live-browser re-confirmed the real numbers
+  (\$52.6M/\$89.4M/0.588 at baseline, \$102.6M/\$46.5M/2.208 CLEARED at max levers), the reset
+  button, and a clean console. `README.md`'s "every tab, every feature named" section and this
+  document's own headline test-assertion counts (§2, §11, both of which had drifted to 2,226
+  despite 9 more feature rounds shipping since 2026-08-21 — Delivery, D-02 toggle, Actions Kanban,
+  Data Strategy crosswalk, Portfolio LOB drill-down, AI & Data EWMA week drill-down, Risk & Change
+  drill-down, Overview root-cause panel, global nav 3-track tour — were resynced the same pass this
+  entry was written, per this project's "verify, then document" ordering) were updated in the same
+  pass. **Known gap, stated not hidden:** those 9 rounds' own dedicated prose changelog entries were
+  never individually backfilled into this section — their content lives in `git log` commit
+  messages, not here; a future pass could write them up if that level of detail is ever needed.
+
 Generated 2026-08-20, against the tip of the eleven-input-ledger-card engagement round; extended
 2026-08-21 for the six-KPI-families card round, again 2026-08-21 for the Data Strategy tab UI/UX
 round, again 2026-08-21 for the "96→100" brainstorm round's Tier 0/1 items, again 2026-08-21 for
@@ -1446,6 +1474,9 @@ round, again 2026-08-21 for the whole-repo `/stress-test` round, again 2026-08-2
 Control Tower brainstorm round items 1-4, again 2026-08-21 for the GBM/MLE brainstorm round
 items 1-4, again 2026-08-21 for the `/stress-test` pass on that same round, again 2026-08-21
 for the Glossary brainstorm round items 1-3, again 2026-08-22 for the `/stress-test` pass on
-that round, and again 2026-08-22 for the second whole-repo `/stress-test` pass (see git log for
-exact commits — each document update was written before its own round's commit lands, per the
-project's "verify, then document" ordering).
+that round, again 2026-08-22 for the second whole-repo `/stress-test` pass, and again 2026-08-24
+for the Gate 5 solvency what-if sandbox round (see git log for exact commits — each document
+update was written before its own round's commit lands, per the project's "verify, then document"
+ordering; the 9 brainstorm-mode rounds shipped 2026-08-23 between those two dates are reflected in
+this document's headline counts and in `README.md`'s per-tab feature list, but do not each have
+their own dedicated prose entry here — see the gap noted in the entry just above).

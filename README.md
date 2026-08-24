@@ -7,7 +7,7 @@ multi-package capital transit program, plus a requirement-coverage fit brief.
 
 **Live:** https://tjaiyen.github.io/project-controls-command-center/
 
-**20 KPIs · 11 tabs · 2,226 tests passing · 64 independent SQL parity checks · zero dependencies**
+**20 KPIs · 11 tabs · 2,260 tests passing · 64 independent SQL parity checks · zero dependencies**
 — every number below is computed live from one 11-input ledger, never typed, and provably identical
 whether re-derived in the browser's own JavaScript or an independent DuckDB/SQL pipeline.
 
@@ -46,11 +46,15 @@ Schedule, and a "return to origin tab" breadcrumb after any cross-tab jump.
   a float-specific companion panel linking the worst-float account to its real delay fragnet and
   crew-level idle-time split, an eleven-input ledger card with a per-package inspector and a live
   "change one input, watch the KPIs move" demo, a 10-stop guided Tour with tab-jumping evidence
-  links, and a "Velocity Pulse" strip reading 5 real drift signals together for the first time —
+  links and a 3-track selector (full/executive/CP-201-root-cause/audit — curated index subsets of
+  the same real beats, no new narration), and a "Velocity Pulse" strip reading 5 real drift signals
+  together for the first time —
   EAC velocity, float erosion rate, milestone slip, crew CPH EWMA gap, Non-Critical Progress
   Inflation — each pill jumping to its own tab.
 - **Portfolio** — agency-level rollup across 4 lines of business, one read live off this program's
-  own totals, three summary-only.
+  own totals, three summary-only; a click-through line-of-business drill-down, a funding-gap bar
+  card, and a stress-test what-if sandbox recomputing the simulated funding gap live off real
+  formulas against hypothetical inputs.
 - **Cost** — EVM S-curve and variance bridge, an estimate-to-budget baseline bridge reconciled to
   the ledger, four-method EAC with a live divergence check flagging when methods disagree by more
   than ~5%, a forecast-reliability section (EAC trend, forecast-accuracy scorecard, monthly cash
@@ -75,20 +79,29 @@ Schedule, and a "return to origin tab" breadcrumb after any cross-tab jump.
   per-account hover tooltip that works the CPLI formula live, a fragnet-based delay & TIA register
   tied to package float — including a real FS↔SS resequencing toggle on the one delay with an
   actual recovery story, switching between CP-101's original Finish-to-Start impact and its real,
-  already-computed Start-to-Start recovered float — and revenue-service forecast drift.
-- **Risk & Change** — a priced risk register, a contract commercial register (a third axis distinct
-  from control accounts), and a change pipeline with proposed-vs-settled pricing defense.
+  already-computed Start-to-Start recovered float — an insert/bypass toggle on D-02 simulating
+  revenue-service drift with that delay's own fragnet removed — and revenue-service forecast drift.
+- **Risk & Change** — a priced risk register with a click-through per-risk drill-down drawer, a
+  contract commercial register (a third axis distinct from control accounts) with row hover
+  highlighting, a change pipeline with proposed-vs-settled pricing defense, and a settle-vs-DRB
+  Expected Monetary Value decision tree with two live sliders (win probability, legal cost).
 - **Delivery** — leading indicators (productivity factor, RFI/submittal aging, a quality NCR
-  register with real open counts and per-item aging) and a crew cost-per-hour module.
-- **AI & Data** — pipeline architecture, the SQL model, a live 28-check integrity gate, a real SVG
-  EWMA control chart with a dynamically widening control-limit band, a z-score control chart, and
-  narrative generation under a verification contract.
+  register with real open counts and per-item aging), a productivity-factor gauge, a
+  field-to-boardroom cascade tracing a crew-level cause up to its program-level cost effect, and a
+  crew cost-per-hour module with a live what-if recovery sandbox.
+- **AI & Data** — pipeline architecture (now click-through, every node opening a story card naming
+  the live field it feeds), the SQL model, a live 28-check integrity gate, a real SVG EWMA control
+  chart with a dynamically widening control-limit band and a per-week click-through drill-down, a
+  z-score control chart, and narrative generation under a verification contract with a live
+  tamper-and-catch sandbox demonstrating the contract actually blocks a disagreeing narrative.
 - **Operating Framework** — a phase playbook, a WBS/CBS/OBS/ABS control-account mapping, Board
-  phase-gate governance with a live Gate-5 hard stop, an escalation matrix, a live
-  Working-Backward/inversion worked example, reporting cadence, a stakeholder interface map, and a
-  KPI reference library.
+  phase-gate governance with a live Gate-5 hard stop, a 3-lever Gate 5 solvency what-if sandbox
+  (sponsor capital, risk mitigation, value engineering) recomputing the real contingency-coverage
+  formula live, an escalation matrix, a live Working-Backward/inversion worked example, reporting
+  cadence, a stakeholder interface map, and a KPI reference library.
 - **Actions** — a RAID/CAPA register with proactive staleness detection and owner accountability
-  rollup.
+  rollup, a Kanban board view of the same filtered list, and a branching status drawer explaining
+  exactly which `actionStatus()` rule fired for that item.
 - **Glossary** — 55 terms with live worked examples, a click-driven inline "i" help icon next to
   jargon anywhere on the page, a 5-category domain filter (Cost & EVM, Schedule & CPM,
   Risk/Commercial & Governance, Field Telemetry & Quality, Data Strategy & Architecture — every
@@ -97,10 +110,11 @@ Schedule, and a "return to origin tab" breadcrumb after any cross-tab jump.
   "/" keyboard shortcut jumping to the search box — chosen specifically over Cmd/Ctrl+K because
   this file already refuses to hijack any browser-reserved shortcut.
 - **Data Strategy** — a real-world plan for connecting scattered, multi-system data: staging
-  architecture, a 4-tile IDS guardrail status grid with a live 2-check ingestion-validation panel,
-  a discrepancy-resolution decision flow, a Category/Trigger/Routing error-recovery table, and a
-  Dual-Stack Parity card citing this program's own real, live CPI against the actual SQL that
-  independently re-derives it.
+  architecture, a real WBS/CBS/OBS/ABS crosswalk table across all 8 control accounts, a 4-tile IDS
+  guardrail status grid with a live 2-check ingestion-validation what-if sandbox, an interactive
+  "try it" circuit-breaker demo, a discrepancy-resolution decision flow, a Category/Trigger/Routing
+  error-recovery table, and a Dual-Stack Parity card citing this program's own real, live CPI
+  against the actual SQL that independently re-derives it.
 - **Motion** throughout (draw-in charts, staggered cards, growing histogram bars), with a
   `prefers-reduced-motion` guard.
 
@@ -114,7 +128,7 @@ Schedule, and a "return to origin tab" breadcrumb after any cross-tab jump.
 | [`otak.html`](otak.html) | Fit brief: requirement-by-requirement coverage against a Project Controls Manager posting, gaps included. Re-verified against live req #3775557 on 17 Aug 2026 |
 | [`pipeline/`](pipeline/) | The data layer made executable — `run_pipeline.py` synthesizes raw monthly claims deterministically, builds the ledger through `models/fct_control_account.sql` in DuckDB, enforces every guardrail declared in `models/schema.yml`, and proves the SQL output identical to the browser's JavaScript derivation (64 checks). The raw claim rows are synthesized to sum back to the dashboard's own real PV/EV/AC totals, so the proof covers the SQL aggregation/formula layer, not an independently-entered dataset. Requires `pip install duckdb` — no other dependencies |
 | [`verify.cjs`](verify.cjs) | Tie-out harness — stubs the DOM, executes the dashboard's script, and independently re-derives every portfolio total (`node verify.cjs`) |
-| [`stress.cjs`](stress.cjs) | Adversarial stress harness — 2,226 assertions across structure, runtime, simulated interactions (tabs, phases, filters, drawer, drill-down, what-if, scenarios, Monte Carlo, the risk-driver toggle, print brief, narrative generation, story walkthrough, glossary category filter + search (combined as AND) + "See it live" cross-tab jump, inline help popover, KPI root-cause drill-down, working-backward/inversion component, the Data Strategy tab, nav-rail keyboard navigation, tab-rail hover-preview drawers, the 1-9/"?" keyboard-shortcuts overlay, the altitude-grouped rail + Gate 5 pill, the in-tab anchor rail, the return breadcrumb, the D-04 FS/SS resequencing toggle, the CPLI status-band strip), module reconciliations (baseline bridge, change pricing, delay/float tie-out, WBS/contract/portfolio/forecast tie-outs), narrative-vs-data consistency, content-correctness checks (not just counts — e.g. a firing escalation must carry its own rule text, not a neighbor's), and the fabrication/sanitization sweeps (`node stress.cjs`) |
+| [`stress.cjs`](stress.cjs) | Adversarial stress harness — 2,260 assertions across structure, runtime, simulated interactions (tabs, phases, filters, drawer, drill-down, what-if, scenarios, Monte Carlo, the risk-driver toggle, print brief, narrative generation, story walkthrough, glossary category filter + search (combined as AND) + "See it live" cross-tab jump, inline help popover, KPI root-cause drill-down, working-backward/inversion component, the Data Strategy tab, nav-rail keyboard navigation, tab-rail hover-preview drawers, the 1-9/"?" keyboard-shortcuts overlay, the altitude-grouped rail + Gate 5 pill, the in-tab anchor rail, the return breadcrumb, the D-04 FS/SS resequencing toggle, the CPLI status-band strip, the Gate 5 solvency what-if sandbox), module reconciliations (baseline bridge, change pricing, delay/float tie-out, WBS/contract/portfolio/forecast tie-outs), narrative-vs-data consistency, content-correctness checks (not just counts — e.g. a firing escalation must carry its own rule text, not a neighbor's), and the fabrication/sanitization sweeps (`node stress.cjs`) |
 
 ## Synthetic data
 
