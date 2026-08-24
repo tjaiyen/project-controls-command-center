@@ -940,7 +940,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         on this dashboard — a priced risk, a quality NCR, a crew's idle time, a package's own float, and
         the program's own EAC forecast. Five instruments agreeing is a real signal, not five separately
         counted anecdotes of the same underlying fact.</p>
-      <div class="card" id="rootCauseThread"></div>
+      <div class="card" id="rootCauseThread" aria-live="polite" role="region" aria-label="One root cause, five instruments"></div>
 
       <div class="sec-h" style="margin-top:34px"><h2>Three layers, not one number</h2>
         <span class="tag">how this dashboard actually catches drift</span></div>
@@ -1739,7 +1739,13 @@ join dim_control_account b using (package_id)</pre></div>
         is formally adopted, every earned-value figure on this dashboard becomes a variance <em>against
         that specific number</em>, not a moving target.</p>
       <div class="tw"><table id="gateTable"></table></div>
-      <div class="card" style="margin-top:15px" id="gate5Card"></div>
+      <div class="card" style="margin-top:15px" id="gate5Card" aria-live="polite" role="region" aria-label="Gate 5 governance status"></div>
+      <div class="card" style="margin-top:12px" id="gate5Sandbox" aria-live="polite" role="region" aria-label="Gate 5 solvency what-if simulator"></div>
+      <div class="card" style="margin-top:15px">
+        <div class="slider"><label for="g5Sponsor">Sponsor capital top-up ($M)</label><input type="range" id="g5Sponsor" min="0" max="50" step="1"><span class="tab-num mono" id="vG5Sponsor"></span></div>
+        <div class="slider"><label for="g5MitR01">Risk R-01 mitigation</label><input type="range" id="g5MitR01" min="0" max="100" step="5"><span class="tab-num mono" id="vG5MitR01"></span></div>
+        <div class="slider"><label for="g5Ve">Value engineering ($M)</label><input type="range" id="g5Ve" min="0" max="30" step="1"><span class="tab-num mono" id="vG5Ve"></span></div>
+      </div>
 
       <div class="sec-h" style="margin-top:34px"><h3>Escalation matrix</h3></div>
       <p class="lede">Thresholds are worthless without a named consequence. Every breach below has an owner
@@ -1752,7 +1758,7 @@ join dim_control_account b using (package_id)</pre></div>
         then name today's actual bottleneck &mdash; an owner and a due date, not just a diagnosis. Every
         number below is read live off the same Gate 5 card, escalation matrix and ledger already on this
         tab &mdash; nothing here is a hypothetical.</p>
-      <div class="card" style="margin-top:12px" id="invCard"></div>
+      <div class="card" style="margin-top:12px" id="invCard" aria-live="polite" role="region" aria-label="Working backward from Gate 5"></div>
 
       <div class="sec-h" style="margin-top:34px"><h3>Reporting cadence</h3></div>
       <div class="grid g2" id="cadence"></div>
@@ -2826,6 +2832,8 @@ var state = {phase:"con", fam:"All", audience:"pcm", kpi:null, pkg:2, actFilter:
                      // layer) stays exactly what it has always been; checking a risk ON is what
                      // adds the new layer, never a default-on state that would silently change it.
   glossCat:"All", // glossary category filter (brainstorm-mode upgrade, 2026-08-21)
+  g5Sponsor:0, g5MitR01:0, g5Ve:0, // Gate 5 solvency sandbox (brainstorm-mode upgrade, 2026-08-24)
+                 // — all three default to 0 (no change from the real, current ledger)
   baseStep:0, baseDrawerOpen:false, veAccepted:true, // estimate-to-budget bridge stepper/sandbox
                  // (brainstorm-mode upgrade, 2026-08-23) — veAccepted defaults true (the real,
                  // current state); unchecking it is what enters the hypothetical.
@@ -6550,7 +6558,12 @@ function renderGates(){
     'ledger to gate against, so this is stated as the governing principle, not an enforced check.</p>'+
     res.map(function(r,i){ return '<div class="rowbar stagger" style="grid-template-columns:1fr auto;align-items:center;animation-delay:'+(i*140)+'ms">'+
       '<span style="font-size:12.5px">'+r.n+'</span>'+
-      '<span class="pill '+(r.pass?"g":"r")+'" style="margin-left:10px">'+(r.pass?"PASS":"FAIL")+' &middot; '+r.detail+'</span></div>'; }).join("");
+      '<span class="pill '+(r.pass?"g":"r")+'" style="margin-left:10px">'+(r.pass?"PASS":"FAIL")+' &middot; '+r.detail+'</span></div>'; }).join("")+
+    (function(){ var cov=res.filter(function(r){ return r.key==="contCoverage"; })[0];
+      if(!cov||cov.pass) return "";
+      return '<p class="lede" style="margin-top:10px;font-size:12.5px">Net funding deficit: <b style="color:'+C("bad")+'">'+
+        sgn(T.contRemaining-(T.overrun+T.riskExposure))+'</b> ('+m(T.contRemaining)+' available reserve vs '+
+        m(T.overrun+T.riskExposure)+' total demand).</p>'; })();
   // Operating Framework tab-rail status pill (altitude-grouped nav round, 2026-08-21) — same
   // `fails` this function already computed, not a second read of GATE5_CHECKS; hidden entirely
   // when Gate 5 clears (see the .cnt.warn CSS comment for why a badge that's always shown either
@@ -6600,6 +6613,53 @@ function renderInversion(gate5Res){
     '<div class="eyebrow">Working backward &middot; inversion, not a hypothetical</div>'+
     steps.map(function(s){ return '<div class="dbox" style="margin-top:12px"><h4>'+s[0]+'</h4><p>'+s[1]+'</p></div>'; }).join("")+
     (lead?'<button type="button" class="btn" data-jump="'+lead.id+'" style="margin-top:12px">Open '+lead.id+' on the Actions tab &rarr;</button>':"");
+}
+
+/* Gate 5 solvency sandbox (brainstorm-mode upgrade, 2026-08-24) — the same "live recompute, never
+   mutate the real state" idiom as veSandboxCalc() above and renderDrbSlider() elsewhere: three
+   levers against the exact contCoverage formula (T.contRemaining above line 2502), not a re-invented
+   one. R-01 is looked up by id, not array position — the ESCALATION-lookup bug a stress pass caught
+   once already (see the comment above renderInversion()) is the reason every lookup like this one
+   in this codebase now goes by stable key. Sponsor capital adds to the numerator; R-01 mitigation
+   and value engineering each shrink one real component of the denominator (floored at 0 for VE,
+   since forecast overrun can't go negative from cost recovery alone). */
+function gate5SandboxCalc(){
+  var r01=RISKS.filter(function(r){ return r.id==="R-01"; })[0];
+  var r01Exposure=P_BAND[r01.p]*r01.cost;
+  var riskAlt=T.riskExposure-r01Exposure*state.g5MitR01;
+  var overrunAlt=Math.max(0,T.overrun-state.g5Ve);
+  var reserveAlt=T.contRemaining+state.g5Sponsor;
+  var demandAlt=overrunAlt+riskAlt;
+  return {r01Exposure:r01Exposure,riskAlt:riskAlt,overrunAlt:overrunAlt,reserveAlt:reserveAlt,
+    demandAlt:demandAlt,coverageAlt:reserveAlt/demandAlt};
+}
+function renderGate5Sandbox(){
+  var c=gate5SandboxCalc();
+  var pass=c.coverageAlt>=1.0;
+  var touched=state.g5Sponsor>0||state.g5MitR01>0||state.g5Ve>0;
+  document.getElementById("g5Sponsor").value=state.g5Sponsor;
+  document.getElementById("g5MitR01").value=Math.round(state.g5MitR01*100);
+  document.getElementById("g5Ve").value=state.g5Ve;
+  document.getElementById("vG5Sponsor").textContent=m(state.g5Sponsor);
+  document.getElementById("vG5MitR01").textContent=Math.round(state.g5MitR01*100)+"%";
+  document.getElementById("vG5Ve").textContent=m(state.g5Ve);
+  document.getElementById("gate5Sandbox").innerHTML=
+    '<div class="eyebrow">Path to a cleared gate &middot; what-if</div>'+
+    '<h3 style="margin:6px 0 3px">What would it actually take to clear Gate 5?</h3>'+
+    '<p class="lede" style="font-size:12.5px;margin:0 0 12px">Three real levers against the same '+
+    'formula Gate 5 itself runs &mdash; remaining contingency &divide; (forecast overrun + risk '+
+    'exposure). Dragging these never changes the real ledger; reset returns to the live 0.588.</p>'+
+    '<div class="grid" style="margin-top:2px">'+
+      veTile("Available reserve",m(c.reserveAlt),true)+
+      veTile("Demand",m(c.demandAlt),true)+
+      veTile("Coverage ratio",idx(c.coverageAlt),pass)+
+    '</div>'+
+    (touched?'<p style="margin-top:12px"><span class="pill '+(pass?"g":"r")+' flash">'+
+      (pass?"CLEARED &mdash; eligible to advance to Gate 6":"BLOCKED &mdash; cannot advance to Gate 6")+
+      ' at this simulated coverage of '+idx(c.coverageAlt)+'</span></p>':"")+
+    '<button class="btn" id="g5SandboxReset" type="button" style="margin-top:14px">Reset to real ledger</button>';
+  var r=document.getElementById("g5SandboxReset");
+  if(r) r.addEventListener("click",function(){ state.g5Sponsor=0; state.g5MitR01=0; state.g5Ve=0; renderGate5Sandbox(); });
 }
 
 /* The Gate Line — the same PHASES/GATES/GATE5_CHECKS the tables already render, drawn as one
@@ -6697,7 +6757,7 @@ function renderGateLine(){
 }
 
 function renderFramework(){
-  renderWbs(); renderInversion(renderGates()); renderGateLine();
+  renderWbs(); renderInversion(renderGates()); renderGateLine(); renderGate5Sandbox();
   document.getElementById("playbook").innerHTML=PHASES.map(function(p,i){
     var pb=PLAYBOOK.filter(function(x){return x.k===p.k;})[0];
     var live=KPIS.filter(function(k){return k.ph.indexOf(p.k)>=0;});
@@ -9223,6 +9283,14 @@ document.getElementById("ledgerDemoReset").addEventListener("click",function(){ 
 // params that Event-is-truthy could corrupt, but matching the established idiom here anyway).
 ["sDrbP","sDrbLegal"].forEach(function(id){
   document.getElementById(id).addEventListener("input",function(){ renderDrbSlider(); }); });
+// Gate 5 solvency sandbox sliders (brainstorm-mode upgrade, 2026-08-24) — unlike the DRB pair
+// above, each of these does mutate state (the sandbox's whole point is a real, resettable
+// what-if against the ledger, same as veSandboxCalc()'s toggle), so each gets its own state key
+// rather than reading the DOM directly inside the calc function.
+[["g5Sponsor","g5Sponsor",Number],["g5MitR01","g5MitR01",function(v){ return v/100; }],["g5Ve","g5Ve",Number]]
+  .forEach(function(cfg){
+    document.getElementById(cfg[0]).addEventListener("input",function(){
+      state[cfg[1]]=cfg[2](+document.getElementById(cfg[0]).value); renderGate5Sandbox(); }); });
 // confidence-percentile slider (brainstorm-mode upgrade, 2026-08-21) — same split as the What-If
 // sliders: the marker's position updates immediately (visual feedback while dragging), the
 // contingency-required callout is debounced (same Event-is-truthy pitfall, same plain-closure fix).
@@ -9485,6 +9553,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   escalation:ESCALATION,kpiEscalation:KPI_ESCALATION,actionsForKpi:actionsForKpi,jumpToAction:jumpToAction,
   firingEscalations:firingEscalations,
   wbs:WBS,gates:GATES,gate5Checks:GATE5_CHECKS,glNodes:GL_NODES,glCaption:glCaption,glNodeState:glNodeState,
+  gate5SandboxCalc:gate5SandboxCalc,renderGate5Sandbox:renderGate5Sandbox,
   contracts:CONTRACTS,deriveContract:deriveContract,
   portfolioRows:portfolioRows,fundingTier:fundingTier,renderPortfolio:renderPortfolio,renderCont:renderCont,
   cphCells:CPH_CELLS,deriveCph:deriveCph,deriveZScores:deriveZScores,deriveEwma:deriveEwma,ingestGuards:INGEST_GUARDS,

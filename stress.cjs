@@ -5561,6 +5561,101 @@ console.log("== D35. Global nav upgrade -- 3 more anchor rails, live Glossary co
   });
 }
 
+console.log("== D36. Gate 5 solvency what-if sandbox + accessibility (brainstorm-mode round, 2026-08-24) ==");
+{
+  const orig = { sponsor: P.state.g5Sponsor, mit: P.state.g5MitR01, ve: P.state.g5Ve };
+  const r01 = P.risks.filter(r => r.id === "R-01")[0];
+  const r01Exposure = P.pBand[r01.p] * r01.cost;
+
+  // pre-registered: at the real, untouched levers (all 0), the sandbox must reduce to exactly
+  // today's real GATE5_CHECKS contCoverage reading — same discipline as veSandboxCalc's own
+  // "reduces to the real number at default" test elsewhere in this file.
+  P.state.g5Sponsor = 0; P.state.g5MitR01 = 0; P.state.g5Ve = 0;
+  let c = P.gate5SandboxCalc();
+  ok(Math.abs(c.coverageAlt - T.contCoverage) < 1e-9, "at all-zero levers, sandbox coverage matches the real live T.contCoverage exactly", idx(c.coverageAlt) + " vs real " + idx(T.contCoverage));
+  ok(Math.abs(c.reserveAlt - T.contRemaining) < 1e-9, "at sponsor=0, reserveAlt equals the real T.contRemaining exactly");
+  ok(Math.abs(c.demandAlt - (T.overrun + T.riskExposure)) < 1e-9, "at mit=0/ve=0, demandAlt equals the real overrun+riskExposure exactly");
+
+  // pre-registered: +$50M sponsor capital adds exactly $50M to the numerator, nothing else moves
+  P.state.g5Sponsor = 50;
+  c = P.gate5SandboxCalc();
+  ok(Math.abs(c.reserveAlt - (T.contRemaining + 50)) < 1e-9, "sponsor=$50M adds exactly $50M to reserveAlt");
+  ok(Math.abs(c.demandAlt - (T.overrun + T.riskExposure)) < 1e-9, "sponsor capital never touches demandAlt");
+  P.state.g5Sponsor = 0;
+
+  // pre-registered: 100% R-01 mitigation removes exactly R-01's own real exposure ($12.9M-ish),
+  // and only that — the other 5 risks' exposure is untouched
+  P.state.g5MitR01 = 1.0;
+  c = P.gate5SandboxCalc();
+  ok(Math.abs(c.riskAlt - (T.riskExposure - r01Exposure)) < 1e-9, "100% R-01 mitigation removes exactly R-01's own real exposure, nothing else", "removed=" + r01Exposure.toFixed(4));
+  ok(Math.abs(c.overrunAlt - T.overrun) < 1e-9, "R-01 mitigation never touches overrunAlt");
+  P.state.g5MitR01 = 0;
+
+  // pre-registered: $30M VE either fully absorbs the real overrun (floored at 0) or reduces it by
+  // exactly $30M — whichever the real T.overrun magnitude actually implies; never goes negative
+  P.state.g5Ve = 30;
+  c = P.gate5SandboxCalc();
+  ok(Math.abs(c.overrunAlt - Math.max(0, T.overrun - 30)) < 1e-9, "VE=$30M reduces overrunAlt by $30M, floored at 0, matching the real T.overrun");
+  ok(c.overrunAlt >= 0, "overrunAlt never goes negative from VE alone");
+  P.state.g5Ve = 0;
+
+  // pre-registered: driving all 3 levers to their max should clear the gate (coverage >= 1.00) —
+  // true today given the real ledger's magnitudes, stated as a prediction before checking, not
+  // asserted after the fact
+  P.state.g5Sponsor = 50; P.state.g5MitR01 = 1.0; P.state.g5Ve = 30;
+  c = P.gate5SandboxCalc();
+  ok(c.coverageAlt >= 1.0, "pre-registered: all 3 levers at max clears the gate against today's real ledger", idx(c.coverageAlt));
+
+  // renderGate5Sandbox() actually writes the DOM, not just the calc — real slider + tile values
+  P.state.g5Sponsor = 50; P.state.g5MitR01 = 1.0; P.state.g5Ve = 0;
+  P.renderGate5Sandbox();
+  ok(+R.registry.g5Sponsor.value === 50, "g5Sponsor slider DOM value reflects state after render", String(R.registry.g5Sponsor.value));
+  ok(R.registry.vG5MitR01.textContent === "100%", "vG5MitR01 label reads 100% at full mitigation");
+  ok(R.registry.gate5Sandbox._html.includes("CLEARED"), "sandbox card shows CLEARED once the simulated coverage passes", R.registry.gate5Sandbox._html.slice(0, 40));
+
+  // reset button actually resets state and re-renders
+  fire(R.registry.g5SandboxReset, "click");
+  ok(P.state.g5Sponsor === 0 && P.state.g5MitR01 === 0 && P.state.g5Ve === 0, "reset button zeroes all 3 sandbox state fields");
+
+  // sliders are really wired to state, not decorative markup
+  R.registry.g5Sponsor.value = "25";
+  fire(R.registry.g5Sponsor, "input");
+  ok(P.state.g5Sponsor === 25, "dragging the sponsor-capital slider actually flips state.g5Sponsor");
+  R.registry.g5MitR01.value = "60";
+  fire(R.registry.g5MitR01, "input");
+  ok(Math.abs(P.state.g5MitR01 - 0.6) < 1e-9, "dragging the R-01 mitigation slider stores the 0-1 fraction, not the raw 0-100 DOM value");
+  P.state.g5Sponsor = 0; P.state.g5MitR01 = 0; P.state.g5Ve = 0;
+
+  P.state.g5Sponsor = orig.sponsor; P.state.g5MitR01 = orig.mit; P.state.g5Ve = orig.ve;
+  P.renderGate5Sandbox(); // restore before any other test reads gate5Sandbox's DOM
+
+  // Tier 2 — the explicit net-funding-deficit line, only shown while contCoverage actually fails.
+  // renderGates() already ran once during the page's own initial script execution (via
+  // renderFramework() in the init sequence) — read its output directly rather than re-invoking a
+  // render function this codebase never exports (matching veSandboxCalc's own precedent: state
+  // changes are exercised via real fired events, not by calling unexported render fns directly).
+  const gate5Html = R.registry.gate5Card._html;
+  ok(gate5Html.includes("Net funding deficit"), "gate5Card shows the explicit signed deficit line while contCoverage is FAIL");
+  const expectedDeficit = m(T.contRemaining - (T.overrun + T.riskExposure)).replace(/−/g, "-");
+  ok(gate5Html.replace(/−/g, "-").includes(expectedDeficit), "deficit line states the exact signed value T.contRemaining − (T.overrun + T.riskExposure)", expectedDeficit);
+
+  // accessibility — aria-live/role/aria-label actually landed on all 4 flagged containers, not
+  // just claimed. Checked against the static HTML source, not the DOM stub: these attributes are
+  // authored directly in the markup (never set via a runtime setAttribute() call), and the stub's
+  // getElementById() auto-creates a blank phantom element with empty _attrs for any id it hasn't
+  // seen a real setAttribute() call for — so a DOM-stub attribute check here would silently pass
+  // on a MISSING attribute too (the exact "too lenient" stub gap this session already knows about),
+  // not just a present one. A source-string check is the honest way to verify static markup.
+  ["gate5Card", "invCard", "rootCauseThread", "gate5Sandbox"].forEach(id => {
+    const tagMatch = indexSrc.match(new RegExp('<div[^>]*\\bid="' + id + '"[^>]*>'));
+    ok(!!tagMatch, "#" + id + "'s opening tag exists in index.html", id);
+    const tag = tagMatch ? tagMatch[0] : "";
+    ok(/aria-live="polite"/.test(tag), "#" + id + " carries aria-live=\"polite\" in its own tag", tag);
+    ok(/role="region"/.test(tag), "#" + id + " carries role=\"region\" in its own tag", tag);
+    ok(/aria-label="[^"]+"/.test(tag), "#" + id + " carries a real aria-label in its own tag", tag);
+  });
+}
+
 /* =========================================================================
    E. otak.html — runtime + internal consistency
    ========================================================================= */
@@ -5659,7 +5754,11 @@ console.log("== F. sweeps ==");
   // the same phrasing, consolidating what was five separate cross-tab sentences into one panel
   // rather than adding a new claim; the panel's own JS comment was deliberately reworded to avoid
   // double-counting a non-user-facing dev comment as a 7th.
-  ok(instrumentMentions.length === 6, "exactly 6 user-facing 'N instruments' mentions found (update this count if a 7th is intentionally added)", String(instrumentMentions.length));
+  // 7 as of the Gate 5 what-if round (brainstorm-mode upgrade, 2026-08-24) — the rootCauseThread
+  // container gained an aria-label ("One root cause, five instruments") as part of the same round's
+  // aria-live/role accessibility fix; a real, new, user-facing (screen-reader) mention agreeing
+  // with the same "five," not a rewording of an existing one.
+  ok(instrumentMentions.length === 7, "exactly 7 user-facing 'N instruments' mentions found (update this count if an 8th is intentionally added)", String(instrumentMentions.length));
   const counts = instrumentMentions.map(s => (s.match(/four|five|six/i) || [""])[0].toLowerCase());
   ok(counts.every(c => c === counts[0]), "all 'N instruments' mentions agree on the same number", JSON.stringify(counts));
 }
