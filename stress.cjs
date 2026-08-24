@@ -5195,6 +5195,70 @@ console.log("== D32. AI & Data-tab upgrade -- pipeline gate-count fix, narrative
   });
 }
 
+console.log("== D33. Risk & Change-tab upgrade -- risk drill-down drawer, contract table hover highlight, Gate 5 jump-link (brainstorm-mode round, 2026-08-23) ==");
+{
+  function usd(v) { return (v < 0 ? "−" : "") + "$" + Math.round(Math.abs(v)).toLocaleString("en-US"); }
+  const ranked = P.risks.map(k => Object.assign({}, k, { exp: P.pBand[k.p] * k.cost })).sort((a, b) => b.exp - a.exp);
+
+  // A. risk drill-down -- real linked actions, derived from ACTIONS[].src, never a hand-authored map
+  ok(P.state.riskDrill === null && R.registry.riskDrill._html === "", "sanity: risk drawer starts closed");
+  const r01Linked = P.riskLinkedActions(ranked.find(k => k.id === "R-01"));
+  ok(r01Linked.length === 2 && r01Linked.some(a => a.id === "A-04") && r01Linked.some(a => a.id === "NCR-2026-014"),
+    "R-01's real linked actions are A-04 and NCR-2026-014, found via ACTIONS[].src, not a hardcoded R-id map", r01Linked.map(a => a.id).join(","));
+  const r05Linked = P.riskLinkedActions(ranked.find(k => k.id === "R-05"));
+  ok(r05Linked.length === 0, "R-05 genuinely has zero linked actions -- the register doesn't invent one");
+
+  fire(R.registry["p-risk"], "click", { target: { closest: sel => sel === "[data-risk]" ? { dataset: { risk: "R-01" } } : null } });
+  ok(P.state.riskDrill === "R-01", "clicking R-01's row sets state.riskDrill");
+  let drillHtml = R.registry.riskDrill._html;
+  ok(drillHtml.includes("A-04") && drillHtml.includes("NCR-2026-014"), "R-01's drawer lists both real linked action items");
+  ok(drillHtml.includes("+40d"), "R-01's drawer shows D-02's real +40d float impact on the same CP-201 package");
+  const cph = P.deriveCph(P.cphCells[0]);
+  ok(drillHtml.includes(usd(cph.totalIdle)), "R-01's drawer shows the real crew CPH idle total ($100,156), not a fabricated figure", usd(cph.totalIdle));
+  ok(drillHtml.includes("data-jump-tab=\"del\"") && drillHtml.includes("data-jump-el=\"cphCard\""), "R-01's drawer links out to the real Delivery-tab crew CPH card");
+
+  // toggle closes
+  fire(R.registry["p-risk"], "click", { target: { closest: sel => sel === "[data-risk]" ? { dataset: { risk: "R-01" } } : null } });
+  ok(P.state.riskDrill === null, "clicking the SAME risk again closes the drawer");
+  ok(R.registry.riskDrill._html === "", "closed drawer renders nothing");
+
+  // keyboard: Enter opens too (role="button" divs, not real buttons, need their own key handling)
+  fire(R.registry["p-risk"], "keydown", { key: "Enter", target: { closest: sel => sel === "[data-risk]" ? { dataset: { risk: "R-05" } } : null }, preventDefault() {} });
+  ok(P.state.riskDrill === "R-05", "pressing Enter on R-05's row opens its drawer too, not just a mouse click");
+  drillHtml = R.registry.riskDrill._html;
+  ok(drillHtml.includes("No action items are currently tracked"), "R-05's drawer honestly states it has no linked action items, rather than fabricating one");
+  ok(!drillHtml.includes("cphCard"), "R-05's drawer correctly shows no crew-CPH jump link -- it isn't tied to CP-201");
+
+  // [data-jump] inside the drawer reaches the real Actions register via the real jumpToAction()
+  fire(R.registry["p-risk"], "click", { target: { closest: sel => sel === "[data-risk]" ? { dataset: { risk: "R-01" } } : null } });
+  fire(R.registry["p-risk"], "click", { target: { closest: sel => sel === "[data-jump]" ? { dataset: { jump: "A-04" } } : null } });
+  ok(P.state.act === "A-04" && P.state.tab === "act", "clicking a linked action's own button inside the drawer navigates to it on the real Actions register via jumpToAction()");
+  P.state.riskDrill = null; P.renderRisk(); // reset before later sections run
+
+  // B. contract table hover highlight -- real multi-package contract, real per-package BAC
+  ok(P.totals.contCoverage < 1, "sanity: coverage ratio is genuinely below 1.00 today (0.588)", P.totals.contCoverage);
+  ok(R.registry.contCover._html.includes('data-jump-tab="fw"') && R.registry.contCover._html.includes('data-jump-el="gate5Card"'),
+    "coverage-ratio card links out to the real Gate 5 card when coverage is below 1.00");
+
+  const contracts = P.contracts.map(P.deriveContract);
+  const multi = contracts.find(c => c.pkgs.length > 1);
+  ok(multi && multi.id === "CTE-BB-01" && multi.pkgs.join(",") === "CP-101,CP-102",
+    "sanity: the real multi-package contract is CTE-BB-01 -> CP-101,CP-102, not the brief's fabricated C-100", multi && multi.id);
+  fire(R.registry.contractTable, "mousemove", { target: { closest: sel => sel === "[data-contract]" ? { dataset: { contract: "CTE-BB-01" } } : null }, clientX: 60, clientY: 60 });
+  const tipHtml = R.registry.tip._html;
+  ok(tipHtml.includes("CP-101") && tipHtml.includes("CP-102") && tipHtml.includes(m(248.0)) && tipHtml.includes(m(212.5)),
+    "hovering the multi-package contract row shows both real control accounts with their real BAC ($248.0M / $212.5M)");
+  fire(R.registry.contractTable, "mousemove", { target: { closest: () => null } });
+
+  ok(indexSrc.includes("ctHost._contracts=cs;"),
+    "contract tooltip stashes cs on the host element for the same reason heatHost._gridRisks does -- a closure captured on the first renderContracts() call would go stale on a later re-render");
+
+  // compliance sweep for this round's own brief
+  ["C-100", "CM/GC", "Unit Price", "Package #11", "3.49% of BAC"].forEach(bad => {
+    ok(!indexSrc.includes(bad), 'fabricated Risk & Change-tab brief content never made it into index.html: "' + bad + '"');
+  });
+}
+
 /* =========================================================================
    E. otak.html — runtime + internal consistency
    ========================================================================= */

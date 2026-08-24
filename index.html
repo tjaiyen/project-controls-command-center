@@ -1385,7 +1385,8 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
           <div class="heat" id="heat"></div>
           <div class="outbox" id="contCover" style="margin-top:14px"></div></div>
       </div>
-      <div class="card" style="margin-top:15px"><h3>Register</h3><div id="risks"></div></div>
+      <div class="card" style="margin-top:15px"><h3>Register</h3><div id="risks"></div>
+        <div id="riskDrill" style="margin-top:10px"></div></div>
       <details class="dbox" style="margin-top:14px">
         <summary>How this is actually computed</summary>
         <div id="riskMathBody"></div>
@@ -1395,7 +1396,8 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
       <p class="lede">Control accounts measure performance; contracts carry commercial exposure &mdash;
         and one does not map 1:1 onto the other. The guideway bid-build contract alone covers two control
         accounts. Award value, contingency allocation and uncommitted reserve are all derived from the
-        same ledger every other tab reads; nothing here is entered twice.</p>
+        same ledger every other tab reads; nothing here is entered twice. <span style="color:rgb(var(--c-mut));font-size:12.5px">Hover
+        or tab to a contract row to see its own control accounts highlight below.</span></p>
       <div class="tw"><table id="contractTable"></table></div>
       <p class="lede" id="contractFoot" style="margin-top:9px;font-size:12.5px"></p>
 
@@ -2775,10 +2777,12 @@ var state = {phase:"con", fam:"All", audience:"pcm", kpi:null, pkg:2, actFilter:
   portDrill:null, portGapOpen:false, portGapFootnote:false, portShift:1.00, portInject:0, // Portfolio-tab
                  // upgrade (brainstorm-mode, 2026-08-23) — portShift 1.00/portInject 0 = the real,
                  // unmodified state; the sandbox reduces exactly to real bacSum/eacSum/gap there.
-  narrTamper:false, ewmaDrillWeek:null}; // AI & Data-tab upgrade (brainstorm-mode, 2026-08-23) —
+  narrTamper:false, ewmaDrillWeek:null, // AI & Data-tab upgrade (brainstorm-mode, 2026-08-23) —
                  // narrTamper false = the real, verified draft; checking it swaps in one simulated
                  // bad figure to demo the gate catching it. ewmaDrillWeek null = the chart's weekly
                  // idle/rework/baseline drill-down starts closed, same click-to-open idiom as cphDrill.
+  riskDrill:null}; // Risk & Change-tab upgrade (brainstorm-mode, 2026-08-23) — starts closed, same
+                 // click-to-open idiom as portDrill/cphDrill/ewmaDrillWeek above.
 
 /* Ledger card (Overview-tab upgrade, 2026-08-20) — the 11 raw inputs, a per-package inspector, and
    a live "change one input, watch the KPIs move" demo. The demo deliberately reads a LOCAL copy of
@@ -5435,7 +5439,13 @@ function renderContracts(){
     '<thead><tr><th scope="col">Contract</th><th scope="col">Control accounts</th><th scope="col">Award</th>'+
     '<th scope="col">Approved COs</th><th scope="col">Pending trends</th><th scope="col">Alloc. contingency</th>'+
     '<th scope="col">Uncommitted reserve</th></tr></thead><tbody>'+
-    cs.map(function(c){ return '<tr style="cursor:default"><th scope="row">'+c.title+
+    cs.map(function(c){
+      // hover/tap highlight (brainstorm-mode round, 2026-08-23) -- the ask was a diagram proving
+      // one contract can span multiple control accounts; this table already proves it (c.pkgs),
+      // so reuse it rather than build a second, separate SVG canvas. data-contract wires the SAME
+      // shared #tip element the tornado/heat map on this tab already use, not a third mechanism.
+      var lab=c.title+" covers "+c.pkgs.length+" control account"+(c.pkgs.length===1?"":"s")+": "+c.pkgs.join(", ");
+      return '<tr tabindex="0" data-contract="'+c.id+'" title="'+lab+'" style="cursor:pointer"><th scope="row">'+c.title+
       '<div class="mono" style="font-size:10.5px;color:rgb(var(--c-mut))">'+c.id+'</div></th>'+
       '<td class="mono" style="font-size:11.5px">'+c.pkgs.join(", ")+'</td>'+
       '<td class="tab-num">'+m(c.award)+'</td><td class="tab-num">'+m(c.approvedCO)+'</td>'+
@@ -5451,6 +5461,32 @@ function renderContracts(){
     '<b style="color:rgb(var(--c-ink))">'+cs.length+' contracts, '+PKGS.length+' control accounts, no gaps and no overlaps</b> &mdash; '+
     'awards sum to '+m(T.bac)+' (the same BAC every other tab reports); approved and pending change sum to '+
     m(PROGRAM.coApprovedValue)+' and '+m(PROGRAM.coPendingValue)+' (the same change-pipeline totals below).';
+  // Same stashed-on-host pattern as heatHost._gridRisks above (index.html renderRisk()) -- cs is
+  // rebuilt fresh every renderContracts() call, so a tooltip handler closed over the FIRST call's
+  // cs would silently go stale after any later re-render (theme toggle, tab revisit).
+  var ctHost=document.getElementById("contractTable");
+  ctHost._contracts=cs;
+  if(!ctHost.dataset.tipWired){
+    var ctTip=document.getElementById("tip");
+    function ctTipFn(e){
+      var t=e.target.closest("[data-contract]");
+      if(!t){ ctTip.classList.remove("on"); return; }
+      var c=ctHost._contracts.filter(function(x){return x.id===t.dataset.contract;})[0];
+      if(!c) return;
+      var lines=c.pkgs.map(function(pid){
+        var r=rows.filter(function(x){return x.id===pid;})[0];
+        return r? '<b>'+r.id+'</b> '+r.n+' ('+m(r.bac)+')' : pid;
+      });
+      ctTip.innerHTML='<b>'+c.title+'</b>'+lines.join("<br>");
+      ctTip.classList.add("on");
+      ctTip.style.left=Math.min(e.clientX+14,window.innerWidth-262)/curZoom()+"px";
+      ctTip.style.top=Math.min(e.clientY+14,window.innerHeight-130)/curZoom()+"px";
+    }
+    ctHost.addEventListener("mousemove",ctTipFn);
+    ctHost.addEventListener("click",ctTipFn);
+    ctHost.addEventListener("mouseleave",function(){ ctTip.classList.remove("on"); });
+    ctHost.dataset.tipWired="1";
+  }
 }
 
 function renderRisk(){
@@ -5528,9 +5564,22 @@ function renderRisk(){
   document.getElementById("contCover").innerHTML=
    [["Exposure",m(T.riskExposure),""],["Contingency left",m(T.contRemaining),""],
     ["Coverage ratio",idx(T.contCoverage),T.contCoverage<1?"ba":"wa"]
-   ].map(function(r){ return '<div><div class="k">'+r[0]+'</div><div class="v '+r[2]+'">'+r[1]+'</div></div>'; }).join("");
+   ].map(function(r){ return '<div><div class="k">'+r[0]+'</div><div class="v '+r[2]+'">'+r[1]+'</div></div>'; }).join("")+
+   // jump-link to Gate 5 (brainstorm-mode round, 2026-08-23) -- only when coverage is actually
+   // below 1.00, the same real threshold the "ccr" KPI/escalation matrix already use to call this
+   // a problem; reuses the existing data-jump-tab idiom, no new mechanism.
+   (T.contCoverage<1?
+     '<p style="grid-column:1/-1;margin:8px 0 0;font-size:12px;color:rgb(var(--c-mut))">Below the 1.00 line the '+
+     'escalation matrix already tracks &mdash; <button type="button" class="btn" data-jump-tab="fw" '+
+     'data-jump-el="gate5Card" style="min-height:auto;padding:1px 8px;font-size:11px">see Gate 5 &rarr;</button></p>'
+     :"");
   document.getElementById("risks").innerHTML=ranked.map(function(k){
-    return '<div style="padding:10px 0;border-bottom:1px solid var(--c-line)">'+
+    // click-to-drill (brainstorm-mode round, 2026-08-23) — every risk is a real button, not just
+    // the ones with rich linked data, matching this file's own honest-by-default convention: the
+    // drawer itself states plainly when a risk has zero linked action items rather than the row
+    // pretending there's nothing more to see.
+    return '<div tabindex="0" role="button" aria-controls="riskDrill" aria-pressed="'+(state.riskDrill===k.id)+
+      '" data-risk="'+k.id+'" style="padding:10px 0;border-bottom:1px solid var(--c-line);cursor:pointer">'+
       '<div style="display:flex;gap:9px;align-items:baseline;flex-wrap:wrap">'+
       '<span class="mono" style="font-size:11px;color:rgb(var(--c-code))">'+k.id+'</span>'+
       '<span style="flex:1;min-width:190px;font-size:13px">'+k.n+'</span>'+
@@ -5541,7 +5590,9 @@ function renderRisk(){
   }).join("")+'<p style="margin:13px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">Total exposure <b style="color:rgb(var(--c-ink))">'+
     m(T.riskExposure)+'</b>, of which the top risk alone is '+pct(ranked[0].exp/T.riskExposure)+
     '. This exposure is <em>uncovered</em>: '+m(T.contRemaining)+' of contingency is already '+
-    m(T.overrun-T.contRemaining)+' short of the forecast overrun before any risk lands.</p>';
+    m(T.overrun-T.contRemaining)+' short of the forecast overrun before any risk lands. Click any '+
+    'risk above for its linked action items and field data.</p>';
+  renderRiskDrill(ranked);
 
   document.getElementById("changePipe").innerHTML=
    [["Approved",PROGRAM.coApprovedCount+" · "+m(PROGRAM.coApprovedValue),"ba"],
@@ -5600,6 +5651,65 @@ function renderRisk(){
     'and negotiated (approved), changes still being negotiated (pending), and unpriced future risk that hasn&rsquo;t '+
     'become a change order yet (EMV). They belong on one page because all three draw against the same '+
     'contingency pool &mdash; <b style="color:rgb(var(--c-ink))">'+m(T.contRemaining)+'</b> remaining.';
+}
+/* Risk drill-down drawer (brainstorm-mode round, 2026-08-23) — RISKS[] carries no pkg field of
+   its own, so the link to a control account/delay/crew is found the same way a human reader
+   would: through the Actions register's own src text ("Risk register · R-01"), which already
+   exists for 4 of the 6 risks (A-04/R-01, A-10/R-02, A-11/R-03, A-14/R-04). No hand-authored
+   R-id -> package map here — everything below is derived from real, already-shipped data, and
+   the two risks with no linked action (R-05, R-06) say so plainly rather than fabricating one. */
+function riskLinkedActions(k){
+  return ACTIONS.filter(function(a){ return a.src && a.src.indexOf(k.id)>=0; })
+    .map(function(a){ return Object.assign({},a,{status:actionStatus(a),stale:isStale(a)}); });
+}
+function renderRiskDrill(ranked){
+  var el=document.getElementById("riskDrill"); if(!el) return;
+  if(!state.riskDrill){ el.innerHTML=""; return; }
+  var k=ranked.filter(function(x){return x.id===state.riskDrill;})[0];
+  if(!k){ el.innerHTML=""; return; }
+  var linked=riskLinkedActions(k);
+  // real packages the linked actions themselves name — never a guessed/hardcoded R-id->CP-id map
+  var pkgs=[]; linked.forEach(function(a){ if(a.pkg&&pkgs.indexOf(a.pkg)<0) pkgs.push(a.pkg); });
+  var fieldHtml="";
+  pkgs.forEach(function(pid){
+    var delaysHere=DELAYS.filter(function(d){return d.pkg===pid;});
+    if(delaysHere.length) fieldHtml+=delaysHere.map(function(d){
+      return '<div class="rowbar" style="grid-template-columns:60px 1fr 56px;cursor:default">'+
+        '<span class="mono" style="font-size:11px">'+d.id+'</span>'+
+        '<span style="font-size:12px">'+d.n+'</span>'+
+        '<span class="tab-num mono" style="font-size:12px;text-align:right">'+days(d.d)+'</span></div>';
+    }).join("");
+    if(CPH_CELLS[0].pkg===pid){
+      var c=deriveCph(CPH_CELLS[0]);
+      fieldHtml+='<p style="margin:8px 0 0;font-size:12px;color:rgb(var(--c-mut))">'+pid+
+        '&rsquo;s own crew cost-per-hour carries '+usd(c.totalIdle)+' of idle-attributable overrun across the '+
+        'same six weeks &mdash; <button type="button" class="btn" data-jump-tab="del" data-jump-el="cphCard" '+
+        'style="min-height:auto;padding:1px 8px;font-size:11px">see it live &rarr;</button></p>';
+    }
+  });
+  el.innerHTML='<div class="drawer"><div class="dh"><div>'+
+    '<div class="eyebrow">Risk drill-down &middot; '+k.id+'</div>'+
+    '<h3 style="margin:0">'+k.n+'</h3></div>'+
+    '<button class="btn" id="riskDrillClose" type="button">Close &times;</button></div>'+
+    '<p style="margin:8px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">P'+k.p+' ('+Math.round(P_BAND[k.p]*100)+
+    '%) &times; '+m(k.cost)+' impact = <b style="color:rgb(var(--c-ink))">'+m(k.exp)+'</b> exposure &middot; owner: '+k.own+'</p>'+
+    '<p style="margin:6px 0 0;font-size:12.5px">&rarr; '+k.mit+'</p>'+
+    '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--c-line)">'+
+    '<div class="eyebrow">Linked action items ('+linked.length+')</div>'+
+    (linked.length? linked.map(function(a){
+      var sm=STATUS_META[a.status];
+      return '<div class="rowbar" style="grid-template-columns:60px 1fr 90px;margin-top:6px">'+
+        '<span class="mono" style="font-size:11px">'+a.id+'</span>'+
+        '<span style="font-size:12px">'+a.title+'</span>'+
+        '<span style="text-align:right"><button type="button" class="btn" data-jump="'+a.id+'" '+
+        'style="min-height:auto;padding:2px 8px;font-size:10.5px">'+sm.label+' &rarr;</button></span></div>';
+    }).join("")
+    : '<p style="margin:6px 0 0;font-size:12px;color:rgb(var(--c-mut))">No action items are currently tracked '+
+      'against this risk on the Actions register.</p>')+
+    '</div>'+
+    (fieldHtml? '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--c-line)">'+
+      '<div class="eyebrow">Field data on the same control account</div>'+fieldHtml+'</div>' : "")+
+    '<button class="btn" id="riskDrillClose2" type="button" style="margin-top:12px">Close</button></div>';
 }
 /* Settlement decision — direct vs. DRB (advanced-quant upgrade, 2026-08-23). Does not touch
    #coDefense's own table/rows above; a clearly-separate, additive section. */
@@ -8651,6 +8761,30 @@ document.getElementById("invCard").addEventListener("click",function(e){
 document.getElementById("p-del").addEventListener("click",function(e){
   var b=e.target.closest("[data-jump]"); if(b) jumpToAction(b.dataset.jump);
 });
+// Risk & Change-tab data-jump/data-risk targets (brainstorm-mode round, 2026-08-23) -- same [data-jump]
+// -> jumpToAction() idiom as #p-del above, plus the register's own [data-risk] drill-down toggle and
+// its two close buttons, all on one delegated handler bound once on #p-risk (never replaced by
+// innerHTML, unlike its #risks/#riskDrill children).
+function riskDrillClose(){ state.riskDrill=null; renderRisk(); }
+function riskDrillToggle(id){
+  state.riskDrill = state.riskDrill===id ? null : id;
+  renderRisk();
+}
+document.getElementById("p-risk").addEventListener("click",function(e){
+  var j=e.target.closest("[data-jump]"); if(j){ jumpToAction(j.dataset.jump); return; }
+  if(e.target.id==="riskDrillClose"||e.target.id==="riskDrillClose2"){ riskDrillClose(); return; }
+  var t=e.target.closest("[data-risk]"); if(!t) return;
+  riskDrillToggle(t.dataset.risk);
+});
+// role="button" divs (not real button elements) don't get Enter/Space activation for free the way
+// the "View CAPA"/close buttons above do — same reason the EWMA chart's circle points and the
+// Portfolio table's rows each needed their own keydown handler.
+document.getElementById("p-risk").addEventListener("keydown",function(e){
+  if(e.key!=="Enter"&&e.key!==" ") return;
+  var t=e.target.closest("[data-risk]"); if(!t) return;
+  e.preventDefault();
+  riskDrillToggle(t.dataset.risk);
+});
 // idle-tile drill-down toggle (brainstorm-mode upgrade, 2026-08-21) — a real button element, so
 // Enter/Space activation already works natively; only the click needs wiring, matching kboard above.
 document.getElementById("cphCard").addEventListener("click",function(e){
@@ -9042,6 +9176,8 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   deriveDrbEmv:deriveDrbEmv,drbAssumptions:DRB_ASSUMPTIONS,deriveGbmParams:deriveGbmParams,
   deriveEarnedSchedule:deriveEarnedSchedule,
   risks:RISKS,pBand:P_BAND,tweenNum:tweenNum,mcQuantile:mcQuantile,
+  renderRisk:renderRisk,riskLinkedActions:riskLinkedActions,renderRiskDrill:renderRiskDrill,
+  renderContracts:renderContracts,
   eacTrendSeries:eacTrendSeries,eacDriftVelocity:eacDriftVelocity,acHistorySeries:acHistorySeries,forecastAccuracy:forecastAccuracy,
   revSvcDriftSeries:revSvcDriftSeries,floatErosionSeries:floatErosionSeries,pvA:pvA,acA:acA,evA:evA,pvB:pvB,milesLast:MILES[MILES.length-1],
   presentBeatsFull:PRESENT_BEATS_FULL,presentBeatsQuick:PRESENT_BEATS_QUICK,tourBeats:TOUR_BEATS,state:state,
