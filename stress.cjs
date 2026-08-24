@@ -3954,6 +3954,28 @@ console.log("== D13. ledger card ==");
   G.ledgerPkgSelect.value = "CP-201";
   fire(G.ledgerPkgSelect, "change", { target: G.ledgerPkgSelect });
   ok(+G.ledgerAc.value === 205.1, "switching the demo package to CP-201 resets the slider to ITS real AC (205.1)", String(G.ledgerAc.value));
+
+  // Earned Value slider (brainstorm-mode round, 2026-08-23) -- switching package also reset EV to
+  // CP-201's own real ev (178.4), the same discipline as the AC slider just above.
+  ok(+G.ledgerEv.value === 178.4, "switching the demo package to CP-201 also resets the EV slider to ITS real EV (178.4), not left stale from CP-101", String(G.ledgerEv.value));
+  // pre-registered independently before running (B27/B35), and RE-verified live in-browser after
+  // an initial pass caught the exact class of bug the comment in renderLedgerDemo() already warns
+  // about: 200.0 is off CP-201's own EV step grid (min 124.9, step 0.5 -> 124.9+k*0.5), and a real
+  // <input type="range"> silently snaps an off-grid .value to the nearest on-grid point (199.9,
+  // same as the AC slider's own test above) -- the Node stub does not model that snapping, so an
+  // assertion against literal 200.0's arithmetic would have passed here while showing a DIFFERENT
+  // number in every real browser. Using 199.9 (itself on-grid: (199.9-124.9)/0.5=150 exactly).
+  // CP-201 bac=305.0, ac=205.1: CPI=199.9/205.1=0.975, EAC=305.0/0.975=$312.9M, VAC=-$7.9M
+  G.ledgerEv.value = "199.9";
+  fire(G.ledgerEv, "input");
+  has("ledgerDemoOut", "0.975", "ledger demo: dragging EV (not AC) independently recomputes CPI to the correct value");
+  has("ledgerDemoOut", "312.9", "ledger demo: dragging EV independently recomputes EAC to the correct value");
+  has("ledgerDemoOut", "7.9", "ledger demo: dragging EV independently recomputes |VAC| to the correct value");
+  ok(+G.ledgerAc.value === 205.1, "dragging the EV slider left the AC slider's own value untouched -- two independent inputs, not one overwriting the other", String(G.ledgerAc.value));
+  ok(P.pkgs.filter(p => p.id === "CP-201")[0].ev === 178.4, "dragging the ledger demo's EV slider left the REAL PKGS CP-201.ev untouched (178.4)");
+  ok(Math.abs(P.totals.cpi - 0.956) < 0.001, "dragging the ledger demo's EV slider left the REAL portfolio CPI untouched (~0.956)", String(P.totals.cpi));
+  fire(G.ledgerDemoReset, "click");
+  ok(+G.ledgerEv.value === 178.4 && +G.ledgerAc.value === 205.1, "reset restores BOTH sliders to CP-201's real values", G.ledgerEv.value + "/" + G.ledgerAc.value);
 }
 
 /* =========================================================================
@@ -3990,9 +4012,9 @@ console.log("== D14. six KPI families card ==");
   const costFam = P.kpiFamilies.filter(f => f.key === "Cost")[0];
   has("kfilters", costFam.q.replace(/"/g, "&quot;"), "the Cost filter button's title attribute carries its own real question, not a generic label");
 
-  // the cross-reference jump button targets a real, existing element on the Schedule tab
-  ok(indexSrc.includes('data-jump-tab="sched" data-jump-el="schedDriftCard"'),
-    "the six-lenses card's cross-reference button targets a real existing element (schedDriftCard), not a placeholder id");
+  // the six-lenses card's own single cross-reference button (D33's real "one root cause, five
+  // instruments" panel superseded it, brainstorm-mode round 2026-08-23) -- each of that panel's
+  // five jump targets is checked directly in its own D34 block below instead.
 }
 
 console.log("== D15. three-layer architecture card (megaproject-controls-doc upgrade, 2026-08-21) ==");
@@ -5259,6 +5281,89 @@ console.log("== D33. Risk & Change-tab upgrade -- risk drill-down drawer, contra
   });
 }
 
+console.log("== D34. Overview-tab upgrade -- family-grid click-to-filter, Velocity Pulse hover sparklines, root-cause panel (brainstorm-mode round, 2026-08-23) ==");
+{
+  // A. real family counts, independently tallied from KPIS -- the brief's own claimed counts
+  // (Schedule 4, Risk 3, "Safety" 2) were fabricated; these are the real ones.
+  const fams = {};
+  P.kpis.forEach(k => { fams[k.fam] = (fams[k.fam] || 0) + 1; });
+  ok(fams.Cost === 7 && fams.Schedule === 6 && fams.Risk === 2 && fams.Change === 2 && fams.Delivery === 2 && fams.Compliance === 1,
+    "real per-family KPI counts, not the brief's fabricated Schedule(4)/Risk(3)/Safety(2)", JSON.stringify(fams));
+
+  // family-grid cards are now real click-to-filter shortcuts into the ALREADY-real #kfilters
+  // mechanism (state.fam/renderFilters()/renderBoard()), not a second filter implementation
+  ok(P.state.fam === "All", "sanity: family filter starts at All");
+  fire(G.familiesGrid, "click", { target: { closest: sel => sel === "[data-help]" ? null : sel === "[data-fam]" ? { dataset: { fam: "Cost" } } : null } });
+  ok(P.state.fam === "Cost", "clicking the Cost family card sets the REAL state.fam, reusing #kfilters' own filter, not a new one");
+  const boardHtml = G.kboard._html;
+  const costIds = P.kpis.filter(k => k.fam === "Cost").map(k => k.id);
+  const nonCostIds = P.kpis.filter(k => k.fam !== "Cost").map(k => k.id);
+  ok(costIds.every(id => boardHtml.includes('data-kpi="' + id + '"')) && nonCostIds.every(id => !boardHtml.includes('data-kpi="' + id + '"')),
+    "the board genuinely filters to only the 7 real Cost KPIs after the family-card click");
+
+  // the "i" help icon nested inside a family card must win first, or its own click would ALSO
+  // match [data-fam] on the parent card and wrongly change the filter every time someone just
+  // wanted the term definition
+  P.state.fam = "All";
+  fire(G.familiesGrid, "click", { target: { closest: sel => sel === "[data-help]" ? { dataset: { help: "cost" } } : null } });
+  ok(P.state.fam === "All", "clicking the nested help icon does NOT trigger the family filter");
+  P.state.fam = "All"; P.renderFilters(); P.renderBoard(); // reset before later sections run
+
+  // B. Velocity Pulse hover sparklines -- 4 of 5 pills carry a real 5-history+1-live series (the
+  // 5th, Non-Critical Progress Inflation, is a boolean firing/not-firing state with no real time
+  // series behind it, and correctly carries none rather than a fabricated one)
+  const pulseItems = P.velocityPulseItems();
+  ok(pulseItems.length === 5, "sanity: 5 real Velocity Pulse pills", String(pulseItems.length));
+  const withSeries = pulseItems.filter(it => it.series);
+  ok(withSeries.length === 4 && withSeries.every(it => it.series.length === 6),
+    "exactly 4 pills carry a real 6-point series (5 history + 1 live), Non-Critical Progress Inflation correctly has none", pulseItems.map(it => it.series ? it.series.length : "none").join(","));
+  ok(Math.abs(pulseItems[0].series[5] - P.totals.eac) < 0.01, "EAC velocity pill's live series point is the REAL current T.eac, not a duplicated hardcoded number");
+  ok(pulseItems[1].series[5] === P.pkgs.filter(p => p.id === "CP-201")[0].float, "float erosion pill's live series point is CP-201's REAL current float");
+
+  fire(G.velocityPulse, "mousemove", { target: { closest: sel => sel === "[data-pulse]" ? { dataset: { pulse: "0" } } : null }, clientX: 60, clientY: 60 });
+  const pulseTip = G.tip._html;
+  ok(pulseTip.includes("<svg class=\"spark\""), "hovering a Velocity Pulse pill shows the real sparkline() SVG, the same helper already used elsewhere on this page");
+  ok(pulseTip.includes(m(pulseItems[0].series[0])) && pulseTip.includes(m(pulseItems[0].series[5])),
+    "the sparkline tooltip's own text includes the real first and last EAC values from the series");
+  fire(G.velocityPulse, "mousemove", { target: { closest: () => null } });
+
+  ok(indexSrc.includes("pulseHost._pulseItems=items;"),
+    "Velocity Pulse tooltip stashes items on the host element for the same reason heatHost._gridRisks/ctHost._contracts do -- a closure captured on the first renderVelocityPulse() call would go stale on a later re-render");
+
+  // D. "One root cause, five instruments" consolidation panel -- every value read live off the
+  // same real functions the other 4 tabs already call, no hand-typed number
+  const threadHtml = G.rootCauseThread._html;
+  const r01 = P.risks.find(r => r.id === "R-01");
+  const r01Exp = P.pBand[r01.p] * r01.cost;
+  ok(threadHtml.includes(m(r01Exp)), "root-cause panel shows R-01's real priced exposure ($12.9M)", m(r01Exp));
+  ok(threadHtml.includes("NCR-2026-014"), "root-cause panel names the real linked Quality NCR");
+  const cph2 = P.deriveCph(P.cphCells[0]);
+  ok(threadHtml.includes(usd(cph2.totalIdle)), "root-cause panel shows the real crew CPH idle total ($100,156)", usd(cph2.totalIdle));
+  ok(threadHtml.includes("-40d"), "root-cause panel shows CP-201's real -40d float");
+  ok(threadHtml.includes(m(P.totals.eac)), "root-cause panel shows the real program-level EAC ($1,303.7M)", m(P.totals.eac));
+
+  // [data-jump] (the Quality NCR button) is scoped to #rootCauseThread specifically, not the whole
+  // #p-over tab -- #kdetail already has its own [data-jump] handler nested in that same tab, so a
+  // tab-level binding would have fired jumpToAction() twice for any click on ITS buttons
+  fire(G.rootCauseThread, "click", { target: { closest: sel => sel === "[data-jump]" ? { dataset: { jump: "NCR-2026-014" } } : null } });
+  ok(P.state.act === "NCR-2026-014" && P.state.tab === "act", "the root-cause panel's Quality NCR button navigates to the real Actions register entry via jumpToAction()");
+  ok(indexSrc.includes('document.getElementById("rootCauseThread").addEventListener("click"'),
+    "the [data-jump] handler is bound on #rootCauseThread specifically, not #p-over, avoiding the double-fire risk with #kdetail's own handler");
+
+  // R-01's own jump button opens its real risk drawer on arrival (data-jump-riskdrill), reusing
+  // last round's own drill-down rather than a second cross-instrument highlight mechanism
+  ok(indexSrc.includes('data-jump-tab="risk" data-jump-el="riskDrill" data-jump-riskdrill="R-01"'),
+    "root-cause panel's priced-risk button opens R-01's real drawer on arrival, reusing D33's own riskDrill mechanism");
+  P.state.riskDrill = null; P.state.tab = "over"; // best-effort reset; not asserted further
+
+  // compliance sweep for this round's own brief -- fabricated system-of-record names, LaTeX
+  // claims, wrong chapter counts, and confused ledger-sandbox numbers
+  ["SAP GL", "HeavyJob", "Unifier", "Bid Climate Spread", "Engineer's Estimate vs Low Bid",
+    "five-chapter", "5-chapter", "Chapter 1 of 5", "Action A-09"].forEach(bad => {
+    ok(!indexSrc.includes(bad), 'fabricated Overview-tab brief content never made it into index.html: "' + bad + '"');
+  });
+}
+
 /* =========================================================================
    E. otak.html — runtime + internal consistency
    ========================================================================= */
@@ -5352,7 +5457,12 @@ console.log("== F. sweeps ==");
   // schedule-drift trend) before framing its own 4-step walkthrough as a genuine EXTENSION into
   // Gate 5, not a 6th instrument — confirmed by the very next assertion below, which checks all
   // mentions still agree on the same number ("five").
-  ok(instrumentMentions.length === 5, "exactly 5 user-facing 'N instruments' mentions found (update this count if a 6th is intentionally added)", String(instrumentMentions.length));
+  // 6 as of the Overview-tab "one root cause, five instruments" consolidation panel (brainstorm-
+  // mode round, 2026-08-23) — its own <h3> heading is a genuinely new 6th user-facing mention of
+  // the same phrasing, consolidating what was five separate cross-tab sentences into one panel
+  // rather than adding a new claim; the panel's own JS comment was deliberately reworded to avoid
+  // double-counting a non-user-facing dev comment as a 7th.
+  ok(instrumentMentions.length === 6, "exactly 6 user-facing 'N instruments' mentions found (update this count if a 7th is intentionally added)", String(instrumentMentions.length));
   const counts = instrumentMentions.map(s => (s.match(/four|five|six/i) || [""])[0].toLowerCase());
   ok(counts.every(c => c === counts[0]), "all 'N instruments' mentions agree on the same number", JSON.stringify(counts));
 }

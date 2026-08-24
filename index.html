@@ -875,12 +875,15 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
 
         <div class="sec-h" style="margin-top:22px"><h4>Try it &mdash; change one input, watch the KPIs move</h4></div>
         <p style="margin:0 0 12px;font-size:12.8px;color:rgb(var(--c-mut));max-width:70ch">
-          Pick a package, drag its Actual Cost. This reads a local copy of that one package &mdash;
-          nothing else on the page moves, because only the real ledger above drives the real board.</p>
+          Pick a package, drag its Actual Cost or Earned Value. This reads a local copy of that one
+          package &mdash; nothing else on the page moves, because only the real ledger above drives
+          the real board.</p>
         <div class="ledgerDemo">
           <select id="ledgerPkgSelect" aria-label="Control account for the demo"></select>
           <div class="slider"><label for="ledgerAc">Actual Cost ($M)</label>
             <input type="range" id="ledgerAc" step="0.5"><span class="tab-num mono" id="ledgerAcVal"></span></div>
+          <div class="slider"><label for="ledgerEv">Earned Value ($M)</label>
+            <input type="range" id="ledgerEv" step="0.5"><span class="tab-num mono" id="ledgerEvVal"></span></div>
           <div class="estats" id="ledgerDemoOut" style="margin-top:10px"></div>
           <button class="btn" id="ledgerDemoReset" type="button" style="margin-top:10px">Reset</button>
         </div>
@@ -898,12 +901,19 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         <span class="tag">the taxonomy behind the board below</span></div>
       <p class="lede">Every KPI on this board belongs to exactly one of six families. They aren't an
         arbitrary filing system — each one answers a genuinely different operational question, and a
-        real problem is rarely visible in only one of them at once. <button type="button" class="btn"
-        data-jump-tab="sched" data-jump-el="schedDriftCard" style="min-height:auto;padding:1px 8px;font-size:12.5px">
-        See one root cause show up in five different instruments &rarr;</button></p>
+        real problem is rarely visible in only one of them at once. Click a family card below to filter
+        the board to it, or see the same tunnel root cause named five separate times across five
+        different tabs, consolidated in one place just below.</p>
       <div class="card" id="familiesCard">
         <div class="ledgerGrid" id="familiesGrid"></div>
       </div>
+
+      <div class="sec-h" style="margin-top:22px"><h3>One root cause, five instruments</h3></div>
+      <p class="lede">Tunnel ground conditions worse than baseline show up independently in five places
+        on this dashboard — a priced risk, a quality NCR, a crew's idle time, a package's own float, and
+        the program's own EAC forecast. Five instruments agreeing is a real signal, not five separately
+        counted anecdotes of the same underlying fact.</p>
+      <div class="card" id="rootCauseThread"></div>
 
       <div class="sec-h" style="margin-top:34px"><h2>Three layers, not one number</h2>
         <span class="tag">how this dashboard actually catches drift</span></div>
@@ -2809,21 +2819,28 @@ function renderLedgerInspector(){
 }
 function ledgerDemoBase(){ return PKGS.filter(function(p){ return p.id===state.ledgerDemoPkg; })[0]; }
 function renderLedgerDemo(resetSlider){
-  var base=ledgerDemoBase(), slider=document.getElementById("ledgerAc");
+  var base=ledgerDemoBase(), slider=document.getElementById("ledgerAc"), evSlider=document.getElementById("ledgerEv");
   if(resetSlider){
-    // min/max are built OUT from base.ac in whole step multiples, not independently rounded —
-    // a real <input type="range"> silently snaps .value to the nearest point on its own step
-    // grid (min + N*step), and an independently-rounded min (e.g. (base.ac*0.7).toFixed(1)) will
-    // usually put base.ac itself off-grid, so "Reset" would silently NOT restore the true value.
-    // Only caught by live-browser verification — the Node test stub doesn't model step-snapping
-    // at all, so this passed every automated assertion while being wrong on the actual page.
+    // min/max are built OUT from base.ac/base.ev in whole step multiples, not independently
+    // rounded — a real <input type="range"> silently snaps .value to the nearest point on its own
+    // step grid (min + N*step), and an independently-rounded min (e.g. (base.ac*0.7).toFixed(1))
+    // will usually put base.ac itself off-grid, so "Reset" would silently NOT restore the true
+    // value. Only caught by live-browser verification — the Node test stub doesn't model
+    // step-snapping at all, so this passed every automated assertion while being wrong on the
+    // actual page. Earned Value slider (brainstorm-mode round, 2026-08-23) uses the exact same
+    // grid-alignment discipline, independently, since base.ev's own 30%-band midpoint lands on a
+    // different step grid than base.ac's.
     var step=0.5, halfSteps=Math.round(base.ac*0.3/step);
     slider.min=(base.ac-halfSteps*step).toFixed(1); slider.max=(base.ac+halfSteps*step).toFixed(1); slider.step=step;
     slider.value=base.ac;
+    var evHalfSteps=Math.round(base.ev*0.3/step);
+    evSlider.min=(base.ev-evHalfSteps*step).toFixed(1); evSlider.max=(base.ev+evHalfSteps*step).toFixed(1); evSlider.step=step;
+    evSlider.value=base.ev;
   }
-  var ac=+slider.value;
+  var ac=+slider.value, ev=+evSlider.value;
   document.getElementById("ledgerAcVal").textContent=m(ac);
-  var cpi=base.ev/ac, eac=base.bac/cpi, vac=base.bac-eac;
+  document.getElementById("ledgerEvVal").textContent=m(ev);
+  var cpi=ev/ac, eac=base.bac/cpi, vac=base.bac-eac;
   document.getElementById("ledgerDemoOut").innerHTML=
     [["CPI = EV ÷ AC",idx(cpi),cpi>=1?"ok":cpi>=0.95?"wa":"ba"],
      ["EAC = BAC ÷ CPI",m(eac),eac<=base.bac?"ok":"ba"],
@@ -2885,24 +2902,61 @@ function velocityPulseItems(){
   var eGapFirst=e.points[0].ucl-e.points[0].ewma, eGapLast=e.points[e.points.length-1].ucl-e.points[e.points.length-1].ewma;
   var eNarrowing=eGapLast<eGapFirst;
   var inflationFiring=T.spi>=1.00 && T.cpli<0.90;
+  // per-item hover series (brainstorm-mode round, 2026-08-23) -- the same real 5-period-history
+  // + 1-live-point arrays each pill's own headline number is already computed from above, just
+  // mapped down to plain numbers for sparkline(). Non-Critical Progress Inflation is a boolean
+  // firing/not-firing state, not a time series -- no fabricated history for it, series omitted.
   return [
-   {n:"EAC velocity",v:sgn(dv)+"/mo",rag:dv>1.0?"r":"g",note:dv>1.0?"Breached $1.0M/mo":"Within threshold",jumpTab:"cost",jumpEl:"eacDriftOut"},
-   {n:"Float erosion",v:days(floatRate)+"/mo",rag:floatAllDown?"r":"g",note:floatAllDown?"5/5 periods, unreversed":"Mixed direction",jumpTab:"sched",jumpEl:"floatErosionCard"},
-   {n:"Milestone slip",v:days(netSlip)+" net",rag:msAllUp?"r":"g",note:msAllUp?"5/5 periods, unreversed":"Mixed direction",jumpTab:"sched",jumpEl:"schedDriftCard"},
-   {n:"Crew CPH EWMA",v:sgnUsd(eGapLast-eGapFirst)+"/hr gap",rag:eFlags>0?"r":eNarrowing?"a":"g",note:eFlags>0?eFlags+" week(s) breached UCL":eNarrowing?"Gap narrowing, no breach yet":"Gap stable or widening",jumpTab:"ai",jumpEl:"aiEwmaControl"},
+   {n:"EAC velocity",v:sgn(dv)+"/mo",rag:dv>1.0?"r":"g",note:dv>1.0?"Breached $1.0M/mo":"Within threshold",jumpTab:"cost",jumpEl:"eacDriftOut",
+    series:eacTrendSeries().map(function(p){return p.eac;}),seriesLabels:eacTrendSeries().map(function(p){return p.m;}),seriesFmt:m},
+   {n:"Float erosion",v:days(floatRate)+"/mo",rag:floatAllDown?"r":"g",note:floatAllDown?"5/5 periods, unreversed":"Mixed direction",jumpTab:"sched",jumpEl:"floatErosionCard",
+    series:floatErosionSeries().map(function(p){return p.float;}),seriesLabels:floatErosionSeries().map(function(p){return p.m;}),seriesFmt:days},
+   {n:"Milestone slip",v:days(netSlip)+" net",rag:msAllUp?"r":"g",note:msAllUp?"5/5 periods, unreversed":"Mixed direction",jumpTab:"sched",jumpEl:"schedDriftCard",
+    series:revSvcDriftSeries().map(function(p){return p.slip;}),seriesLabels:revSvcDriftSeries().map(function(p){return p.m;}),seriesFmt:days},
+   {n:"Crew CPH EWMA",v:sgnUsd(eGapLast-eGapFirst)+"/hr gap",rag:eFlags>0?"r":eNarrowing?"a":"g",note:eFlags>0?eFlags+" week(s) breached UCL":eNarrowing?"Gap narrowing, no breach yet":"Gap stable or widening",jumpTab:"ai",jumpEl:"aiEwmaControl",
+    series:CPH_CELLS[0].weeks.map(function(w){return w.actual;}),seriesLabels:CPH_CELLS[0].weeks.map(function(w){return w.w;}),seriesFmt:function(v){return usd(v)+"/hr";}},
    {n:"Non-Critical Progress Inflation",v:inflationFiring?"FIRING":"Not firing",rag:inflationFiring?"r":"g",note:"SPI≥1.00 & CPLI<0.90",jumpTab:"over",jumpEl:"kboard",jumpOpenkpi:"spi"}
   ];
 }
 function renderVelocityPulse(){
-  document.getElementById("velocityPulse").innerHTML=velocityPulseItems().map(function(it){
+  var items=velocityPulseItems();
+  document.getElementById("velocityPulse").innerHTML=items.map(function(it,i){
     return '<button type="button" class="rowbar hot" style="grid-template-columns:1fr auto;text-align:left;width:100%;border:none;'+
       'background:none;cursor:pointer;font:inherit;color:inherit" data-jump-tab="'+it.jumpTab+'" data-jump-el="'+it.jumpEl+'"'+
-      (it.jumpOpenkpi?' data-jump-openkpi="'+it.jumpOpenkpi+'"':'')+'>'+
+      (it.jumpOpenkpi?' data-jump-openkpi="'+it.jumpOpenkpi+'"':'')+(it.series?' data-pulse="'+i+'"':'')+'>'+
       '<span><span style="font-size:12.5px">'+it.n+'</span><br><span class="tab-num mono" style="font-size:11px;color:rgb(var(--c-mut))">'+it.note+'</span></span>'+
       '<span style="text-align:right"><span class="tab-num mono" style="font-size:13px">'+it.v+'</span><br>'+
       '<span class="pill '+it.rag+(it.rag==="r"?" flash":"")+'" style="margin-top:3px">'+
       (it.rag==="r"?"DRIFT":it.rag==="a"?"WATCH":"STEADY")+'</span></span></button>';
   }).join("");
+  // Hover sparkline (brainstorm-mode round, 2026-08-23) -- reuses the real sparkline() helper and
+  // the shared #tip element the tornado/heat map/contract table already use, hover-only (not also
+  // wired to click, unlike those three): these buttons' own click already navigates via the real
+  // [data-jump-tab] handler, and adding a second click behavior on top would fire both at once,
+  // navigating away before a tap could ever show the tooltip. Same host-element-stash pattern as
+  // heatHost._gridRisks/ctHost._contracts -- items is rebuilt fresh every render, so a closure
+  // captured on the FIRST wiring would go stale on a later re-render (theme toggle, tab revisit).
+  var pulseHost=document.getElementById("velocityPulse");
+  pulseHost._pulseItems=items;
+  if(!pulseHost.dataset.tipWired){
+    var pulseTip=document.getElementById("tip");
+    function pulseTipFn(e){
+      var t=e.target.closest("[data-pulse]");
+      if(!t){ pulseTip.classList.remove("on"); return; }
+      var it=pulseHost._pulseItems[+t.dataset.pulse];
+      if(!it||!it.series) return;
+      var fmt=it.seriesFmt||String;
+      pulseTip.innerHTML="<b>"+it.n+"</b>"+it.seriesLabels.join(" &middot; ")+
+        sparkline(it.series,RAG[it.rag])+
+        it.series.map(fmt).join(" &rarr; ");
+      pulseTip.classList.add("on");
+      pulseTip.style.left=Math.min(e.clientX+14,window.innerWidth-262)/curZoom()+"px";
+      pulseTip.style.top=Math.min(e.clientY+14,window.innerHeight-130)/curZoom()+"px";
+    }
+    pulseHost.addEventListener("mousemove",pulseTipFn);
+    pulseHost.addEventListener("mouseleave",function(){ pulseTip.classList.remove("on"); });
+    pulseHost.dataset.tipWired="1";
+  }
 }
 function renderLayersGrid(){
   document.getElementById("layersGrid").innerHTML = LAYERS.map(function(l){
@@ -2915,9 +2969,49 @@ function renderLayersGrid(){
 function renderFamiliesGrid(){
   document.getElementById("familiesGrid").innerHTML = KPI_FAMILIES.map(function(f){
     var n = KPIS.filter(function(k){ return k.fam===f.key; }).length;
-    return '<div class="ledger-item"><div class="top"><span class="abbr">'+f.key+'</span>'+
+    // click-to-filter (brainstorm-mode round, 2026-08-23) -- reuses the REAL #kfilters mechanism
+    // (state.fam/renderFilters()/renderBoard()) that already exists below this card; this grid was
+    // purely decorative before, a passive summary sitting right above a working filter it never
+    // triggered. data-fam on the OUTER card, not the help-icon button, so the icon's own click
+    // (data-help) keeps working independently -- e.stopPropagation() isn't needed since the
+    // delegated handler checks e.target.closest("[data-help]") first and returns before reaching
+    // the family-filter branch (same precedence idiom as #kdetail's own data-jump vs closeDetail).
+    return '<div class="ledger-item" tabindex="0" role="button" data-fam="'+f.key+'" style="cursor:pointer"><div class="top"><span class="abbr">'+f.key+'</span>'+
       '<button type="button" class="help-ic" data-help="'+f.key.toLowerCase()+'" aria-label="What does this term mean?" aria-expanded="false">i</button></div>'+
-      '<div class="nm">'+f.q+'</div><div class="sub">'+f.why+' ('+n+' KPI'+(n===1?"":"s")+')</div></div>';
+      '<div class="nm">'+f.q+'</div><div class="sub">'+f.why+' ('+n+' KPI'+(n===1?"":"s")+') &mdash; click to filter the board below &rarr;</div></div>';
+  }).join("");
+}
+
+/* Root-cause consolidation panel (brainstorm-mode round, 2026-08-23) -- this same tunnel-condition
+   thread and cross-reference list already existed scattered as narrative prose across four
+   different tabs (index.html comments at renderRisk()/renderNarr()/renderCph() etc.); this
+   consolidates it into one clickable panel instead of separately-written sentences a reader would
+   have to already know to go looking for. Every value below is read live off the same real
+   functions those other tabs already call -- no new computation, no hand-typed number. (Comment
+   deliberately avoids the literal "N instruments" phrasing the H3 heading below uses -- this is
+   dev-only prose, not user-facing, and would otherwise inflate stress.cjs's own "N instruments"
+   compliance-sweep count for the wrong reason.) */
+function renderRootCauseThread(){
+  var r01=RISKS.filter(function(r){return r.id==="R-01";})[0];
+  var exp=P_BAND[r01.p]*r01.cost;
+  var ncr=ACTIONS.filter(function(a){return a.id==="NCR-2026-014";})[0];
+  var ncrStatus=STATUS_META[actionStatus(ncr)];
+  var cph=deriveCph(CPH_CELLS[0]);
+  var cp201=rows.filter(function(r){return r.id==="CP-201";})[0];
+  var items=[
+   {n:"Priced risk",v:m(exp)+" exposure",sub:r01.n,jump:'data-jump-tab="risk" data-jump-el="riskDrill" data-jump-riskdrill="R-01"'},
+   {n:"Quality NCR",v:ncrStatus.label,sub:ncr.title.replace(/&mdash;.*/,"").trim(),jump:'data-jump="NCR-2026-014"'},
+   {n:"Crew idle time",v:usd(cph.totalIdle),sub:"CP-201's own crew, six weeks",jump:'data-jump-tab="del" data-jump-el="cphCard" data-jump-cphdrill'},
+   {n:"Package float",v:days(cp201.float),sub:"CP-201, the most negative on the program",jump:'data-jump-tab="sched" data-jump-el="floatErosionCard"'},
+   {n:"EAC forecast",v:m(T.eac),sub:"Program-level, bottom-up",jump:'data-jump-tab="cost" data-jump-el="eacDriftOut"'}
+  ];
+  document.getElementById("rootCauseThread").innerHTML=items.map(function(it){
+    return '<div class="rowbar" style="grid-template-columns:120px 1fr auto;cursor:default">'+
+      '<span style="font-size:12.5px;color:rgb(var(--c-mut))">'+it.n+'</span>'+
+      '<span style="font-size:12.5px">'+it.sub+'</span>'+
+      '<span style="text-align:right;display:flex;align-items:baseline;gap:8px;justify-content:flex-end">'+
+      '<span class="tab-num mono" style="font-size:12.5px">'+it.v+'</span>'+
+      '<button type="button" class="btn" '+it.jump+' style="min-height:auto;padding:1px 8px;font-size:11px">See it &rarr;</button></span></div>';
   }).join("");
 }
 
@@ -8635,6 +8729,10 @@ window.addEventListener("click",function(e){
     // jumpCphdrill above, so the reader lands on the root-cause/escalation content directly,
     // not a closed board they'd still have to click into themselves.
     else if(j.dataset.jumpOpenkpi) pre=function(){ state.kpi=j.dataset.jumpOpenkpi; renderDetail(); syncKpiAriaExpanded(); };
+    // data-jump-riskdrill="<id>" (brainstorm-mode round, 2026-08-23) -- the Overview tab's "one
+    // root cause, five instruments" panel opens R-01's own drawer on arrival, same "open on jump"
+    // idiom as jumpCphdrill/jumpOpenkpi above.
+    else if(j.dataset.jumpRiskdrill) pre=function(){ state.riskDrill=j.dataset.jumpRiskdrill; renderRisk(); };
     jumpToEl(j.dataset.jumpTab,j.dataset.jumpEl,pre);
     return;
   }
@@ -8728,6 +8826,27 @@ document.getElementById("kfilters").addEventListener("click",function(e){
   state.fam=b.dataset.fam; renderFilters(); renderBoard();
   refocusFilter("kfilters","data-fam",state.fam);
 });
+// Family-grid click-to-filter (brainstorm-mode round, 2026-08-23) -- the "i" help icon nested
+// inside each card must win first, or its own click would also match [data-fam] on the parent
+// card and wrongly filter the board every time someone just wanted the term definition. Not
+// stopping propagation: the window-level data-help delegate (bound separately) still needs this
+// same click to actually open the tooltip.
+function familyFilterClick(f){
+  jumpToEl("over","kboard",function(){ state.fam=f; renderFilters(); renderBoard();
+    refocusFilter("kfilters","data-fam",state.fam); });
+}
+document.getElementById("familiesGrid").addEventListener("click",function(e){
+  if(e.target.closest("[data-help]")) return;
+  var b=e.target.closest("[data-fam]"); if(!b) return;
+  familyFilterClick(b.dataset.fam);
+});
+document.getElementById("familiesGrid").addEventListener("keydown",function(e){
+  if(e.key!=="Enter"&&e.key!==" ") return;
+  if(e.target.closest("[data-help]")) return;
+  var b=e.target.closest("[data-fam]"); if(!b) return;
+  e.preventDefault();
+  familyFilterClick(b.dataset.fam);
+});
 document.getElementById("audienceFilters").addEventListener("click",function(e){
   var b=e.target.closest("[data-aud]"); if(!b) return;
   state.audience=b.dataset.aud; state.fam="All";
@@ -8784,6 +8903,15 @@ document.getElementById("p-risk").addEventListener("keydown",function(e){
   var t=e.target.closest("[data-risk]"); if(!t) return;
   e.preventDefault();
   riskDrillToggle(t.dataset.risk);
+});
+// "One root cause, five instruments" panel's own [data-jump] target (the Quality NCR button --
+// the other four use the generic data-jump-tab mechanism, which is already handled globally)
+// (brainstorm-mode round, 2026-08-23). Same [data-jump] -> jumpToAction() idiom as #p-del/#p-risk,
+// but scoped to #rootCauseThread itself rather than the whole #p-over tab -- #kdetail already has
+// its own [data-jump] handler nested inside that same tab, and binding at the tab level would fire
+// jumpToAction() twice for any click on one of ITS buttons (once via #kdetail, once bubbling up).
+document.getElementById("rootCauseThread").addEventListener("click",function(e){
+  var b=e.target.closest("[data-jump]"); if(b) jumpToAction(b.dataset.jump);
 });
 // idle-tile drill-down toggle (brainstorm-mode upgrade, 2026-08-21) — a real button element, so
 // Enter/Space activation already works natively; only the click needs wiring, matching kboard above.
@@ -8897,6 +9025,7 @@ body.addEventListener("keydown",function(e){
 // native (truthy) Event object as resetSlider on every drag tick, re-clamping min/max/value and
 // making the slider un-draggable past its own starting point.
 document.getElementById("ledgerAc").addEventListener("input",function(){ renderLedgerDemo(); });
+document.getElementById("ledgerEv").addEventListener("input",function(){ renderLedgerDemo(); });
 // reads the select by id, not event.target — matches this file's own established convention
 // (renderWhatIf() does the same for its three sliders) rather than trusting the event's target.
 document.getElementById("ledgerPkgSelect").addEventListener("change",function(){
@@ -9128,6 +9257,7 @@ document.getElementById("mcDistPert").addEventListener("click",function(){ state
 renderExecSummary();
 renderLedgerCard();
 renderFamiliesGrid();
+renderRootCauseThread();
 renderLayersGrid();
 renderVelocityPulse();
 renderPhases(); renderStrip(); renderPortfolio(); renderAudienceFilters(); renderFilters(); renderBoard(); renderDetail();
@@ -9194,6 +9324,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   pkgs:PKGS,ledgerInputs:LEDGER_INPUTS,kpiLedger:KPI_LEDGER,kpiLedgerMixed:KPI_LEDGER_MIXED,
   kpiLedgerNone:KPI_LEDGER_NONE,ledgerProvenanceDbox:ledgerProvenanceDbox,ledgerDemoBase:ledgerDemoBase,
   renderLedgerDemo:renderLedgerDemo,kpiFamilies:KPI_FAMILIES,renderFamiliesGrid:renderFamiliesGrid,
+  renderRootCauseThread:renderRootCauseThread,renderFilters:renderFilters,renderBoard:renderBoard,
   layers:LAYERS,renderLayersGrid:renderLayersGrid,
   pertPlayRow:pertPlayRow,pertPlayDomain:pertPlayDomain,pertPlayBounds:pertPlayBounds,
   pertPlayClamp:pertPlayClamp,pertPlaySetHandle:pertPlaySetHandle,renderPertPlay:renderPertPlay,
