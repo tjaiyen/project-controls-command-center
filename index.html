@@ -1628,8 +1628,10 @@ join dim_control_account b using (package_id)</pre></div>
       <div class="sec-h" style="margin-top:30px"><h3>Statistical control &mdash; retrospective anomaly check<button type="button" class="help-ic" data-help="zscore" aria-label="What does this term mean?" aria-expanded="false">i</button></h3></div>
       <p class="lede">The guards above are deterministic tie-outs &mdash; recompute and compare, pass or fail.
         This is a different kind of check: a statistical control run over a real historical series already on
-        this page (CP-201's weekly crew cost-per-hour), flagging any point beyond &plusmn;2.5 standard
-        deviations from the series mean. Not a live feed &mdash; this ledger is static and synthetic, same as
+        this page (CP-201's weekly crew cost-per-hour), flagging any point beyond &plusmn;<span id="zThreshLede1">2.5</span> standard
+        deviations from the series mean &mdash; a standard SPC parameter choice, not derived from this
+        program's own history (same disclosure the EWMA panel below makes about its own &lambda;/L). Not a
+        live feed &mdash; this ledger is static and synthetic, same as
         everywhere else on this page &mdash; but the same rule that would catch an anomalous ERP posting on a
         real, continuously-updating series, run honestly against the one real (if small) series this
         dashboard has.</p>
@@ -1640,7 +1642,7 @@ join dim_control_account b using (package_id)</pre></div>
       </details>
 
       <div class="sec-h" style="margin-top:30px"><h3>EWMA control chart &mdash; catching persistent drift, not just outliers<button type="button" class="help-ic" data-help="ewma" aria-label="What does this term mean?" aria-expanded="false">i</button></h3></div>
-      <p class="lede">The check above flags any single point beyond &plusmn;2.5 standard deviations of the
+      <p class="lede">The check above flags any single point beyond &plusmn;<span id="zThreshLede2">2.5</span> standard deviations of the
         series mean &mdash; blind to a small, persistent drift that never individually crosses that line. An
         Exponentially Weighted Moving Average (EWMA) tracks the whole trend instead, weighting recent points
         more heavily, so a steady creep still shows up even when no single week is itself an outlier. Same
@@ -1834,9 +1836,11 @@ join dim_control_account b using (package_id)</pre></div>
       <div class="note"><b>How status is derived.</b> Nothing below is hand-set. Each item carries an
         opened date, a due date and a last-touched date; status is computed against the program's data
         date the same way every other figure on this dashboard is computed &mdash; move the data date and
-        every status recalculates. <b>Escalated</b> = overdue by 5+ days. <b>At risk</b> is an independent
-        flag, not a status: no update in 10+ days, checked even when an item isn't due yet &mdash; the
-        proactive signal that catches drift before the due date does. An item can be both.</p>
+        every status recalculates. <b>Escalated</b> = overdue by 5+ days. <b>Stale</b> is an independent
+        flag, not a status &mdash; and a deliberately different word from this dashboard's own "At risk"
+        RAG label used everywhere else (a KPI/package breaching its threshold): no update in 10+ days,
+        checked even when an item isn't due yet, the proactive signal that catches drift before the due
+        date does. An item can be both escalated and stale.</p>
       </div>
       <details class="dbox" style="margin-top:14px">
         <summary>How this is actually computed</summary>
@@ -7554,6 +7558,13 @@ function renderZscoreMath(){
   var series=CPH_CELLS[0].weeks.map(function(w){ return w.actual; });
   var z=deriveZScores(series);
   var last=z.points[z.points.length-1], w=CPH_CELLS[0].weeks[z.points.length-1];
+  // the two lede paragraphs above this panel used to hardcode "2.5" as static prose -- the exact
+  // "magic number that could silently drift" bug class this file's own comments elsewhere warn
+  // about (brainstorm-mode upgrade, 2026-08-24). Read live off z.threshold instead, same as the
+  // pill and glossary already correctly do.
+  ["zThreshLede1","zThreshLede2"].forEach(function(id){
+    var el=document.getElementById(id); if(el) el.textContent=z.threshold;
+  });
   document.getElementById("zscoreMathBody").innerHTML=
    "<p><code>mean = &Sigma;v &divide; n</code>, <code>&sigma; = &radic;(&Sigma;(v&minus;mean)&sup2; &divide; n)</code>, "+
    "<code>z = (v &minus; mean) &divide; &sigma;</code> &mdash; population statistics over the "+z.points.length+
@@ -7565,7 +7576,10 @@ function renderZscoreMath(){
    "out to <b style='color:rgb(var(--c-ink))'>"+usd(z.sd)+"/hr</b>. "+w.w+", the most recent week, actualed "+
    usd(w.actual)+"/hr &rarr; <code>z = ("+usd(w.actual)+" &minus; "+usd(z.mean)+") &divide; "+usd(z.sd)+" = "+
    last.z.toFixed(2)+"</code>, matching the row above &mdash; because this IS that number, not a separate one "+
-   "that happens to agree.</p>";
+   "that happens to agree.</p>"+
+   "<p style='margin-top:8px'>&plusmn;"+z.threshold+"&sigma; is a standard SPC parameter choice, not derived "+
+   "from this program's own history &mdash; the same disclosure the EWMA panel below makes about its own "+
+   "&lambda;/L (a ~3&sigma;-equivalent control-limit width is the industry-conventional starting point).</p>";
 }
 /* Same visual family as renderStatControl() above — a sibling, complementary check, not new
    chrome. Advanced-quant upgrade, 2026-08-23. */
@@ -8084,7 +8098,7 @@ var GLOSS=[
   e:function(){ return "This program's own WBS maps 100% of its "+m(T.bac)+" budget to a named scope element and owner — see the Operating Framework tab's control-account mapping."; }},
  {k:"abs", cat:"data", jT:"data", jE:"cdeFlow", t:"ABS — Asset Breakdown Structure", p:"How an owner organizes an asset for operations and maintenance — by functional system, not by the contractor's work packages. Reconciling a WBS-built program into an ABS-run facility is exactly where handover data tends to get lost.",
   e:function(){ return "See the Data Strategy tab's rebaselining workflow — the real four-phase process for bringing legacy, mixed-vintage assets into a clean digital record."; }},
- {k:"zscore", cat:"field", jT:"ai", jE:"aiStatControl", t:"Z-score anomaly check", p:"How far a single data point sits from a series' own historical average, measured in standard deviations. A genuine outlier detector — good at catching one week that's suddenly way off — but blind to a slow, persistent drift that never individually crosses the threshold, which is exactly what the EWMA control chart below it exists to catch.",
+ {k:"zscore", cat:"field", jT:"ai", jE:"aiStatControl", t:"Z-score anomaly check", p:"How far a single data point sits from a series' own historical average, measured in standard deviations. A genuine outlier detector — good at catching one week that's suddenly way off — but blind to a slow, persistent drift that never individually crosses the threshold, which is exactly what the EWMA control chart below it exists to catch. The threshold itself (&plusmn;2.5&sigma;) is a standard SPC parameter choice, not derived from this program's own history — same disclosure the EWMA panel makes about its own &lambda;/L.",
   e:function(){ var series=CPH_CELLS[0].weeks.map(function(w){return w.actual;}), z=deriveZScores(series), flags=z.points.filter(function(p2){return p2.flag;}).length;
     return "Run against the tunnel crew's own 6-week $/hr series: "+flags+" of "+z.points.length+" weeks currently cross the &plusmn;"+z.threshold+
       "&sigma; threshold ("+(flags?"a real, live flag":"a genuine null result, not a manufactured anomaly")+")."; }},

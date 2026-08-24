@@ -5782,6 +5782,34 @@ console.log("== D39. Probability basis + band names -- TJ's direct follow-up ('w
     "pband's live worked example states the real risk id, band number, band name, and percentage together", pbandLive);
 }
 
+console.log("== D40. Math-panel audit -- 2 real gaps found across the other 10 'how computed' panels (brainstorm-mode round, 2026-08-24) ==");
+{
+  // Actions tab: "At risk" word-conflation fixed -- the same term was the standing dashboard-wide
+  // RAG-red label AND (in this one note) an unrelated 10-day-no-touch flag whose real on-screen
+  // badge says "stale", never "At risk".
+  const actNote = indexSrc.match(/<div class="note"><b>How status is derived\.<\/b>[\s\S]*?<\/div>/);
+  ok(!!actNote, "Actions tab's 'How status is derived' note exists");
+  const actNoteText = actNote[0];
+  ok(actNoteText.includes("<b>Stale</b> is an independent"), "note now labels the 10-day-no-touch flag 'Stale', matching its real on-screen badge text");
+  ok(actNoteText.includes("this dashboard's own \"At risk\""), "note explicitly distinguishes itself from the standing dashboard-wide 'At risk' RAG label, closing the word-conflation");
+  ok(!/<b>At risk<\/b> is an independent/.test(actNoteText), "the old conflated phrasing ('At risk' for the stale flag) is gone");
+
+  // z-score: the two static lede paragraphs now read the real threshold live, not a hardcoded "2.5"
+  ok(idsA.includes("zThreshLede1") && idsA.includes("zThreshLede2"), "both z-score lede spans exist in markup");
+  ok(String(G.zThreshLede1.textContent) === "2.5" && String(G.zThreshLede2.textContent) === "2.5",
+    "both lede spans are populated live from deriveZScores()'s real threshold, not left as static unpopulated text",
+    String(G.zThreshLede1.textContent) + "/" + String(G.zThreshLede2.textContent));
+  // pre-registered: deriveZScores()'s own default really is 2.5 -- confirms the live value and the
+  // rendered text agree, not just that SOME value got written
+  ok(indexSrc.includes("threshold=threshold||2.5"), "pre-registered: deriveZScores()'s real default threshold is still 2.5, matching what the spans were just confirmed to show");
+
+  // both the math panel and the glossary now disclose the threshold is a convention, not derived --
+  // parity with the EWMA panel's own equivalent disclosure
+  has("zscoreMathBody", "standard SPC parameter choice, not derived", "z-score math panel now discloses its threshold is a convention, matching EWMA's own disclosure pattern");
+  const zscoreGloss = P.gloss.filter(g => g.k === "zscore")[0];
+  ok(/standard SPC parameter choice, not derived/.test(zscoreGloss.p), "z-score glossary entry's own prose carries the same disclosure, not just the math panel");
+}
+
 /* =========================================================================
    E. otak.html — runtime + internal consistency
    ========================================================================= */
