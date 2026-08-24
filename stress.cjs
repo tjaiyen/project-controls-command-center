@@ -5656,6 +5656,62 @@ console.log("== D36. Gate 5 solvency what-if sandbox + accessibility (brainstorm
   });
 }
 
+console.log("== D37. Chart legend/clarity pass -- 7 gaps found by a full-dashboard audit (brainstorm-mode round, 2026-08-24) ==");
+{
+  // Item 1 -- risk heat map: real legend text + the theme-token/dark-mode fix
+  ok(idsA.includes("heatLegend"), "markup contains #heatLegend");
+  has("heatLegend", "score &ge;15", "heat map legend states the real high-severity numeric threshold, not just a color name");
+  has("heatLegend", "8&ndash;14", "heat map legend states the real medium-severity numeric band");
+  has("heatLegend", "score &lt;8", "heat map legend states the real low-severity threshold");
+  ok(indexSrc.includes('rgb(var(--c-bad) / .45)') && indexSrc.includes('rgb(var(--c-warn) / .4)') && indexSrc.includes('rgb(var(--c-ok) / .35)'),
+    "heat cell backgrounds now resolve through the theme-aware --c-bad/--c-warn/--c-ok tokens, not literal hex (re-themes correctly on the dark/light toggle)");
+  ok(!indexSrc.includes('"#FCA5A5":band==="medium"?"#FCD34D"'), "the old hardcoded, non-re-theming pastel hex literals are gone");
+  ok(!indexSrc.includes('"2px solid #7F1D1D"'), "the old hardcoded hex border literal is gone");
+  ok(!indexSrc.includes(".heat .hc{aspect-ratio:2/1;border-radius:5px;display:grid;place-items:center;\n  font:600 12px/1 ui-monospace,monospace;color:#0F172A}"),
+    "heat cell digit color is no longer the old hardcoded #0F172A");
+  ok(indexSrc.includes("color:rgb(var(--c-ink))}") , "heat cell digit color is now theme-aware (--c-ink)");
+
+  // Item 2 -- Galton canvas: reference-line text labels (was zero fillText calls before this fix)
+  ok(indexSrc.includes('ctx.fillText(t[2],X(t[0]),PT+10)'), "galtonDrawFrame() now draws visible text labels on its reference lines");
+  ok((indexSrc.match(/"BAC "\+m\(T\.bac\)/g) || []).length >= 2,
+    "the Galton canvas reuses the exact same 'BAC $X.XM' label text as the Monte Carlo histogram's mcMarker() call, not new wording", String((indexSrc.match(/"BAC "\+m\(T\.bac\)/g) || []).length));
+  ok((indexSrc.match(/"BAC\+cont "\+m\(T\.bac\+T\.contRemaining\)/g) || []).length >= 2,
+    "same reuse check for the BAC+cont label", String((indexSrc.match(/"BAC\+cont "\+m\(T\.bac\+T\.contRemaining\)/g) || []).length));
+  ok(idsA.includes("galtonLegend"), "markup contains #galtonLegend");
+  has("galtonLegend", "Lands under BAC", "Galton legend states the green/under-budget bead meaning in text");
+  has("galtonLegend", "Lands beyond contingency", "Galton legend states the red bead meaning in text");
+
+  // Item 3 -- Phase/Gate Line: real 4-state color key, vocabulary reused from the existing aria-labels
+  ok(idsA.includes("glLegend"), "markup contains #glLegend");
+  has("glLegend", "Complete", "gate line legend states the ok/green meaning");
+  has("glLegend", "Current", "gate line legend states the accent/current meaning");
+  has("glLegend", "Upcoming", "gate line legend states the pending/grey meaning");
+  has("glLegend", "Blocked", "gate line legend states the bad/red meaning");
+  ok((G.glLegend._html.match(/<span>/g) || []).length === 4, "gate line legend has all 4 states (ok/current/pending/blocked), not a partial list");
+
+  // Item 4 -- Monte Carlo histogram/CDF: bar-color legend, present only in histogram view, cleared in CDF view
+  ok(idsA.includes("mcLegend"), "markup contains #mcLegend");
+  has("mcLegend", "Under budget", "MC histogram legend states the green-bar meaning");
+  has("mcLegend", "Within contingency", "MC histogram legend states the amber-bar meaning");
+  has("mcLegend", "Beyond contingency", "MC histogram legend states the red-bar meaning");
+  // pre-registered: the CDF view draws a single-color polyline, no colored bars at all -- the
+  // legend must clear, not carry over a stale bar-color explanation for a visual that isn't there
+  fire(G.mcViewCdf, "click");
+  ok(G.mcLegend._html === "", "switching to the CDF view clears the bar-color legend (no colored bars exist in that view)", JSON.stringify(G.mcLegend._html));
+  fire(G.mcViewHist, "click");
+  has("mcLegend", "Under budget", "switching back to the histogram view restores the bar-color legend");
+
+  // Item 5 -- Tracking Gantt: static caption (no render-function change, pure markup)
+  ok(indexSrc.includes("red = behind schedule, green = on/ahead"), "Gantt card states the bar-color meaning in visible text near the chart, not only in the SVG's aria-label");
+
+  // Item 6 -- EWMA control chart: 4th legend swatch for the breach-point dot
+  has("aiEwmaControl", "Breach point", "EWMA legend now has a 4th swatch naming the red breach-dot color, matching the dot the chart already draws when p.flag is true");
+  ok((G.aiEwmaControl._html.match(/<i style="background:/g) || []).length === 4, "EWMA legend has exactly 4 swatches (Actual/EWMA/band/breach), not 3");
+
+  // Item 7 -- Risk tornado chart: static caption stating the real $ thresholds (k.exp>8/k.exp>4)
+  ok(indexSrc.includes("red above $8.0M exposure, amber $4.0M"), "tornado chart states its color-band $ thresholds in visible text, matching the real k.exp>8/k.exp>4 constants in source");
+}
+
 /* =========================================================================
    E. otak.html — runtime + internal consistency
    ========================================================================= */

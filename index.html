@@ -658,7 +658,7 @@ tfoot td{font-weight:600;border-top:1px solid rgb(var(--c-accent) / .40);border-
 /* heat */
 .heat{display:grid;grid-template-columns:auto repeat(5,1fr);gap:3px;margin-top:12px;font-size:11px}
 .heat .hc{aspect-ratio:2/1;border-radius:5px;display:grid;place-items:center;
-  font:600 12px/1 ui-monospace,monospace;color:#0F172A}
+  font:600 12px/1 ui-monospace,monospace;color:rgb(var(--c-ink))}
 .heat .ax{display:grid;place-items:center;color:rgb(var(--c-mut));font:600 10px/1 ui-monospace,monospace}
 
 /* what-if */
@@ -1205,6 +1205,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
           <p class="lede" style="font-size:11.8px;margin-top:6px" id="mcRiskRead"></p>
         </div>
         <div class="chart" id="mcChart" style="margin-top:10px"></div>
+        <div class="legend" id="mcLegend" style="margin-top:8px"></div>
         <div style="display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap">
           <span class="eyebrow" style="margin:0;white-space:nowrap">Drag to inspect</span>
           <input type="range" id="mcInspect" min="1" max="99" step="1" style="flex:1;min-width:140px">
@@ -1246,6 +1247,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
           </div>
         </div>
         <canvas id="galtonCanvas" style="margin-top:12px;width:100%;height:260px;display:block"></canvas>
+        <div class="legend" id="galtonLegend" style="margin-top:8px"></div>
         <p class="lede" id="galtonRead" style="margin-top:8px;font-size:12.5px" aria-live="polite"></p>
       </div>
 
@@ -1316,7 +1318,8 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         where the baseline implies the account should finish, a solid bar to where it&rsquo;s actually
         forecast to finish. The gap between them <em>is</em> the float number, just drawn on a calendar
         instead of stated as a day count.</p>
-      <div class="card" style="margin-top:15px"><div class="chart" id="gantt"></div></div>
+      <div class="card" style="margin-top:15px"><div class="chart" id="gantt"></div>
+        <p class="lede" style="font-size:11.5px;margin-top:8px;color:rgb(var(--c-mut))">Solid bar: red = behind schedule, green = on/ahead &mdash; same sign as the day count beside it.</p></div>
       <details class="dbox" style="margin-top:14px">
         <summary>How this is actually computed</summary>
         <div id="ganttMathBody"></div>
@@ -1415,11 +1418,13 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         <div class="card"><h3>Sensitivity &mdash; what actually moves the number</h3>
           <p class="lede" style="font-size:12.5px;margin-top:5px">Ranked by exposure. Concentration, not
             count, is what a program director needs to see.</p>
-          <div class="chart" id="tornado"></div></div>
+          <div class="chart" id="tornado"></div>
+          <p style="margin:6px 0 0;font-size:11px;color:rgb(var(--c-mut))">Bar color: red above $8.0M exposure, amber $4.0M&ndash;$8.0M, green below $4.0M.</p></div>
         <div class="card"><h3>Probability &times; impact</h3>
           <p style="margin:5px 0 0;font-size:12px;color:rgb(var(--c-mut))">Impact 1&ndash;5 across,
             probability 1&ndash;5 down. Cells show risk count.</p>
           <div class="heat" id="heat"></div>
+          <div class="legend" id="heatLegend" style="margin-top:8px"></div>
           <div class="outbox" id="contCover" style="margin-top:14px"></div></div>
       </div>
       <div class="card" style="margin-top:15px"><h3>Register</h3><div id="risks"></div>
@@ -1703,7 +1708,8 @@ join dim_control_account b using (package_id)</pre></div>
         why it's colored the way it is. Nothing here is a second copy of the data; every caption reads
         off the same <span class="mono" style="font-size:11.5px">PHASES</span>/<span class="mono" style="font-size:11.5px">GATES</span>/<span class="mono" style="font-size:11.5px">GATE5_CHECKS</span>
         the tables use.</p>
-      <div class="card"><div class="chart" id="gateLine"></div></div>
+      <div class="card"><div class="chart" id="gateLine"></div>
+        <div class="legend" id="glLegend" style="margin-top:10px"></div></div>
       <div id="glDetail" aria-live="polite"></div>
       <div class="card" style="margin-top:14px" id="glStoryCard">
         <div class="eyebrow">Walk the gate line</div>
@@ -4510,6 +4516,15 @@ function mcMarker(X,H,PT,PB,v,color,label){
   return '<line x1="'+X(v)+'" x2="'+X(v)+'" y1="'+PT+'" y2="'+(H-PB)+'" stroke="'+color+'" stroke-width="1.8" stroke-dasharray="4 3"/>'+
     '<text x="'+X(v)+'" y="'+(H-24)+'" text-anchor="middle" font-size="10" font-family="ui-monospace,monospace" fill="'+color+'">'+label+'</text>';
 }
+/* Legend for renderMc()'s per-bin bar color (brainstorm-mode upgrade, 2026-08-24) — only called
+   from renderMc(), NOT renderMcCdf(): the CDF view draws a single accent-colored polyline, no
+   colored bars at all, so this legend would describe a visual that isn't on screen in that view.
+   renderMcCdf() clears #mcLegend instead (see its own call site). */
+function renderMcLegend(){
+  document.getElementById("mcLegend").innerHTML =
+    [[C("ok"),"Under budget"],[C("warn"),"Within contingency"],[C("bad"),"Beyond contingency"]]
+    .map(function(l){ return '<span><i style="background:'+l[0]+'"></i>'+l[1]+'</span>'; }).join("");
+}
 /* Drag-to-inspect needle (brainstorm-mode round, 2026-08-21) — solid + thicker so it visually
    reads as the interactive marker, distinct from the 4 fixed dashed reference lines (BAC/P50/
    BAC+cont/RCF) mcMarker()/rcfMarkerSvg() already draw. Rendered fresh on every full renderMc()/
@@ -4679,6 +4694,7 @@ function renderMc(){
     mcMarker(X,H,PT,PB,T.bac+T.contRemaining,C("bad"),"BAC+cont "+m(T.bac+T.contRemaining))+
     rcfMarkerSvg(W,H,PL,PR,PT,PB,hi,X)+mcInspectMarkerSvg(X,H,PT,PB),
     "Monte Carlo distribution of the forecast at completion across "+activeMc.n+" simulated completions, marked with budget, median, budget plus remaining contingency, the rail reference-class estimate, and a drag-to-inspect percentile needle.");
+  renderMcLegend();
   renderMcStatsRead();
   renderMcInspectOut();
 }
@@ -4704,6 +4720,7 @@ function renderMcCdf(){
     mcMarker(X,H,PT,PB,T.bac+T.contRemaining,C("bad"),"BAC+cont "+m(T.bac+T.contRemaining))+
     rcfMarkerSvg(W,H,PL,PR,PT,PB,hi,X)+mcInspectMarkerSvg(X,H,PT,PB),
     "Cumulative probability of the forecast at completion across "+activeMc.n+" simulated completions — the probability of finishing at or under a given cost — marked with budget, median, budget plus remaining contingency, the rail reference-class estimate, and a drag-to-inspect percentile needle.");
+  document.getElementById("mcLegend").innerHTML=""; // no colored bars in this view — see renderMcLegend()'s own comment
   renderMcStatsRead();
   renderMcInspectOut();
 }
@@ -4773,11 +4790,18 @@ function galtonDrawFrame(bc,counts,bead){
   }
   ctx.globalAlpha=1;
   var X=function(v){ return PL+((Math.min(bc.hi,Math.max(bc.lo,v))-bc.lo)/(bc.hi-bc.lo))*(W-PL-PR); };
-  [[T.bac,C("ok")],[T.bac+T.contRemaining,C("bad")]].forEach(function(t){
+  // Reference-line labels (brainstorm-mode upgrade, 2026-08-24) — this canvas previously drew
+  // these two dashed lines with zero text anywhere, unlike the SVG Monte Carlo histogram above it
+  // which labels its own reference lines. Wording reused verbatim from mcMarker()'s own calls in
+  // renderMc()/renderMcCdf(), not a new phrasing.
+  var refLines=[[T.bac,C("ok"),"BAC "+m(T.bac)],[T.bac+T.contRemaining,C("bad"),"BAC+cont "+m(T.bac+T.contRemaining)]];
+  refLines.forEach(function(t){
     ctx.strokeStyle=t[1]; ctx.setLineDash([4,3]); ctx.lineWidth=1.5;
     ctx.beginPath(); ctx.moveTo(X(t[0]),PT); ctx.lineTo(X(t[0]),H-PB); ctx.stroke();
   });
   ctx.setLineDash([]);
+  ctx.font="10px ui-monospace,monospace"; ctx.textAlign="center";
+  refLines.forEach(function(t){ ctx.fillStyle=t[1]; ctx.fillText(t[2],X(t[0]),PT+10); });
   if(bead){
     ctx.fillStyle=bead.col; ctx.globalAlpha=0.95;
     ctx.beginPath(); ctx.arc(bead.x,bead.y,4,0,Math.PI*2); ctx.fill();
@@ -4802,6 +4826,13 @@ function renderGaltonStatic(){
   galtonDrawFrame(bc,bc.counts,null);
   document.getElementById("galtonRead").textContent=
     "Showing the real, settled distribution — the same "+num(activeMc.n)+" runs behind the histogram above. Click Simulate to watch it build.";
+  // Legend (brainstorm-mode upgrade, 2026-08-24) — same green/amber/red bucket meaning
+  // galtonSpawnQueue()'s own bead-coloring rule already uses, stated in text for the first time.
+  document.getElementById("galtonLegend").innerHTML =
+    [[C("ok"),"Lands under BAC ("+m(T.bac)+")"],
+     [C("warn"),"Lands within contingency (to "+m(T.bac+T.contRemaining)+")"],
+     [C("bad"),"Lands beyond contingency"]]
+    .map(function(l){ return '<span><i style="background:'+l[0]+'"></i>'+l[1]+'</span>'; }).join("");
 }
 function galtonFinish(bc){
   galtonDrawFrame(bc,bc.counts,null); // snap to the TRUE full counts, not the sample-implied ones
@@ -5723,14 +5754,22 @@ function renderRisk(){
       // word now goes in the label; high-severity cells also get a visibly thicker border, a
       // shape cue that survives grayscale, not just a hue.
       var band=sc>=15?"high":sc>=8?"medium":"low";
-      var bg=band==="high"?"#FCA5A5":band==="medium"?"#FCD34D":"#A7F3D0";
-      var bd=band==="high"?"2px solid #7F1D1D":"1px solid transparent";
+      var bg=band==="high"?"rgb(var(--c-bad) / .45)":band==="medium"?"rgb(var(--c-warn) / .4)":"rgb(var(--c-ok) / .35)";
+      var bd=band==="high"?"2px solid rgb(var(--c-bad))":"1px solid transparent";
       var lab="Probability "+p+", impact "+im+" — "+band+" severity: "+n+" risk"+(n===1?"":"s");
       // class="hot"+data-p/data-i drive a rich custom tooltip (engagement/interactivity upgrade,
       // 2026-08-2x, replacing the native title= as the primary UX) naming which specific risks
       // fall in this cell — aria-label/title stay as the accessibility fallback, not removed.
       html+='<div class="hc hot" role="img" aria-label="'+lab+'" title="'+lab+'" data-p="'+p+'" data-i="'+im+'" style="background:'+bg+';border:'+bd+';opacity:'+(n?1:.34)+'">'+n+'</div>'; } }
   document.getElementById("heat").innerHTML=html;
+  // Legend (brainstorm-mode upgrade, 2026-08-24) — same alpha-over-semantic-token mechanism
+  // .pill.g/.a/.r already establishes (rgb(var(--c-X) / alpha)), just at a higher alpha since a
+  // heat cell IS the visual signal, not a small text-badge backdrop. Real numeric thresholds, not
+  // just color names, so a first-time scanning viewer doesn't have to hover every cell to learn
+  // the band boundaries the way the tooltip alone required before this round.
+  document.getElementById("heatLegend").innerHTML =
+    [[C("bad"),"High &mdash; score &ge;15"],[C("warn"),"Medium &mdash; score 8&ndash;14"],[C("ok"),"Low &mdash; score &lt;8"]]
+    .map(function(l){ return '<span><i style="background:'+l[0]+'"></i>'+l[1]+'</span>'; }).join("");
   // Same #tip pattern as the S-curve/waterfall/Gantt/tornado/bars() tooltips, wired once per
   // container (heat map cells are fully replaced above on every renderRisk() call, but #heat
   // itself survives — same dataset.tipWired guard as bars()). gridRisks is stashed on the host
@@ -6753,6 +6792,13 @@ function renderGateLine(){
   document.getElementById("gateLine").innerHTML=svg(W,H,parts,
     "Seven-phase lifecycle with six Board gates between them; Gate "+GATES.filter(function(g){return g.gate===5;})[0].gate+
     " currently "+(GATE5_CHECKS.every(function(c){return c.run()[0];})?"clears":"blocks")+" advancement out of the program's current phase.");
+  // Legend (brainstorm-mode upgrade, 2026-08-24) — the lede above used to be the only clarity
+  // mechanism ("click any phase or gate... to see why it's colored"), meaning color meaning was
+  // only discoverable one node at a time. Vocabulary reused verbatim from the aria-label text this
+  // function already generates per-node (see phase/gate aria-label strings above), not invented.
+  document.getElementById("glLegend").innerHTML =
+    [[C(STATE_C.ok),"Complete"],[C(STATE_C.cur),"Current"],[C(STATE_C.pend),"Upcoming"],[C(STATE_C.bad),"Blocked"]]
+    .map(function(l){ return '<span><i style="background:'+l[0]+'"></i>'+l[1]+'</span>'; }).join("");
   selectGL(glIdx);
 }
 
@@ -7550,7 +7596,8 @@ function renderEwmaControl(){
    '<div class="chart" id="ewmaSvgChart" style="margin-top:8px"></div>'+
    '<div class="legend" style="margin-top:6px"><span><i style="background:'+C("mut")+'"></i>Actual $/hr</span>'+
    '<span><i style="background:'+C("accent")+'"></i>EWMA</span>'+
-   '<span><i style="background:'+C("warn")+'"></i>Control-limit band</span></div>'+
+   '<span><i style="background:'+C("warn")+'"></i>Control-limit band</span>'+
+   '<span><i style="background:'+C("bad")+'"></i>Breach point</span></div>'+
    '<p style="margin:11px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">&lambda;='+e.lambda+' and L='+e.L+
    ' are standard SPC parameter choices (a ~3&sigma;-equivalent control-limit width), not derived from this '+
    'program&rsquo;s own history. '+
