@@ -3658,7 +3658,11 @@ console.log("== D9.1. the CDE flow diagram (data strategy) ==");
    (returns the active tab to "over" at the end, since D9 above left "data" active)
    ========================================================================= */
 console.log("== D10. inline term help ==");
-ok(P.gloss.length === 55, "GLOSS grew to 55 entries (54 prior + gbmvsevm, the GBM/MLE brainstorm round, 2026-08-21)", String(P.gloss.length));
+// 56 as of the risk-register traceability round (brainstorm-mode upgrade, 2026-08-24) -- grew from
+// the 55 the GBM/MLE round (2026-08-21) left it at, plus a real "impactscore" entry closing a
+// genuine gap (Impact 1-5 had no glossary entry anywhere, and was conflated with raw $ cost in the
+// register row's own wording, both fixed the same round).
+ok(P.gloss.length === 56, "GLOSS grew to 56 entries (55 prior + impactscore, 2026-08-24)", String(P.gloss.length));
 // title independently re-typed per term (/stress-test finding, 2026-08-21: the prior version only
 // checked g.p/g.e() were non-empty, which passes even for a totally wrong or swapped-in entry) —
 // guards that findGloss(k) actually resolves to the RIGHT term, not just SOME term.
@@ -4613,10 +4617,10 @@ console.log("== D22. GBM/MLE brainstorm round, items 1-4 (2026-08-21) ==");
 
 console.log("== D23. Glossary upgrade round, items 1-3 (2026-08-21) ==");
 {
-  // Item 3 — every one of the 55 real GLOSS entries carries a real cat, and every cat resolves
+  // Item 3 — every one of the 56 real GLOSS entries carries a real cat, and every cat resolves
   // to a known category. Independently re-derived from the raw array, not read back from the
-  // rendered pill counts and trusted against itself.
-  ok(P.gloss.length === 55, "sanity: still 55 real glossary terms");
+  // rendered pill counts and trusted against itself. (56 as of 2026-08-24's impactscore addition.)
+  ok(P.gloss.length === 56, "sanity: still 56 real glossary terms");
   const validCats = Object.keys(P.cats);
   P.gloss.forEach(g => ok(validCats.indexOf(g.cat) >= 0, "term '" + g.k + "' carries a real category (" + g.cat + ")", g.cat));
 
@@ -5710,6 +5714,35 @@ console.log("== D37. Chart legend/clarity pass -- 7 gaps found by a full-dashboa
 
   // Item 7 -- Risk tornado chart: static caption stating the real $ thresholds (k.exp>8/k.exp>4)
   ok(indexSrc.includes("red above $8.0M exposure, amber $4.0M"), "tornado chart states its color-band $ thresholds in visible text, matching the real k.exp>8/k.exp>4 constants in source");
+}
+
+console.log("== D38. Risk register traceability -- fixed the 'impact' word-conflation bug + explained the Impact score for the first time (2026-08-24) ==");
+{
+  // pre-registered, computed independently of the app: R-01 is the highest-cost risk ($18.5M),
+  // R-03 is second-highest ($9.4M) -- 96.8% higher, and R-01 carries Impact 5 in the raw RISKS array.
+  const byCost = P.risks.slice().sort((a, b) => b.cost - a.cost);
+  ok(byCost[0].id === "R-01" && byCost[1].id === "R-03", "pre-registered cost ranking holds: R-01 highest, R-03 second", byCost[0].id + "/" + byCost[1].id);
+  const expectedPctGap = ((byCost[0].cost / byCost[1].cost - 1) * 100).toFixed(1) + "%";
+  ok(expectedPctGap === "96.8%", "pre-registered: R-01 is 96.8% above R-03 by cost", expectedPctGap);
+
+  // the register row no longer conflates "impact" (the word) with raw $ cost
+  ok(!indexSrc.includes("'%) × impact '+m(k.cost)"), "register row no longer labels raw $ cost as 'impact' (the old word-conflation bug)");
+  has("risks", "Cost " + m(18.5) + " &middot; Impact 5 of 5", "R-01's register row states cost and impact score as two clearly separate things, not one conflated phrase");
+
+  // riskMathBody now explains the Impact score, not just exposure -- real numbers, not placeholder text
+  has("riskMathBody", "never enters the calculation above", "the math accordion explicitly states Impact is separate from the exposure calculation");
+  has("riskMathBody", "R-01", "the math accordion's Impact explanation names the real top-cost risk");
+  has("riskMathBody", "96.8%", "the math accordion's Impact explanation states the real, computed cost gap, not a rounded/invented figure");
+  has("riskMathBody", "Impact 5", "the math accordion explains why R-01 specifically carries Impact 5");
+
+  // real glossary entry now exists for "Impact" -- was a genuine gap (grep-confirmed absent before this round)
+  ok(P.gloss.some(g => g.k === "impactscore"), "GLOSS now has a real 'impactscore' entry");
+  const impactEntry = P.gloss.filter(g => g.k === "impactscore")[0];
+  ok(impactEntry.cat === "risk", "impactscore entry is categorized under Risk, matching riskexposure's own category");
+  ok(/never enters the exposure calculation/.test(impactEntry.p), "impactscore glossary prose states plainly that Impact doesn't feed the dollar exposure math");
+  const impactLive = impactEntry.e();
+  ok(impactLive.includes("R-01") && impactLive.includes("96.8%") && /Impact 5/.test(impactLive),
+    "impactscore's live worked example computes the real top-cost risk, gap, and impact level -- not static placeholder text", impactLive);
 }
 
 /* =========================================================================
