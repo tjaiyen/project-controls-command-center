@@ -500,6 +500,21 @@ tfoot td{font-weight:600;border-top:1px solid rgb(var(--c-accent) / .40);border-
 /* charts */
 .chart{overflow-x:auto}
 .chart svg{display:block;width:100%}
+/* Visible scroll affordance (visual-inspection finding, 2026-08-24): the min-width rules below
+   mean gateLine/arch/cdeFlow can genuinely overflow their own card at ordinary desktop widths too,
+   not just phones (measured live at 1280px: #arch's card is 931px wide against the diagram's real
+   980px floor -- a real ~49px slice, including the "AI narrative draft" node's full label, sat
+   past the visible edge). The browser's own default scrollbar is auto-hidden on macOS until
+   actively scrolled, so there was no visual cue anything was cut off. A real, always-visible thin
+   scrollbar (not conditional -- a non-overflowing chart has nothing to show here regardless) is a
+   simpler, more robust fix than a JS-driven "only show if overflowing" edge-fade would be for the
+   same result. Applies to every .chart, not just the three with a min-width floor -- any diagram
+   that ever needs horizontal scroll gets the same visible affordance. */
+.chart::-webkit-scrollbar{height:7px}
+.chart::-webkit-scrollbar-track{background:transparent}
+.chart::-webkit-scrollbar-thumb{background:rgb(var(--c-accent) / .35);border-radius:4px}
+.chart::-webkit-scrollbar-thumb:hover{background:rgb(var(--c-accent) / .55)}
+.chart{scrollbar-width:thin;scrollbar-color:rgb(var(--c-accent) / .35) transparent}
 /* Text-dense diagrams keep their own real design width as a floor, so labels never shrink below
    their designed size (/stress-test finding, 2026-08-23: at 320-375px these three -- the widest,
    most text-dense diagrams on the page -- were scaling their 9-11px viewBox-unit labels down to
@@ -5334,8 +5349,16 @@ function renderGantt(){
       '<text x="'+(W-PR+10)+'" y="'+(y+rowH/2+4).toFixed(1)+'" font-size="10.5" font-family="ui-monospace,monospace" fill="'+
         (behind?C("bad"):C("ok"))+'">'+pct(e.r.pct,0)+' complete &middot; '+days(e.r.float)+'</text>';
   }).join("");
+  // Left-anchored, not centered (visual-inspection finding, 2026-08-24): todayX = X(minStart) is
+  // always exactly PL (the chart's own left plot edge) by construction -- minStart IS the domain's
+  // earliest point, so this "data date" line is structurally always the leftmost thing on the
+  // chart, every render, not just with today's data. A center-anchored label at the true left edge
+  // put roughly half its own width past x=0, genuinely clipped off the SVG's own viewBox (measured
+  // live: bbox.x=-8.7, confirmed off-canvas, not a screenshot artifact). Left-anchoring and nudging
+  // right of the line reads naturally either way and can never clip, since there's real margin to
+  // the right but none to the left.
   body+='<line x1="'+todayX.toFixed(1)+'" x2="'+todayX.toFixed(1)+'" y1="'+PT+'" y2="'+(H-24)+'" stroke="'+C("accent")+'" stroke-width="1.5"/>'+
-    '<text x="'+todayX.toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" font-size="10.5" font-family="ui-monospace,monospace" fill="'+C("accent")+'">data date &middot; '+PROGRAM.dataDate+'</text>';
+    '<text x="'+(todayX+6).toFixed(1)+'" y="'+(H-8)+'" text-anchor="start" font-size="10.5" font-family="ui-monospace,monospace" fill="'+C("accent")+'">data date &middot; '+PROGRAM.dataDate+'</text>';
   document.getElementById("gantt").innerHTML=svg(W,H,g+body,
     "Tracking Gantt: remaining schedule runway per control account from the data date — a ghosted bar to the baseline-implied finish, a solid bar to the actual forecast finish, colored red where the account is behind.");
   // hover/tap — bound to click too (mobile upgrade, see the scurve tooltip for why)

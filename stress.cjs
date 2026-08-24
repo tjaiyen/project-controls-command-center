@@ -676,6 +676,14 @@ ok(Math.abs(trueMin.cpli - T.cpli) < 1e-9,
   ok((G.gantt._html.match(/data-part="base"/g) || []).length === rows.length,
     "one baseline-implied bar per control account");
   has("gantt", P.program.dataDate, "chart labels the real data date, not a placeholder");
+  // Regression guard (visual-inspection finding, 2026-08-24): the "data date" label sits at
+  // todayX = X(minStart), which is ALWAYS exactly the chart's own left plot edge (minStart IS the
+  // domain's earliest point, by construction) -- a center-anchored label there put roughly half its
+  // own width past the SVG's own x=0, genuinely clipped off-canvas (measured live: bbox.x=-8.7).
+  // Left-anchored, it can never clip left (nothing sits further left) and has real margin to the
+  // right; this pins that specific fix so it can't silently regress back to text-anchor="middle".
+  ok(/text-anchor="start"[^>]*>data date &middot;/.test(G.gantt._html),
+    "the 'data date' label is left-anchored (not centered) at the chart's own left edge, so it can never clip off-canvas the way a centered label at x=PL genuinely did");
 
   const worst = rows.reduce((w, r) => (r.float < w.float ? r : w), rows[0]);
   const worstFcst = addDays(ACT_ASOF, worst.cpRem);
@@ -4325,6 +4333,16 @@ console.log("== D19. in-tab sticky anchor rail, Cost/Schedule (nav round 2, 2026
   ok(/--nav-height:64px/.test(indexSrc), "--nav-height custom property is defined");
   ok(/\.tabs\{grid-column:1[^}]*top:var\(--nav-height\)/.test(indexSrc.replace(/\n\s*/g, "")), "the vertical tab rail's sticky offset reads --nav-height, not a separate hardcoded literal");
   ok(/\.anchor-rail\{position:sticky;top:var\(--nav-height\)/.test(indexSrc), "the anchor rail's sticky offset reads the same --nav-height var");
+
+  // Visible scroll affordance (visual-inspection finding, 2026-08-24): gateLine/arch/cdeFlow's own
+  // min-width floor (added the same stress-test round as the 320px illegibility fix) means these
+  // diagrams can genuinely overflow their own card at ORDINARY desktop widths too, not just phones
+  // -- measured live at 1280px: #arch's real card was 931px against the diagram's 980px floor, a
+  // real ~49px slice (including the "AI narrative draft" node's full label) sat past the visible
+  // edge with zero visual cue, since the browser's own scrollbar is auto-hidden on macOS until
+  // actively scrolled. A real, always-visible thin scrollbar closes that discoverability gap.
+  ok(/\.chart::-webkit-scrollbar\{height:7px\}/.test(indexSrc) && /\.chart\{scrollbar-width:thin/.test(indexSrc),
+    "every .chart container gets a real, always-visible thin scrollbar (both engines), not relying on the OS's own auto-hidden default");
 
   // scroll-margin-top on every real anchor target — without this, a native #hash jump tucks its
   // target under the sticky header/rail with no visible feedback (the exact class of bug this
