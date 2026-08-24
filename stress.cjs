@@ -723,7 +723,8 @@ ok(heatNums === 25, "heat map renders 25 cells", String(heatNums));
     .sort((a, b) => b.exp - a.exp);
   const top = rankedRisks[0];
   has("riskMathBody", "P_BAND[probability] &times; cost", "risk math panel states the formula");
-  has("riskMathBody", "P1=10%, P2=30%, P3=50%, P4=70%, P5=90%", "risk math panel states the full probability-band table");
+  // wording extended 2026-08-24 (risk register traceability round) to name each band, not just its %
+  has("riskMathBody", "P1=Rare (10%), P2=Unlikely (30%), P3=Possible (50%), P4=Likely (70%), P5=Almost certain (90%)", "risk math panel states the full, named probability-band table");
   has("riskMathBody", top.id, "risk math panel's worked example names the actual top-ranked risk, not a hardcoded one");
   has("riskMathBody", "P" + top.p, "risk math panel states the worked risk's live probability score");
   has("riskMathBody", Math.round(P.pBand[top.p] * 100) + "%", "risk math panel's live percentage matches independent recomputation");
@@ -3662,7 +3663,10 @@ console.log("== D10. inline term help ==");
 // the 55 the GBM/MLE round (2026-08-21) left it at, plus a real "impactscore" entry closing a
 // genuine gap (Impact 1-5 had no glossary entry anywhere, and was conflated with raw $ cost in the
 // register row's own wording, both fixed the same round).
-ok(P.gloss.length === 56, "GLOSS grew to 56 entries (55 prior + impactscore, 2026-08-24)", String(P.gloss.length));
+// 57 as of the same round's follow-up: a real "pband" entry, same reasoning as impactscore -- the
+// probability scale had no glossary entry either, and TJ's own follow-up question ("why P4, no
+// parameters given") is exactly what it closes.
+ok(P.gloss.length === 57, "GLOSS grew to 57 entries (56 prior + pband, 2026-08-24)", String(P.gloss.length));
 // title independently re-typed per term (/stress-test finding, 2026-08-21: the prior version only
 // checked g.p/g.e() were non-empty, which passes even for a totally wrong or swapped-in entry) —
 // guards that findGloss(k) actually resolves to the RIGHT term, not just SOME term.
@@ -4620,7 +4624,7 @@ console.log("== D23. Glossary upgrade round, items 1-3 (2026-08-21) ==");
   // Item 3 — every one of the 56 real GLOSS entries carries a real cat, and every cat resolves
   // to a known category. Independently re-derived from the raw array, not read back from the
   // rendered pill counts and trusted against itself. (56 as of 2026-08-24's impactscore addition.)
-  ok(P.gloss.length === 56, "sanity: still 56 real glossary terms");
+  ok(P.gloss.length === 57, "sanity: still 57 real glossary terms");
   const validCats = Object.keys(P.cats);
   P.gloss.forEach(g => ok(validCats.indexOf(g.cat) >= 0, "term '" + g.k + "' carries a real category (" + g.cat + ")", g.cat));
 
@@ -5743,6 +5747,39 @@ console.log("== D38. Risk register traceability -- fixed the 'impact' word-confl
   const impactLive = impactEntry.e();
   ok(impactLive.includes("R-01") && impactLive.includes("96.8%") && /Impact 5/.test(impactLive),
     "impactscore's live worked example computes the real top-cost risk, gap, and impact level -- not static placeholder text", impactLive);
+}
+
+console.log("== D39. Probability basis + band names -- TJ's direct follow-up ('why P4, no parameters given') (2026-08-24) ==");
+{
+  // the SAME word-conflation bug existed in two more places D38 didn't touch -- the drill-down
+  // drawer and the field-to-boardroom cascade banner. Both must be gone now, not just the register row.
+  ok(!indexSrc.includes("' impact = <b"), "risk drill-down drawer no longer labels raw $ cost as 'impact' (found and fixed alongside the register-row bug)");
+  ok(!indexSrc.includes('" impact = "+m(P_BAND[r01.p]*r01.cost)'), "field-to-boardroom cascade banner no longer labels raw $ cost as 'impact' either");
+
+  // register row states the real, named probability band, not just a bare percentage
+  has("risks", "P4 &middot; Likely (70%)", "R-01's register row states the real, named probability band (Likely), not just a bare number");
+
+  // drill-down drawer carries a real, non-empty "Why P..." basis line for every risk with one
+  fire(R.registry["p-risk"], "click", { target: { closest: sel => sel === "[data-risk]" ? { dataset: { risk: "R-01" } } : null } });
+  let drillHtml = R.registry.riskDrill._html;
+  ok(drillHtml.includes("Why P4 (Likely):"), "R-01's drawer states which band its probability falls in, in the same breath as the reasoning");
+  ok(drillHtml.includes(P.risks.find(r => r.id === "R-01").basis), "R-01's drawer states its own real basis text verbatim, not a placeholder");
+  P.state.riskDrill = null; P.renderRisk(); // reset before later sections run
+
+  // every risk in RISKS carries a real, non-empty basis -- not just R-01
+  ok(P.risks.every(r => typeof r.basis === "string" && r.basis.length > 20), "every one of the 6 risks carries a real, substantive probability-basis string, not just the one TJ asked about");
+
+  // riskMathBody explains that probability is a judgment call, distinct from Impact's derived score
+  has("riskMathBody", "not algorithmically derived from cost the way Impact is", "math panel explicitly distinguishes probability (judgment) from impact (derived)");
+  has("riskMathBody", "Why P", "math panel points to the per-risk 'Why P...' note in the drill-down, not just asserting the judgment exists");
+
+  // real glossary entry for the probability band, parallel treatment to impactscore
+  ok(P.gloss.some(g => g.k === "pband"), "GLOSS now has a real 'pband' entry");
+  const pbandEntry = P.gloss.filter(g => g.k === "pband")[0];
+  ok(pbandEntry.cat === "risk", "pband entry is categorized under Risk, matching impactscore's own category");
+  const pbandLive = pbandEntry.e();
+  ok(pbandLive.includes("R-01") && pbandLive.includes("P4") && pbandLive.includes("Likely") && pbandLive.includes("70%"),
+    "pband's live worked example states the real risk id, band number, band name, and percentage together", pbandLive);
 }
 
 /* =========================================================================
