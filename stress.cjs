@@ -5364,6 +5364,83 @@ console.log("== D34. Overview-tab upgrade -- family-grid click-to-filter, Veloci
   });
 }
 
+console.log("== D35. Global nav upgrade -- 3 more anchor rails, live Glossary count badge, theme keyboard shortcut, 3-track guided tour selector (brainstorm-mode round, 2026-08-23) ==");
+{
+  // A. anchor rail extended to 3 more tabs -- was Cost/Schedule only
+  ["gateLine", "wbsTable", "gateTable", "gate5Card", "invCard"].forEach(id =>
+    ok(indexSrc.includes('href="#' + id + '"'), "Operating Framework's new anchor rail links to the real #" + id));
+  ["arch", "aiGuards", "aiStatControl", "aiEwmaControl", "aiNarr"].forEach(id =>
+    ok(indexSrc.includes('href="#' + id + '"'), "AI & Data's new anchor rail links to the real #" + id));
+  ["actStrip", "ownerTable", "actFilters", "actionsMathBody"].forEach(id =>
+    ok(indexSrc.includes('href="#' + id + '"'), "Actions' new anchor rail links to the real #" + id));
+  const railCount = (indexSrc.match(/class="anchor-rail"/g) || []).length;
+  ok(railCount === 5, "exactly 5 tabs now carry the real sticky anchor rail (Cost, Schedule + this round's 3 new ones), not the brief's fabricated claim it already existed on 5", String(railCount));
+
+  // B. live Glossary tab-rail count badge -- real GLOSS.length, not the brief's fabricated 38
+  ok(String(G.cntGloss.textContent) === String(P.gloss.length), "Glossary tab badge shows the real live GLOSS.length, not a hand-typed number", G.cntGloss.textContent + " vs " + P.gloss.length);
+  ok(P.gloss.length !== 38, "sanity: the real count is NOT the brief's fabricated 38", String(P.gloss.length));
+
+  // C. "T" theme keyboard shortcut fires the REAL themeBtn click handler, not a duplicated toggle
+  const pressedBefore = G.themeBtn.getAttribute("aria-pressed");
+  fire(R.win, "keydown", { key: "t", target: { tagName: "BODY" } });
+  ok(G.themeBtn.getAttribute("aria-pressed") !== pressedBefore, "pressing 't' actually toggles the theme (aria-pressed flips)", pressedBefore + " -> " + G.themeBtn.getAttribute("aria-pressed"));
+  fire(R.win, "keydown", { key: "t", target: { tagName: "BODY" } });
+  ok(G.themeBtn.getAttribute("aria-pressed") === pressedBefore, "pressing 't' again toggles it back");
+
+  // D. 3-track guided tour selector -- HANDOFF's own "most interesting idea, deferred pending a
+  // grounding pass" (§18 gap #12). Every track below is a real curated subset of the existing 10
+  // TOUR_BEATS by index, not new narration -- confirmed by title match, not just a length count.
+  ok(P.tourTracks.length === 4, "sanity: 4 real tracks (full + 3 curated)", String(P.tourTracks.length));
+  ok(P.tourTracks[0].key === "full" && P.activeTourBeats().length === 10,
+    "default track is 'full', reducing EXACTLY to the real unmodified 10-stop tour -- the load-bearing invariant every other sandbox this session has been held to");
+  ok(P.activeTourBeats().map(b => b.t).join("|") === P.tourBeats.map(b => b.t).join("|"),
+    "the default 'full' track's beats are the SAME objects in the SAME order as the real TOUR_BEATS array, not a reordered copy");
+
+  P.state.tourTrack = "exec"; P.state.tourIdx = 0;
+  const execTitles = P.activeTourBeats().map(b => b.t);
+  ok(execTitles.length === 4 && JSON.stringify(execTitles) === JSON.stringify(["A billion-dollar promise", "The money starts leaking", "A gate that says no", "The clock doesn't stop for a status update"]),
+    "Executive briefing track is real beats 0,1,6,8 in order, not fabricated content", JSON.stringify(execTitles));
+
+  P.state.tourTrack = "cp201"; P.state.tourIdx = 0;
+  const cp201Titles = P.activeTourBeats().map(b => b.t);
+  ok(cp201Titles.length === 4 && JSON.stringify(cp201Titles) === JSON.stringify(["The money starts leaking", "The tunnel owns the calendar", "Betting on the unknown", "The people doing the work"]),
+    "CP-201 root-cause track is real beats 1,2,4,5 in order", JSON.stringify(cp201Titles));
+
+  P.state.tourTrack = "audit"; P.state.tourIdx = 0;
+  const auditTitles = P.activeTourBeats().map(b => b.t);
+  ok(auditTitles.length === 3 && JSON.stringify(auditTitles) === JSON.stringify(["Trust the number before you read it", "A gate that says no", "Monday morning"]),
+    "Data & governance audit track is real beats 7,6,9 in order", JSON.stringify(auditTitles));
+
+  // the real UI: entering the tour, switching tracks via the select, and navigating within a
+  // short track correctly clamps at ITS OWN last stop, not the full tour's 10th
+  P.state.tourTrack = "full";
+  P.enterTour();
+  ok(P.state.touring === true && P.state.tourIdx === 0, "entering the tour starts at stop 0 of whatever track is currently selected");
+  fire(G.tourBar, "change", { target: { closest: sel => sel === "#tourTrackSelect" ? { value: "audit" } : null } });
+  ok(P.state.tourTrack === "audit" && P.state.tourIdx === 0, "selecting a track from the dropdown switches tracks and restarts at stop 0");
+  ok(G.tourBar._html.includes("3 / 3") === false && G.tourBar._html.includes("1 / 3"), "the tour bar's own stop counter reads against the ACTIVE track's length (1 / 3), not the full tour's (1 / 10)");
+  fire(G.tourBar, "click", { target: { closest: sel => sel === "[data-t]" ? { dataset: { t: "next" } } : null } });
+  fire(G.tourBar, "click", { target: { closest: sel => sel === "[data-t]" ? { dataset: { t: "next" } } : null } });
+  ok(P.state.tourIdx === 2, "clicking Next twice on the 3-stop audit track lands on its real last stop (index 2), not stop 2-of-10");
+  ok(G.tourBar._html.includes(">Done<"), "the Next button reads 'Done' at the audit track's own last stop");
+  fire(G.tourBar, "click", { target: { closest: sel => sel === "[data-t]" ? { dataset: { t: "next" } } : null } });
+  ok(P.state.touring === false, "clicking Done on a short track exits the tour cleanly, same as the full tour's own last-stop behavior");
+
+  // track selection persists across an exit/re-enter, same as state.fam/state.audience already
+  // persist across their own tabs -- re-entering the audit track resumes at ITS stop 0, not the
+  // full tour's
+  P.enterTour();
+  ok(P.state.tourTrack === "audit" && P.activeTourBeats().length === 3, "re-entering the tour remembers the last-selected track (audit), not silently reverting to full");
+  P.exitTour();
+  P.state.tourTrack = "full"; P.state.tourIdx = 0; // reset before later sections run
+
+  // compliance sweep -- confirm no fabricated package-specific precision (a CP-201 CPI=0.870
+  // narration beat, or an NCR/Action A-01 beat) was invented to hit the brief's own exact wording
+  ["Cost Breach (CPI = 0.870)", "68.7% Idle Standby", "Corrective Action A-01", "5 Min", "8 Min", "6 Min"].forEach(bad => {
+    ok(!indexSrc.includes(bad), 'fabricated tour-track brief content never made it into index.html: "' + bad + '"');
+  });
+}
+
 /* =========================================================================
    E. otak.html — runtime + internal consistency
    ========================================================================= */

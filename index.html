@@ -816,7 +816,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
     <button role="tab" id="t-act"   aria-controls="p-act"   aria-selected="false" tabindex="-1" aria-keyshortcuts="9"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.3"/><polyline points="5,8.3 7.2,10.3 11,6.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Actions<span class="cnt" id="cntAct"></span></button>
     <button role="tab" id="t-data"  aria-controls="p-data"  aria-selected="false" tabindex="-1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><ellipse cx="8" cy="3.6" rx="5.3" ry="1.7" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M2.7 3.6v8.8c0 .9 2.4 1.7 5.3 1.7s5.3-.8 5.3-1.7V3.6" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M2.7 8c0 .9 2.4 1.7 5.3 1.7s5.3-.8 5.3-1.7" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>Data Strategy</button>
     <span class="tab-group-label" aria-hidden="true">Reference</span>
-    <button role="tab" id="t-gloss" aria-controls="p-gloss" aria-selected="false" tabindex="-1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><path d="M2.5 3.3c1.6-.6 3.4-.6 5.5.4v9c-2.1-1-3.9-1-5.5-.4Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M13.5 3.3c-1.6-.6-3.4-.6-5.5.4v9c2.1-1 3.9-1 5.5-.4Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>Glossary</button>
+    <button role="tab" id="t-gloss" aria-controls="p-gloss" aria-selected="false" tabindex="-1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><path d="M2.5 3.3c1.6-.6 3.4-.6 5.5.4v9c-2.1-1-3.9-1-5.5-.4Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M13.5 3.3c-1.6-.6-3.4-.6-5.5.4v9c2.1-1 3.9-1 5.5-.4Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>Glossary<span class="cnt" id="cntGloss"></span></button>
   </div>
 
   <!-- ============================ OVERVIEW ============================ -->
@@ -1507,6 +1507,16 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
 
   <!-- ========================== AI & DATA ========================== -->
   <section role="tabpanel" id="p-ai" aria-labelledby="t-ai" tabindex="0" hidden>
+    <details class="anchor-rail">
+      <summary>Jump to section</summary>
+      <nav aria-label="Section anchors">
+        <a href="#arch">Pipeline DAG</a>
+        <a href="#aiGuards">Integrity Gate</a>
+        <a href="#aiStatControl">Statistical Control</a>
+        <a href="#aiEwmaControl">EWMA Chart</a>
+        <a href="#aiNarr">AI Narrative</a>
+      </nav>
+    </details>
     <div class="sec">
       <div class="eyebrow">Data pipeline &middot; guardrails &middot; AI narrative</div>
       <h2>How the numbers get here &mdash; and why leadership can trust them</h2>
@@ -1642,6 +1652,16 @@ join dim_control_account b using (package_id)</pre></div>
 
   <!-- =========================== FRAMEWORK ============================ -->
   <section role="tabpanel" id="p-fw" aria-labelledby="t-fw" tabindex="0" hidden>
+    <details class="anchor-rail">
+      <summary>Jump to section</summary>
+      <nav aria-label="Section anchors">
+        <a href="#gateLine">Phase Playbook</a>
+        <a href="#wbsTable">WBS/OBS Mapping</a>
+        <a href="#gateTable">Phase Gates</a>
+        <a href="#gate5Card">Gate 5</a>
+        <a href="#invCard">Working Backward</a>
+      </nav>
+    </details>
     <div class="sec">
       <div class="eyebrow">The part that makes it a framework</div>
       <h2>How this gets run</h2>
@@ -1734,6 +1754,15 @@ join dim_control_account b using (package_id)</pre></div>
 
   <!-- ============================ ACTIONS ============================= -->
   <section role="tabpanel" id="p-act" aria-labelledby="t-act" tabindex="0" hidden>
+    <details class="anchor-rail">
+      <summary>Jump to section</summary>
+      <nav aria-label="Section anchors">
+        <a href="#actStrip">Summary</a>
+        <a href="#ownerTable">By Owner</a>
+        <a href="#actFilters">Register</a>
+        <a href="#actionsMathBody">SLA Engine</a>
+      </nav>
+    </details>
     <div class="sec">
       <div class="eyebrow">Where the framework actually runs &middot; RAID + CAPA discipline</div>
       <h2>The escalation matrix, operationalized</h2>
@@ -2791,8 +2820,11 @@ var state = {phase:"con", fam:"All", audience:"pcm", kpi:null, pkg:2, actFilter:
                  // narrTamper false = the real, verified draft; checking it swaps in one simulated
                  // bad figure to demo the gate catching it. ewmaDrillWeek null = the chart's weekly
                  // idle/rework/baseline drill-down starts closed, same click-to-open idiom as cphDrill.
-  riskDrill:null}; // Risk & Change-tab upgrade (brainstorm-mode, 2026-08-23) — starts closed, same
+  riskDrill:null, // Risk & Change-tab upgrade (brainstorm-mode, 2026-08-23) — starts closed, same
                  // click-to-open idiom as portDrill/cphDrill/ewmaDrillWeek above.
+  tourTrack:"full"}; // Guided-tour tracks (brainstorm-mode nav round, 2026-08-23) — "full" is the
+                 // real, existing 10-stop tour; persists across a tour exit/re-enter, same as
+                 // state.fam/state.audience already persist across their own tabs' revisits.
 
 /* Ledger card (Overview-tab upgrade, 2026-08-20) — the 11 raw inputs, a per-package inspector, and
    a live "change one input, watch the KPIs move" demo. The demo deliberately reads a LOCAL copy of
@@ -7697,6 +7729,27 @@ var TOUR_BEATS=[
     "set up in each phase, who receives which report on which day, and exactly what happens when a line turns red. That's the "+
     "whole tour — the KPI board, the glossary and Presentation Mode are all still here whenever you want to go deeper."; }}
 ];
+/* Guided-tour tracks (brainstorm-mode nav round, 2026-08-23) — docs/HANDOFF.md §18 gap #12 named
+   a "3-playlist Guided Tour selector" as the most interesting idea from an earlier nav-IA proposal,
+   deferred pending its own grounding pass before it could be honestly sized. That pass: each track
+   below is an ordered list of INDICES into the real TOUR_BEATS array above, never duplicated prose
+   or a fabricated number — "full" is the existing 10-stop tour unchanged (index order, so behavior
+   is identical to before this round for anyone who never touches the new selector). The other three
+   are curated subsets for a specific audience/agenda, reusing exactly the beats that are honestly
+   on-theme; no track claims a beat TOUR_BEATS doesn't actually have (e.g. no CP-201-package-specific
+   CPI=0.870 beat exists — beat 1's cost figure is portfolio-level — so the CP-201 track is titled
+   and framed around what the tour actually narrates, not the sharper-but-fabricated precision an
+   earlier brief proposed). */
+var TOUR_TRACKS=[
+ {key:"full",  label:"Full tour (10 stops)",             idxs:[0,1,2,3,4,5,6,7,8,9]},
+ {key:"exec",  label:"Executive briefing (4 stops)",      idxs:[0,1,6,8]},
+ {key:"cp201", label:"CP-201 root-cause thread (4 stops)",idxs:[1,2,4,5]},
+ {key:"audit", label:"Data & governance audit (3 stops)", idxs:[7,6,9]}
+];
+function activeTourBeats(){
+  var track=TOUR_TRACKS.filter(function(t){return t.key===state.tourTrack;})[0]||TOUR_TRACKS[0];
+  return track.idxs.map(function(i){ return TOUR_BEATS[i]; });
+}
 
 var G_TUN=rows.filter(function(r){return r.id==="CP-201";})[0];
 var G_UT=rows.filter(function(r){return r.id==="CP-601";})[0];
@@ -8301,6 +8354,7 @@ function renderShortcutsOverlay(){
       'The same keys drive Presentation Mode’s beats and the Guided Tour’s stops while either is active.</dd>'+
     '<dt>N&nbsp;&nbsp;P</dt><dd>Next / previous beat, while Presentation Mode is active.</dd>'+
     '<dt>/</dt><dd>Jump straight to the Glossary tab and focus its search box.</dd>'+
+    '<dt>T</dt><dd>Toggle dark/light theme &mdash; the same real toggle as the Theme button.</dd>'+
     '<dt>Esc</dt><dd>Close whatever’s open &mdash; a popover, this panel, Presentation Mode, or the Tour.</dd>'+
     '<dt>?</dt><dd>Toggle this panel.</dd>'+
     '</dl>';
@@ -8346,6 +8400,10 @@ function renderGlossCatBar(){
     return '<button class="btn'+(on?" on":"")+'" aria-pressed="'+on+'" data-glosscat="'+c.k+'">'+
       c.label+' <span style="opacity:.7">('+n+')</span></button>';
   }).join("");
+  // live tab-rail count badge (brainstorm-mode nav round, 2026-08-23) -- same #cntAct idiom
+  // (Actions tab), computed off the real GLOSS.length rather than hand-typed like #cntOver's own
+  // static "20" (a pre-existing inconsistency this round didn't touch -- out of scope here).
+  document.getElementById("cntGloss").textContent=GLOSS.length;
 }
 document.getElementById("glossCatBar").addEventListener("click",function(e){
   var b=e.target.closest("[data-glosscat]"); if(!b) return;
@@ -8501,28 +8559,34 @@ function updatePresentNotes(){
    Prev/Next/dots narrators already coexist — Overview, Gate Line, CDE flow) is to accept that
    small duplication rather than tangle two different UI concepts behind one shared function. */
 function renderTourBar(){
-  var b=TOUR_BEATS[state.tourIdx];
-  var dots=TOUR_BEATS.map(function(stop,j){
+  var beats=activeTourBeats(), b=beats[state.tourIdx];
+  var dots=beats.map(function(stop,j){
     return '<button type="button" class="'+(j===state.tourIdx?"on":"")+'" data-tour="'+j+'" '+
       'aria-label="Jump to stop '+(j+1)+': '+stop.t+'" aria-pressed="'+(j===state.tourIdx)+'"></button>';
   }).join("");
+  var tracks=TOUR_TRACKS.map(function(t){
+    return '<option value="'+t.key+'"'+(t.key===state.tourTrack?" selected":"")+'>'+t.label+'</option>';
+  }).join("");
   document.getElementById("tourBar").innerHTML=
     '<div class="tour-bar-in">'+
-    '<div class="thead"><span class="tnum">'+(state.tourIdx+1)+' / '+TOUR_BEATS.length+'</span>'+
+    '<div class="thead"><label class="mono" style="font-size:11px;color:rgb(var(--c-mut));display:flex;align-items:center;gap:5px">Track: '+
+      '<select id="tourTrackSelect" aria-label="Guided tour track" style="font:inherit">'+tracks+'</select></label>'+
+    '<span class="tnum">'+(state.tourIdx+1)+' / '+beats.length+'</span>'+
     '<div class="pdots" role="group" aria-label="Jump to tour stop">'+dots+'</div>'+
     '<h4 id="tourTitle">'+b.t+'</h4></div>'+
     '<p id="tourText" aria-live="polite">'+b.x()+'</p>'+
     '<div class="tctl">'+
       '<button class="btn" data-t="prev" type="button" '+(state.tourIdx===0?"disabled":"")+'>&larr; Back</button>'+
       '<button class="btn on" data-t="next" type="button">'+
-        (state.tourIdx===TOUR_BEATS.length-1?"Done":"Next &rarr;")+'</button>'+
+        (state.tourIdx===beats.length-1?"Done":"Next &rarr;")+'</button>'+
       '<button class="btn" data-t="exit" type="button">Exit tour <span class="mono" style="opacity:.6">(Esc)</span></button>'+
     '</div></div>';
 }
 function goToTourStop(i){
-  if(i<0) i=0; if(i>TOUR_BEATS.length-1) i=TOUR_BEATS.length-1;
+  var beats=activeTourBeats();
+  if(i<0) i=0; if(i>beats.length-1) i=beats.length-1;
   state.tourIdx=i;
-  var b=TOUR_BEATS[i];
+  var b=beats[i];
   activateTab(b.tab);
   renderTourBar();
   // renderTourBar() just rebuilt #tourBar's whole innerHTML, destroying whatever Next/Back/dot
@@ -8627,13 +8691,22 @@ document.getElementById("tourBar").addEventListener("click",function(e){
   if(t){
     if(t.dataset.t==="prev") goToTourStop(state.tourIdx-1);
     else if(t.dataset.t==="next"){
-      if(state.tourIdx===TOUR_BEATS.length-1) exitTour(); else goToTourStop(state.tourIdx+1);
+      if(state.tourIdx===activeTourBeats().length-1) exitTour(); else goToTourStop(state.tourIdx+1);
     }
     else if(t.dataset.t==="exit") exitTour();
     return;
   }
   var d=e.target.closest("[data-tour]");
   if(d) goToTourStop(+d.dataset.tour);
+});
+// Track selector (brainstorm-mode nav round, 2026-08-23) -- switching tracks always restarts at
+// that track's own stop 0, same as switching the demo package on the Overview ledger sandbox
+// always resets to a clean starting state rather than carrying over an index that might not exist
+// on the new track (e.g. the audit track only has 3 stops; a leftover tourIdx of 3+ would be out
+// of range).
+document.getElementById("tourBar").addEventListener("change",function(e){
+  var sel=e.target.closest("#tourTrackSelect"); if(!sel) return;
+  state.tourTrack=sel.value; state.tourIdx=0; goToTourStop(0);
 });
 // solo visitor, no live audience to say "press N" out loud — arrow keys instead of Presentation
 // Mode's N/P, so the two modes' keyboard nav never collides if a visitor tries both in one visit
@@ -8645,7 +8718,7 @@ window.addEventListener("keydown",function(e){
     // match the Next/Done button's own behavior (index.html goToTourStop wiring below) — without
     // this, ArrowRight at the final stop just re-clamped to the same stop and the tour never
     // exited via keyboard, while the mouse/touch "Done" button did (/stress-test, 2026-08-19)
-    if(state.tourIdx===TOUR_BEATS.length-1) exitTour(); else goToTourStop(state.tourIdx+1);
+    if(state.tourIdx===activeTourBeats().length-1) exitTour(); else goToTourStop(state.tourIdx+1);
   }
   else if(e.key==="ArrowLeft") goToTourStop(state.tourIdx-1);
   else if(e.key==="Escape") exitTour();
@@ -8672,6 +8745,10 @@ window.addEventListener("keydown",function(e){
   // from every other check in this handler). Distinct from the shiftKey+"/" branch above, which
   // only fires WITH shift held.
   if(e.key==="/"){ e.preventDefault(); document.getElementById("t-gloss").click(); document.getElementById("glossQ").focus(); return; }
+  // "t" toggles theme (brainstorm-mode nav round, 2026-08-23) -- fires the REAL themeBtn click
+  // handler rather than duplicating its dark/light logic, so the keyboard path and the mouse path
+  // can never drift out of sync with each other.
+  if(e.key==="t"||e.key==="T"){ document.getElementById("themeBtn").click(); return; }
   if(e.key==="Escape"&&shortcutsOpen()){ closeShortcuts(); return; }
   // Escape also dismisses a standing return breadcrumb (nav round 2, item 3, 2026-08-21) — same
   // "Escape closes whatever's open" convention as every other dismissible surface on this page.
@@ -9311,6 +9388,8 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   eacTrendSeries:eacTrendSeries,eacDriftVelocity:eacDriftVelocity,acHistorySeries:acHistorySeries,forecastAccuracy:forecastAccuracy,
   revSvcDriftSeries:revSvcDriftSeries,floatErosionSeries:floatErosionSeries,pvA:pvA,acA:acA,evA:evA,pvB:pvB,milesLast:MILES[MILES.length-1],
   presentBeatsFull:PRESENT_BEATS_FULL,presentBeatsQuick:PRESENT_BEATS_QUICK,tourBeats:TOUR_BEATS,state:state,
+  tourTracks:TOUR_TRACKS,activeTourBeats:activeTourBeats,enterTour:enterTour,exitTour:exitTour,
+  goToTourStop:goToTourStop,renderTourBar:renderTourBar,
   guardrails:GUARDRAILS,discrepancySteps:DISCREPANCY_STEPS,rollout:ROLLOUT,dsNodes:DS_NODES,dsCaption:dsCaption,
   archNodes:ARCH_NODES,archCaption:archCaption,
   gloss:GLOSS,findGloss:findGloss,
