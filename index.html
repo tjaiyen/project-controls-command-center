@@ -500,6 +500,18 @@ tfoot td{font-weight:600;border-top:1px solid rgb(var(--c-accent) / .40);border-
 /* charts */
 .chart{overflow-x:auto}
 .chart svg{display:block;width:100%}
+/* Text-dense diagrams keep their own real design width as a floor, so labels never shrink below
+   their designed size (/stress-test finding, 2026-08-23: at 320-375px these three -- the widest,
+   most text-dense diagrams on the page -- were scaling their 9-11px viewBox-unit labels down to
+   ~2.5-3px, illegible, while .chart's own overflow-x:auto sat unused because width:100% above
+   means the svg never actually overflows). Each min-width is that diagram's own real viewBox
+   width (renderGateLine/renderArch/renderCdeFlow's own W), not a guessed round number -- below
+   it, .chart's existing scroll container engages instead of shrinking text further. Simpler charts
+   (sparklines, bars, tornado) keep scaling freely; they were never the diagrams this finding was
+   about. */
+#gateLine svg{min-width:1180px}
+#arch svg{min-width:980px}
+#cdeFlow svg{min-width:1180px}
 .legend{display:flex;gap:15px;flex-wrap:wrap;margin-top:12px;font-size:12px;color:rgb(var(--c-mut))}
 .legend i{display:inline-block;width:15px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
 .tip{position:fixed;z-index:70;pointer-events:none;display:none;padding:9px 11px;border-radius:8px;
@@ -3243,7 +3255,12 @@ function renderPortSandbox(lines,bacSum,vacSum){
   var pBase=document.getElementById("portPresetBase"), pStress=document.getElementById("portPresetStress"), pTarget=document.getElementById("portPresetTarget");
   if(pBase) pBase.addEventListener("click",function(){ state.portShift=1.00; state.portInject=0; renderPortSandbox(lines,bacSum,vacSum); });
   if(pStress) pStress.addEventListener("click",function(){ state.portShift=0.90; state.portInject=0; renderPortSandbox(lines,bacSum,vacSum); });
-  if(pTarget) pTarget.addEventListener("click",function(){ state.portShift=Math.round(targetShift*100)/100; state.portInject=0; renderPortSandbox(lines,bacSum,vacSum); });
+  // Clamped to the slider's own real 0.85-1.15 range (/stress-test finding, 2026-08-23) -- not a
+  // live bug against today's data (targetShift is comfortably inside that band right now), but a
+  // real latent one: nothing previously stopped state.portShift from landing outside what the
+  // slider itself can represent if the underlying bacSum/vacSum ever shift enough to move
+  // targetShift past 0.85/1.15, silently disagreeing with the DOM's own clamped value= attribute.
+  if(pTarget) pTarget.addEventListener("click",function(){ state.portShift=Math.max(0.85,Math.min(1.15,Math.round(targetShift*100)/100)); state.portInject=0; renderPortSandbox(lines,bacSum,vacSum); });
 }
 
 /* Audience-scoped KPI view (/brainstorm 2026-08-19, Design Guide triage) — each KPI's own tier[]
@@ -5571,7 +5588,7 @@ function renderContracts(){
       // so reuse it rather than build a second, separate SVG canvas. data-contract wires the SAME
       // shared #tip element the tornado/heat map on this tab already use, not a third mechanism.
       var lab=c.title+" covers "+c.pkgs.length+" control account"+(c.pkgs.length===1?"":"s")+": "+c.pkgs.join(", ");
-      return '<tr tabindex="0" data-contract="'+c.id+'" title="'+lab+'" style="cursor:pointer"><th scope="row">'+c.title+
+      return '<tr tabindex="0" role="button" aria-label="'+lab+'" data-contract="'+c.id+'" title="'+lab+'" style="cursor:pointer"><th scope="row">'+c.title+
       '<div class="mono" style="font-size:10.5px;color:rgb(var(--c-mut))">'+c.id+'</div></th>'+
       '<td class="mono" style="font-size:11.5px">'+c.pkgs.join(", ")+'</td>'+
       '<td class="tab-num">'+m(c.award)+'</td><td class="tab-num">'+m(c.approvedCO)+'</td>'+
@@ -5594,23 +5611,43 @@ function renderContracts(){
   ctHost._contracts=cs;
   if(!ctHost.dataset.tipWired){
     var ctTip=document.getElementById("tip");
+    // Shared content-builder (/stress-test finding, 2026-08-23) -- the mouse path (real clientX/Y)
+    // and the keyboard path (no pointer coordinates, positions off the focused row's own rect
+    // instead) both need the same tip content; extracted once rather than duplicated.
+    function ctShowTip(c,x,y){
+      var lines=c.pkgs.map(function(pid){
+        var r=rows.filter(function(x2){return x2.id===pid;})[0];
+        return r? '<b>'+r.id+'</b> '+r.n+' ('+m(r.bac)+')' : pid;
+      });
+      ctTip.innerHTML='<b>'+c.title+'</b>'+lines.join("<br>");
+      ctTip.classList.add("on");
+      ctTip.style.left=Math.min(x+14,window.innerWidth-262)/curZoom()+"px";
+      ctTip.style.top=Math.min(y+14,window.innerHeight-130)/curZoom()+"px";
+    }
     function ctTipFn(e){
       var t=e.target.closest("[data-contract]");
       if(!t){ ctTip.classList.remove("on"); return; }
       var c=ctHost._contracts.filter(function(x){return x.id===t.dataset.contract;})[0];
       if(!c) return;
-      var lines=c.pkgs.map(function(pid){
-        var r=rows.filter(function(x){return x.id===pid;})[0];
-        return r? '<b>'+r.id+'</b> '+r.n+' ('+m(r.bac)+')' : pid;
-      });
-      ctTip.innerHTML='<b>'+c.title+'</b>'+lines.join("<br>");
-      ctTip.classList.add("on");
-      ctTip.style.left=Math.min(e.clientX+14,window.innerWidth-262)/curZoom()+"px";
-      ctTip.style.top=Math.min(e.clientY+14,window.innerHeight-130)/curZoom()+"px";
+      ctShowTip(c,e.clientX,e.clientY);
     }
     ctHost.addEventListener("mousemove",ctTipFn);
     ctHost.addEventListener("click",ctTipFn);
     ctHost.addEventListener("mouseleave",function(){ ctTip.classList.remove("on"); });
+    // Keyboard path (/stress-test finding, 2026-08-23) -- rows carry tabindex="0"+role="button" but
+    // (like every other role="button" div/tr on this page) don't get Enter/Space activation for
+    // free; a real button element would fire "click" natively and the mousemove/click listener
+    // above would already handle it, but this is a table row. No clientX/Y on a keydown, so
+    // position off the focused row's own bounding rect instead of the pointer.
+    ctHost.addEventListener("keydown",function(e){
+      if(e.key!=="Enter"&&e.key!==" ") return;
+      var t=e.target.closest("[data-contract]"); if(!t) return;
+      e.preventDefault();
+      var c=ctHost._contracts.filter(function(x){return x.id===t.dataset.contract;})[0];
+      if(!c) return;
+      var r=t.getBoundingClientRect();
+      ctShowTip(c,r.left,r.bottom);
+    });
     ctHost.dataset.tipWired="1";
   }
 }
@@ -7393,9 +7430,22 @@ function renderEwmaChart(e){
     // Click/Enter target for the per-week idle/rework/baseline drill-down (brainstorm-mode
     // upgrade, 2026-08-23) — tabindex+role=button matches the flow-node idiom used on the
     // pipeline diagram above, so the chart is keyboard-operable, not mouse-only.
-    return '<circle cx="'+X(i).toFixed(1)+'" cy="'+Y(p.ewma).toFixed(1)+'" r="'+(p.flag?4.5:3.2)+'" fill="'+(p.flag?C("bad"):C("accent"))+'" '+
-      'tabindex="0" role="button" data-wk="'+i+'" style="cursor:pointer" aria-label="'+CPH_CELLS[0].weeks[i].w+' — click for the idle/rework breakdown">'+
-      '<title>'+CPH_CELLS[0].weeks[i].w+': actual '+usd(p.v)+'/hr, EWMA '+usd(p.ewma)+'/hr, UCL '+usd(p.ucl)+'/hr'+(p.flag?" — FLAG":"")+' — click for the breakdown</title></circle>';
+    // Touch target (/stress-test finding, 2026-08-23) — the visible dot is only 3.2-4.5 viewBox
+    // units, nowhere near the 44px convention every OTHER control on this page gets via a
+    // ::before hit-area expander (.help-ic, .sc-close, .tsize .btn). That CSS trick doesn't apply
+    // to SVG shape elements, so the fix here is a second, invisible, larger circle carrying ALL
+    // the interactive attributes (tabindex/role/data-wk/aria-label) — the visible dot becomes
+    // purely decorative (aria-hidden, no tabindex) so there's still exactly one tab-stop per week,
+    // not two. r=20 is roughly 6x the visible dot's own radius and stays safely under half the
+    // real inter-point spacing (~69 viewBox units at 6 points across this chart's width), so nearby
+    // weeks' hit areas never overlap — not a literal 44 CSS px at every responsive scale (this SVG
+    // scales with viewBox, not a fixed px grid, so no single viewBox-unit radius hits 44px at every
+    // rendered width), but a substantial, honest improvement over the original point-sized target.
+    var cx=X(i).toFixed(1), cy=Y(p.ewma).toFixed(1);
+    return '<circle cx="'+cx+'" cy="'+cy+'" r="20" fill="transparent" tabindex="0" role="button" '+
+      'data-wk="'+i+'" style="cursor:pointer" aria-label="'+CPH_CELLS[0].weeks[i].w+' — click for the idle/rework breakdown">'+
+      '<title>'+CPH_CELLS[0].weeks[i].w+': actual '+usd(p.v)+'/hr, EWMA '+usd(p.ewma)+'/hr, UCL '+usd(p.ucl)+'/hr'+(p.flag?" — FLAG":"")+' — click for the breakdown</title></circle>'+
+      '<circle cx="'+cx+'" cy="'+cy+'" r="'+(p.flag?4.5:3.2)+'" fill="'+(p.flag?C("bad"):C("accent"))+'" aria-hidden="true" style="pointer-events:none"/>';
   }).join("");
   var labels=pts.map(function(p,i){
     return '<text x="'+X(i).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" font-size="10" font-family="ui-monospace,monospace" fill="'+C("mut")+'">'+CPH_CELLS[0].weeks[i].w+'</text>';
@@ -8108,7 +8158,8 @@ function renderDataStrategy(){
   // cites this program's own real CPI (T.cpi, the same value the Overview KPI board shows) next
   // to the literal SQL line that independently re-derives it in pipeline/models/
   // fct_control_account.sql, plus the real, reproducible pipeline command and its actual result
-  // (54/54 PASS, confirmed live this session — see docs/HANDOFF.md §12/§19). Not a live-polling
+  // (64/64 PASS, confirmed live via a real `pipeline/run_pipeline.py` run — see docs/HANDOFF.md
+  // §12/§19; a stress-test finding, 2026-08-23, corrected this comment's own stale "54/54"). Not a live-polling
   // badge; a "here's the receipt" callout, same convention as the Sound Transit citation above.
   document.getElementById("parityLede").innerHTML=
     "This program's own Cost Performance Index reads <b class=\"mono\" style=\"color:rgb(var(--c-code))\">"+idx(T.cpi)+
@@ -8732,6 +8783,13 @@ window.addEventListener("keydown",function(e){
   var tag=(e.target&&e.target.tagName||"").toLowerCase();
   if(tag==="input"||tag==="textarea") return;
   if(e.metaKey||e.ctrlKey||e.altKey) return; // never hijack a browser/OS shortcut sharing this key
+  // Focus trap (/stress-test finding, 2026-08-23) -- #shortcutsCard declares aria-modal="true" but
+  // had no real trap: Tab/Shift+Tab could walk straight past its one real focusable child
+  // (#shortcutsClose) into the tab rail/help icons still visible behind the fixed-position overlay,
+  // a false accessibility promise for keyboard users. The dialog's own content (a <dl> of static
+  // shortcut definitions) has no other focusable descendant, so a full roving trap isn't needed --
+  // keeping focus pinned on the one real stop is a complete, correct trap here.
+  if(shortcutsOpen()&&e.key==="Tab"){ e.preventDefault(); document.getElementById("shortcutsClose").focus(); return; }
   if(state.touring||state.presenting) return; // those modes own the keyboard while they're running
   // e.key==="?" is what a real Shift+/ produces on a US keyboard; the shiftKey+"/" fallback
   // covers layouts/input paths that report the unshifted key with shiftKey set instead of the
@@ -8962,9 +9020,15 @@ document.getElementById("p-del").addEventListener("click",function(e){
 // its two close buttons, all on one delegated handler bound once on #p-risk (never replaced by
 // innerHTML, unlike its #risks/#riskDrill children).
 function riskDrillClose(){ state.riskDrill=null; renderRisk(); }
+// Focus restoration (/stress-test finding, 2026-08-23) -- renderRisk() rebuilds the WHOLE #risks
+// list on every call, destroying the exact row a keyboard user just pressed Enter on and silently
+// dropping focus to <body>, the same regression class refocusFilter() (index.html, mcFilter/
+// kfilters/audienceFilters/glossCatBar) already exists to fix. Reusing that same helper here rather
+// than inventing a parallel one.
 function riskDrillToggle(id){
   state.riskDrill = state.riskDrill===id ? null : id;
   renderRisk();
+  refocusFilter("risks","data-risk",id);
 }
 document.getElementById("p-risk").addEventListener("click",function(e){
   var j=e.target.closest("[data-jump]"); if(j){ jumpToAction(j.dataset.jump); return; }
@@ -9036,23 +9100,38 @@ document.getElementById("actFilters").addEventListener("click",function(e){
 // Owner-row click-to-filter (brainstorm-mode upgrade, 2026-08-23) — same toggle idiom as the
 // register's own row-click above, a second real filter dimension (owner) layered on top of the
 // existing status filter, not a replacement for it.
+// Focus restoration (/stress-test finding, 2026-08-23) -- renderActions() rebuilds ownerTable/
+// actTable/actBoard on every call, destroying the exact row/card a keyboard Enter/Space just
+// landed on; refocusFilter() is the established fix (see the risk register/portTable fixes above).
+// Passing the ORIGINAL clicked id, not the post-toggle state value: the row/card itself persists
+// across the render regardless of whether the toggle just opened or closed its drawer.
+function ownerFilterToggle(v){
+  state.actOwnerFilter = state.actOwnerFilter===v? null : v;
+  renderActions();
+  refocusFilter("ownerTable","data-ownerf",v);
+}
+function actToggle(id,containerId){
+  state.act = state.act===id? null : id;
+  renderActions();
+  refocusFilter(containerId,"data-act",id);
+}
 document.getElementById("ownerTable").addEventListener("click",function(e){
   var tr=e.target.closest("[data-ownerf]"); if(!tr) return;
-  state.actOwnerFilter = state.actOwnerFilter===tr.dataset.ownerf? null : tr.dataset.ownerf; renderActions();
+  ownerFilterToggle(tr.dataset.ownerf);
 });
 document.getElementById("ownerTable").addEventListener("keydown",function(e){
   if(e.key!=="Enter"&&e.key!==" ") return;
   var tr=e.target.closest("[data-ownerf]"); if(!tr) return; e.preventDefault();
-  state.actOwnerFilter = state.actOwnerFilter===tr.dataset.ownerf? null : tr.dataset.ownerf; renderActions();
+  ownerFilterToggle(tr.dataset.ownerf);
 });
 document.getElementById("actTable").addEventListener("click",function(e){
   var tr=e.target.closest("[data-act]"); if(!tr) return;
-  state.act = state.act===tr.dataset.act? null : tr.dataset.act; renderActions();
+  actToggle(tr.dataset.act,"actTable");
 });
 document.getElementById("actTable").addEventListener("keydown",function(e){
   if(e.key!=="Enter"&&e.key!==" ") return;
   var tr=e.target.closest("[data-act]"); if(!tr) return; e.preventDefault();
-  state.act = state.act===tr.dataset.act? null : tr.dataset.act; renderActions();
+  actToggle(tr.dataset.act,"actTable");
 });
 // Board view (brainstorm-mode upgrade, 2026-08-23) — same data-act idiom as the table's own rows,
 // on a second container, so a card click behaves identically to a row click.
@@ -9060,26 +9139,34 @@ document.getElementById("actViewTable").addEventListener("click",function(){ sta
 document.getElementById("actViewBoard").addEventListener("click",function(){ state.actView="board"; renderActions(); });
 document.getElementById("actBoard").addEventListener("click",function(e){
   var c=e.target.closest("[data-act]"); if(!c) return;
-  state.act = state.act===c.dataset.act? null : c.dataset.act; renderActions();
+  actToggle(c.dataset.act,"actBoard");
 });
 document.getElementById("actBoard").addEventListener("keydown",function(e){
   if(e.key!=="Enter"&&e.key!==" ") return;
   var c=e.target.closest("[data-act]"); if(!c) return; e.preventDefault();
-  state.act = state.act===c.dataset.act? null : c.dataset.act; renderActions();
+  actToggle(c.dataset.act,"actBoard");
 });
 document.getElementById("actDrill").addEventListener("click",function(e){
   if(e.target.id==="closeAct"){ state.act=null; renderActions(); }
 });
 // Portfolio drill-down (brainstorm-mode upgrade, 2026-08-23) — same closest("[data-x]")/toggle idiom
 // as every other row-click drawer on this dashboard, scoped to portTable's own live row only.
+// Focus restoration (/stress-test finding, 2026-08-23) -- renderPortfolio() rebuilds the whole
+// #portTable, destroying the row a keyboard Enter/Space just landed on; refocusFilter() is the
+// established fix for exactly this class (mcFilter/kfilters/etc, and the risk register above).
+function portDrillToggle(id){
+  state.portDrill = state.portDrill===id? null : id;
+  renderPortfolio();
+  refocusFilter("portTable","data-port",id);
+}
 document.getElementById("portTable").addEventListener("click",function(e){
   var tr=e.target.closest("[data-port]"); if(!tr||tr.getAttribute("role")!=="button") return;
-  state.portDrill = state.portDrill===tr.dataset.port? null : tr.dataset.port; renderPortfolio();
+  portDrillToggle(tr.dataset.port);
 });
 document.getElementById("portTable").addEventListener("keydown",function(e){
   if(e.key!=="Enter"&&e.key!==" ") return;
   var tr=e.target.closest("[data-port]"); if(!tr||tr.getAttribute("role")!=="button") return; e.preventDefault();
-  state.portDrill = state.portDrill===tr.dataset.port? null : tr.dataset.port; renderPortfolio();
+  portDrillToggle(tr.dataset.port);
 });
 document.getElementById("portDrill").addEventListener("click",function(e){
   if(e.target.id==="portDrillClose"||e.target.id==="portDrillClose2"){ state.portDrill=null; renderPortfolio(); }
@@ -9404,6 +9491,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   kpiLedgerNone:KPI_LEDGER_NONE,ledgerProvenanceDbox:ledgerProvenanceDbox,ledgerDemoBase:ledgerDemoBase,
   renderLedgerDemo:renderLedgerDemo,kpiFamilies:KPI_FAMILIES,renderFamiliesGrid:renderFamiliesGrid,
   renderRootCauseThread:renderRootCauseThread,renderFilters:renderFilters,renderBoard:renderBoard,
+  phases:PHASES,playbook:PLAYBOOK,
   layers:LAYERS,renderLayersGrid:renderLayersGrid,
   pertPlayRow:pertPlayRow,pertPlayDomain:pertPlayDomain,pertPlayBounds:pertPlayBounds,
   pertPlayClamp:pertPlayClamp,pertPlaySetHandle:pertPlaySetHandle,renderPertPlay:renderPertPlay,

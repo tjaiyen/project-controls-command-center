@@ -39,15 +39,15 @@ anywhere in this repository. The method is the content, not the numbers.
 | Ingestion-validation checks (`INGEST_GUARDS`) | 2 |
 | SQL/DuckDB parity checks (`pipeline/run_pipeline.py`) | 64, independently re-run and verified this pass |
 | Glossary terms (each with a live-computed worked example) | 55 |
-| Actions/RAID register items | 15 (4 Issue, 10 Task, 1 Decision) |
+| Actions/RAID register items | 17 (6 Issue, 10 Task, 1 Decision) |
 | Control accounts / packages | 8 |
 | Contracts | 6 |
 | Risks | 6 |
 | Delay events | 4 |
-| `stress.cjs` test assertions | 1,846, all passing |
+| `stress.cjs` test assertions | 2,224, all passing (/stress-test, 2026-08-23) |
 | Companion pages | `otak.html` (fit brief), `architecture.html` (static pipeline map) |
 | Hosting | GitHub Pages, served directly from `main`, zero build |
-| Git history | 117 commits |
+| Git history | 130 commits |
 
 Current EVM tie-out (verify live in the browser console via `__PCC__.totals`, or `node verify.cjs`):
 
@@ -375,7 +375,7 @@ matches an independent recomputation, not just that *a* number is present.
 
 ## 11. Testing & verification
 
-**`stress.cjs`** (1,846 assertions, all passing) — stubs the DOM, loads `index.html`'s script
+**`stress.cjs`** (2,224 assertions, all passing) — stubs the DOM, loads `index.html`'s script
 verbatim into that stub, and exercises it exactly like a user would: every tab switch, every
 filter, every drawer, every slider drag, every keyboard interaction. 41 labeled sections:
 
@@ -1388,7 +1388,18 @@ carried over from memory or an earlier pass:
   register items stated as "17 (6 Issue, 10 Task, 1 Decision)" — independently recounted directly
   from the `ACTIONS` array (real: 15 total, 4 Issue/10 Task/1 Decision; the original "17"/"6" both
   came from a regex that, unscoped to each object, picked up 2 extra "Issue"-shaped string matches
-  elsewhere in the block). The independent reviewer, covering different ground, found: (1) a
+  elsewhere in the block).
+  **Correction (whole-repo `/stress-test`, 2026-08-23): this Actions/RAID re-count was itself
+  wrong.** A fresh, direct parse of the live `ACTIONS` array (one `{id:` object boundary per
+  entry, `type:` field read per object, cross-checked against `stress.cjs`'s own passing
+  `P.actions.length===17` assertions and `architecture.html`'s independently-stated "17 tracked
+  items") confirms the real count is **17 total, 6 Issue / 10 Task / 1 Decision** — the ORIGINAL
+  number this entry describes correcting away from, not the "15"/"4 Issue" this entry replaced it
+  with. §2's at-a-glance table has been corrected back to 17/6/10/1. Left this paragraph in place
+  rather than deleting it: it's a real, useful example of why a "re-verify a count" step must
+  itself be checked (a regex over-matching "Issue"-shaped substrings elsewhere in the file), not
+  proof this specific 15/4 number was ever right.
+  The independent reviewer, covering different ground, found: (1) a
   **systemic** focus-loss bug across 5 more controls (`mcFilter`, `mcRiskFilter`, `kfilters`,
   `audienceFilters`, the tour bar's Next button) — the SAME defect class the Glossary round's own
   stress-test pass had just fixed for the category filter specifically, but that fix relocated the

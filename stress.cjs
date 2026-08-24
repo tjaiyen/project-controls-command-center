@@ -755,9 +755,13 @@ console.log("== D. interactions ==");
   themedRenderFns.forEach(fn =>
     ok(redrawBody && redrawBody[1].includes(fn + "()"),
       "redrawCharts() calls " + fn + "() — omitting a themed chart here is exactly the bug this check exists to catch"));
+  // Was `ok(true, ...)` -- a placeholder that couldn't fail even if the toggle silently did
+  // nothing (/stress-test finding, 2026-08-23). Strengthened to check the real, observable effect:
+  // documentElement.dataset.theme actually becomes a real "dark"/"light" value, not left unset.
   try {
     fire(G.themeBtn, "click");
-    ok(true, "theme toggle runs without throwing");
+    const theme = document.documentElement.dataset.theme;
+    ok(theme === "dark" || theme === "light", "theme toggle runs without throwing and sets a real dark/light value on documentElement.dataset.theme", String(theme));
   } catch (e) { ok(false, "theme toggle", e.message); }
 }
 // tab switch to cost and back
@@ -1779,7 +1783,12 @@ ok(G.arch._html.includes("fct_control_account") && G.arch._html.includes("integr
   // own innerHTML (a second document.getElementById(...).innerHTML= call, not nested inside
   // #aiEwmaControl's own string) — checked against G.ewmaSvgChart._html, not G.aiEwmaControl._html,
   // the same static-markup-vs-rendered-innerHTML boundary #aiStatBars just above hit too.
-  ok((G.ewmaSvgChart._html.match(/<circle /g) || []).length === 6, "exactly one point-dot per week");
+  // Touch-target fix (/stress-test finding, 2026-08-23) -- each week now renders TWO circles: an
+  // invisible r=20 hit-circle carrying the real tabindex/role/data-wk interactive attributes, and
+  // a decorative, aria-hidden, pointer-events:none dot on top at the original small radius. 12
+  // total, not 6 -- the "one dot per week" claim now means one of each per week, checked separately.
+  ok((G.ewmaSvgChart._html.match(/<circle /g) || []).length === 12, "12 circles total -- one invisible touch-target hit-circle plus one decorative dot per week");
+  ok((G.ewmaSvgChart._html.match(/r="20"/g) || []).length === 6, "exactly one interactive touch-target hit-circle per week");
   // color strings are meaningless under this stub's getComputedStyle (returns "0 0 0" for every
   // custom property, a documented limitation elsewhere in this file) — checking the radius
   // instead, which renderEwmaChart() sets directly off p.flag (r="4.5" flagged, r="3.2" not), is
@@ -2014,10 +2023,14 @@ ok(indexSrc.includes("@keyframes drawin") && indexSrc.includes("prefers-reduced-
 // tour interaction.
 ok(/try\{\s*return window\.localStorage/.test(indexSrc), "fvVisited() try/catches the localStorage read");
 ok(/try\{\s*if\(window\.localStorage\)/.test(indexSrc), "fvClear() try/catches the localStorage write");
+// Was `ok(true, ...)` -- confirmed no-throw but nothing else (/stress-test finding, 2026-08-23).
+// Strengthened with a real, observable check: state.touring genuinely toggles true then back to
+// false across the two fires, not just "didn't crash".
 try {
   fire(G.tourBtn, "click");
+  ok(P.state.touring === true, "first click enters the tour (state.touring true) with no localStorage present");
   fire(G.tourBtn, "click");
-  ok(true, "first-visit cue wiring never throws on tour entry/exit with no localStorage");
+  ok(P.state.touring === false, "second click exits the tour (state.touring false) -- first-visit cue wiring survives both with no localStorage");
 } catch (e) { ok(false, "first-visit cue (no-localStorage guard)", e.message); }
 fire(G["t-over"], "click"); // the tour block above ends back on Overview, but stay defensive
 
@@ -3014,6 +3027,25 @@ ok(P.gates.filter(g => g.hardStop).length === 1 && P.gates.filter(g => g.hardSto
   "exactly one hard-stop gate, at Gate 5 (Baseline Establishment)");
 has("gateTable", "Gate 5", "gate table renders Gate 5");
 has("gateTable", "Baseline Establishment", "gate table names the baseline-establishment milestone");
+// #playbook (/stress-test finding, 2026-08-23) -- rendered by renderFramework() but never checked
+// against any rendered output before this: 7 real phase cards, each cross-referencing the real
+// PLAYBOOK set/watch/gate-decision fields for that phase and the real count of KPIS live in it.
+{
+  ok(P.phases.length === 7, "sanity: 7 real phases", String(P.phases.length));
+  const playbookHtml = G.playbook._html;
+  ok((playbookHtml.match(/class="pcard"/g) || []).length === 7, "exactly 7 phase cards render, one per real PHASES entry");
+  P.phases.forEach((p, i) => {
+    const pb = P.playbook.find(x => x.k === p.k);
+    ok(!!pb, "sanity: every real phase has a matching PLAYBOOK entry — " + p.k);
+    const live = P.kpis.filter(k => k.ph.includes(p.k));
+    ok(playbookHtml.includes("Phase " + (i + 1) + " ·"),
+      "playbook card states its real ordinal position (Phase " + (i + 1) + ")");
+    ok(playbookHtml.includes(pb.set) && playbookHtml.includes(pb.watch) && playbookHtml.includes(pb.dec),
+      p.k + "'s playbook card renders its real Stand-up/Watch/Gate-decision text, not placeholder copy");
+    ok(playbookHtml.includes("KPIs live (" + live.length + ")"),
+      p.k + "'s playbook card states the real count of KPIs live in that phase (" + live.length + "), independently filtered from KPIS, not hand-typed");
+  });
+}
 {
   // pre-registered: contingency coverage is 0.588 (< 1.00) against this ledger, so Gate 5 must show
   // BLOCKED with exactly 2 of 3 checks passing — a gate that always shows CLEARED isn't checking anything.
@@ -3878,8 +3910,15 @@ function tipContent(hostId, i) {
   const cellRisks = P.risks.filter(r => r.p === risk0.p && r.i === risk0.i).map(r => r.id);
   ok(cellRisks.every(id => G.tip._html.includes(id)), "heat map tooltip for a real occupied cell names every risk id actually at that probability x impact combination, independently filtered from the raw RISKS array", G.tip._html);
   ok(G.tip._html.includes("P" + risk0.p) && G.tip._html.includes("I" + risk0.i), "heat map tooltip header states the real probability/impact band clicked");
+  // Was `ok(... || true, ...)` -- a self-admitted tautology that could never fail regardless of
+  // app behavior (/stress-test finding, 2026-08-23). The stub's classList.remove() is a genuine
+  // no-op (never tracks state), so "the tip visually hides" truly can't be observed here -- but
+  // "the early-return branch runs cleanly and doesn't clobber the tip's existing content" CAN be,
+  // and is a real (if weaker) signal: a regression that made this branch throw, or that
+  // accidentally fell through to the content-rewriting branch below it, would fail this.
+  const tipBeforeLeave = G.tip._html;
   fire(G.heat, "mousemove", { target: { classList: { contains: () => false } } });
-  ok(!G.tip._html || !G.tip.classList || true, "heat map tooltip clears on a non-hot target (mouseleave-equivalent) — sanity, not a strict assertion given the stub's classList stub");
+  ok(G.tip._html === tipBeforeLeave, "heat map's non-hot-target branch runs without throwing and leaves the tip's existing content untouched (visual hide-via-CSS-class isn't observable in this stub)");
 }
 ok(indexSrc.includes("host._barsItems=items; host._barsTipFmt=tipFmt;"), "bars() stashes items/tipFmt on the host element, not a closure — the documented fix for the stale-closure class of bug (source-text tripwire, mirrors this file's other such guards)");
 ok(indexSrc.includes("heatHost._gridRisks=gridRisks;"), "heat map tooltip stashes gridRisks on the host element for the same reason, not closed over directly — probe-verified during authoring (a first draft closed over it directly and would have gone stale on a second renderRisk() call)");
@@ -4885,6 +4924,37 @@ console.log("== D27. Delivery-tab upgrade -- PF gauge, field-to-boardroom cascad
   ok(savingsAt50 > 0 && savingsAt50 < savingsAt100, "simulated savings increase monotonically with reduction%, capped at the real totalIdle", savingsAt50 + " / " + savingsAt100);
   ok(Math.abs(savingsAt100 - cph.totalIdle) < 0.01, "savings at 100% reduction exactly equals the real totalIdle, never more", String(savingsAt100));
 
+  // The checks just above only re-derive deriveCph()'s own formula a second time -- they never
+  // actually exercise renderCphWhatIf()/#cphWhatIf or fire the real #cphReductionSlider, so a real
+  // DOM-writing bug in that function (wrong tile, wrong id, wrong variable) would pass all of them
+  // undetected (/stress-test finding, 2026-08-23: renderCphWhatIf had zero coverage). Closing that
+  // gate hole here: real slider fires, real rendered output, numbers pre-registered independently
+  // via `node -e` against the raw weekly actual/idlePct arrays and CP-201's raw ac/ev BEFORE this
+  // test was written (B27/B35), not derived by calling the app's own function.
+  function usd(v) { return (v < 0 ? "−" : "") + "$" + Math.round(Math.abs(v)).toLocaleString("en-US"); }
+  ok(R.registry.cphWhatIf._html.includes('id="cphReductionSlider" min="0" max="100" step="5" value="0"'),
+    "sanity: the REAL rendered slider markup starts at value=\"0\" (the stub's own default .value wouldn't catch a render-side regression here)");
+  let whatIfHtml = R.registry.cphWhatIf._html;
+  ok(whatIfHtml.includes(usd(100156)) && whatIfHtml.includes(usd(0)) && whatIfHtml.includes(usd(145880)) && whatIfHtml.includes("0.8698"),
+    "at 0% reduction, the REAL rendered #cphWhatIf shows the real unmodified idle/savings/overrun/CPI figures", whatIfHtml.match(/\$[\d,]+|0\.\d{4}/g));
+  R.registry.cphReductionSlider.value = "50";
+  fire(R.registry.cphReductionSlider, "input");
+  ok(P.state.cphIdleReduction === 50, "dragging the real slider to 50 sets the real state.cphIdleReduction");
+  whatIfHtml = R.registry.cphWhatIf._html;
+  ok(whatIfHtml.includes(usd(50078)) && whatIfHtml.includes(usd(95802)) && whatIfHtml.includes("0.8700"),
+    "at 50% reduction, the REAL rendered #cphWhatIf independently matches the pre-registered simIdle/simOverrun/simCpi", whatIfHtml.match(/\$[\d,]+|0\.\d{4}/g));
+  R.registry.cphReductionSlider.value = "100";
+  fire(R.registry.cphReductionSlider, "input");
+  whatIfHtml = R.registry.cphWhatIf._html;
+  ok(whatIfHtml.includes(usd(0)) && whatIfHtml.includes(usd(45724)) && whatIfHtml.includes("0.8702"),
+    "at 100% reduction, the REAL rendered #cphWhatIf independently matches the pre-registered simIdle/simOverrun/simCpi", whatIfHtml.match(/\$[\d,]+|0\.\d{4}/g));
+  // the core correctness promise: dragging this slider must never mutate the real ledger
+  ok(P.pkgs.find(p => p.id === "CP-201").ac === 205.1 && P.pkgs.find(p => p.id === "CP-201").ev === 178.4,
+    "dragging the CPH what-if slider left the REAL PKGS CP-201.ac/ev untouched");
+  R.registry.cphReductionSlider.value = "0";
+  fire(R.registry.cphReductionSlider, "input");
+  P.state.cphIdleReduction = 0; // reset before later sections run
+
   // compliance sweep for this round's own brief
   ["Labor 62%", "Equipment 26%", "Overhead 12%", "RFI-042", "Day 35", "TBM portal staging"].forEach(bad => {
     ok(!indexSrc.includes(bad), 'fabricated Delivery-tab brief content never made it into index.html: "' + bad + '"');
@@ -5027,6 +5097,21 @@ console.log("== D30. Data Strategy-tab upgrade -- WBS/ABS crosswalk table, inges
   ok(R.registry.ingestSim._html.includes("Admitted"), "Reset returns to the clean, admitted record");
   ok(P.state.ingestSimAc === 0.8 && P.state.ingestSimEv === 0.75, "Reset restores the exact default values", JSON.stringify({ ac: P.state.ingestSimAc, ev: P.state.ingestSimEv }));
 
+  // Direct slider-drag path (/stress-test finding, 2026-08-23) -- only the preset buttons
+  // (Bad AC/Bad EV/Reset) were ever fire()-d before; the two sliders' own "input" listeners had
+  // zero coverage, including any bug specific to reading +acS.value/+evS.value off the real
+  // elements rather than the preset buttons' own hardcoded -0.15/1.2.
+  R.registry.ingestSimAcSlider.value = "-0.1";
+  fire(R.registry.ingestSimAcSlider, "input");
+  ok(P.state.ingestSimAc === -0.1, "dragging the real AC slider sets the real state.ingestSimAc");
+  ok(R.registry.ingestSim._html.includes("Quarantined"), "dragging AC to a negative value via the real slider quarantines the record, same real check as the preset button");
+  R.registry.ingestSimAcSlider.value = "0.8"; fire(R.registry.ingestSimAcSlider, "input");
+  R.registry.ingestSimEvSlider.value = "1.1";
+  fire(R.registry.ingestSimEvSlider, "input");
+  ok(P.state.ingestSimEv === 1.1, "dragging the real EV slider sets the real state.ingestSimEv");
+  ok(R.registry.ingestSim._html.includes("Quarantined"), "dragging EV above the $1.0M illustrative BAC via the real slider quarantines the record, same real check as the preset button");
+  fire(R.registry.ingestSimReset, "click"); // reset before later sections run
+
   // circuit breaker: real click-driven toggle, explicitly illustrative framing
   P.state.circuitTripped = false; P.renderCircuitDemo();
   ok(R.registry.circuitDemo._html.includes("Circuit healthy"), "circuit starts healthy");
@@ -5116,6 +5201,23 @@ console.log("== D31. Portfolio-tab upgrade -- LOB drill-down, funding-gap bar, s
   ok(Math.abs(P.state.portShift - Math.round(targetShift * 100) / 100) < 0.001, "Target recovery preset sets the real closed-form break-even shift (EAC/BAC), not a guessed round number", P.state.portShift);
   fire(R.registry.portPresetBase, "click");
   ok(P.state.portShift === 1.00 && P.state.portInject === 0, "Base live state preset resets to the real, unmodified defaults");
+
+  // Direct slider-drag path (/stress-test finding, 2026-08-23) -- only the preset buttons were
+  // ever fire()-d before; the sliders' own "input" listeners (portShiftSlider/portInjectSlider)
+  // had zero coverage. Presets happen to call the same state+render path a drag would, but a bug
+  // specific to reading +sS.value/+iS.value off the real slider element itself had no guard.
+  R.registry.portShiftSlider.value = "1.05";
+  fire(R.registry.portShiftSlider, "input");
+  ok(P.state.portShift === 1.05, "dragging the real shift slider sets the real state.portShift");
+  R.registry.portInjectSlider.value = "50";
+  fire(R.registry.portInjectSlider, "input");
+  ok(P.state.portInject === 50, "dragging the real injection slider sets the real state.portInject");
+  const dragSimEacSum = lines.reduce((s, l) => s + l.bac / (l.cpi * 1.05), 0);
+  const dragSimGap = (bacSum + 50) - dragSimEacSum;
+  const dragHtml = R.registry.portSandbox._html;
+  ok(dragHtml.includes(sgn(dragSimGap)),
+    "the REAL rendered sandbox after a direct slider drag (shift=1.05, inject=$50M) matches the independently pre-registered simulated gap", sgn(dragSimGap));
+  fire(R.registry.portPresetBase, "click"); // reset before later sections run
 
   // live crossover check: today's real data must NOT fire it (progress leads drawdown); the check
   // itself must be conditional on live T.contDrawn/T.pct, not a hardcoded assertion either way
@@ -5579,7 +5681,10 @@ const SAN = /mawl|dagir|izlid|kiji|minirva|glare|milr/i;
 //    specification document, not a claim about TJ's own tool experience (2026-08-19).
 const FAB_APPROVED = ["not years running P6", "design-build procurement, schedule analysis",
   "Oracle Primavera P6", "cover larger and design-build"];
-[indexSrc, otakSrc, fs.readFileSync(DIR + "README.md", "utf8")].forEach((s, i) => {
+// archSrc added to this sweep (/stress-test finding, 2026-08-23) — it was read into the harness
+// and used elsewhere (E.1 section) but never actually swept for fabrication/sanitization; a latent
+// gap, not an active failure (re-verified clean above before adding it here).
+[indexSrc, otakSrc, archSrc, fs.readFileSync(DIR + "README.md", "utf8")].forEach((s, i) => {
   const stripped = FAB_APPROVED.reduce((acc, phrase) => acc.split(phrase).join(""), s);
   ok(!FAB.test(stripped), "fabrication sweep file " + i);
   ok(!SAN.test(s), "sanitization sweep file " + i);
