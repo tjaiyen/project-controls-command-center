@@ -1442,6 +1442,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         or tab to a contract row to see its own control accounts highlight below.</span></p>
       <div class="tw"><table id="contractTable"></table></div>
       <p class="lede" id="contractFoot" style="margin-top:9px;font-size:12.5px"></p>
+      <div id="contractDrill" aria-live="polite" style="margin-top:10px"></div>
 
       <div class="sec-h" style="margin-top:34px"><h2>Change &amp; claims</h2><span class="tag">commercial</span></div>
       <p class="lede">Change order rate against original contract value is one of the strongest, most
@@ -1455,7 +1456,12 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
           negotiates: the contractor&rsquo;s proposal, and an independent estimate built from first
           principles. Pending change is carried in the forecast at the independent estimate, not the ask.</p>
         <div class="tw" style="min-width:0"><table id="coDefense"></table></div>
-        <p class="lede" id="coDefenseNote" style="font-size:12.5px;margin-top:11px"></p></div>
+        <p class="lede" id="coDefenseNote" style="font-size:12.5px;margin-top:11px"></p>
+        <div class="slider" style="margin-top:14px"><label for="sCoMix">If X% of pending change settles at the
+          contractor&rsquo;s ask instead of the independent estimate</label><input type="range" id="sCoMix" min="0" max="100" step="5"><span class="tab-num mono" id="vCoMix"></span></div>
+        <p class="lede" style="font-size:12px;margin-top:6px;color:rgb(var(--c-mut))">Blended pending exposure at that mix:
+          <b id="coMixBlend" style="color:rgb(var(--c-ink))"></b> &mdash; illustrative only; the program&rsquo;s own
+          forecast still carries pending change at the independent estimate in the table above, not this slider.</p></div>
 
       <div class="sec-h" style="margin-top:34px"><h2>Settlement decision &mdash; direct vs. Dispute Review Board</h2><span class="tag">expected monetary value</span></div>
       <p class="lede">Real: the pending change population above &mdash; $18.6M carried at the independent estimate,
@@ -2873,6 +2879,8 @@ var state = {phase:"con", fam:"All", audience:"pcm", kpi:null, pkg:2, actFilter:
   ingestSimAc:0.8, ingestSimEv:0.75, circuitTripped:false, // Data Strategy-tab upgrade
                  // (brainstorm-mode, 2026-08-23) — ingestSim* defaults are a clean synthetic record
                  // (both real checks pass); circuitTripped false = the real, untripped state.
+  contractDrill:null, // Change-pipeline/contract-register upgrade (brainstorm-mode, 2026-08-24) —
+                 // same null-means-closed drawer idiom as portDrill/riskDrill/actDrill below.
   portDrill:null, portGapOpen:false, portGapFootnote:false, portShift:1.00, portInject:0, // Portfolio-tab
                  // upgrade (brainstorm-mode, 2026-08-23) — portShift 1.00/portInject 0 = the real,
                  // unmodified state; the sandbox reduces exactly to real bacSum/eacSum/gap there.
@@ -5669,7 +5677,8 @@ function renderContracts(){
       // so reuse it rather than build a second, separate SVG canvas. data-contract wires the SAME
       // shared #tip element the tornado/heat map on this tab already use, not a third mechanism.
       var lab=c.title+" covers "+c.pkgs.length+" control account"+(c.pkgs.length===1?"":"s")+": "+c.pkgs.join(", ");
-      return '<tr tabindex="0" role="button" aria-label="'+lab+'" data-contract="'+c.id+'" title="'+lab+'" style="cursor:pointer"><th scope="row">'+c.title+
+      return '<tr tabindex="0" role="button" aria-label="'+lab+'" aria-controls="contractDrill" aria-pressed="'+(state.contractDrill===c.id)+
+      '" data-contract="'+c.id+'" title="'+lab+'" style="cursor:pointer'+(state.contractDrill===c.id?';background:rgb(var(--c-accent) / .08)':'')+'"><th scope="row">'+c.title+
       '<div class="mono" style="font-size:10.5px;color:rgb(var(--c-mut))">'+c.id+'</div></th>'+
       '<td class="mono" style="font-size:11.5px">'+c.pkgs.join(", ")+'</td>'+
       '<td class="tab-num">'+m(c.award)+'</td><td class="tab-num">'+m(c.approvedCO)+'</td>'+
@@ -5684,7 +5693,11 @@ function renderContracts(){
   document.getElementById("contractFoot").innerHTML=
     '<b style="color:rgb(var(--c-ink))">'+cs.length+' contracts, '+PKGS.length+' control accounts, no gaps and no overlaps</b> &mdash; '+
     'awards sum to '+m(T.bac)+' (the same BAC every other tab reports); approved and pending change sum to '+
-    m(PROGRAM.coApprovedValue)+' and '+m(PROGRAM.coPendingValue)+' (the same change-pipeline totals below).';
+    m(PROGRAM.coApprovedValue)+' and '+m(PROGRAM.coPendingValue)+' (the same change-pipeline totals below); '+
+    'allocated contingency and uncommitted reserve sum to '+m(PROGRAM.contingency)+' and '+m(T.contRemaining)+
+    ' (the same program totals the Cost tab reports). All four of those reconciliations are checked live, not '+
+    'just stated here. <button type="button" class="btn" data-jump-tab="ai" data-jump-el="aiGuards" '+
+    'style="min-height:auto;padding:1px 8px;font-size:12.5px">See the 4 checks live &rarr;</button>';
   // Same stashed-on-host pattern as heatHost._gridRisks above (index.html renderRisk()) -- cs is
   // rebuilt fresh every renderContracts() call, so a tooltip handler closed over the FIRST call's
   // cs would silently go stale after any later re-render (theme toggle, tab revisit).
@@ -5712,25 +5725,59 @@ function renderContracts(){
       if(!c) return;
       ctShowTip(c,e.clientX,e.clientY);
     }
+    // click/keydown used to also re-show this same tooltip (2026-08-23); split out (brainstorm-mode
+    // round, 2026-08-24) so mousemove stays a quick hover peek and click/Enter/Space instead open the
+    // real persistent drill-down drawer below -- wired on #p-risk alongside riskDrillToggle, the same
+    // delegated idiom that section already uses, rather than a second wiring block here.
     ctHost.addEventListener("mousemove",ctTipFn);
-    ctHost.addEventListener("click",ctTipFn);
     ctHost.addEventListener("mouseleave",function(){ ctTip.classList.remove("on"); });
-    // Keyboard path (/stress-test finding, 2026-08-23) -- rows carry tabindex="0"+role="button" but
-    // (like every other role="button" div/tr on this page) don't get Enter/Space activation for
-    // free; a real button element would fire "click" natively and the mousemove/click listener
-    // above would already handle it, but this is a table row. No clientX/Y on a keydown, so
-    // position off the focused row's own bounding rect instead of the pointer.
-    ctHost.addEventListener("keydown",function(e){
-      if(e.key!=="Enter"&&e.key!==" ") return;
-      var t=e.target.closest("[data-contract]"); if(!t) return;
-      e.preventDefault();
-      var c=ctHost._contracts.filter(function(x){return x.id===t.dataset.contract;})[0];
-      if(!c) return;
-      var r=t.getBoundingClientRect();
-      ctShowTip(c,r.left,r.bottom);
-    });
     ctHost.dataset.tipWired="1";
   }
+  renderContractDrill(cs);
+}
+/* Contract drill-down (brainstorm-mode round, 2026-08-24) -- same drawer template as
+   renderPortDrill/renderRiskDrill: null-means-closed, two close buttons, and a closing line that
+   says plainly these figures ARE the row above, not a separate number that happens to agree.
+   Unlike renderPortDrill (which shows ALL 8 packages, because the portfolio has one flagship line),
+   each contract has its own real subset (c.pkgs), so this filters rows down to that subset. The
+   "how this is computed" math trace lives here rather than as a separate static panel -- a
+   standalone panel would just restate this same per-contract math with one hardcoded example
+   instead of a live one, which is strictly worse. */
+function renderContractDrill(cs){
+  var el=document.getElementById("contractDrill"); if(!el) return;
+  if(!state.contractDrill){ el.innerHTML=""; return; }
+  var c=cs.filter(function(x){return x.id===state.contractDrill;})[0];
+  if(!c){ el.innerHTML=""; return; }
+  var crows=c.pkgs.map(function(pid){ return rows.filter(function(r){return r.id===pid;})[0]; }).filter(Boolean);
+  el.innerHTML='<div class="drawer"><div class="dh"><div>'+
+    '<div class="eyebrow">Contract drill-down</div>'+
+    '<h3 style="margin:0">'+c.title+' &mdash; '+crows.length+' real control account'+(crows.length===1?"":"s")+'</h3></div>'+
+    '<button class="btn" id="contractDrillClose" type="button">Close &times;</button></div>'+
+    '<table style="width:100%;margin-top:10px;border-collapse:collapse"><thead><tr>'+
+    '<th style="text-align:left;font-size:11px;color:rgb(var(--c-mut))">Account</th>'+
+    '<th style="text-align:left;font-size:11px;color:rgb(var(--c-mut))">Scope</th>'+
+    '<th style="text-align:right;font-size:11px;color:rgb(var(--c-mut))">BAC</th>'+
+    '<th style="text-align:right;font-size:11px;color:rgb(var(--c-mut))">CPI</th>'+
+    '<th style="text-align:right;font-size:11px;color:rgb(var(--c-mut))">EAC</th></tr></thead><tbody>'+
+    crows.map(function(r){
+      return '<tr><td class="mono" style="font-size:12px;padding:4px 0">'+r.id+'</td>'+
+        '<td style="font-size:12px">'+r.n.replace(/&amp;/g,"&")+'</td>'+
+        '<td class="tab-num mono" style="font-size:12px;text-align:right">'+m(r.bac)+'</td>'+
+        '<td class="tab-num mono" style="font-size:12px;text-align:right">'+idx(r.cpi)+'</td>'+
+        '<td class="tab-num mono" style="font-size:12px;text-align:right">'+m(r.eac)+'</td></tr>';
+    }).join("")+
+    '</tbody></table>'+
+    '<details class="dbox" style="margin-top:12px"><summary>How award and contingency are actually computed, for this contract</summary>'+
+    '<p style="margin:8px 0 0;font-size:12px">Award = sum of BAC across its '+crows.length+' linked account'+(crows.length===1?"":"s")+
+    ' = '+crows.map(function(r){return m(r.bac);}).join(" + ")+' = <b>'+m(c.award)+'</b>.</p>'+
+    '<p style="margin:8px 0 0;font-size:12px">Allocated contingency = award &times; program contingency &divide; program BAC = '+
+    m(c.award)+' &times; '+m(PROGRAM.contingency)+' &divide; '+m(T.bac)+' = <b>'+m(c.allocContingency)+'</b> '+
+    '&mdash; the same share-of-award logic every contingency figure on this page uses, applied to this one contract.</p>'+
+    '<p style="margin:8px 0 0;font-size:12px">Uncommitted reserve = allocated contingency &times; program remaining contingency &divide; program contingency = '+
+    m(c.allocContingency)+' &times; '+m(T.contRemaining)+' &divide; '+m(PROGRAM.contingency)+' = <b>'+m(c.uncommittedReserve)+'</b>.</p></details>'+
+    '<p style="margin:10px 0 0;font-size:11.5px;color:rgb(var(--c-mut))">These figures ARE this contract\'s own row in '+
+    'the table above, not a separate number that happens to agree.</p>'+
+    '<button class="btn" id="contractDrillClose2" type="button" style="margin-top:12px">Close</button></div>';
 }
 
 function renderRisk(){
@@ -5856,7 +5903,10 @@ function renderRisk(){
    '<p style="margin:12px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">Cycle time is '+
    (PROGRAM.coCycleDays-PROGRAM.coCycleTarget)+' days past the '+PROGRAM.coCycleTarget+
    '-day target. That is the controllable half — every change aging past target drifts toward a claim, '+
-   'and a claim costs several times what the change would have.</p>';
+   'and a claim costs several times what the change would have. Rejected shows dollar value only — unlike '+
+   'Approved and Pending, this program does not separately track a rejected-change count. '+
+   '<button type="button" class="btn" data-jump-tab="risk" data-jump-el="coDefense" style="min-height:auto;'+
+   'padding:1px 8px;font-size:12.5px;margin-left:2px">See how each population is priced &rarr;</button></p>';
   var segs=[{l:"Approved",v:T.coRate,c:C("bad")},{l:"Pending",v:PROGRAM.coPendingValue/PROGRAM.origContract,c:C("warn")}];
   var tot=0.12;
   document.getElementById("coContext").innerHTML=
@@ -5985,6 +6035,17 @@ function renderDrbEmv(){
     'DRB can do is tie (if the owner wins outright and legal costs were zero); every other outcome, weighted '+
     'or not, comes out worse. The '+sgn(e.delta)+' delta above is the real, computed cost of that asymmetry, '+
     'not a dramatic number chosen to look interesting &mdash; it is what the framing itself implies.</p>';
+}
+/* Settlement-mix what-if (brainstorm-mode round, 2026-08-24) -- same read-only-display idiom as
+   renderDrbSlider() just below: never mutates PROGRAM, reads the slider's own DOM value live, no
+   state.* field needed. mix=0 reproduces the real forecast figure (coPendingValue, the independent
+   estimate); mix=1 reproduces the contractor's full ask (coProposedPending) -- both real, already
+   on-screen numbers in #coDefense above, this just interpolates between them. */
+function renderCoMixWhatIf(){
+  var mix=+document.getElementById("sCoMix").value/100;
+  document.getElementById("vCoMix").textContent=pct(mix,0);
+  var blended=PROGRAM.coPendingValue+mix*(PROGRAM.coProposedPending-PROGRAM.coPendingValue);
+  document.getElementById("coMixBlend").textContent=m(blended);
 }
 /* The interactive slider + chart (Phase 5, engagement/interactivity upgrade, 2026-08-20) — never
    mutates DRB_ASSUMPTIONS itself (same structural separation renderDrbEmv() above already keeps);
@@ -9221,20 +9282,28 @@ function riskDrillToggle(id){
   renderRisk();
   refocusFilter("risks","data-risk",id);
 }
+// Contract-register drill-down toggle (brainstorm-mode round, 2026-08-24) -- same idiom as
+// riskDrillToggle just above; refocusFilter re-lands keyboard focus on the row a re-render just
+// destroyed, same regression class documented there.
+function contractDrillToggle(id){
+  state.contractDrill = state.contractDrill===id ? null : id;
+  renderContracts();
+  refocusFilter("contractTable","data-contract",id);
+}
 document.getElementById("p-risk").addEventListener("click",function(e){
   var j=e.target.closest("[data-jump]"); if(j){ jumpToAction(j.dataset.jump); return; }
   if(e.target.id==="riskDrillClose"||e.target.id==="riskDrillClose2"){ riskDrillClose(); return; }
-  var t=e.target.closest("[data-risk]"); if(!t) return;
-  riskDrillToggle(t.dataset.risk);
+  if(e.target.id==="contractDrillClose"||e.target.id==="contractDrillClose2"){ state.contractDrill=null; renderContracts(); return; }
+  var t=e.target.closest("[data-risk]"); if(t){ riskDrillToggle(t.dataset.risk); return; }
+  var tc=e.target.closest("[data-contract]"); if(tc){ contractDrillToggle(tc.dataset.contract); return; }
 });
 // role="button" divs (not real button elements) don't get Enter/Space activation for free the way
 // the "View CAPA"/close buttons above do — same reason the EWMA chart's circle points and the
 // Portfolio table's rows each needed their own keydown handler.
 document.getElementById("p-risk").addEventListener("keydown",function(e){
   if(e.key!=="Enter"&&e.key!==" ") return;
-  var t=e.target.closest("[data-risk]"); if(!t) return;
-  e.preventDefault();
-  riskDrillToggle(t.dataset.risk);
+  var t=e.target.closest("[data-risk]"); if(t){ e.preventDefault(); riskDrillToggle(t.dataset.risk); return; }
+  var tc=e.target.closest("[data-contract]"); if(tc){ e.preventDefault(); contractDrillToggle(tc.dataset.contract); return; }
 });
 // "One root cause, five instruments" panel's own [data-jump] target (the Quality NCR button --
 // the other four use the generic data-jump-tab mechanism, which is already handled globally)
@@ -9391,6 +9460,9 @@ document.getElementById("ledgerDemoReset").addEventListener("click",function(){ 
 // params that Event-is-truthy could corrupt, but matching the established idiom here anyway).
 ["sDrbP","sDrbLegal"].forEach(function(id){
   document.getElementById(id).addEventListener("input",function(){ renderDrbSlider(); }); });
+// Settlement-mix slider (brainstorm-mode round, 2026-08-24) -- same plain-closure wrapping as the
+// DRB pair just above, for the same reason.
+document.getElementById("sCoMix").addEventListener("input",function(){ renderCoMixWhatIf(); });
 // Gate 5 solvency sandbox sliders (brainstorm-mode upgrade, 2026-08-24) — unlike the DRB pair
 // above, each of these does mutate state (the sandbox's whole point is a real, resettable
 // what-if against the ledger, same as veSandboxCalc()'s toggle), so each gets its own state key
@@ -9638,6 +9710,8 @@ renderGantt(); renderSchedule(); renderRisk(); renderDrbEmv(); renderContracts()
 document.getElementById("sDrbP").value=DRB_ASSUMPTIONS.pOwnerWins;
 document.getElementById("sDrbLegal").value=DRB_ASSUMPTIONS.legalCost;
 renderDrbSlider();
+document.getElementById("sCoMix").value=0;
+renderCoMixWhatIf();
 renderDataStrategy();
 renderMcFilter();
 renderMcRiskFilter();
@@ -9671,7 +9745,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   deriveEarnedSchedule:deriveEarnedSchedule,
   risks:RISKS,pBand:P_BAND,pBandName:P_BAND_NAME,tweenNum:tweenNum,mcQuantile:mcQuantile,
   renderRisk:renderRisk,riskLinkedActions:riskLinkedActions,renderRiskDrill:renderRiskDrill,
-  renderContracts:renderContracts,
+  renderContracts:renderContracts,renderCoMixWhatIf:renderCoMixWhatIf,
   eacTrendSeries:eacTrendSeries,eacDriftVelocity:eacDriftVelocity,acHistorySeries:acHistorySeries,forecastAccuracy:forecastAccuracy,
   revSvcDriftSeries:revSvcDriftSeries,floatErosionSeries:floatErosionSeries,pvA:pvA,acA:acA,evA:evA,pvB:pvB,milesLast:MILES[MILES.length-1],
   presentBeatsFull:PRESENT_BEATS_FULL,presentBeatsQuick:PRESENT_BEATS_QUICK,tourBeats:TOUR_BEATS,state:state,

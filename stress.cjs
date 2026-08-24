@@ -5810,6 +5810,75 @@ console.log("== D40. Math-panel audit -- 2 real gaps found across the other 10 '
   ok(/standard SPC parameter choice, not derived/.test(zscoreGloss.p), "z-score glossary entry's own prose carries the same disclosure, not just the math panel");
 }
 
+console.log("== D41. Change-pipeline/contract-register upgrade -- inline reconciliation, contract drill-down drawer, Rejected-count honesty, pricing cross-link, settlement-mix what-if (brainstorm-mode round, 2026-08-24) ==");
+{
+  // 1. inline reconciliation confirmation on contractFoot -- reuses the same 4 real GUARDS checks
+  // (index.html ~7460-7477), doesn't re-derive the math independently
+  has("contractFoot", "allocated contingency and uncommitted reserve sum to", "contractFoot now states the 4th reconciliation (contingency/reserve), not just the first 3 it already had");
+  ok(G.contractFoot._html.includes(m(P.program.contingency)) && G.contractFoot._html.includes(m(T.contRemaining)),
+    "contractFoot's new sentence shows the real program contingency/reserve totals, not placeholder text");
+  ok(G.contractFoot._html.includes('data-jump-tab="ai"') && G.contractFoot._html.includes('data-jump-el="aiGuards"'),
+    "contractFoot links out to the real AI & Data integrity gate where these 4 checks actually run live");
+
+  // 2. contract drill-down drawer -- same idiom as risk/portfolio drawers, but filtered to the
+  // contract's own real subset of control accounts (unlike portDrill, which shows the whole PKGS list
+  // because the portfolio has only one flagship line)
+  ok(P.state.contractDrill === null && G.contractDrill._html === "", "sanity: contract drawer starts closed");
+  const cteBB01 = P.contracts.map(P.deriveContract).find(c => c.id === "CTE-BB-01");
+  ok(cteBB01.pkgs.join(",") === "CP-101,CP-102", "sanity: CTE-BB-01 really is the 2-account guideway contract", cteBB01.pkgs.join(","));
+  fire(R.registry["p-risk"], "click", { target: { closest: sel => sel === "[data-contract]" ? { dataset: { contract: "CTE-BB-01" } } : null } });
+  ok(P.state.contractDrill === "CTE-BB-01", "clicking the guideway contract row sets state.contractDrill");
+  let cDrillHtml = G.contractDrill._html;
+  ok(cDrillHtml.includes("CP-101") && cDrillHtml.includes("CP-102") && !cDrillHtml.includes("CP-201"),
+    "drawer shows only this contract's own 2 real linked control accounts, not every package on the program");
+  ok(cDrillHtml.includes(m(cteBB01.award)) && cDrillHtml.includes(m(cteBB01.allocContingency)) && cDrillHtml.includes(m(cteBB01.uncommittedReserve)),
+    "drawer's math trace shows this contract's own real award/allocContingency/uncommittedReserve, matching deriveContract()'s live output",
+    m(cteBB01.award) + "/" + m(cteBB01.allocContingency) + "/" + m(cteBB01.uncommittedReserve));
+
+  // toggle closes
+  fire(R.registry["p-risk"], "click", { target: { closest: sel => sel === "[data-contract]" ? { dataset: { contract: "CTE-BB-01" } } : null } });
+  ok(P.state.contractDrill === null, "clicking the SAME contract row again closes the drawer");
+  ok(G.contractDrill._html === "", "closed contract drawer renders nothing");
+
+  // keyboard path (role="button" tr, not a real button -- needs its own key handling, same reason as riskDrill)
+  fire(R.registry["p-risk"], "keydown", { key: "Enter", target: { closest: sel => sel === "[data-contract]" ? { dataset: { contract: "CTE-SYS-04" } } : null }, preventDefault() {} });
+  ok(P.state.contractDrill === "CTE-SYS-04", "pressing Enter on a contract row opens its drawer too, not just a mouse click");
+  P.state.contractDrill = null; P.renderContracts(); // reset before later sections run
+
+  // mousemove tooltip is untouched -- click/keydown were redirected to the drawer, mousemove was
+  // deliberately left alone as a quick hover preview
+  fire(R.registry.contractTable, "mousemove", { target: { closest: sel => sel === "[data-contract]" ? { dataset: { contract: "CTE-BB-01" } } : null }, clientX: 60, clientY: 60 });
+  ok(R.registry.tip._html.includes("CP-101"), "hover tooltip still shows a quick preview after the click/keydown redirect to the drawer");
+  fire(R.registry.contractTable, "mousemove", { target: { closest: () => null } });
+
+  // 3. Rejected row asymmetry -- honestly disclosed instead of left unexplained (no coRejectedCount
+  // field exists anywhere in PROGRAM, unlike coApprovedCount/coPendingCount)
+  ok(!("coRejectedCount" in P.program), "sanity: PROGRAM genuinely has no coRejectedCount field to show");
+  has("changePipe", "does not separately track a rejected-change count", "changePipe note now explains why Rejected shows only a dollar figure, no count");
+
+  // 4. cross-link from changePipe to the pricing-defense table, 3 sub-sections down and previously undiscoverable from here
+  ok(G.changePipe._html.includes('data-jump-tab="risk"') && G.changePipe._html.includes('data-jump-el="coDefense"'),
+    "changePipe links out to the real #coDefense pricing table");
+
+  // 6. settlement-mix what-if slider -- real coPendingValue/coProposedPending interpolation, never
+  // mutates PROGRAM (same read-only-display idiom as the DRB sliders)
+  ok(idsA.includes("sCoMix") && idsA.includes("vCoMix") && idsA.includes("coMixBlend"), "settlement-mix slider markup exists");
+  ok(+G.sCoMix.value === 0, "settlement-mix slider initializes at 0% (the real forecast basis), not a fabricated default");
+  ok(String(G.coMixBlend.textContent) === m(P.program.coPendingValue),
+    "at 0%, blended pending exposure equals the real independent-estimate figure carried in the forecast", String(G.coMixBlend.textContent));
+  G.sCoMix.value = "100"; P.renderCoMixWhatIf();
+  ok(String(G.coMixBlend.textContent) === m(P.program.coProposedPending),
+    "at 100%, blended pending exposure equals the real contractor-ask figure, not a fabricated ceiling", String(G.coMixBlend.textContent));
+  G.sCoMix.value = "0"; P.renderCoMixWhatIf(); // reset before later sections run
+
+  // compliance sweep for this round's own brief -- a garbled voice-to-text request with no pasted
+  // spec to fact-check, so this instead guards against inventing a "claims register" or itemized
+  // change-order line items, neither of which exist anywhere in this codebase's real data model
+  ["CLAIMS=[", "claims register", "CO-2026-", "itemized change order"].forEach(bad => {
+    ok(!indexSrc.includes(bad), 'fabricated content never made it into index.html: "' + bad + '"');
+  });
+}
+
 /* =========================================================================
    E. otak.html — runtime + internal consistency
    ========================================================================= */
