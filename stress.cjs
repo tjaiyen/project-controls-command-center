@@ -5373,6 +5373,12 @@ console.log("== D31. Portfolio-tab upgrade -- LOB drill-down, funding-gap bar, s
       ok(gapHtml.includes("left:" + gBacPct.toFixed(1) + "%;transform:translateX(-50%)"), "with the real live bacPct mid-range, the tick label centers on the tick");
     }
   }
+  // /stress-test finding (2026-08-24): pctOfBudget/maxV divide by bacSum with no epsilon floor,
+  // unlike the GBM chart's own sigmaHatMle->0 floor added the same session for the analogous
+  // collapse case. Not reachable with today's real portfolio total (bacSum=2680), so checked
+  // statically for the floor's presence rather than by forcing a live 0-BAC render.
+  ok(indexSrc.includes("Math.max(Math.max(bacSum,eacSum)*1.06,1e-6)") && indexSrc.includes("Math.max(bacSum,1e-6)"),
+    "the funding-gap bar's own bacSum/maxV divisors carry the same defensive epsilon floor the GBM chart established this session, for consistency even though not reachable with real data");
 
   fire(R.registry.portGapToggle, "click");
   ok(P.state.portGapOpen === true, "clicking the breakdown toggle opens it");
@@ -6317,11 +6323,27 @@ console.log("== D45. GBM log-return chart made interactive -- bands, click-a-dot
   ok(P.state.gbmSelectedLabel === null, "dragging the explorer slider clears gbmSelectedLabel");
   x = lo + (hi - lo) * (10 / 100);
   const zAt10 = (x - g.rbar) / sigmaForCurve, pctileAt10 = P.normCdf(zAt10) * 100;
+  // /stress-test finding (independent reviewer, 2026-08-24): a bare toFixed(0) at this chart's own
+  // slider extremes rounds to a misleading bare "P100"/"P0" (real values there are ~99.93/~0.07,
+  // z~=+-3.2sigma) -- fixed to display "P>99"/"P<1" at that rounding edge. Re-derived the SAME
+  // clamp logic independently here (not copied from production) so this test tracks the real
+  // intent, not just today's specific boundary outcome.
+  const pLabelAt10 = pctileAt10 >= 99.5 ? "P>99" : pctileAt10 <= 0.5 ? "P<1" : "P" + pctileAt10.toFixed(0);
   out = G.gbmInspectOut._html;
   ok(out.includes("Exploring a hypothetical value"), "after dragging, the readout correctly reframes as hypothetical, not still claiming to be the previously-clicked real dot");
   ok(out.includes((zAt10 >= 0 ? "above" : "below") + " the fitted mean"), "the readout states the correct direction (above/below the mean) for the dragged-to position");
-  ok(out.includes(">P" + pctileAt10.toFixed(0) + "<"), "the readout states the correct, independently-recomputed percentile for the dragged-to position", pctileAt10.toFixed(0));
+  ok(out.includes(">" + pLabelAt10 + "<"), "the readout states the correct, independently-recomputed percentile label for the dragged-to position, including the near-boundary clamp if applicable", pLabelAt10);
   ok(out.includes("not a projection of what happens next"), "a hypothetical explored value carries the same non-forecast disclosure the chart's own caption states");
+
+  // Explicit boundary coverage: the slider's true extremes (0 and 100) must never render a bare
+  // "P100"/"P0" -- confirmed by driving all the way to each end, not just inferring from position 10.
+  G.gbmInspect.value = "100"; fire(G.gbmInspect, "input");
+  ok(G.gbmInspectOut._html.includes(">P>99<"), "at the slider's true top extreme, the readout shows 'P>99', never a bare 'P100'", G.gbmInspectOut._html);
+  ok(!/>P100</.test(G.gbmInspectOut._html), "pre-registered: 'P100' never literally appears at the top extreme");
+  G.gbmInspect.value = "0"; fire(G.gbmInspect, "input");
+  ok(G.gbmInspectOut._html.includes(">P<1<"), "at the slider's true bottom extreme, the readout shows 'P<1', never a bare 'P0'", G.gbmInspectOut._html);
+  ok(!/>P0</.test(G.gbmInspectOut._html), "pre-registered: 'P0' never literally appears at the bottom extreme");
+  G.gbmInspect.value = "50"; fire(G.gbmInspect, "input"); // restore centered before continuing
 
   // Bands toggle -- click flips state and the live DOM node's visibility, without a full chart
   // re-render (checked by confirming the toggle button element itself, not a fresh svgHtml string,
@@ -6368,13 +6390,35 @@ console.log("== D46. Attention & Triage tab -- external spec, fact-checked befor
   const staleActions = P.actions.filter(a => !a.done && P.isStale(a));
   const dueSoonActions = P.actions.filter(a => !a.done && P.actionStatus(a) === "due-soon");
   const blockedActions = P.actions.filter(a => !a.done && P.actionStatus(a) === "blocked");
+  // /stress-test finding (independent reviewer + this file's own live probe, 2026-08-24): stale/
+  // due-soon/blocked are 3 independent real axes -- A-09 today genuinely satisfies BOTH isStale()
+  // and actionStatus()==="due-soon", so a naive per-source count double-counted it as two
+  // disconnected cards for the same real action. Fixed with a priority-ordered dedup (stale wins
+  // over due-soon wins over blocked); re-derived independently here, not copied from production.
+  const staleIds = new Set(staleActions.map(a => a.id));
+  const dueSoonNotStale = dueSoonActions.filter(a => !staleIds.has(a.id));
+  const claimedIds = new Set([...staleIds, ...dueSoonNotStale.map(a => a.id)]);
+  const blockedNotClaimed = blockedActions.filter(a => !claimedIds.has(a.id));
   const cphSeries0 = P.cphCells[0].weeks.map(w => w.actual);
   const eCph0 = P.deriveEwma(cphSeries0);
   const cphFlags0 = eCph0.points.filter(p => p.flag).length;
   const cphGapFirst = eCph0.points[0].ucl - eCph0.points[0].ewma, cphGapLast = eCph0.points[eCph0.points.length - 1].ucl - eCph0.points[eCph0.points.length - 1].ewma;
   const cphNarrowingExpected = cphFlags0 === 0 && cphGapLast < cphGapFirst;
-  const expectedCount = escCount + staleActions.length + dueSoonActions.length + blockedActions.length + (cphNarrowingExpected ? 1 : 0);
-  ok(queue.length === expectedCount, "the queue's real item count matches an independent recount from the same 4 real sources (escalations/stale/due-soon/blocked/CPH)", queue.length + " vs expected " + expectedCount);
+  const expectedCount = escCount + staleActions.length + dueSoonNotStale.length + blockedNotClaimed.length + (cphNarrowingExpected ? 1 : 0);
+  ok(queue.length === expectedCount, "the queue's real item count matches an independent recount from the same 4 real sources, deduped by the same stale>due-soon>blocked priority", queue.length + " vs expected " + expectedCount);
+
+  // General invariant, not tied to today's specific overlap: no real action id should ever
+  // produce more than one per-action card (stale-/duesoon-/blocked- ids all carry the same
+  // actionId) -- a fresh regression guard for the exact bug class just fixed.
+  const perActionIds = queue.filter(it => it.actionId).map(it => it.actionId);
+  const dupeActionIds = perActionIds.filter((id, i) => perActionIds.indexOf(id) !== i);
+  ok(dupeActionIds.length === 0, "no single real action produces more than one per-action triage card", JSON.stringify(dupeActionIds));
+  // The specific real instance that caught this: A-09 is both stale and due-soon today.
+  const a09stale = P.actions.find(a => a.id === "A-09");
+  if (a09stale && P.isStale(a09stale) && P.actionStatus(a09stale) === "due-soon") {
+    ok(!!queue.find(it => it.id === "stale-A-09"), "A-09 (real: both stale AND due-soon today) appears via the higher-priority stale- card");
+    ok(!queue.find(it => it.id === "duesoon-A-09"), "A-09 does NOT also appear via a second, disconnected duesoon- card for the same real action");
+  }
 
   // Real, currently-firing escalation rows land in the queue with the tier this file's OWN clock
   // text implies, re-derived from ESCALATION's real row text, not the spec's own tier boundaries
@@ -6408,6 +6452,29 @@ console.log("== D46. Attention & Triage tab -- external spec, fact-checked befor
     const worst = rows.reduce((a, b) => b.cpli < a.cpli ? b : a, rows[0]);
     ok(cpliItem.metric.includes(worst.id), "the driving-CPLI item names the real worst-CPLI package (today, CP-601), independently re-derived, not assumed", worst.id);
   }
+  // /stress-test finding (2026-08-24): the "Rule #N of M" text uses ESCALATION.indexOf(row)+1, a
+  // positional lookup -- this exact array has a DOCUMENTED history of positional-index bugs
+  // (2026-08-19 finding, cited in ESCALATION's own comment above). Never tested until now; both
+  // items below independently recompute the real 1-based row position, not trusting the string.
+  escFiring.forEach(row => {
+    const item = queue.find(it => it.title === row[0]);
+    if (!item) return;
+    const expectRuleNum = P.escalation.indexOf(row) + 1;
+    ok(item.escRule === "Escalation Matrix Rule #" + expectRuleNum + " of " + P.escalation.length + " — " + row[2],
+      "'" + row[0] + "' states its own real, independently-recomputed rule number and total", item.escRule);
+  });
+  // /stress-test finding (independent reviewer, 2026-08-24): eacDriftVelocity() returns MILLIONS
+  // (its own ">1.0" threshold two lines above the fix, and the pre-existing sgn()+"/mo" Velocity
+  // Pulse display, both confirm this) -- sgnUsd() (the raw-$/hr-scale formatter) was used instead,
+  // rendering a real $7.53M/mo drift as the self-contradictory "+$8/mo" against a ">$1.0M/mo"
+  // threshold in the same sentence. Fixed to sgn(); regression-guarded here against the exact
+  // wrong-formatter string, not just the presence of a metric.
+  const eacDriftItem = queue.find(it => it.id === "esc-eacDrift");
+  if (eacDriftItem) {
+    const expectMetric = "EAC drift velocity " + sgn(P.eacDriftVelocity()) + "/mo (threshold > $1.0M/mo)";
+    ok(eacDriftItem.metric === expectMetric, "EAC drift item states the real drift in millions (sgn(), not sgnUsd()), matching its own stated threshold's units", eacDriftItem.metric);
+    ok(!/\+\$\d{1,3}\/mo/.test(eacDriftItem.metric), "pre-registered regression guard: the metric never reads as a bare small-dollar figure (the exact wrong-unit shape this bug produced)", eacDriftItem.metric);
+  }
 
   // RAID staleness items -- real day counts, NOT the spec's hardcoded "12d" for both.
   staleActions.forEach(a => {
@@ -6425,15 +6492,16 @@ console.log("== D46. Attention & Triage tab -- external spec, fact-checked befor
     ok(!(d09 === 12 && d11 === 12), "pre-registered: A-09 and A-11 do NOT both read exactly 12 days stale (the spec's own claim) -- the real, independently-recomputed counts differ", "A-09=" + d09 + "d, A-11=" + d11 + "d");
   }
 
-  // Due-soon and blocked items -- same real-count discipline.
-  dueSoonActions.forEach(a => {
+  // Due-soon and blocked items -- same real-count discipline, over the deduped sets (an action
+  // already claimed by the higher-priority stale- card correctly does NOT get a second card here).
+  dueSoonNotStale.forEach(a => {
     const item = queue.find(it => it.id === "duesoon-" + a.id);
-    ok(!!item, a.id + " (real actionStatus()==='due-soon') has a real queue item");
+    ok(!!item, a.id + " (real actionStatus()==='due-soon', not also stale) has a real queue item");
     if (item) ok(item.metric.includes("Due in " + (-P.actDays(a.due)) + "d"), a.id + "'s due-soon item states its own real day count");
   });
-  blockedActions.forEach(a => {
+  blockedNotClaimed.forEach(a => {
     const item = queue.find(it => it.id === "blocked-" + a.id);
-    ok(!!item && item.tier === 4, a.id + " (real actionStatus()==='blocked') lands at Tier 4, watchlist not yet urgent by date");
+    ok(!!item && item.tier === 4, a.id + " (real actionStatus()==='blocked', not already claimed) lands at Tier 4, watchlist not yet urgent by date");
   });
 
   // cntTriage badge + filter rail + card rendering, driven by a real tab activation (not calling
@@ -6456,6 +6524,19 @@ console.log("== D46. Attention & Triage tab -- external spec, fact-checked befor
     fire(G.triageFilterRail, "click", { target: { closest: sel => sel === "[data-tier]" ? { dataset: { tier: "" } } : null } });
     ok(P.state.triageFilter === null, "clicking All clears the filter back to null");
   }
+
+  // /stress-test finding (2026-08-24): both triageEmpty message branches had zero coverage. The
+  // "tier filtered to zero, but the queue overall is non-empty" branch is exercised here via a
+  // tier number the real UI never produces (no 5th filter button exists) but the render function
+  // doesn't itself validate -- a legitimate way to reach the branch without fabricating fake data.
+  // The true blank-slate branch (0 real items at all) isn't reachable with today's live data (15
+  // real items exist), so it's confirmed by static source check instead, same convention this
+  // file already uses elsewhere for branches real data can't currently trigger.
+  fire(G.triageFilterRail, "click", { target: { closest: sel => sel === "[data-tier]" ? { dataset: { tier: "99" } } : null } });
+  ok(G.triageCards._html === "", "filtering to a tier with zero real items clears the card list rather than leaving stale cards");
+  ok(G.triageEmpty.textContent.includes("No items in this tier right now"), "the non-empty-queue-but-empty-filter message renders for real");
+  fire(G.triageFilterRail, "click", { target: { closest: sel => sel === "[data-tier]" ? { dataset: { tier: "" } } : null } });
+  ok(indexSrc.includes("Nothing needs immediate attention right now"), "the true all-clear message string exists in source (not reachable with today's real 15-item queue, so checked statically)");
 
   // Acknowledge — dims/labels the card but the item MUST stay in the next queue read (never a
   // silent removal of a still-real breach), matching this dashboard's own established ethic.

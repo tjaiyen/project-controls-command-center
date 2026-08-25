@@ -3390,9 +3390,15 @@ function renderPortDrill(lines){
    are computed fresh here every render, never hand-typed. */
 function renderFundingGapBar(lines,bacSum,vacSum){
   var el=document.getElementById("fundingGapBar"); if(!el) return;
-  var eacSum=bacSum-vacSum, gap=vacSum, maxV=Math.max(bacSum,eacSum)*1.06;
+  var eacSum=bacSum-vacSum, gap=vacSum;
+  // /stress-test finding (2026-08-24): maxV/bacSum had no epsilon floor, unlike the GBM chart's
+  // own sigmaHatMle->0 floor added this same session for the analogous collapse case -- a real
+  // portfolio total will never be 0 today, but bare bacSum/maxV divisors here would silently
+  // produce NaN/Infinity rather than degrade safely if either ever were. Floored for consistency,
+  // not because it's reachable with today's real data.
+  var maxV=Math.max(Math.max(bacSum,eacSum)*1.06,1e-6), safeBacSum=Math.max(bacSum,1e-6);
   var open=state.portGapOpen;
-  var pctOfBudget=(eacSum/bacSum)*100;
+  var pctOfBudget=(eacSum/safeBacSum)*100;
   // Bullet-chart conversion (TJ's direct report, 2026-08-24: "the two color bars doesn't really
   // tell me what it means"). The old design stacked two separate bar tracks (Authorized/blue on
   // top, Forecast/red-or-green below) with ONE caption line sitting under the bottom bar only --
@@ -4592,11 +4598,16 @@ function renderGbmInspectOut(){
   var x=geom.lo+(geom.hi-geom.lo)*(state.gbmInspect/100);
   var z=(x-g.rbar)/geom.sigmaForCurve, pctile=normCdf(z)*100;
   var real=state.gbmSelectedLabel;
+  // /stress-test finding (independent reviewer, 2026-08-24): the slider's own extremes sit at
+  // z~=+-3.2sigma, where pctile.toFixed(0) rounds to a bare "P100"/"P0" -- overstating exact
+  // certainty for a feature whose entire stated purpose is honest precision (real values there are
+  // ~99.93/~0.07, not literally 100/0). Displayed as "P>99"/"P<1" instead at that rounding edge.
+  var pLabel = pctile>=99.5 ? "P>99" : pctile<=0.5 ? "P<1" : "P"+pctile.toFixed(0);
   document.getElementById("vGbmInspect").textContent=pct(x,2);
   document.getElementById("gbmInspectOut").innerHTML=
     (real?"<b style='color:rgb(var(--c-ink))'>Real observation, "+real+":</b> ":"<b style='color:rgb(var(--c-ink))'>Exploring a hypothetical value:</b> ")+
     pct(x,2)+" log-return &mdash; <b style='color:rgb(var(--c-ink))'>"+Math.abs(z).toFixed(2)+"&sigma;</b> "+(z>=0?"above":"below")+
-    " the fitted mean, around the <b style='color:rgb(var(--c-ink))'>P"+pctile.toFixed(0)+"</b> of the fitted distribution."+
+    " the fitted mean, around the <b style='color:rgb(var(--c-ink))'>"+pLabel+"</b> of the fitted distribution."+
     (real?"":" <span style='color:rgb(var(--c-mut))'>Exploring the current fitted shape only &mdash; not a projection of what happens next.</span>");
 }
 /* Click/keyboard select on a real dot -- snaps the same slider+marker+readout the drag explorer
@@ -5678,7 +5689,12 @@ var TRIAGE_ESC_META={
   coAging:{tab:"risk",anchor:"changePipe",m:function(){ return "Change-order cycle "+PROGRAM.coCycleDays+"d vs "+PROGRAM.coCycleTarget+"d target"; }},
   rfiAging:{tab:"del",anchor:"pfArc",m:function(){ return PROGRAM.rfiOver30+" RFIs open past 30 days (avg age "+PROGRAM.rfiAvgAge+"d vs "+PROGRAM.rfiTarget+"d target)"; }},
   trir:{tab:"del",anchor:"pfArc",m:function(){ return "TRIR "+PROGRAM.trir.toFixed(2)+" vs "+PROGRAM.trirBenchmark.toFixed(2)+" benchmark"; }},
-  eacDrift:{tab:"cost",anchor:"eacTrend",m:function(){ return "EAC drift velocity "+sgnUsd(eacDriftVelocity())+"/mo (threshold > $1.0M/mo)"; }},
+  // /stress-test finding (independent reviewer, 2026-08-24): eacDriftVelocity() returns a value
+  // in MILLIONS (its own threshold check two lines above this table reads ">1.0", and the
+  // pre-existing Velocity Pulse display uses sgn()+"/mo" for the same quantity) -- sgnUsd() is the
+  // RAW-dollar formatter (documented for $/hr-scale figures), so this rendered "+$8/mo" against a
+  // real $7.53M/mo drift, a self-contradictory number next to its own ">$1.0M/mo" threshold text.
+  eacDrift:{tab:"cost",anchor:"eacTrend",m:function(){ return "EAC drift velocity "+sgn(eacDriftVelocity())+"/mo (threshold > $1.0M/mo)"; }},
   progInflation:{tab:"ai",anchor:"aiEwmaControl",m:function(){ return "SPI "+idx(T.spi)+" ≥ 1.00 while CPLI "+idx(T.cpli)+" < 0.90"; }}
 };
 /* Real escalation "clock" text -> urgency tier. Not the spec's own tier boundaries (which lumped
@@ -5700,10 +5716,19 @@ function generateTriageQueue(){
       clock:row[3], tabLink: meta?{tab:meta.tab,anchor:meta.anchor}:null, actionId:null
     });
   });
-  // Tier 2 — RAID/action staleness (isStale(), a separate axis from escalation firing; an item
-  // can be stale without any escalation rule firing on it, or vice versa — both real, both shown).
+  // Tier 2/3/4 — RAID/action staleness, due-soon, and blocked are 3 INDEPENDENT real axes
+  // (isStale() by last-touch date, actionStatus()==="due-soon" by due date, ==="blocked" by the
+  // a.blocked flag) -- nothing about one implies or excludes another, so the SAME action can
+  // satisfy more than one at once. /stress-test finding (2026-08-24, both an independent reviewer
+  // and this session's own live probe): A-09 today genuinely IS both stale AND due-soon, so
+  // without a cross-loop dedup it rendered as two disconnected cards for the same real action.
+  // triagedActionIds tracks which actions already got a per-action card, in the priority order
+  // below (stale = the more severe, longer-dormant signal, wins over a due-soon deadline it may
+  // also be approaching) -- an action still only ever needs ONE card to point a human at it.
+  var triagedActionIds={};
   ACTIONS.forEach(function(a){
-    if(a.done||!isStale(a)) return;
+    if(a.done||!isStale(a)||triagedActionIds[a.id]) return;
+    triagedActionIds[a.id]=true;
     items.push({
       id:"stale-"+a.id, tier:2, title:a.id+" — "+a.title.replace(/&mdash;.*/,"").trim(),
       metric:"Inactive "+actDays(a.touch)+"d (threshold ≥10d since last touch)",
@@ -5713,7 +5738,8 @@ function generateTriageQueue(){
   });
   // Tier 3 — due-soon actions (actionStatus()==="due-soon", its own real ≤7-day-out branch).
   ACTIONS.forEach(function(a){
-    if(a.done||actionStatus(a)!=="due-soon") return;
+    if(a.done||actionStatus(a)!=="due-soon"||triagedActionIds[a.id]) return;
+    triagedActionIds[a.id]=true;
     var d=-actDays(a.due);
     items.push({
       id:"duesoon-"+a.id, tier:3, title:a.id+" — "+a.title.replace(/&mdash;.*/,"").trim(),
@@ -5724,7 +5750,8 @@ function generateTriageQueue(){
   // Tier 4 — dynamic watchlist: blocked actions (stuck but not yet due) and the crew CPH EWMA
   // control-chart buffer, if it is genuinely narrowing with no breach yet.
   ACTIONS.forEach(function(a){
-    if(a.done||actionStatus(a)!=="blocked") return;
+    if(a.done||actionStatus(a)!=="blocked"||triagedActionIds[a.id]) return;
+    triagedActionIds[a.id]=true;
     items.push({
       id:"blocked-"+a.id, tier:4, title:a.id+" — "+a.title.replace(/&mdash;.*/,"").trim(),
       metric:"Blocked, due "+a.due+" — not yet urgent by date, but stalled", owner:a.owner,
