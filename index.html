@@ -8658,10 +8658,21 @@ var ARCH_SQL_FULL=
 "from monthly m\n"+
 "join dim_control_account b using (package_id)\n"+
 "order by m.package_id\n";
+// /stress-test finding (2026-08-25, independent reviewer, empirically reproduced): the original
+// version captured "orig" fresh from btn.textContent on every call -- a double-click before the
+// first flash reverted meant the SECOND call captured the already-flashed "Copied ✓" as its own
+// "original," and its later setTimeout then froze the button on that wrong label permanently, with
+// no later click able to self-heal it. Fixed two ways at once: revert to a FIXED baseline label
+// (never read from current, possibly-already-flashed textContent), and clear any prior pending
+// revert timer before scheduling a new one (stored on the button itself, not a module var) so
+// repeated clicks collapse into one correct, final revert instead of racing.
 function copyArchSql(){
   var btn=document.getElementById("archSqlCopy"); if(!btn) return;
-  var orig=btn.textContent;
-  var flash=function(label){ btn.textContent=label; setTimeout(function(){ btn.textContent=orig; },1600); };
+  var flash=function(label){
+    btn.textContent=label;
+    if(btn._copyRevertTimer) clearTimeout(btn._copyRevertTimer);
+    btn._copyRevertTimer=setTimeout(function(){ btn.textContent="Copy SQL"; },1600);
+  };
   if(typeof navigator!=="undefined"&&navigator.clipboard&&navigator.clipboard.writeText)
     navigator.clipboard.writeText(ARCH_SQL_FULL).then(function(){ flash("Copied ✓"); },function(){ flash("Couldn't copy"); });
   else flash("Clipboard unavailable"); // never claims success it can't back up
@@ -10503,7 +10514,7 @@ window.addEventListener("click",function(e){
     closeHelp();
     var pre=null;
     if(j.dataset.jumpActstale) pre=function(){ state.actFilter="Stale"; renderActions(); };
-    else if(j.dataset.jumpSelectds!==undefined) pre=function(){ selectDS(+j.dataset.jumpSelectds); };
+    else if(j.dataset.jumpSelectds!==undefined) pre=function(){ stopDsAutoPlay(); selectDS(+j.dataset.jumpSelectds); };
     // data-jump-cphdrill (brainstorm-mode round, 2026-08-21) — float's companion dbox jump
     // button opens the crew idle/rework/baseline drill on arrival, same "open on jump" idiom
     // as jumpActstale above, so the reader lands directly on the 3-way split, not a collapsed toggle.

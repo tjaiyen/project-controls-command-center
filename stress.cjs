@@ -7153,10 +7153,24 @@ console.log("== D51. Data Strategy-tab upgrade -- CDE auto-play, cross-tab jumps
   ok(P.state.dsAutoPlay === false, "pre-registered: ticking again at the real last node auto-stops rather than looping back to the start unannounced");
   ok(G.dsAutoPlay.textContent.includes("Auto-play") && G.dsAutoPlay.getAttribute("aria-pressed") === "false", "the button resets to its real idle label/state once stopped");
   P.stopDsAutoPlay(); // ensure clean state for later tests regardless of path taken above
-  // Manual Back/Next while playing stops it -- no two forces fighting over dsIdx.
+  // Manual Back/Next while playing stops it -- no two forces fighting over dsIdx. Real setInterval
+  // mocked here too (consistent with every other toggleDsAutoPlay() call in this block) so no
+  // stray real timer is ever armed during a test run, even briefly.
+  global.setInterval = (fn) => { capturedTick = fn; return 999; };
   P.toggleDsAutoPlay();
+  global.setInterval = realSetInterval;
   fire(G.dsNext, "click");
   ok(P.state.dsAutoPlay === false, "clicking Next manually while auto-play is running stops it, rather than racing the timer");
+  // /stress-test finding (2026-08-25, independent reviewer): the "Walk the discrepancy branch"
+  // jump chip (data-jump-selectds) mutates dsIdx via selectDS() but originally never called
+  // stopDsAutoPlay() -- the ONE dsIdx-mutating path this feature's own contract missed. Fixed;
+  // regression-guarded here.
+  global.setInterval = (fn) => { capturedTick = fn; return 999; };
+  P.toggleDsAutoPlay();
+  global.setInterval = realSetInterval;
+  fire(R.win, "click", { target: { closest: sel => (sel === "[data-jump-tab]" ? { dataset: { jumpTab: "data", jumpEl: "cdeFlow", jumpSelectds: "3" } } : null) } });
+  ok(P.state.dsAutoPlay === false, "the 'Walk the discrepancy branch' jump chip ALSO stops auto-play if it was running -- the gap an independent reviewer found, now regression-guarded");
+  ok(P.getDsIdx() === 3, "the jump chip still lands on the real, correct node (index 3, 'detect') despite also stopping auto-play");
   // Self-heals if the reader navigates to a different tab mid-play.
   global.setInterval = (fn) => { capturedTick = fn; return 999; };
   P.toggleDsAutoPlay();
@@ -7208,6 +7222,18 @@ console.log("== D51. Data Strategy-tab upgrade -- CDE auto-play, cross-tab jumps
   ok(P.archSqlFull.trim() === realSqlFile.trim(), "the 'Copy SQL' button's embedded content is byte-identical (modulo trailing whitespace) to the REAL pipeline/models/fct_control_account.sql file on disk -- not a hand-retyped or truncated copy");
   fire(G.archSqlCopy, "click");
   ok(G.archSqlCopy.textContent === "Clipboard unavailable", "with no Clipboard API present (this Node stub, same as some real browser contexts), the button honestly reports it couldn't copy rather than falsely claiming success");
+
+  // Double-click race fix (independent reviewer finding, empirically reproduced with real
+  // Promise/setTimeout timing outside this file -- see this round's commit message for the
+  // before/after proof). The real race isn't exercisable HERE: navigator doesn't exist in this
+  // stub at all, so copyArchSql() always takes the synchronous "unavailable" branch, never the
+  // async .then() path the bug lived in -- accepted limitation, same class as this file's own
+  // Ask AI busy-state/WAAPI .finished coverage. Static regression guards for the two things that
+  // actually fixed it, so a future edit can't silently reintroduce either half of the bug:
+  ok(indexSrc.includes('setTimeout(function(){ btn.textContent="Copy SQL"; }'),
+    "the revert always targets the fixed literal \"Copy SQL\", never a possibly-already-flashed current label (half of the fix)");
+  ok(indexSrc.includes("if(btn._copyRevertTimer) clearTimeout(btn._copyRevertTimer);"),
+    "a prior pending revert timer is cleared before a new one is scheduled, so repeated clicks collapse into one correct final revert instead of two racing timers (the other half)");
 
   fire(G["t-over"], "click");
 }
