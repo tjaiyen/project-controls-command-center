@@ -871,6 +871,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
   <div class="tabs" id="tabs" role="tablist" aria-label="Command center sections">
     <span class="tab-group-label" aria-hidden="true">Executive</span>
     <button role="tab" id="t-over"  aria-controls="p-over"  aria-selected="true" tabindex="0" aria-keyshortcuts="1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><rect x="2" y="2" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="2" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="2" y="9" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="9" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>Overview<span class="cnt" id="cntOver">20</span></button>
+    <button role="tab" id="t-exec" aria-controls="p-exec" aria-selected="false" tabindex="-1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><rect x="2.2" y="6" width="11.6" height="7.3" rx="1.3" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6 6V4.3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1V6" fill="none" stroke="currentColor" stroke-width="1.3"/><line x1="2.2" y1="9.6" x2="13.8" y2="9.6" stroke="currentColor" stroke-width="1.1"/></svg>Executive Command</button>
     <button role="tab" id="t-port"  aria-controls="p-port"  aria-selected="false" tabindex="-1" aria-keyshortcuts="2"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><path d="M2 5.5a1 1 0 0 1 1-1h3l1.2 1.6H13a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Portfolio</button>
     <span class="tab-group-label" aria-hidden="true">Program Performance</span>
     <button role="tab" id="t-cost"  aria-controls="p-cost"  aria-selected="false" tabindex="-1" aria-keyshortcuts="3"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><line x1="3" y1="13" x2="3" y2="9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="7" y1="13" x2="7" y2="5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="11" y1="13" x2="11" y2="7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="13.5" y1="13" x2="13.5" y2="3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>Cost</button>
@@ -1986,6 +1987,32 @@ join dim_control_account b using (package_id)</pre></div>
       <div id="triageCards" style="margin-top:16px;display:flex;flex-direction:column;gap:12px"></div>
       <p class="lede" id="triageEmpty" style="margin-top:14px"></p>
     </div>
+  </section>
+
+  <!-- =========================== EXECUTIVE SUMMARY ============================ -->
+  <section role="tabpanel" id="p-exec" aria-labelledby="t-exec" tabindex="0" hidden>
+    <div class="sec">
+      <div class="eyebrow">Executive command &middot; plain language</div>
+      <h2>For someone who has ninety seconds and needs to sign something</h2>
+      <p class="lede">The same real ledger every other tab reads &mdash; final cost, opening date,
+        funding runway, and the specific decisions actually waiting on a signature, in plain
+        language instead of EAC/CPLI/EVM. Click any red number for why it's red. Nothing here is a
+        separate estimate; it's the same live math, translated.</p>
+      <div id="execBanner" style="margin-top:16px"></div>
+      <div class="grid g2" id="execQuadrants" style="margin-top:16px;align-items:start"></div>
+      <div class="sec-h" style="margin-top:30px"><h3>Ask a real question</h3></div>
+      <p class="lede">A fixed set of real questions, each answered from the live ledger &mdash; not
+        free-text search. Answering arbitrary typed questions would mean calling an outside AI
+        service, a real cost decision this dashboard declines to make unilaterally.</p>
+      <div id="execFaqButtons" role="group" aria-label="Common executive questions"
+        style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"></div>
+      <p class="lede" id="execFaqAnswer" style="margin-top:12px"></p>
+      <div class="sec-h" style="margin-top:30px"><h3>Board briefing</h3></div>
+      <p class="lede">Reuses the same one-click, live-data print brief every tab already has &mdash;
+        never a hand-typed summary that can drift from the numbers above.
+        <button type="button" class="btn" id="execPrintBtn" style="margin-left:4px;min-height:auto;padding:3px 10px;font-size:12.5px">Download 1-page board summary</button></p>
+    </div>
+    <div id="execDrawer" aria-live="polite"></div>
   </section>
 
   <!-- =========================== GLOSSARY ============================ -->
@@ -5902,6 +5929,203 @@ function renderTriage(){
   }).join("");
 }
 
+/* ---------- Executive Command tab (brainstorm-mode round, 2026-08-24) ----------
+   TJ pasted an external "Executive Plain-English Command Hub" spec. Fact-checked before building
+   (same discipline as the Triage Hub round, 2026-08-24): the opening-date drift was fabricated
+   (spec claimed a wrong day-count and a wrong calendar year; the real Revenue Service milestone is
+   +40d, 15 Mar 2028 -> 24 Apr 2028), the cost-attribution percentage the spec quoted was imprecise
+   (real, computed live from cost variance: roughly mid-50s, not what the spec claimed), R-01's cost
+   was off by a tenth of a million ($18.5M real), and a named individual plus a specific weekly
+   idle-cost figure the spec quoted have no basis anywhere in the real data -- neither name nor
+   figure appears anywhere below. The one dollar figure that DID check out, the funding gap, is
+   independently derived by computing the real Gate 5 coverage=1.00 point minus real contRemaining,
+   never copied from the spec. Declined the spec's global toggle rewriting all 11 existing technical
+   tabs (disproportionate risk for one new tab's worth of value -- those tabs are correctly
+   technical for their real practitioner audience) and its free-text natural-language search (would
+   need an external LLM call, a real cost decision this file doesn't make unilaterally) -- built a
+   fixed real-question FAQ instead, see EXEC_FAQ below. Status wording matches the Operating
+   Framework tab's own real term for a failing gate, not a new synonym invented for this one card. */
+
+function execCp201Share(){
+  // Real cost-variance attribution -- CP-201's share of the total overrun pool (every package
+  // currently running over budget, summed), the same EV-AC math every KPI here already uses.
+  var overruns=rows.map(function(r){ return {id:r.id,cv:r.ev-r.ac}; }).filter(function(o){ return o.cv<0; });
+  var total=overruns.reduce(function(s,o){ return s+Math.abs(o.cv); },0);
+  var cp201=overruns.filter(function(o){ return o.id==="CP-201"; })[0];
+  return (total>0 && cp201) ? Math.abs(cp201.cv)/total : 0;
+}
+function execFundingGap(){
+  return Math.max(0,(T.overrun+T.riskExposure)-T.contRemaining);
+}
+/* Top real decisions, plain-English -- reuses generateTriageQueue()'s own real Tier 1/2 items
+   rather than a parallel "what needs attention" engine. A small translation table covers the
+   trigger types most likely to actually appear at Tier 1 today; anything unexpected falls back to
+   the queue item's own real title/metric/owner, never a blank or invented line. */
+var EXEC_TRANSLATE={
+  "esc-contCoverage":function(){
+    var gap=execFundingGap();
+    return {ask:"Close the "+m(gap)+" contingency funding gap",
+      why:"Unfreezes Gate 5 so contractor awards can continue on schedule.",
+      consequence:"Every reporting cycle this stays open is a formal escalation to the sponsor, per the escalation matrix's own rule."};
+  },
+  "esc-cpli":function(){
+    var w=rows.reduce(function(a,b){ return b.cpli<a.cpli?b:a; },rows[0]);
+    return {ask:"Authorize the "+w.id+" recovery analysis",
+      why:"The driving schedule path is arithmetically behind (CPLI "+idx(T.cpli)+"); a formal recovery plan is the escalation matrix's own required next step.",
+      consequence:"Left unaddressed, the driving path keeps eroding and the opening date drifts further."};
+  },
+  "esc-negFloat":function(){
+    return {ask:"Approve a recovery cadence for the negative-float package(s)",
+      why:T.negFloat.map(function(r){ return r.id+" ("+r.float+"d)"; }).join(", ")+" carrying zero or negative float.",
+      consequence:"Per the escalation matrix, a named owner and weekly cadence are required once a package crosses zero float."};
+  }
+};
+function execTopActions(){
+  var items=generateTriageQueue().filter(function(it){ return it.tier<=2; }).slice(0,3);
+  return items.map(function(it){
+    var t=EXEC_TRANSLATE[it.id];
+    if(t) return Object.assign({},t(),{item:it});
+    return {ask:it.title, why:it.metric, consequence:"Owner: "+it.owner+" — "+it.escRule, item:it};
+  });
+}
+
+function renderExecBanner(){
+  var gate5Pass=GATE5_CHECKS.every(function(c){ return c.run()[0]; });
+  var gap=execFundingGap();
+  var rev=MILES[MILES.length-1];
+  document.getElementById("execBanner").innerHTML=
+    '<div class="card" style="border-left:4px solid rgb(var(--c-'+(gate5Pass?"ok":"bad")+'))">'+
+      '<div style="font:600 1rem/1.3 inherit">'+(gate5Pass?"🟢":"🔴")+' OVERALL STATUS: '+
+      (gate5Pass?"On track, no executive action required":"Needs executive action to avoid delays")+'</div></div>'+
+    '<div class="strip">'+
+      execTile("💸 Final cost", m(T.eac), sgn(T.vac)+" vs. the original budget", T.vac<0)+
+      execTile("⏱️ Opening date", rev.fc, days(rev.d)+" vs. the original target ("+rev.base+")", rev.d>0)+
+      execTile("🐷 Backup savings", gap>0?"Short "+m(gap):"Fully funded", pct(T.contCoverage,0)+" of what's needed on hand", T.contCoverage<1)+
+      execTile("🛑 Gate 5 status", gate5Pass?"Cleared":"BLOCKED", gate5Pass?"Next-phase awards can proceed":"Next-phase awards paused", !gate5Pass)+
+    '</div>';
+}
+function execTile(label,val,sub,bad){
+  return '<div><div class="k">'+label+'</div><div class="v" style="color:'+(bad?"rgb(var(--c-bad))":"rgb(var(--c-ok))")+'">'+val+'</div>'+
+    '<div style="margin-top:3px;font-size:11px;color:rgb(var(--c-mut))">'+sub+'</div></div>';
+}
+
+function renderExecQuadrants(){
+  var cp201Share=execCp201Share();
+  var rev=MILES[MILES.length-1];
+  var gap=execFundingGap();
+  var gate5Pass=GATE5_CHECKS.every(function(c){ return c.run()[0]; });
+  var overPct=(T.eac/T.bac)*100;
+  var maxV=Math.max(T.bac,T.eac)*1.06;
+
+  var q1=
+    '<div class="card"><h3>💰 The money story</h3>'+
+    '<div style="margin-top:10px;display:flex;flex-direction:column;gap:5px">'+
+      execBar("Original budget", T.bac, maxV, "rgb(var(--c-mut))")+
+      execBar("Where we're heading", T.eac, maxV, "rgb(var(--c-bad))")+
+      execBar("Backup savings left", T.contRemaining, maxV, "rgb(var(--c-ok))")+
+    '</div>'+
+    '<p style="margin-top:10px;font-size:12.5px">For every $100 originally planned, we are '+
+    'currently on pace to spend $'+overPct.toFixed(0)+'. The main reason is <button type="button" class="btn" data-exec-drawer="money" '+
+    'style="min-height:auto;padding:1px 8px;font-size:12px;vertical-align:baseline">CP-201, the tunnel</button>, '+
+    'which accounts for '+(cp201Share*100).toFixed(0)+'% of the packages currently running over budget.</p></div>';
+
+  var q2=
+    '<div class="card"><h3>⏱️ The time story</h3>'+
+    '<p style="margin-top:10px;font-size:12.5px"><b style="color:rgb(var(--c-ok))">Target:</b> '+rev.base+
+    ' &nbsp;&rarr;&nbsp; <b style="color:rgb(var(--c-bad))">Real expectation:</b> '+rev.fc+' ('+days(rev.d)+')</p>'+
+    '<p style="margin-top:8px;font-size:12.5px">We are running '+Math.abs(rev.d)+' days '+(rev.d>0?"late":"early")+
+    '. <button type="button" class="btn" data-exec-drawer="time" style="min-height:auto;padding:1px 8px;font-size:12px;vertical-align:baseline">Why</button> '+
+    'traces back to the same tunnel package driving the cost story above — other parts of the '+
+    'program are moving on pace, but the opening date can\'t move ahead of the slowest one.</p></div>';
+
+  var q3=
+    '<div class="card"><h3>🛑 Governance brakes</h3>'+
+    '<div style="margin-top:8px"><span class="pill '+(gate5Pass?"g":"r")+'" style="font-size:13px;padding:4px 12px">'+
+      (gate5Pass?"GATE 5: CLEARED":"GATE 5: BLOCKED")+'</span></div>'+
+    '<p style="margin-top:10px;font-size:12.5px">The rules say the next construction phase can\'t start until there\'s '+
+    'enough backup savings to cover foreseeable extra costs. Right now backup savings is '+m(T.contRemaining)+
+    ', but foreseeable extra costs add up to '+m(T.overrun+T.riskExposure)+'. '+
+    (gate5Pass?"That bar is currently met.":"Because savings is short by "+m(gap)+", the system has automatically paused new contract approvals.")+
+    ' <button type="button" class="btn" data-exec-drawer="gate5" style="min-height:auto;padding:1px 8px;font-size:12px;vertical-align:baseline">Why</button></p></div>';
+
+  var actions=execTopActions();
+  var q4=
+    '<div class="card"><h3>⚡ Decisions needed from you</h3>'+
+    (actions.length?actions.map(function(a,i){
+      return '<div style="margin-top:'+(i?12:10)+'px;padding-top:'+(i?12:0)+'px'+(i?';border-top:1px solid var(--c-line)':'')+'">'+
+        '<b>'+(i+1)+'. '+a.ask+'</b>'+
+        '<div style="margin-top:4px;font-size:12px;color:rgb(var(--c-mut))">Why: '+a.why+'</div>'+
+        '<div style="margin-top:2px;font-size:12px;color:rgb(var(--c-mut))">'+a.consequence+'</div>'+
+        '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">'+
+          (a.item.actionId?'<button type="button" class="btn" data-exec-action="'+a.item.actionId+'" style="min-height:auto;padding:3px 9px;font-size:12px">Open the record</button>':
+            a.item.tabLink?'<button type="button" class="btn" data-exec-jump-tab="'+a.item.tabLink.tab+'" data-exec-jump-el="'+(a.item.tabLink.anchor||"")+'" style="min-height:auto;padding:3px 9px;font-size:12px">See the detail</button>':'')+
+        '</div></div>';
+    }).join(""):'<p style="margin-top:10px;font-size:12.5px;color:rgb(var(--c-mut))">Nothing needs a signature right now — every real escalation rule is dormant.</p>')+
+    '</div>';
+
+  document.getElementById("execQuadrants").innerHTML=q1+q2+q3+q4;
+}
+function execBar(label,v,maxV,color){
+  var pctW=Math.max(1,(v/maxV)*100);
+  return '<div><div style="display:flex;justify-content:space-between;font-size:11px;color:rgb(var(--c-mut))"><span>'+label+'</span><span class="mono">'+m(v)+'</span></div>'+
+    '<div style="height:14px;border-radius:4px;background:var(--c-grid);overflow:hidden;margin-top:2px"><div style="height:100%;width:'+pctW.toFixed(1)+'%;background:'+color+'"></div></div></div>';
+}
+
+/* "Why is this red?" inspector drawer -- 3 real bullet points per topic, reusing already-real
+   text (R-01's own root/mitigation, the escalation matrix's own owner field) rather than inventing
+   a name or a status update no real record backs. */
+function execDrawerContent(topic){
+  var r01=RISKS.filter(function(r){ return r.id==="R-01"; })[0];
+  var gap=execFundingGap();
+  var a09=ACTIONS.filter(function(a){ return a.id==="A-09"; })[0];
+  var content={
+    money:{what:r01.n+" — "+r01.mit, who:r01.own+" is running the mitigation.", need:"No sign-off needed yet; tracked under Action A-04."},
+    time:{what:"Same tunnel ground conditions driving the cost story are driving the schedule slip.", who:"Tunnel CM owns recovery; tracked under Action A-02.", need:"No sign-off needed yet; recovery cadence already running."},
+    gate5:{what:"Contingency coverage reads "+idx(T.contCoverage)+" against a required 1.00 — "+m(gap)+" short.", who:(a09?a09.owner:"Program director")+" owns the funding conversation.", need:"Approve the funding top-up, tracked as action "+(a09?a09.id:"A-09")+", to clear the lock."}
+  }[topic];
+  if(!content) return;
+  document.getElementById("execDrawer").innerHTML=
+    '<div class="drawer"><div class="dh"><div><b>Why is this red?</b></div>'+
+    '<button type="button" class="btn" id="execDrawerClose" style="min-height:auto;padding:2px 9px;font-size:12px">Close</button></div>'+
+    '<ul class="t" style="margin-top:8px"><li><b>What happened:</b> '+content.what+'</li>'+
+    '<li><b>Who is fixing it:</b> '+content.who+'</li>'+
+    '<li><b>What we need from you:</b> '+content.need+'</li></ul></div>';
+}
+
+/* Fixed real-question FAQ (Tier 2) -- declined free-text NL search (would need an external LLM
+   call). Each button's answer is computed live from the same real totals, never canned text. */
+var EXEC_FAQ=[
+  {q:"Are we going to open on time?", a:function(){ var rev=MILES[MILES.length-1];
+    return rev.d<=0 ? "Yes — currently tracking to "+rev.fc+", at or ahead of the "+rev.base+" target."
+      : "No — currently projected to open "+rev.d+" days late, on "+rev.fc+", against the "+rev.base+" target."; }},
+  {q:"Are we on budget?", a:function(){
+    return T.vac>=0 ? "Yes — currently tracking "+sgn(T.vac)+" under the original "+m(T.bac)+" budget."
+      : "No — currently projected to finish "+m(Math.abs(T.vac))+" over the original "+m(T.bac)+" budget, a final bill of "+m(T.eac)+"."; }},
+  {q:"Do we have enough contingency?", a:function(){ var gap=execFundingGap();
+    return T.contCoverage>=1 ? "Yes — "+m(T.contRemaining)+" on hand covers the "+m(T.overrun+T.riskExposure)+" in foreseeable extra cost."
+      : "No — "+m(T.contRemaining)+" on hand against "+m(T.overrun+T.riskExposure)+" in foreseeable extra cost, a "+m(gap)+" shortfall."; }},
+  {q:"Is anything blocking work right now?", a:function(){
+    var gate5Pass=GATE5_CHECKS.every(function(c){ return c.run()[0]; });
+    return gate5Pass ? "No — Gate 5 is currently cleared, no phase lock in effect."
+      : "Yes — Gate 5 is currently BLOCKED (contingency coverage below the required 1.00), which pauses new contract awards until it clears."; }},
+  {q:"What's the single biggest driver of the overrun?", a:function(){
+    var share=execCp201Share();
+    return "CP-201 (Tunnel & portals), accounting for "+(share*100).toFixed(0)+"% of the packages currently running over budget — ground conditions worse than the geotechnical baseline."; }}
+];
+function renderExecFaq(){
+  document.getElementById("execFaqButtons").innerHTML=EXEC_FAQ.map(function(f,i){
+    return '<button type="button" class="btn" data-exec-faq="'+i+'" style="min-height:auto;padding:5px 11px;font-size:12.5px">'+f.q+'</button>';
+  }).join("");
+}
+
+function renderExec(){
+  renderExecBanner();
+  renderExecQuadrants();
+  renderExecFaq();
+  document.getElementById("execFaqAnswer").textContent="";
+  document.getElementById("execDrawer").innerHTML="";
+}
+
 function renderPrint(){
   var live=KPIS.filter(function(k){return k.ph.indexOf("con")>=0;});
   var reds=live.filter(function(k){return k.rag()==="r";});
@@ -9316,7 +9540,9 @@ var TAB_DRAWER={
          // GLOSS is declared above this object, so a live reference here is safe and self-updating.
          note:GLOSS.length+" terms, each with a live example computed from this program's own ledger."},
   data:{label:"Data Strategy", q:"How does scattered, multi-system data actually become these numbers?",
-        note:"Staging architecture, IDS guardrails, a discrepancy-resolution flow, and a live parity check between this dashboard's own JavaScript and the SQL that independently re-derives it."}
+        note:"Staging architecture, IDS guardrails, a discrepancy-resolution flow, and a live parity check between this dashboard's own JavaScript and the SQL that independently re-derives it."},
+  exec:{label:"Executive Command", q:"For someone who has ninety seconds and needs to sign something, what does this program actually need?",
+        note:"The same real ledger as every other tab, translated into plain language — final cost, opening date, funding runway, and the specific decisions actually waiting on a signature."}
 };
 function tabDrawerSysOfRecord(fams){
   var srcs=[];
@@ -9859,7 +10085,7 @@ window.addEventListener("keydown",function(e){
 // the last 2 entries changed from the prior order (data, gloss swapped) — TABS[0..8] (over..act)
 // is unchanged on purpose, since the 1-9 digit-jump shortcut maps directly onto those 9 indices
 // and neither Glossary nor Data Strategy has ever had a digit shortcut either way.
-var TABS=["over","port","cost","sched","risk","del","ai","fw","act","triage","data","gloss"];
+var TABS=["over","port","cost","sched","risk","del","ai","fw","act","triage","data","gloss","exec"];
 function activateTab(id){
   // any tab switch invalidates a pending return breadcrumb (nav round 2, item 3, 2026-08-21) —
   // jumpToEl()/jumpToAction() call activateTab() first and re-show a fresh one right after, so a
@@ -10281,6 +10507,25 @@ document.getElementById("triageSortToggle").addEventListener("click",function(){
   this.textContent = "Sort: " + (state.triageSort==="tier" ? "Tier order" : "By owner");
   renderTriage();
 });
+// Executive Summary tab wiring (brainstorm-mode round, 2026-08-24). Deep-link buttons reuse the
+// same jumpToAction()/jumpToEl() mechanism every other tab's cross-links already use.
+document.getElementById("execQuadrants").addEventListener("click",function(e){
+  var dw=e.target.closest("[data-exec-drawer]");
+  if(dw){ execDrawerContent(dw.dataset.execDrawer); return; }
+  var actBtn=e.target.closest("[data-exec-action]");
+  if(actBtn){ jumpToAction(actBtn.dataset.execAction); return; }
+  var jumpBtn=e.target.closest("[data-exec-jump-tab]");
+  if(jumpBtn){ jumpToEl(jumpBtn.dataset.execJumpTab, jumpBtn.dataset.execJumpEl || undefined); return; }
+});
+document.getElementById("execDrawer").addEventListener("click",function(e){
+  if(e.target.closest("#execDrawerClose")) document.getElementById("execDrawer").innerHTML="";
+});
+document.getElementById("execFaqButtons").addEventListener("click",function(e){
+  var b=e.target.closest("[data-exec-faq]"); if(!b) return;
+  var f=EXEC_FAQ[+b.dataset.execFaq]; if(!f) return;
+  document.getElementById("execFaqAnswer").innerHTML='<b style="color:rgb(var(--c-ink))">'+f.q+'</b> '+f.a();
+});
+document.getElementById("execPrintBtn").addEventListener("click",function(){ renderPrint(); window.print(); });
 /* Tri-point curve playground drag + keyboard (brainstorm-mode round, 2026-08-21). Pointer Events
    (not separate mouse/touch listeners) so one code path drives both mouse drag and touchscreen
    drag — setPointerCapture ties every subsequent move/up to the handle that started the drag,
@@ -10524,7 +10769,7 @@ window.addEventListener("scroll",function(){ document.getElementById("tip").clas
    pre-existing pattern) silently reset the scrubber's cursor to hidden while the slider value and
    HUD text stayed on whatever month was last scrubbed — the display and the control disagreeing
    with each other, silently, on the single most ordinary action in the app. */
-function redrawCharts(){ renderScurve(); renderWaterfall(); renderBaseline(); renderVeSandbox(); renderCont(); renderRisk(); syncMcView(); renderPertPlay(); renderGaltonStatic(); renderGantt(); renderScurveScrub(); renderGateLine(); renderCdeFlow(); renderGbmLogReturns(); renderDelivery(); renderTriage(); }
+function redrawCharts(){ renderScurve(); renderWaterfall(); renderBaseline(); renderVeSandbox(); renderCont(); renderRisk(); syncMcView(); renderPertPlay(); renderGaltonStatic(); renderGantt(); renderScurveScrub(); renderGateLine(); renderCdeFlow(); renderGbmLogReturns(); renderDelivery(); renderTriage(); renderExec(); }
 document.getElementById("mcViewHist").addEventListener("click",function(){ state.mcView="hist"; syncMcView(); });
 document.getElementById("mcViewCdf").addEventListener("click",function(){ state.mcView="cdf"; syncMcView(); });
 /* Draw-shape toggle (triangular <-> PERT) — mirrors mcView's own set-state -> recompute -> re-
@@ -10561,7 +10806,7 @@ document.getElementById("mcInspect").value=String(state.mcInspect);
 document.getElementById("vInspect").textContent="P"+state.mcInspect;
 renderWaterfall(); renderWaterfallMath(); renderBaseline(); renderVeSandbox(); renderEac(); renderCont(); renderTable();
 renderEacTrend(); renderFcastTable(); renderGbmDiffusion(); renderGbmLogReturns(); renderGbmMathUnlocked(); renderGbmVsEvm(); renderCashflow();
-renderGantt(); renderSchedule(); renderRisk(); renderDrbEmv(); renderContracts(); renderDelivery(); renderFramework(); renderActions(); renderActionsMath(); renderTriage();
+renderGantt(); renderSchedule(); renderRisk(); renderDrbEmv(); renderContracts(); renderDelivery(); renderFramework(); renderActions(); renderActionsMath(); renderTriage(); renderExec();
 document.getElementById("sDrbP").value=DRB_ASSUMPTIONS.pOwnerWins;
 document.getElementById("sDrbLegal").value=DRB_ASSUMPTIONS.legalCost;
 renderDrbSlider();
@@ -10591,6 +10836,8 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   escalation:ESCALATION,kpiEscalation:KPI_ESCALATION,actionsForKpi:actionsForKpi,jumpToAction:jumpToAction,
   firingEscalations:firingEscalations,actDays:actDays,
   generateTriageQueue:generateTriageQueue,renderTriage:renderTriage,triageEscMeta:TRIAGE_ESC_META,triageClockTier:TRIAGE_CLOCK_TIER,
+  renderExec:renderExec,execCp201Share:execCp201Share,execFundingGap:execFundingGap,execTopActions:execTopActions,
+  execDrawerContent:execDrawerContent,execFaq:EXEC_FAQ,
   wbs:WBS,gates:GATES,gate5Checks:GATE5_CHECKS,glNodes:GL_NODES,glCaption:glCaption,glNodeState:glNodeState,
   gate5SandboxCalc:gate5SandboxCalc,renderGate5Sandbox:renderGate5Sandbox,
   contracts:CONTRACTS,deriveContract:deriveContract,

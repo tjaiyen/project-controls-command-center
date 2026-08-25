@@ -214,19 +214,19 @@ ok(/@media\(min-width:1050px\)\{/.test(indexSrc), "desktop nav-rail media query 
 ok(/#main\.wrap\{max-width:1320px;display:grid/.test(indexSrc), "nav-rail breakpoint switches #main to a two-column grid");
 ok(/\[role="tabpanel"\]\{grid-column:2;min-width:0\}/.test(indexSrc),
   "tabpanel grid items carry min-width:0 (same overflow-guard class as the mobile grid check above)");
-ok((indexSrc.match(/class="nav-ic"/g) || []).length === 12, "all 12 nav-rail tabs carry an icon");
+ok((indexSrc.match(/class="nav-ic"/g) || []).length === 13, "all 13 nav-rail tabs carry an icon");
 // the rail is presentation-only: TABS, activateTab(), and the tab click wiring are untouched —
 // confirmed here by re-checking the tab count/order the D9 TABS_CHECK already asserts elsewhere,
 // as a direct probe that this CSS/markup-only change didn't silently touch the tab logic
-ok(idsA.filter(id => /^t-(over|port|cost|sched|risk|del|ai|fw|act|triage|gloss|data)$/.test(id)).length === 12,
-  "all 12 tab buttons still present with their original ids after the rail markup change");
+ok(idsA.filter(id => /^t-(over|exec|port|cost|sched|risk|del|ai|fw|act|triage|gloss|data)$/.test(id)).length === 13,
+  "all 13 tab buttons still present with their original ids after the rail markup change");
 // roving tabindex on genuinely pristine (pre-any-click) markup: the D. interactions section's
 // own tabindex assertions run after earlier tests have already clicked several tabs, so they
 // verify the MECHANISM (flips correctly on activateTab) but not the untouched initial-load DOM.
 // This checks the static source directly, independent of any test execution order.
 ok(/id="t-over"[^>]*tabindex="0"/.test(indexSrc), "t-over declares tabindex=0 explicitly in markup (not relying on the button-default)");
-ok((indexSrc.match(/aria-selected="false" tabindex="-1"/g) || []).length === 11,
-  "all 11 non-default tabs declare tabindex=-1 in markup, matching t-over's explicit tabindex=0");
+ok((indexSrc.match(/aria-selected="false" tabindex="-1"/g) || []).length === 12,
+  "all 12 non-default tabs declare tabindex=-1 in markup, matching t-over's explicit tabindex=0");
 
 /* =========================================================================
    B. RUNTIME — index.html
@@ -3605,11 +3605,11 @@ console.log("== D9. data strategy tab ==");
 // Order flipped 2026-08-21 (altitude-grouped nav round): Data Strategy is governance/architecture
 // content, not reference material, so it moved ahead of Glossary in both the tab rail's visual
 // grouping and this array — see TABS' own comment in index.html for why indices 0-8 stayed put.
-ok(P.kpis && TABS_CHECK(), "TABS array carries 12 ids, act -> triage -> data -> gloss");
+ok(P.kpis && TABS_CHECK(), "TABS array carries 13 ids, act -> triage -> data -> gloss -> exec");
 function TABS_CHECK() {
   const m = indexSrc.match(/var TABS=\[([^\]]+)\]/);
   const arr = m ? m[1].split(",").map(s => s.replace(/["']/g, "")) : [];
-  return arr.length === 12 && arr[8] === "act" && arr[9] === "triage" && arr[10] === "data" && arr[11] === "gloss";
+  return arr.length === 13 && arr[8] === "act" && arr[9] === "triage" && arr[10] === "data" && arr[11] === "gloss" && arr[12] === "exec";
 }
 ok(P.guardrails.length === 4, "4 guardrail types defined", String(P.guardrails.length));
 ok(P.discrepancySteps.length === 5, "5-step discrepancy-resolution flow defined", String(P.discrepancySteps.length));
@@ -6672,6 +6672,118 @@ console.log("== D47. Attention & Triage UX upgrade -- distribution bar, explaine
 
   // reset so later tests in this file aren't affected by this block's own interactions
   P.state.triageFilter = null; P.state.triageAck = {}; P.state.triageSearch = ""; P.state.triageSort = "tier"; P.state.triageCollapsed = {};
+  fire(G["t-over"], "click");
+}
+
+console.log("== D48. Executive Summary tab -- external spec, fact-checked before building (brainstorm-mode round, 2026-08-24) ==");
+{
+  // TJ pasted an external "Executive Plain-English Command Hub" spec. Fact-checked before building:
+  // the opening-date drift was fabricated (spec claimed +24d, Aug->Oct 2027), the "59%" cost-share
+  // figure was imprecise (real: ~55%), R-01's cost was off by $0.1M, and "Jane Doe"/a "$150,000
+  // idle cost per week" have no basis anywhere in the real data -- none of that is present. The
+  // $36.8M funding-gap figure, however, IS real (independently re-derived below), and is used.
+  ok(idsA.includes("t-exec") && idsA.includes("p-exec"), "the tab button and its panel both exist");
+  ok(!!P.tabDrawer && !!P.tabDrawer.exec, "TAB_DRAWER carries a real exec entry");
+  ["Jane Doe", "$150,000", "August 2027", "October 2027", "59%"].forEach(bad => {
+    ok(!indexSrc.includes(bad), 'fabricated spec content never made it into index.html: "' + bad + '"');
+  });
+
+  const rev = P.miles[P.miles.length - 1];
+  const gate5PassReal = P.gate5Checks.every(c => c.run()[0]);
+  const gapReal = Math.max(0, (T.overrun + T.riskExposure) - T.contRemaining);
+  const cp201ShareReal = (() => {
+    const overruns = rows.map(r => ({ id: r.id, cv: r.ev - r.ac })).filter(o => o.cv < 0);
+    const total = overruns.reduce((s, o) => s + Math.abs(o.cv), 0);
+    const cp201 = overruns.find(o => o.id === "CP-201");
+    return total > 0 && cp201 ? Math.abs(cp201.cv) / total : 0;
+  })();
+
+  // Pre-registered regression guard: the real Revenue Service milestone is +40d, 15 Mar 2028 ->
+  // 24 Apr 2028 -- NOT the spec's fabricated +24d/Aug-Oct 2027. If this ever contradicts, that IS
+  // the finding (B35).
+  ok(rev.d === 40 && rev.base === "15 Mar 2028" && rev.fc === "24 Apr 2028",
+    "pre-registered: the real Revenue Service milestone is +40d, 15 Mar 2028 -> 24 Apr 2028, not the spec's fabricated +24d/Aug-Oct-2027", JSON.stringify(rev));
+  ok(Math.abs(cp201ShareReal - 0.552) < 0.01, "pre-registered: CP-201's real cost-variance share is ~55%, not the spec's claimed 59%", cp201ShareReal.toFixed(3));
+  ok(Math.abs(gapReal - 36.81) < 0.1, "pre-registered: the real Gate 5 funding gap is ~$36.8M, independently re-derived (not copied from the spec)", gapReal.toFixed(2));
+
+  fire(G["t-exec"], "click");
+  ok(P.state.tab === "exec", "clicking the Executive Summary tab activates it");
+
+  // Banner -- every tile independently recomputed, not read back from the rendered HTML and
+  // trusted against itself.
+  let bannerHtml = G.execBanner._html;
+  ok(bannerHtml.includes(m(T.eac)), "Final cost tile states the real EAC");
+  ok(bannerHtml.includes(rev.fc) && bannerHtml.includes(rev.base), "Opening date tile states the real forecast AND target dates");
+  ok(bannerHtml.includes(days(rev.d)), "Opening date tile states the real drift");
+  ok(bannerHtml.includes(m(gapReal)) || bannerHtml.includes("Fully funded"), "Backup savings tile states the real funding gap");
+  ok(bannerHtml.includes(gate5PassReal ? "Cleared" : "BLOCKED"), "Gate 5 status tile states the real gate status, using the dashboard's own real term (BLOCKED), not an invented synonym");
+  // "LOCKED" alone is a bad substring check -- "BLOCKED" (the correct term) contains it. Check for
+  // the specific wrong word standing alone (not preceded by "B"), the actual regression this guards.
+  ok(!/(?<!B)LOCKED/.test(bannerHtml), "the tile does NOT use a bare 'LOCKED' -- the real Framework-tab term is 'BLOCKED', checked against the spec's own looser wording");
+
+  // Quadrant 1 -- Money. Real CP-201 share, real bar values.
+  let quadHtml = G.execQuadrants._html;
+  ok(quadHtml.includes(m(T.bac)) && quadHtml.includes(m(T.eac)) && quadHtml.includes(m(T.contRemaining)), "the money quadrant's 3 bars state the real BAC/EAC/contRemaining values");
+  ok(quadHtml.includes((cp201ShareReal * 100).toFixed(0) + "%"), "the money quadrant states CP-201's real, independently-recomputed cost share", (cp201ShareReal * 100).toFixed(0));
+  ok(quadHtml.includes((T.eac / T.bac * 100).toFixed(0)), "the money quadrant's '$X per $100' framing is independently recomputed, not hand-typed");
+
+  // Quadrant 2 -- Time.
+  ok(quadHtml.includes(rev.base) && quadHtml.includes(rev.fc), "the time quadrant states the real target and forecast dates");
+  ok(quadHtml.includes(String(Math.abs(rev.d))), "the time quadrant states the real day-count");
+
+  // Quadrant 3 -- Governance.
+  ok(quadHtml.includes(gate5PassReal ? "GATE 5: CLEARED" : "GATE 5: BLOCKED"), "the governance quadrant's pill states the real gate status");
+  ok(quadHtml.includes(m(T.contRemaining)) && quadHtml.includes(m(T.overrun + T.riskExposure)), "the governance quadrant states the real savings-on-hand and real foreseeable-cost figures");
+
+  // Quadrant 4 -- real top actions, reusing generateTriageQueue(), not a parallel "what needs
+  // attention" engine (checked by confirming the SAME ids the triage queue itself produces).
+  const execActionsReal = P.execTopActions();
+  const triageQueueReal = P.generateTriageQueue().filter(it => it.tier <= 2).slice(0, 3);
+  ok(execActionsReal.length === triageQueueReal.length && execActionsReal.every((a, i) => a.item.id === triageQueueReal[i].id),
+    "the exec action queue pulls the SAME real items generateTriageQueue() produces, not a duplicate engine", JSON.stringify(execActionsReal.map(a => a.item.id)));
+  if (execActionsReal.some(a => a.item.id === "esc-contCoverage")) {
+    ok(quadHtml.includes(m(gapReal)), "the funding-gap action states the real, independently-recomputed dollar gap");
+  }
+
+  // "Why is this red?" drawer -- real text (R-01's own root/mitigation, A-09's own real owner),
+  // never an invented name like "Jane Doe."
+  const r01Real = P.risks.find(r => r.id === "R-01");
+  const a09Real = P.actions.find(a => a.id === "A-09");
+  fire(G.execQuadrants, "click", { target: { closest: sel => sel === "[data-exec-drawer]" ? { dataset: { execDrawer: "money" } } : null } });
+  let drawerHtml = G.execDrawer._html;
+  ok(drawerHtml.includes(r01Real.own), "the money drawer's 'who is fixing it' cites R-01's real, independently-verified owner", r01Real.own);
+  ok(drawerHtml.includes(r01Real.mit), "the money drawer's 'what happened' cites R-01's real mitigation text verbatim");
+  fire(G.execQuadrants, "click", { target: { closest: sel => sel === "[data-exec-drawer]" ? { dataset: { execDrawer: "gate5" } } : null } });
+  drawerHtml = G.execDrawer._html;
+  ok(drawerHtml.includes(a09Real.owner), "the Gate 5 drawer's 'who is fixing it' cites A-09's real, independently-verified owner", a09Real.owner);
+  ok(drawerHtml.includes(m(gapReal)), "the Gate 5 drawer states the real, independently-recomputed funding gap");
+  fire(G.execDrawer, "click", { target: { closest: sel => sel === "#execDrawerClose" ? {} : null } });
+  ok(G.execDrawer._html === "", "closing the drawer clears it");
+
+  // FAQ -- every answer independently recomputed against the real totals, not canned text.
+  ok(P.execFaq.length >= 5, "at least 5 real FAQ questions exist");
+  fire(G.execFaqButtons, "click", { target: { closest: sel => sel === "[data-exec-faq]" ? { dataset: { execFaq: "0" } } : null } });
+  let faqHtml = G.execFaqAnswer._html;
+  const expectOpenOnTime = rev.d <= 0 ? "Yes" : "No";
+  ok(faqHtml.startsWith('<b') && faqHtml.includes(expectOpenOnTime), "the 'are we opening on time' FAQ answer's real yes/no matches an independent recomputation of the real drift", expectOpenOnTime);
+  ok(faqHtml.includes(rev.fc), "the FAQ answer cites the real forecast date");
+  fire(G.execFaqButtons, "click", { target: { closest: sel => sel === "[data-exec-faq]" ? { dataset: { execFaq: "2" } } : null } });
+  faqHtml = G.execFaqAnswer._html;
+  ok(faqHtml.includes(m(T.contRemaining)) && faqHtml.includes(m(T.overrun + T.riskExposure)), "the contingency FAQ answer states the real savings-on-hand and real foreseeable-cost figures");
+
+  // Deep-links reuse the real jumpToAction()/jumpToEl(), same as every other tab's cross-links.
+  const linkedAction = execActionsReal.find(a => a.item.actionId);
+  if (linkedAction) {
+    fire(G.execQuadrants, "click", { target: { closest: sel => sel === "[data-exec-action]" ? { dataset: { execAction: linkedAction.item.actionId } } : null } });
+    ok(P.state.tab === "act" && P.state.act === linkedAction.item.actionId, "an action-queue item's deep-link reuses the real jumpToAction()");
+    fire(G["t-exec"], "click");
+  }
+
+  // Print button reuses the real renderPrint() (window.print() itself is not exercisable in this
+  // stub -- accepted limitation, same as every other window.print()-triggering button in this file).
+  ok(indexSrc.includes('document.getElementById("execPrintBtn").addEventListener("click",function(){ renderPrint(); window.print(); });'),
+    "the board-summary button reuses the real renderPrint(), not a parallel PDF pipeline");
+
   fire(G["t-over"], "click");
 }
 
