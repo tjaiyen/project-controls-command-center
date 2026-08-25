@@ -7950,9 +7950,28 @@ function renderNarr(){
    '<p>The recovery arithmetic no longer supports optimism. Finishing on budget requires the remaining work to run at '+
    fig("tcpi").shown+' against a demonstrated '+fig("cpi").shown+' — a '+fig("tcpiGap").shown+' gap, above the 0.10 recoverability line — '+
    'and '+MC.n.toLocaleString("en-US")+' simulated completions put the probability of busting budget plus remaining contingency at '+fig("pBust").shown+'.</p>'+
-   '<p>'+fig("escFiring").shown+' escalation triggers are firing. The controls recommendation this cycle: stop forecasting recovery, '+
-   'open the funding conversation while '+fig("contRemaining").shown+' of contingency remains, and commission the formal recovery '+
-   'analysis on the driving path within 72 hours.</p>';
+   '<p>'+fig("escFiring").shown+' escalation triggers are firing right now. Below is exactly which ones, who owns '+
+   'each, and the clock they are on &mdash; pulled live from the same escalation matrix the '+
+   '<button type="button" class="btn" data-jump-tab="fw" data-jump-el="escTable" style="min-height:auto;padding:1px 8px;font-size:12.5px">'+
+   'Operating Framework tab tracks &rarr;</button>, not a generic recommendation.</p>'+
+   // Root cause & ownership (brainstorm-mode round, 2026-08-24, TJ's direct ask: "clear defined
+   // root cause and proactive solutions with clear ownership") -- same dbox/heading/row shape as
+   // renderRootCause()'s own per-KPI escalation-fallback branch (index.html ~3504-3513), applied
+   // at the whole-narrative level instead of one KPI at a time. f is the SAME real
+   // firingEscalations() array escFiring's own .chk() already verifies against -- this never
+   // invents an owner or action; every word below is r[0..3] straight out of the real ESCALATION
+   // table the Operating Framework tab renders too.
+   (f.length?
+     '<div class="dbox" style="border-left-color:rgb(var(--c-bad) / .55);margin-top:2px">'+
+     '<h4>Root cause &amp; who owns it right now</h4>'+
+     f.map(function(e){ return '<p style="margin:4px 0 0;font-size:12.3px">'+
+       '<span class="mono" style="color:rgb(var(--c-code))">'+e[0]+'</span> &rarr; <b style="color:rgb(var(--c-ink))">'+e[1]+'</b>, '+
+       e[2]+' &mdash; <span class="mono">'+e[3]+'</span></p>'; }).join("")+
+     '</div>'
+   : '<div class="dbox" style="border-left-color:rgb(var(--c-ok) / .55);margin-top:2px">'+
+     '<h4>Root cause &amp; who owns it right now</h4>'+
+     '<p>No escalation rule is firing right now &mdash; this section will populate live the moment one does, '+
+     'a genuine, honestly-computed null result, not a placeholder.</p></div>');
   var fails=FIGS.filter(function(x){return !x.chk();}).length;
   document.getElementById("aiNarrChecks").innerHTML=
    '<div class="gate" style="margin-top:6px"><b>Verification &middot; every figure in the draft, recomputed independently</b>'+

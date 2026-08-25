@@ -5301,6 +5301,26 @@ console.log("== D32. AI & Data-tab upgrade -- pipeline gate-count fix, narrative
   ok(narrHtml.includes(m(T.eac)), "toggled off: draft shows the real EAC again");
   ok(checksHtml.includes("ALL 14 VERIFIED — cleared to publish"), "toggled off: back to all-clear");
 
+  // B2. AI Narrative's own root-cause & ownership block (brainstorm-mode round, 2026-08-24, TJ's
+  // direct ask: "clear defined root cause and proactive solutions with clear ownership") -- pulls
+  // straight from the real, live firingEscalations()/ESCALATION table, never invents an owner
+  const liveFiring = P.firingEscalations();
+  ok(liveFiring.length > 0, "sanity: at least one real escalation rule is genuinely firing today, so this round has real data to show", String(liveFiring.length));
+  narrHtml = R.registry.aiNarr._html; // re-read: the toggle-off restoration above left aiNarr on the real draft
+  ok(narrHtml.includes("Root cause &amp; who owns it right now"), "narrative now has a root-cause/ownership block, same heading renderRootCause() already uses per-KPI");
+  ok(narrHtml.includes('data-jump-tab="fw"') && narrHtml.includes('data-jump-el="escTable"'),
+    "block links out to the real Operating Framework escalation matrix it's pulling from");
+  liveFiring.forEach(function (e) {
+    ok(narrHtml.includes(e[0]) && narrHtml.includes(e[1]) && narrHtml.includes(e[2]) && narrHtml.includes(e[3]),
+      "every real firing rule's own trigger/owner/action/clock appears verbatim -- " + e[1], e[0]);
+  });
+  ok((narrHtml.match(/&rarr; <b style="color:rgb\(var\(--c-ink\)\)">/g) || []).length === liveFiring.length,
+    "exactly as many root-cause rows render as are actually firing right now -- no extra, no missing", String(liveFiring.length));
+  // the honest null path -- today's real data always has >=1 rule firing (checked above), so this
+  // can't be exercised at runtime; confirmed structurally in source instead, same accepted fallback
+  // this file already uses for branches live data can't reach (e.g. the canvas-only static checks).
+  ok(indexSrc.includes("No escalation rule is firing right now"), "the honest-null fallback text exists in source for the day this program's own data clears every rule");
+
   // C. EWMA chart week drill-down -- real per-week idle/rework/baseline split, reused from
   // deriveCph() (the same fields the Delivery-tab 3-way drill already totals), not a second
   // parallel computation
