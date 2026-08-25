@@ -1,0 +1,11 @@
+name = "pcc-ask-ai"
+main = "index.js"
+compatibility_date = "2026-08-25"
+
+# Bind after `wrangler kv namespace create ASK_AI_KV` (see docs/ASK_AI_SETUP.md) -- paste the real
+# id it prints in place of REPLACE-ME below. Without this binding the Worker still answers
+# questions (env.ASK_AI_KV is undefined, guarded with `if (env.ASK_AI_KV)` in index.js), it just
+# can't enforce the rate limit or daily budget -- deploy with the real binding before going live.
+[[kv_namespaces]]
+binding = "ASK_AI_KV"
+id = "REPLACE-ME"

@@ -2008,12 +2008,21 @@ join dim_control_account b using (package_id)</pre></div>
       <div class="sec-h" style="margin-top:30px"><h3>Context, for perspective</h3></div>
       <div class="card" id="execContext" style="margin-top:12px"></div>
       <div class="sec-h" style="margin-top:30px"><h3>Ask a real question</h3></div>
-      <p class="lede">A fixed set of real questions, each answered from the live ledger &mdash; not
-        free-text search. Answering arbitrary typed questions would mean calling an outside AI
-        service, a real cost decision this dashboard declines to make unilaterally.</p>
+      <p class="lede">A fixed set of real questions, each answered from the live ledger &mdash; free,
+        instant, and always available. For anything outside this list, see &ldquo;Ask
+        anything&rdquo; below.</p>
       <div id="execFaqButtons" role="group" aria-label="Common executive questions"
         style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"></div>
       <p class="lede" id="execFaqAnswer" style="margin-top:12px"></p>
+      <div class="sec-h" style="margin-top:30px"><h3>Ask anything <span class="pill i" style="margin-left:4px;font-size:10.5px;vertical-align:middle">AI &middot; experimental</span></h3></div>
+      <p class="lede">Free-text questions, answered by Claude reading only the real numbers above
+        &mdash; never its own outside knowledge. Every answer is mechanically checked against the
+        live ledger before it renders; anything it states that isn&rsquo;t backed by a real field is
+        stripped or the answer is refused outright. This calls an outside AI service and costs real
+        money per question, so it&rsquo;s off by default &mdash; turning it on is your call, each
+        session.</p>
+      <div id="askAiGate" style="margin-top:10px"></div>
+      <div id="askAiPanel" hidden style="margin-top:12px"></div>
       <div class="sec-h" style="margin-top:30px"><h3>Board briefing</h3></div>
       <p class="lede">Reuses the same one-click, live-data print brief every tab already has &mdash;
         never a hand-typed summary that can drift from the numbers above.
@@ -3096,18 +3105,26 @@ var state = {phase:"con", fam:"All", audience:"pcm", kpi:null, pkg:2, actFilter:
                  // exploring a hypothetical"), and is cleared the instant the slider is dragged
                  // manually. gbmBandsOn defaults true — the &plusmn;1&sigma;/2&sigma; bands are the
                  // whole point of the educational upgrade, not something to hide by default.
-  triageFilter:null, triageAck:{}, triageSearch:"", triageSort:"tier", triageCollapsed:{}}; // Attention
-                 // & Triage tab (brainstorm-mode round, 2026-08-24; UX upgrade round, 2026-08-24) —
-                 // triageFilter null = show all 4 tiers; a tier number narrows to just that one.
-                 // triageAck is an id->true map, never a removal: acknowledging a live-computed
-                 // breach dims the card and labels it, but the item stays listed and reactivates
-                 // in full the moment its own underlying number changes — this dashboard never
-                 // lets a real red number go silently invisible behind a "resolved" click.
-                 // triageSearch filters by title/owner substring; triageSort toggles "tier"
+  triageFilter:null, triageAck:{}, triageSearch:"", triageSort:"tier", triageCollapsed:{},
+                 // Attention & Triage tab (brainstorm-mode round, 2026-08-24; UX upgrade round,
+                 // 2026-08-24) — triageFilter null = show all 4 tiers; a tier number narrows to
+                 // just that one. triageAck is an id->true map, never a removal: acknowledging a
+                 // live-computed breach dims the card and labels it, but the item stays listed and
+                 // reactivates in full the moment its own underlying number changes — this
+                 // dashboard never lets a real red number go silently invisible behind a "resolved"
+                 // click. triageSearch filters by title/owner substring; triageSort toggles "tier"
                  // (default, matches generateTriageQueue()'s own real severity order) vs "owner"
                  // (alphabetical, for "what does person X need to see"); triageCollapsed is an
                  // id->true map, defaulting every card OPEN (unchanged behavior) until a reader
                  // chooses to collapse one.
+  askAiEnabled:false, askAiCount:0, askAiBusy:false, askAiHistory:[]}; // Ask AI opt-in Q&A
+                 // (brainstorm-mode round, 2026-08-25) — askAiEnabled false = dormant by default,
+                 // same "cost-conscious default" idiom as riskIncluded starting empty above; the
+                 // feature makes zero network calls until a reader deliberately opts in. askAiCount
+                 // is a per-session (not persisted) question counter, shown to the reader for
+                 // transparency, not a spend cap itself — the real cap lives server-side in the
+                 // Worker, which the client cannot see or bypass. askAiHistory holds the
+                 // question/answer pairs asked this session, newest first, for on-page display.
 
 /* Ledger card (Overview-tab upgrade, 2026-08-20) — the 11 raw inputs, a per-package inspector, and
    a live "change one input, watch the KPIs move" demo. The demo deliberately reads a LOCAL copy of
@@ -6127,6 +6144,120 @@ function renderExecFaq(){
   }).join("");
 }
 
+/* Ask AI -- free-text Q&A over the real ledger (brainstorm-mode round, 2026-08-25, TJ's direct
+   ask: "type in any question... answer base on the data from the dashboard... ensure the answer
+   the ai provide are true but include guardrails"). Architecture: this page is fully static and
+   public (GitHub Pages, no backend) -- an API key can NEVER live here, so this only ever talks to
+   a small external Worker (see worker/index.js + docs/ASK_AI_SETUP.md) that holds the real key.
+   The client's only real jobs: (1) build a snapshot of the SAME live values every other tab
+   already reads, never invented data; (2) stay dormant -- zero network calls -- until a reader
+   opts in, since every question here costs real money; (3) escape everything before it renders,
+   since a model's answer is external content like any other. The truth guardrail (closed tool-
+   use + mechanical fact-check against the snapshot) lives in worker/lib.js, run server-side on
+   every question -- a client-side check alone couldn't be trusted because the client is exactly
+   what a malicious visitor controls. */
+function escHtml(s){
+  return String(s).replace(/[&<>"']/g,function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+  });
+}
+// Placeholder until a real Worker is deployed (docs/ASK_AI_SETUP.md) -- checked at call time so
+// this feature fails safely (a clear message, zero network attempt) rather than a broken fetch to
+// nowhere the moment someone opts in, on a page that's live on the public internet today.
+var ASK_AI_WORKER_URL = "https://REPLACE-ME.workers.dev/ask";
+function askAiConfigured(){ return ASK_AI_WORKER_URL.indexOf("REPLACE-ME") === -1; }
+
+/* buildAskAiSnapshot() -- the ONLY data the Worker/model ever sees. Every field here is read
+   straight from the same live module-scope values (T, KPIS, RISKS, ACTIONS, GATE5_CHECKS, MC,
+   MILES, PROGRAM) every other tab already renders from -- never a second, parallel copy of the
+   program. Deliberately compact (summary stats, not the 10,000-row MC.sims array) -- keeps every
+   question cheap regardless of how large the underlying simulation gets. */
+function buildAskAiSnapshot(){
+  var gate5Pass=GATE5_CHECKS.every(function(c){ return c.run()[0]; });
+  var rev=MILES[MILES.length-1];
+  return {
+    asOf:PROGRAM.dataDate,
+    totals:{bac:T.bac,eac:T.eac,vac:T.vac,ev:T.ev,ac:T.ac,pv:T.pv,spi:T.spi,cpi:T.cpi,tcpi:T.tcpi,
+      cpli:T.cpli,bei:T.bei,pf:T.pf,overrun:T.overrun,riskExposure:T.riskExposure,
+      contRemaining:T.contRemaining,contCoverage:T.contCoverage},
+    gate5:{pass:gate5Pass,checks:GATE5_CHECKS.map(function(c){ var r=c.run(); return {key:c.key,label:c.n,pass:r[0],detail:r[1]}; })},
+    openingDate:{target:rev.base,forecast:rev.fc,driftDays:rev.d},
+    kpis:KPIS.map(function(k){ return {id:k.id,fam:k.fam,name:k.name,val:k.val(),raw:k.raw(),rag:k.rag(),formula:k.f}; }),
+    risks:RISKS.map(function(r){ return {id:r.id,name:r.n,probBand:P_BAND_NAME[r.p],impact:r.i,
+      cost:r.cost,exposure:P_BAND[r.p]*r.cost,owner:r.own,mitigation:r.mit}; }),
+    actions:ACTIONS.map(function(a){ return {id:a.id,title:a.title,owner:a.owner,status:actionStatus(a),
+      opened:a.opened,due:a.due}; }),
+    mc:{n:MC.n,p10:MC.p10,p50:MC.p50,p80:MC.p80,p95:MC.p95,pOver:MC.pOver,pBust:MC.pBust}
+  };
+}
+function renderAskAiGate(){
+  document.getElementById("askAiGate").innerHTML = state.askAiEnabled ? "" :
+    '<button type="button" class="btn" id="askAiEnableBtn" style="min-height:auto;padding:5px 12px;font-size:12.5px">Enable Ask AI for this session</button>';
+  var b=document.getElementById("askAiEnableBtn");
+  if(b) b.addEventListener("click",function(){ state.askAiEnabled=true; renderAskAiGate(); renderAskAiPanel(); });
+}
+function renderAskAiPanel(){
+  document.getElementById("askAiPanel").hidden = !state.askAiEnabled;
+  if(!state.askAiEnabled) return;
+  var historyHtml = state.askAiHistory.map(function(h){
+    return '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--c-line)">'+
+      '<p style="font-size:12.5px;margin:0"><b>Q:</b> '+escHtml(h.q)+'</p>'+
+      (h.error
+        ? '<p style="font-size:12.5px;margin:6px 0 0;color:rgb(var(--c-bad))">'+escHtml(h.error)+'</p>'
+        : '<p style="font-size:.95rem;margin:6px 0 0">'+escHtml(h.answer)+'</p>'+
+          (h.citedFields && h.citedFields.length ? '<p style="font-size:11px;margin:6px 0 0;color:rgb(var(--c-mut))">Grounded in: '+
+            h.citedFields.map(function(c){ return escHtml(c); }).join(", ")+'</p>' : "")+
+          '<span class="pill '+(h.unverifiedCount ? "a" : "g")+'" style="margin-top:6px;font-size:10.5px">'+
+            (h.unverifiedCount ? h.unverifiedCount+" unverified claim(s) removed" : "fully grounded")+'</span>')+
+      '</div>';
+  }).join("");
+  document.getElementById("askAiPanel").innerHTML =
+    (askAiConfigured() ? "" :
+      '<p style="font-size:12.5px;color:rgb(var(--c-warn))">Not yet configured &mdash; see docs/ASK_AI_SETUP.md to deploy the Worker, then set ASK_AI_WORKER_URL.</p>')+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
+      '<input class="gsearch" id="askAiInput" type="text" style="flex:1;min-width:220px" placeholder="Ask anything about this program&hellip;" aria-label="Ask a free-text question about this program" '+(state.askAiBusy?"disabled":"")+'>'+
+      '<button type="button" class="btn" id="askAiSubmit" style="min-height:auto;padding:5px 12px;font-size:12.5px" '+(state.askAiBusy?"disabled":"")+'>'+(state.askAiBusy?"Asking…":"Ask")+'</button>'+
+    '</div>'+
+    '<p style="font-size:11px;margin-top:6px;color:rgb(var(--c-mut))">Questions asked this session: '+state.askAiCount+'</p>'+
+    historyHtml;
+  var submitBtn=document.getElementById("askAiSubmit");
+  if(submitBtn) submitBtn.addEventListener("click",submitAskAi);
+  var input=document.getElementById("askAiInput");
+  if(input) input.addEventListener("keydown",function(e){ if(e.key==="Enter") submitAskAi(); });
+}
+function submitAskAi(){
+  var input=document.getElementById("askAiInput");
+  var q=input?input.value.trim():"";
+  if(!q || state.askAiBusy) return;
+  if(!askAiConfigured()){
+    state.askAiHistory.unshift({q:q,error:"Ask AI isn't deployed yet -- see docs/ASK_AI_SETUP.md."});
+    if(input) input.value="";
+    renderAskAiPanel();
+    return;
+  }
+  state.askAiBusy=true; state.askAiCount++;
+  renderAskAiPanel();
+  fetch(ASK_AI_WORKER_URL,{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({question:q,snapshot:buildAskAiSnapshot()})})
+    .then(function(r){ return r.json().then(function(body){ return {ok:r.ok,body:body}; }); })
+    .then(function(res){
+      if(!res.ok || res.body.error){
+        state.askAiHistory.unshift({q:q,error:res.body && res.body.error ? res.body.error : "The Ask AI service returned an error."});
+      } else {
+        state.askAiHistory.unshift({q:q,answer:res.body.answer,citedFields:res.body.citedFields||[],
+          unverifiedCount:res.body.unverifiedCount||0});
+      }
+    })
+    .catch(function(){
+      state.askAiHistory.unshift({q:q,error:"Couldn't reach the Ask AI service -- check your connection and try again."});
+    })
+    .then(function(){
+      state.askAiBusy=false;
+      if(input) input.value="";
+      renderAskAiPanel();
+    });
+}
+
 /* Proactive "test a fix" sandbox (UX upgrade round, 2026-08-24, TJ's direct report: "more...
    proactive problem-solving oriented"). Reuses gate5SandboxCalc() and state.g5Sponsor/g5MitR01/g5Ve
    verbatim -- the SAME real levers and the SAME live state the Operating Framework tab's own
@@ -6195,6 +6326,8 @@ function renderExec(){
   renderExecSandbox();
   renderExecContext();
   renderExecFaq();
+  renderAskAiGate();
+  renderAskAiPanel();
   document.getElementById("execFaqAnswer").textContent="";
   document.getElementById("execDrawer").innerHTML="";
 }
@@ -10911,6 +11044,10 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   generateTriageQueue:generateTriageQueue,renderTriage:renderTriage,triageEscMeta:TRIAGE_ESC_META,triageClockTier:TRIAGE_CLOCK_TIER,
   renderExec:renderExec,execCp201Share:execCp201Share,execFundingGap:execFundingGap,execTopActions:execTopActions,
   execDrawerContent:execDrawerContent,execFaq:EXEC_FAQ,
+  buildAskAiSnapshot:buildAskAiSnapshot,renderAskAiGate:renderAskAiGate,renderAskAiPanel:renderAskAiPanel,
+  submitAskAi:submitAskAi,escHtml:escHtml,askAiConfigured:askAiConfigured,
+  getAskAiWorkerUrl:function(){ return ASK_AI_WORKER_URL; },
+  setAskAiWorkerUrl:function(v){ ASK_AI_WORKER_URL=v; },
   wbs:WBS,gates:GATES,gate5Checks:GATE5_CHECKS,glNodes:GL_NODES,glCaption:glCaption,glNodeState:glNodeState,
   gate5SandboxCalc:gate5SandboxCalc,renderGate5Sandbox:renderGate5Sandbox,
   contracts:CONTRACTS,deriveContract:deriveContract,
