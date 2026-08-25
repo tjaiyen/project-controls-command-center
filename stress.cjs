@@ -5879,6 +5879,37 @@ console.log("== D41. Change-pipeline/contract-register upgrade -- inline reconci
   });
 }
 
+console.log("== D42. Integrity-gate failure demo -- 'Try it' toggle shows a real FAIL, not a screenshot of one (2026-08-24) ==");
+{
+  // sanity: default (toggle off) state is genuinely all-green -- D40's own guardPasses/guardFails
+  // assertion already proves this at page-init; re-confirm here that the new toggle didn't change
+  // default behavior at all
+  ok(P.state.guardsDemo === false, "sanity: guardsDemo starts false -- the real, unmodified gate");
+  ok((G.aiGuards._html.match(/>FAIL</g) || []).length === 0, "sanity: gate is genuinely all-green before the demo toggle is touched");
+
+  // flip the toggle the same way a real click on #guardsDemoToggle would (its change listener just
+  // sets state.guardsDemo and calls renderGuards() -- exercised directly here since fire() drives
+  // click/keydown, not a checkbox's own change event)
+  P.state.guardsDemo = true; P.renderGuards();
+  const html = G.aiGuards._html;
+  ok((html.match(/>FAIL</g) || []).length === 1, "exactly 1 of the 28 checks now genuinely fails, not a fabricated count");
+  ok((html.match(/>PASS</g) || []).length === 27, "the other 27 checks are untouched and still genuinely pass");
+  ok(html.includes("1 FAILING"), "gate header pill flips to '1 FAILING', reusing the same real pass/fail count logic as the always-green case");
+  ok(!html.includes("GREEN"), "gate header no longer claims GREEN once a real check disagrees");
+  // the simulated detail value is what actually disagreed -- computed here from the real T.bac,
+  // not hand-typed, so this fails honestly if the real BAC ever changes
+  ok(html.includes(m(T.bac - 0.5)), "the failing row shows the real simulated-wrong value ($0.5M off T.bac), not a placeholder", m(T.bac - 0.5));
+  ok(idsA.includes("guardsDemoToggle"), "the 'Try it' checkbox markup exists");
+
+  // toggling back off restores the exact original all-green state -- proves this is a real swap-
+  // and-restore, not a one-way mutation of GUARDS/PKGS/T
+  P.state.guardsDemo = false; P.renderGuards();
+  const restored = G.aiGuards._html;
+  ok((restored.match(/>FAIL</g) || []).length === 0 && (restored.match(/>PASS</g) || []).length === 28,
+    "toggling off restores all 28 PASS, 0 FAIL -- the underlying PKGS/T.bac were never actually touched");
+  has("aiGuards", "GREEN", "gate reads GREEN again after toggling the demo back off");
+}
+
 /* =========================================================================
    E. otak.html — runtime + internal consistency
    ========================================================================= */

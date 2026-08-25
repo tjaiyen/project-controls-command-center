@@ -1629,6 +1629,10 @@ join dim_control_account b using (package_id)</pre></div>
         on every load; a single failure turns the gate red. The same invariants run as dbt tests in the
         pipeline and as assertions in <code>stress.cjs</code> &mdash; three enforcement points for one
         contract.</p>
+      <label style="display:flex;align-items:center;gap:10px;font-size:12.5px;cursor:pointer;margin:10px 0 0">
+        <input type="checkbox" id="guardsDemoToggle"> Try it &middot; simulate a $0.5M drafting error in
+        one check below and watch the gate actually turn red, instead of taking &ldquo;it would catch
+        it&rdquo; on faith</label>
       <div class="card" style="margin-top:12px" id="aiGuards"></div>
 
       <div class="sec-h" style="margin-top:30px"><h3>Statistical control &mdash; retrospective anomaly check<button type="button" class="help-ic" data-help="zscore" aria-label="What does this term mean?" aria-expanded="false">i</button></h3></div>
@@ -2884,6 +2888,9 @@ var state = {phase:"con", fam:"All", audience:"pcm", kpi:null, pkg:2, actFilter:
   portDrill:null, portGapOpen:false, portGapFootnote:false, portShift:1.00, portInject:0, // Portfolio-tab
                  // upgrade (brainstorm-mode, 2026-08-23) — portShift 1.00/portInject 0 = the real,
                  // unmodified state; the sandbox reduces exactly to real bacSum/eacSum/gap there.
+  guardsDemo:false, // integrity-gate failure demo (brainstorm-mode round, 2026-08-24) — same
+                 // false-means-real idiom as narrTamper just below; checking it swaps in one
+                 // simulated $0.5M drafting error so the gate can be seen actually turning red.
   narrTamper:false, ewmaDrillWeek:null, // AI & Data-tab upgrade (brainstorm-mode, 2026-08-23) —
                  // narrTamper false = the real, verified draft; checking it swaps in one simulated
                  // bad figure to demo the gate catching it. ewmaDrillWeek null = the chart's weekly
@@ -7426,7 +7433,14 @@ function renderArch(){
 var GUARDS=[
  {n:"Portfolio BAC equals the sum of package budgets", run:function(){
    var s=PKGS.reduce(function(a,p){return a+p.bac;},0);
-   return [Math.abs(s-T.bac)<1e-9, m(s)];}},
+   // Failure demo (brainstorm-mode round, 2026-08-24) -- "Try it" toggle above. Same swap-only-
+   // the-shown-value pattern as narrTamper (renderNarr()): a simulated $0.5M drafting error is
+   // subtracted on the left side of the SAME real comparison below, so this genuinely disagrees
+   // via the same expression every other GUARDS check uses -- not a hardcoded red row bolted on.
+   // Real T.bac, PKGS, and every other check here are untouched; toggling off restores the exact
+   // original comparison.
+   var sShown=state.guardsDemo? s-0.5 : s;
+   return [Math.abs(sShown-T.bac)<1e-9, m(sShown)];}},
  {n:"SPI equals EV ÷ PV, recomputed from raw inputs", run:function(){
    var ev=PKGS.reduce(function(a,p){return a+p.ev;},0), pv=PKGS.reduce(function(a,p){return a+p.pv;},0);
    return [Math.abs(ev/pv-T.spi)<1e-9, idx(ev/pv)];}},
@@ -9585,6 +9599,8 @@ document.getElementById("printBtn").addEventListener("click",function(){ renderP
 document.getElementById("aiNarrBtn").addEventListener("click",renderNarr);
 document.getElementById("narrTamperToggle").addEventListener("change",function(e){
   state.narrTamper=e.target.checked; renderNarr(); });
+document.getElementById("guardsDemoToggle").addEventListener("change",function(e){
+  state.guardsDemo=e.target.checked; renderGuards(); });
 /* Delegated on #aiEwmaControl (the static card in the HTML markup itself), not #ewmaSvgChart —
    that inner div is only created once renderEwmaControl() first runs, and this listener binds at
    boot time BEFORE that first render call below, so document.getElementById("ewmaSvgChart") would
@@ -9755,7 +9771,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   archNodes:ARCH_NODES,archCaption:archCaption,
   gloss:GLOSS,findGloss:findGloss,
   miles:MILES,delays:DELAYS,spark:SPARK,baseline:BASELINE,baseSteps:baseSteps,veSandboxCalc:veSandboxCalc,renderBaseline:renderBaseline,
-  pfBand:pfBand,cascadeStepContent:cascadeStepContent,renderPfArc:renderPfArc,renderCascade:renderCascade,renderDelivery:renderDelivery,guards:GUARDS,escPat:ESC_PAT,
+  pfBand:pfBand,cascadeStepContent:cascadeStepContent,renderPfArc:renderPfArc,renderCascade:renderCascade,renderDelivery:renderDelivery,guards:GUARDS,renderGuards:renderGuards,escPat:ESC_PAT,
   mcParams:mcParams,triang:triang,dsStep:dsStep,
   gaussRnd:gaussRnd,gammaRnd:gammaRnd,betaRnd:betaRnd,pertRnd:pertRnd,mcDraw:mcDraw,computeMc:computeMc,
   recomputeActiveMc:recomputeActiveMc,syncMcDist:syncMcDist,renderMcMath:renderMcMath,
