@@ -5345,6 +5345,35 @@ console.log("== D31. Portfolio-tab upgrade -- LOB drill-down, funding-gap bar, s
   P.state.portGapOpen = false; freshPortfolio();
   let gapHtml = R.registry.fundingGapBar._html;
   ok(gapHtml.includes("$2,680.0M") && gapHtml.includes("$2,800.8M"), "funding gap bar shows the real totals, not the brief's fabricated ones", gapHtml.match(/\$[\d,]+\.\dM/g));
+
+  // Bullet-chart conversion (TJ's direct report, 2026-08-24: "the two color bars doesn't really
+  // tell me what it means"). Every expected value re-derived independently from portfolioRows()
+  // here, never copied from the screenshot/markup, matching this file's own standing discipline.
+  {
+    const glines = P.portfolioRows();
+    const gBac = glines.reduce((s, l) => s + l.bac, 0);
+    const gVac = glines.reduce((s, l) => s + l.vac, 0);
+    const gEac = gBac - gVac;
+    const gMaxV = Math.max(gBac, gEac) * 1.06;
+    const gBacPct = (gBac / gMaxV) * 100;
+    const gPctOfBudget = (gEac / gBac) * 100;
+    ok(gapHtml.includes("background:rgb(var(--c-info));border-radius:2px"), "a vertical threshold-tick marker is drawn (the bullet-chart target line), not just a second bar track");
+    ok(gapHtml.includes("Authorized threshold") && gapHtml.includes(m(gBac)), "the tick carries its own inline label stating what it is AND its real value, not a caption line disconnected from it");
+    ok(gapHtml.includes(gPctOfBudget.toFixed(1) + "% of authorized"), "the funding-gap tile states forecast as a real, independently-recomputed % of authorized budget", gPctOfBudget.toFixed(1));
+    // the exact old ambiguous caption (Authorized on one edge, Forecast on the other edge of a
+    // SINGLE line under only the bottom bar) must be gone, not just supplemented
+    ok(!gapHtml.includes('<span>Authorized</span><span>Forecast'), "the old left/right-edge caption line (which mismatched top-bar/bottom-bar with left/right) is fully replaced, not left behind alongside the new tick");
+    // live-data edge case, not a hypothetical: today's real bacPct (~90%) is past the >88 clamp
+    // threshold, so the tick label must be right-anchored, not centered off the edge of the card
+    if (gBacPct > 88) {
+      ok(gapHtml.includes("right:" + (100 - gBacPct).toFixed(1) + "%;transform:none"), "with the real live bacPct beyond the 88% clamp, the tick label right-anchors instead of centering past the card edge", gBacPct.toFixed(1));
+    } else if (gBacPct < 12) {
+      ok(gapHtml.includes("left:0%;transform:none"), "with the real live bacPct under the 12% clamp, the tick label left-anchors");
+    } else {
+      ok(gapHtml.includes("left:" + gBacPct.toFixed(1) + "%;transform:translateX(-50%)"), "with the real live bacPct mid-range, the tick label centers on the tick");
+    }
+  }
+
   fire(R.registry.portGapToggle, "click");
   ok(P.state.portGapOpen === true, "clicking the breakdown toggle opens it");
   gapHtml = R.registry.fundingGapBar._html;

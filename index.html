@@ -3334,6 +3334,22 @@ function renderFundingGapBar(lines,bacSum,vacSum){
   var el=document.getElementById("fundingGapBar"); if(!el) return;
   var eacSum=bacSum-vacSum, gap=vacSum, maxV=Math.max(bacSum,eacSum)*1.06;
   var open=state.portGapOpen;
+  var pctOfBudget=(eacSum/bacSum)*100;
+  // Bullet-chart conversion (TJ's direct report, 2026-08-24: "the two color bars doesn't really
+  // tell me what it means"). The old design stacked two separate bar tracks (Authorized/blue on
+  // top, Forecast/red-or-green below) with ONE caption line sitting under the bottom bar only --
+  // "Authorized" on its left edge, "Forecast" on its right edge -- which reads as labeling
+  // left-vs-right of one bar, not top-track-vs-bottom-track. Replaced with the standard chart for
+  // this exact comparison: one bar (the real forecast, EAC) with a labeled vertical tick marking
+  // the real authorized threshold (BAC) drawn across it -- same reference-line language this
+  // dashboard already uses elsewhere (S-curve, Galton, PERT), not an invented new idiom.
+  var bacPct=(bacSum/maxV)*100;
+  // With today's real numbers (EAC > BAC), the tick sits at ~90% -- close enough to the right edge
+  // that a centered label would overflow the card. Checked against the real live value, not
+  // assumed: clamp the label's anchor near either edge instead of always centering.
+  var tickLabelCss = bacPct>88 ? "right:"+(100-bacPct).toFixed(1)+"%;transform:none"
+                    : bacPct<12 ? "left:0%;transform:none"
+                    : "left:"+bacPct.toFixed(1)+"%;transform:translateX(-50%)";
   el.innerHTML=
    '<div style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px">'+
      '<div><div class="k" style="font:600 9.5px/1.3 ui-monospace,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgb(var(--c-mut))">Total authorized (BAC)</div>'+
@@ -3341,17 +3357,21 @@ function renderFundingGapBar(lines,bacSum,vacSum){
      '<div><div class="k" style="font:600 9.5px/1.3 ui-monospace,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgb(var(--c-mut))">Total forecast (EAC)</div>'+
      '<div class="v mono" style="margin-top:5px;font:600 1.1rem/1.2 inherit;color:'+(gap<0?"rgb(var(--c-bad))":"rgb(var(--c-ink))")+'">'+m(eacSum)+'</div></div>'+
      '<div><div class="k" style="font:600 9.5px/1.3 ui-monospace,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgb(var(--c-mut))">Funding gap</div>'+
-     '<div class="v mono" style="margin-top:5px;font:600 1.1rem/1.2 inherit;color:'+(gap<0?"rgb(var(--c-bad))":"rgb(var(--c-ok))")+'">'+sgn(gap)+'</div></div>'+
+     '<div class="v mono" style="margin-top:5px;font:600 1.1rem/1.2 inherit;color:'+(gap<0?"rgb(var(--c-bad))":"rgb(var(--c-ok))")+'">'+sgn(gap)+'</div>'+
+     '<div class="mono" style="margin-top:2px;font-size:11px;color:rgb(var(--c-mut))">'+pctOfBudget.toFixed(1)+'% of authorized</div></div>'+
    '</div>'+
-   '<div style="height:22px;border-radius:5px;background:var(--c-grid);overflow:hidden;position:relative">'+
-     '<div style="height:100%;width:'+((bacSum/maxV)*100).toFixed(1)+'%;background:rgb(var(--c-info))"></div>'+
+   '<div style="position:relative;height:22px;margin-top:20px">'+
+     '<div style="position:absolute;inset:0;border-radius:5px;background:var(--c-grid);overflow:hidden">'+
+       '<div style="height:100%;width:'+((Math.min(eacSum,bacSum)/maxV)*100).toFixed(1)+'%;background:'+(gap<0?"rgb(var(--c-bad))":"rgb(var(--c-ok))")+';display:inline-block"></div>'+
+       (gap<0?'<div style="height:100%;width:'+((( eacSum-bacSum)/maxV)*100).toFixed(1)+'%;background:repeating-linear-gradient(45deg,rgb(var(--c-bad) / .55),rgb(var(--c-bad) / .55) 4px,transparent 4px,transparent 8px);display:inline-block"></div>':"")+
+     '</div>'+
+     '<div style="position:absolute;left:'+bacPct.toFixed(1)+'%;top:-5px;bottom:-5px;width:3px;background:rgb(var(--c-info));border-radius:2px;transform:translateX(-50%)" aria-hidden="true"></div>'+
+     '<div style="position:absolute;'+tickLabelCss+';bottom:30px;font-size:10.5px;font-weight:600;white-space:nowrap;color:rgb(var(--c-info))">&#9660; Authorized threshold &mdash; '+m(bacSum)+'</div>'+
    '</div>'+
-   '<div style="height:22px;border-radius:5px;background:var(--c-grid);overflow:hidden;position:relative;margin-top:6px">'+
-     '<div style="height:100%;width:'+((Math.min(eacSum,bacSum)/maxV)*100).toFixed(1)+'%;background:'+(gap<0?"rgb(var(--c-bad))":"rgb(var(--c-ok))")+'"></div>'+
-     (gap<0?'<div style="height:100%;width:'+((( eacSum-bacSum)/maxV)*100).toFixed(1)+'%;background:repeating-linear-gradient(45deg,rgb(var(--c-bad) / .55),rgb(var(--c-bad) / .55) 4px,transparent 4px,transparent 8px);display:inline-block"></div>':"")+
+   '<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:rgb(var(--c-mut));margin-top:8px">'+
+     '<i style="width:9px;height:9px;border-radius:2px;flex:none;display:inline-block;background:'+(gap<0?"rgb(var(--c-bad))":"rgb(var(--c-ok))")+'"></i>'+
+     '<span>Forecast (EAC) &mdash; '+m(eacSum)+(gap<0?' <span style="opacity:.8">&middot; hatched portion = the '+m(Math.abs(gap))+' shortfall past the authorized threshold</span>':"")+'</span>'+
    '</div>'+
-   '<div style="display:flex;justify-content:space-between;font-size:10.5px;color:rgb(var(--c-mut));margin-top:4px">'+
-     '<span>Authorized</span><span>Forecast'+(gap<0?" (hatched = shortfall)":"")+'</span></div>'+
    '<button type="button" class="btn" id="portGapToggle" style="margin-top:14px;min-height:auto;padding:3px 10px;font-size:12px">'+
      (open?"Hide":"Show")+' line-of-business breakdown &rarr;</button>'+
    (open?'<div style="margin-top:12px">'+
