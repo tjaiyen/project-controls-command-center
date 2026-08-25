@@ -4389,8 +4389,20 @@ console.log("== D19. in-tab sticky anchor rail, Cost/Schedule (nav round 2, 2026
   // scroll-margin-top on every real anchor target — without this, a native #hash jump tucks its
   // target under the sticky header/rail with no visible feedback (the exact class of bug this
   // file's own openHelp() comment already documents fixing once for the popover case).
-  const smtBlock = (indexSrc.match(/#scurve,#eacTable,#eacTrend,#mcChart,#costGbm,#gantt,#schedTriad,#floatErosionCard,#tiaReg\{\s*scroll-margin-top:[^}]+\}/) || [])[0];
-  ok(!!smtBlock, "scroll-margin-top rule covers all 9 real anchor targets in one place, not 9 separate rules that could drift");
+  // 9 -> 29 ids (/stress-test finding, 2026-08-24): the UX round's 4 new anchor rails (Overview,
+  // Risk & Change, Delivery, Data Strategy) added 20 more real jump targets, but this selector --
+  // authored only for the original 2 rails -- was never extended, so every one of those 20 links
+  // would tuck its target under the sticky header exactly the way this rule exists to prevent.
+  // Every id is asserted individually (not just block presence) so a future rail that forgets to
+  // extend this list fails loudly, not silently.
+  const smtBlock = (indexSrc.match(/#scurve,#eacTable[\s\S]{0,600}?\{\s*scroll-margin-top:[^}]+\}/) || [])[0];
+  ok(!!smtBlock, "scroll-margin-top rule block exists");
+  ["scurve", "eacTable", "eacTrend", "mcChart", "costGbm", "gantt", "schedTriad", "floatErosionCard", "tiaReg",
+   "ledgerCard", "familiesCard", "kboard", "velocityPulse",
+   "tornado", "risks", "contractTable", "changePipe", "drbEmv",
+   "pfArc", "cascadeCard", "ncrCard", "cphCard",
+   "wbsCrosswalk", "cdeFlow", "guardrailGrid", "discrepancyFlow", "circuitDemo", "parityCard", "rolloutCards"
+  ].forEach(id => ok(!!smtBlock && smtBlock.includes("#" + id), "scroll-margin-top rule covers real anchor target #" + id));
 
   // Two real bugs, both found live-browser (not by this DOM-stub harness, which has no CSS engine
   // and can't see either class of bug) after the CSS/JS above first shipped — both guarded here so
@@ -6308,6 +6320,10 @@ const CW_FIELDS_ORDER = P.changeWatchFields.map(f => f.k);
   const badgeHtml = R6.registry.changeWatchBadge;
   ok(badgeHtml.textContent === "1 changed since last visit →", "changed prior snapshot: badge states exactly 1 changed", badgeHtml.textContent);
   ok(/cw-changed/.test(badgeHtml.className || ""), "changed prior snapshot: badge carries the amber cw-changed class");
+  // /stress-test finding (2026-08-24): .btn:hover's (0,2,0) specificity beat .cw-changed's (0,1,0),
+  // so hovering the badge briefly erased the amber signal in favor of the generic accent hover.
+  ok(/\.cw-changed:hover\{background:rgb\(var\(--c-warn\) \/ \.24\);border-color:rgb\(var\(--c-warn\) \/ \.6\)\}/.test(indexSrc),
+    "cw-changed keeps the amber family on :hover instead of falling through to the generic .btn:hover accent color");
   const cardHtml = R6.registry.changeWatchCard._html;
   ok(cardHtml.includes("BAC") && cardHtml.includes(m(T.bac - 40)) && cardHtml.includes(m(T.bac)),
     "changed prior snapshot: Overview card names BAC and shows the real prev -> cur values, not fabricated ones");
@@ -6316,6 +6332,25 @@ const CW_FIELDS_ORDER = P.changeWatchFields.map(f => f.k);
   // write-back actually happened (a real snapshot-then-diff cycle, not a read-only demo)
   ok(R6.win.localStorage.getItem("pccLastSnapshot") === JSON.stringify((() => { const s = {}; CW_FIELDS_ORDER.forEach(k => { s[k] = T[k]; }); return s; })()),
     "the render also wrote today's real totals back to localStorage, so the NEXT load compares against this one");
+}
+{
+  // /stress-test finding (2026-08-24), CONFIRMED then fixed: a schema-mismatched snapshot (a
+  // hypothetical prior version with fewer tracked fields, or a hand-edited/corrupted value) is
+  // missing 8 of 9 keys. Before the fix, (prev[f.k]||0) treated each missing key as a real 0, and
+  // idx(undefined) -- unlike m()/sgn(), it never wraps its arg in Math.abs first -- threw outright,
+  // silently aborting every addEventListener call still queued after renderChangeWatch() in the
+  // init script (confirmed by reproduction: this exact eval crashed pre-fix with "Cannot read
+  // properties of undefined (reading 'toFixed')"). Same NaN/undefined-display bug CLASS this
+  // dashboard already caught once before (the S-curve scrubber HUD), recurred in a new feature.
+  // Fixed: a key missing from prev is excluded from the diff entirely. bac=1240 is genuinely
+  // present in both prev and the real live total (verify.cjs's own tie-out), so the correct result
+  // is "no comparable field changed" -- not "8 fabricated changes," not a crash.
+  const R7 = runPage(indexSrc, { pccLastSnapshot: JSON.stringify({ bac: 1240 }) });
+  ok(!R7.err, "7th index.html eval (schema-mismatched snapshot) ran without runtime errors -- REGRESSION GUARD for the confirmed pre-fix crash", R7.err && R7.err.message);
+  const cardHtml7 = R7.registry.changeWatchCard._html;
+  ok(!/NaN/.test(cardHtml7) && !/undefined/.test(cardHtml7), "a snapshot missing tracked fields never renders NaN/undefined for the missing ones", cardHtml7.slice(0, 200));
+  ok(cardHtml7.includes("No change since your last visit"), "missing keys are excluded from the diff, not fabricated as changes -- bac (the one real overlapping key, 1240===1240) correctly shows no change", cardHtml7.slice(0, 200));
+  ok(R7.registry.changeWatchBadge.textContent === "No change since last visit", "badge also correctly reads 'No change,' not a crash or a fabricated count");
 }
 
 console.log("\n" + pass + " passed, " + fail + " failed");

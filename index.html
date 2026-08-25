@@ -232,8 +232,17 @@ a{color:rgb(var(--c-accent))}
     background:rgb(var(--c-bg) / .96);backdrop-filter:blur(6px)}
 }
 /* keeps a native #hash jump (or scrollIntoView) from tucking its target under the sticky header
-   +anchor rail — extra breathing room is harmless at widths where neither is actually sticky. */
-#scurve,#eacTable,#eacTrend,#mcChart,#costGbm,#gantt,#schedTriad,#floatErosionCard,#tiaReg{
+   +anchor rail — extra breathing room is harmless at widths where neither is actually sticky.
+   /stress-test finding (2026-08-24): the 4 anchor rails added in the UX round (Overview, Risk &
+   Change, Delivery, Data Strategy) linked to 20 real target ids, but this selector — authored for
+   the original 2 rails (Cost, Schedule) — was never extended to cover them, so every one of those
+   20 links would tuck its target under the sticky header on desktop exactly the way this rule
+   exists to prevent. Added below, same flat-selector idiom as the original 9. */
+#scurve,#eacTable,#eacTrend,#mcChart,#costGbm,#gantt,#schedTriad,#floatErosionCard,#tiaReg,
+#ledgerCard,#familiesCard,#kboard,#velocityPulse,
+#tornado,#risks,#contractTable,#changePipe,#drbEmv,
+#pfArc,#cascadeCard,#ncrCard,#cphCard,
+#wbsCrosswalk,#cdeFlow,#guardrailGrid,#discrepancyFlow,#circuitDemo,#parityCard,#rolloutCards{
   scroll-margin-top:calc(var(--nav-height) + 56px)}
 
 /* Tier 3 — left nav rail on wide viewports. Same DOM, same TABS array, same activateTab() logic
@@ -410,6 +419,11 @@ h4{font-size:.86rem;margin:0 0 5px}
    (data-jump-tab/data-jump-el), not a static status chip. Same specificity as .btn, wins on
    source order alone -- no !important needed. */
 .cw-changed{background:rgb(var(--c-warn) / .16);color:var(--c-pill-a);border-color:rgb(var(--c-warn) / .4)}
+/* /stress-test finding (2026-08-24): .btn:hover's (0,2,0) specificity beat .cw-changed's (0,1,0),
+   so hovering the badge briefly replaced the amber "something changed" signal with the generic
+   accent hover color -- erasing the one cue this class exists to show, right as the user reaches
+   for it. Keeps the amber family on hover instead of falling through to the generic .btn:hover. */
+.cw-changed:hover{background:rgb(var(--c-warn) / .24);border-color:rgb(var(--c-warn) / .6)}
 /* category icons — a small tinted glyph badge in front of a table cell, distinguishing a fixed
    taxonomy (action type, guardrail check type) at a glance instead of plain text alone */
 .ticon{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;
@@ -9847,7 +9861,13 @@ function renderChangeWatch(){
   if(!prev){
     badge.style.display="none"; card.innerHTML="";
   } else {
-    var changed=CHANGE_WATCH_FIELDS.filter(function(f){ return Math.abs((prev[f.k]||0)-(cur[f.k]||0))>1e-9; });
+    // /stress-test finding (2026-08-24): (prev[f.k]||0) treated a genuinely-MISSING key (a
+    // schema-mismatched or hand-edited snapshot) the same as a real 0 -- and idx(undefined)
+    // (unlike m()/sgn(), it never wraps its arg in Math.abs first) threw outright, silently
+    // aborting every addEventListener call still queued after this one in the init script. Fields
+    // missing from prev are now excluded from the diff entirely -- not fabricated as "changed,"
+    // never handed to a fmt() function as undefined. Real 0-vs-0 (present in both) still compares fine.
+    var changed=CHANGE_WATCH_FIELDS.filter(function(f){ return (f.k in prev) && Math.abs(prev[f.k]-cur[f.k])>1e-9; });
     badge.style.display="inline-flex";
     badge.className="btn"+(changed.length?" cw-changed":"");
     badge.textContent=changed.length? changed.length+" changed since last visit →" : "No change since last visit";
