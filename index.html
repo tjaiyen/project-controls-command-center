@@ -1296,7 +1296,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         bucket snaps to its true, full count the instant the drop finishes.</p>
       <div class="card" style="margin-top:15px">
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between">
-          <button class="btn" id="galtonRun" type="button">Simulate <span id="galtonRunLabel"></span></button>
+          <button class="btn" id="galtonRun" type="button"><span id="galtonRunLabel"></span></button>
           <div role="group" aria-label="Playback speed" style="display:flex;gap:6px;flex-wrap:wrap">
             <button class="btn" id="galtonSpeed1" type="button" aria-pressed="true">1&times;</button>
             <button class="btn" id="galtonSpeed5" type="button" aria-pressed="false">5&times;</button>
@@ -5041,7 +5041,23 @@ function galtonDrawFrame(bc,counts,bead){
   });
   ctx.setLineDash([]);
   ctx.font="10px ui-monospace,monospace"; ctx.textAlign="center";
-  refLines.forEach(function(t){ ctx.fillStyle=t[1]; ctx.fillText(t[2],X(t[0]),PT+10); });
+  // Off-scale disclosure + overlap fix (TJ's live screenshot, 2026-08-24): X() clamps any value
+  // outside [bc.lo,bc.hi] to the nearest edge. With this program's own real numbers, every
+  // simulated outcome busts both BAC and BAC+contingency, so both reference values sit BELOW the
+  // entire visible bin range and both clamp to the same x=PL -- drawing both labels directly on
+  // top of each other (the garbled overlapping text TJ screenshotted). Fixed two ways: (1) a label
+  // whose real value falls outside [bc.lo,bc.hi] gets an explicit "(off scale)" suffix so a
+  // clamped line is never silently presented as if it were really positioned there; (2) when two
+  // labels' x-positions land within labelGap of each other, the second stacks below the first
+  // instead of drawing over it.
+  var labelGap=68, lastX=null;
+  refLines.forEach(function(t){
+    var x=X(t[0]), offScale=t[0]<bc.lo||t[0]>bc.hi;
+    var label=t[2]+(offScale?" (off scale)":"");
+    var y=(lastX!==null&&Math.abs(x-lastX)<labelGap)?PT+21:PT+10;
+    ctx.fillStyle=t[1]; ctx.fillText(label,x,y);
+    lastX=x;
+  });
   if(bead){
     ctx.fillStyle=bead.col; ctx.globalAlpha=0.95;
     ctx.beginPath(); ctx.arc(bead.x,bead.y,4,0,Math.PI*2); ctx.fill();
@@ -5053,6 +5069,25 @@ function galtonReset(){
   galtonState.running=false; galtonState.queue=[]; galtonState.qi=0;
   galtonState.localCounts=mcBinCounts().counts.map(function(){ return 0; });
 }
+// /stress-test finding (2026-08-24, TJ's direct report: "step by step doesn't work when I click
+// simulate"). Root cause: the Simulate button's own label never changed between modes -- it always
+// said "Simulate N runs," even though Step mode's own design (see #galtonRun's click handler
+// comment below) makes ONE click drop exactly ONE of the GALTON_SAMPLE_N sampled beads, not the
+// whole run. Clicking it once in Step mode, expecting the same one-click full-run behavior
+// 1x/5x/Instant give, showed almost nothing happening -- a real, reproducible UX bug, not a broken
+// handler (the state machine itself already advanced correctly; nothing on screen said so).
+function galtonUpdateRunLabel(){
+  // Always update the SAME static span via textContent -- never rebuild the button's innerHTML.
+  // (First cut of this fix rebuilt the span from a JS string literal on every non-step call, which
+  // (a) put a second copy of that literal id attribute into the file, tripping the static
+  // duplicate-id check, and (b) in Step mode replaced the span with a plain btn.textContent write,
+  // destroying the node -- so a later renderGaltonStatic()/test lookup of the span came back undefined.)
+  var span=document.getElementById("galtonRunLabel"); if(!span) return;
+  if(!galtonState.step){ span.textContent="Simulate "+num(activeMc.n)+" runs"; return; }
+  var total=Math.min(GALTON_SAMPLE_N,activeMc.n);
+  if(galtonState.qi>=total && galtonState.queue.length){ span.textContent="Simulate again"; return; }
+  span.textContent="Drop bead "+(galtonState.qi+1)+" of "+total;
+}
 /* Called on load and from redrawCharts() (theme toggle / tab switch) — always redraws the TRUE
    rest state, never a leftover in-progress frame; also the one place canvas sizing gets
    re-checked once the Cost tab is actually visible (getBoundingClientRect reads real numbers
@@ -5062,7 +5097,7 @@ function renderGaltonStatic(){
   var bc=mcBinCounts();
   document.getElementById("galtonNReal").textContent=num(activeMc.n)+" real runs";
   document.getElementById("galtonNSample").textContent=num(Math.min(GALTON_SAMPLE_N,activeMc.n));
-  document.getElementById("galtonRunLabel").textContent=num(activeMc.n)+" runs";
+  galtonUpdateRunLabel();
   galtonDrawFrame(bc,bc.counts,null);
   document.getElementById("galtonRead").textContent=
     "Showing the real, settled distribution — the same "+num(activeMc.n)+" runs behind the histogram above. Click Simulate to watch it build.";
@@ -5079,6 +5114,7 @@ function galtonFinish(bc){
   galtonState.running=false;
   document.getElementById("galtonRead").textContent=
     "Done — "+num(galtonState.queue.length)+" sampled beads dropped; buckets now show all "+num(activeMc.n)+" real runs' true counts.";
+  galtonUpdateRunLabel();
 }
 function galtonStepOnce(){
   var bc=mcBinCounts();
@@ -5096,7 +5132,7 @@ function galtonStepOnce(){
   galtonDrawFrame(bc,galtonState.localCounts,{x:beadX,y:beadY,col:item.col});
   document.getElementById("galtonRead").textContent=
     num(galtonState.qi)+" of "+num(galtonState.queue.length)+" sampled beads dropped.";
-  if(galtonState.step){ galtonState.running=false; return; }
+  if(galtonState.step){ galtonState.running=false; galtonUpdateRunLabel(); return; }
   var delay=galtonState.speed===5?6:26;
   galtonState.timer=setTimeout(galtonStepOnce,delay);
 }
@@ -9812,6 +9848,12 @@ function galtonSetSpeed(sp){
   document.getElementById("galtonSpeedInstant").setAttribute("aria-pressed",String(sp==="instant"));
   document.getElementById("galtonSpeedStep").setAttribute("aria-pressed",String(sp==="step"));
   if(wasMidRun) renderGaltonStatic();
+  // Unconditional, not just inside the wasMidRun branch above (/stress-test finding, 2026-08-24):
+  // the common case is arming Step mode BEFORE anything is running (or between paused clicks,
+  // since Step mode always sets running=false between steps) -- wasMidRun is false in exactly that
+  // case, so without this the button kept saying "Simulate N runs" the whole time Step mode was
+  // armed, with zero indication switching modes had done anything at all.
+  galtonUpdateRunLabel();
 }
 document.getElementById("galtonSpeed1").addEventListener("click",function(){ galtonSetSpeed(1); });
 document.getElementById("galtonSpeed5").addEventListener("click",function(){ galtonSetSpeed(5); });
@@ -10083,6 +10125,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   galtonBucketOf:galtonBucketOf,galtonSpawnQueue:galtonSpawnQueue,galtonState:galtonState,
   galtonStart:galtonStart,galtonStepOnce:galtonStepOnce,galtonReset:galtonReset,
   renderGaltonStatic:renderGaltonStatic,num:num,
+  galtonSetSpeed:galtonSetSpeed,galtonUpdateRunLabel:galtonUpdateRunLabel,galtonFinish:galtonFinish,
   velocityPulseItems:velocityPulseItems,renderVelocityPulse:renderVelocityPulse,
   tabDrawer:TAB_DRAWER,tabDrawerContent:tabDrawerContent,tabDrawerSysOfRecord:tabDrawerSysOfRecord,
   openTabDrawer:openTabDrawer,closeTabDrawer:closeTabDrawer,

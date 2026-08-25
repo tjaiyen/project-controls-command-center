@@ -1569,6 +1569,27 @@ try {
   ok(G.galtonRead.textContent.includes("Done"), "readout states completion once every queued bead has landed");
   ok(G.galtonRead.textContent.includes(num(P.getActiveMc().n) + " real runs"), "completion readout states the real run count");
 
+  // TJ's direct report, 2026-08-24: "step by step doesn't work when I click simulate ... the rest
+  // of them work". Root cause was never the state machine (already covered above, correctly) — it
+  // was that #galtonRun's own visible label never changed between modes, so Step mode's real,
+  // one-bead-per-click behavior looked identical to (and thus indistinguishable from) the other
+  // 3 speeds' one-click-full-run behavior. Driven via real fire("click") events, not direct
+  // function calls, so this exercises the actual click handlers (galtonSetSpeed/galtonStepOnce),
+  // same discipline as the click-handler block below.
+  P.galtonReset();
+  fire(G.galtonSpeed1, "click"); // start from a known non-step baseline
+  ok(G.galtonRunLabel.textContent === "Simulate " + num(P.getActiveMc().n) + " runs", "non-step speeds show the plain 'Simulate N runs' label");
+  const lblTotal = Math.min(P.galtonSampleN, P.getActiveMc().n);
+  fire(G.galtonSpeedStep, "click"); // arm Step mode with nothing running yet
+  ok(G.galtonRunLabel.textContent === "Drop bead 1 of " + lblTotal, "arming Step mode immediately relabels the button to state its real one-bead-per-click behavior, before the first click — the exact signal TJ's report showed was missing");
+  fire(G.galtonRun, "click");
+  ok(G.galtonRunLabel.textContent === "Drop bead 2 of " + lblTotal, "each Step click advances the button's own label to the next bead count, not just the separate readout line");
+  for (let i = 0; i < lblTotal - 1; i++) fire(G.galtonRun, "click"); // 1 click already fired above; this drains the rest
+  ok(G.galtonRead.textContent.includes("Done"), "sanity check: the drive-to-completion loop above actually reached Done");
+  ok(G.galtonRunLabel.textContent === "Simulate again", "once every bead has dropped, the button relabels to 'Simulate again' rather than staying stuck on the last bead count");
+  fire(G.galtonSpeed5, "click"); // switch back off Step mode
+  ok(G.galtonRunLabel.textContent === "Simulate " + num(P.getActiveMc().n) + " runs", "switching back to a non-step speed restores the plain 'Simulate N runs' label");
+
   // The click handler itself, end to end, driven by real fire("click") events on #galtonRun —
   // not by calling galtonStepOnce() directly. This is the ONLY layer that caught the real bug
   // found live-testing this round: step mode's own "halt after one step" behavior sets
@@ -5828,7 +5849,15 @@ console.log("== D37. Chart legend/clarity pass -- 7 gaps found by a full-dashboa
   ok(indexSrc.includes("color:rgb(var(--c-ink))}") , "heat cell digit color is now theme-aware (--c-ink)");
 
   // Item 2 -- Galton canvas: reference-line text labels (was zero fillText calls before this fix)
-  ok(indexSrc.includes('ctx.fillText(t[2],X(t[0]),PT+10)'), "galtonDrawFrame() now draws visible text labels on its reference lines");
+  ok(indexSrc.includes('ctx.fillText(label,x,y)'), "galtonDrawFrame() now draws visible text labels on its reference lines");
+  // Follow-up fix (TJ's live screenshot, 2026-08-24): with this program's real numbers, BAC and
+  // BAC+contingency both fall below the histogram's visible bin range, so X()'s clamp collapsed
+  // both labels onto the exact same pixel -- garbled overlapping text. Fixed by disclosing when a
+  // reference value is off the visible scale, and staggering a label's y-position when its x lands
+  // too close to the previous one.
+  ok(indexSrc.includes('offScale=t[0]<bc.lo||t[0]>bc.hi'), "a reference line whose real value is outside the visible bin range is detected as off-scale");
+  ok(indexSrc.includes('" (off scale)"'), "an off-scale reference line's label is disclosed as such, not silently drawn at a false position");
+  ok(indexSrc.includes('Math.abs(x-lastX)<labelGap'), "two reference labels landing within labelGap of each other stack vertically instead of overlapping");
   ok((indexSrc.match(/"BAC "\+m\(T\.bac\)/g) || []).length >= 2,
     "the Galton canvas reuses the exact same 'BAC $X.XM' label text as the Monte Carlo histogram's mcMarker() call, not new wording", String((indexSrc.match(/"BAC "\+m\(T\.bac\)/g) || []).length));
   ok((indexSrc.match(/"BAC\+cont "\+m\(T\.bac\+T\.contRemaining\)/g) || []).length >= 2,
