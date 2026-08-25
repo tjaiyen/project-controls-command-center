@@ -442,6 +442,37 @@ ok(G.tip._html.includes("Month 1"), "tapping the S-curve at month 0 (click, no p
   has("waterfallMathBody", worstRow.id, "math panel names the same worked-example account as the narrative");
   has("waterfallMathBody", shareStr, "math panel's share-of-gross-overrun matches independent recomputation");
 
+  // Zoomed y-axis (brainstorm-mode round, 2026-08-24 -- TJ's direct finding: the middle variance
+  // bars were unreadably tiny against a 0-based axis). Independently re-derive the real running-
+  // total path (never trust renderWaterfall()'s own numbers in isolation) to get the expected zoom
+  // window, same discipline this whole block already applies to worstRow/shareStr above.
+  let run2 = T.bac, lo = T.bac, hi = T.bac;
+  sortedByVac.forEach(r => { run2 += -r.vac; lo = Math.min(lo, run2); hi = Math.max(hi, run2); });
+  const pad2 = (hi - lo) * 0.18;
+  const zoomMin = lo - pad2, zoomMax = hi + pad2;
+  const zoomStr = m(zoomMin) + "–" + m(zoomMax);
+  has("waterfall", zoomStr, "chart caption states the independently re-derived zoom window, not a fabricated range");
+  has("waterfallRead", zoomStr, "read-out states the same zoom window");
+  has("waterfallMathBody", "zoomed to the range this running total actually", "math panel discloses the axis convention, matching this project's z-score/EWMA disclosure precedent");
+  ok((G.waterfall._html.match(/<line x1="[\d.]+" y1="[\d.]+" x2="[\d.]+" y2="[\d.]+"\/>/g) || []).length >= 2,
+    "break-glyph line elements render in the SVG markup, disclosing the axis doesn't start at zero");
+  // Quantify the actual fix, not just that the axis numbers changed: the worst account's own bar
+  // is now tall enough to be legible. Under the OLD 0-based axis (maxY ~= max(eac,bac)*1.08 =~
+  // 1408), this same bar would have rendered at roughly 45.6/1408*224 =~ 7px on a 224px plot --
+  // effectively invisible, exactly the complaint. H-PT-PB below are the same literal constants
+  // (H=300, PT=22, PB=54) renderWaterfall() itself declares.
+  const plotH = 300 - 22 - 54;
+  const expectHeight = Math.abs(worstRow.vac) / (zoomMax - zoomMin) * plotH;
+  const rectTag = (G.waterfall._html.match(new RegExp('<rect[^>]*data-acc="' + worstRow.id + '"[^>]*>')) || [])[0];
+  ok(!!rectTag, "the worst account's own bar rect is findable in the rendered SVG");
+  if (rectTag) {
+    const renderedHeight = +((rectTag.match(/height="([\d.]+)"/) || [])[1] || 0);
+    ok(Math.abs(renderedHeight - expectHeight) < 1,
+      "worst account's bar renders at the real zoomed-axis height, matching independent recomputation",
+      renderedHeight + " vs expected " + expectHeight.toFixed(1));
+    ok(renderedHeight > 40, "the worst account's bar is now clearly legible (>40px tall) -- it would have been ~7px under the old 0-based axis", String(renderedHeight));
+  }
+
   // hover: bars[0] is the BAC total, bars[1] is sortedByVac[0] (the worst step) — pre-registered
   // from the sort order above, not assumed from bar position on screen
   fire(G.waterfall, "mousemove", { target: { classList: { contains: () => true }, dataset: { bar: "1" } }, clientX: 100, clientY: 100 });

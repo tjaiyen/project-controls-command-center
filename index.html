@@ -1075,7 +1075,9 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
 
       <div class="sec-h" style="margin-top:34px"><h2>Where the overrun comes from</h2><span class="tag">variance bridge</span></div>
       <p class="lede">Budget at completion bridged to forecast at completion, package by package. Bars
-        below the axis are packages forecasting an overrun; bars above are the underruns offsetting them.</p>
+        below the axis are packages forecasting an overrun; bars above are the underruns offsetting them.
+        <span style="color:rgb(var(--c-mut));font-size:12.5px">Y-axis is zoomed to where the bridge
+        actually moves, not zero &mdash; see the break mark on the axis and the read-out below.</span></p>
       <div class="card" style="margin-top:15px"><div class="chart" id="waterfall"></div>
         <p class="lede" id="waterfallRead" style="margin-top:11px;font-size:12.8px"></p>
         <details class="dbox" style="margin-top:16px">
@@ -3828,16 +3830,33 @@ function renderWaterfall(){
   var run=0, bars=[], i;
   for(i=0;i<steps.length;i++){
     var s=steps[i];
-    if(s.type==="total"){ bars.push({l:s.l,y0:0,y1:s.v,type:"total"}); run=s.v; }
+    if(s.type==="total"){ bars.push({l:s.l,y0:null,y1:s.v,type:"total"}); run=s.v; }
     else { bars.push({l:s.l,y0:run,y1:run+s.v,type:s.type,r:s.r}); run+=s.v; }
   }
-  var maxY=Math.max(T.eac,T.bac)*1.08;
+  // Zoomed y-axis (brainstorm-mode round, 2026-08-24 -- TJ's direct finding: the middle variance
+  // bars were unreadably tiny against a 0-based axis). The bridge's real running-total path only
+  // ever moves within a band around BAC/EAC (a few tens of millions), while BAC and EAC themselves
+  // are both well over $1.2B -- a 0-based axis spent the overwhelming majority of its height on
+  // space no bar ever reached. Unlike an ordinary bar chart (where height IS the reader's only cue
+  // to magnitude, so truncating the axis without disclosure is misleading), a waterfall/bridge is
+  // already read as floating deltas plus each bar's own printed label -- comparing bar height
+  // against a shared zero was never the point here. Zooming to the data's own range, disclosed via
+  // the break glyph below plus the lede/read-out text, is the standard fix for this chart shape.
+  var allV=bars.reduce(function(a,b){ return a.concat(b.type==="total"?[b.y1]:[b.y0,b.y1]); },[]);
+  var dataMin=Math.min.apply(null,allV), dataMax=Math.max.apply(null,allV);
+  var pad=((dataMax-dataMin)||1)*0.18;
+  var zoomMin=dataMin-pad, zoomMax=dataMax+pad;
+  bars.forEach(function(b){ if(b.type==="total") b.y0=zoomMin; });
   var bw=(W-PL-PR)/bars.length;
-  var Y=function(v){ return PT+(1-v/maxY)*(H-PT-PB); };
+  var Y=function(v){ return PT+(1-(v-zoomMin)/(zoomMax-zoomMin))*(H-PT-PB); };
   var g="",k;
-  for(k=0;k<=4;k++){ var gv=maxY*k/4;
+  for(k=0;k<=4;k++){ var gv=zoomMin+(zoomMax-zoomMin)*k/4;
     g+='<line x1="'+PL+'" x2="'+(W-PR)+'" y1="'+Y(gv).toFixed(1)+'" y2="'+Y(gv).toFixed(1)+'" stroke="var(--c-grid)"/>'+
        '<text x="'+(PL-9)+'" y="'+(Y(gv)+3.5).toFixed(1)+'" text-anchor="end" font-size="10.5" font-family="ui-monospace,monospace" fill="'+C("mut")+'">'+m(gv).replace(".0M","M")+'</text>'; }
+  // Break glyph -- a standard double-tick crossing the y-axis at its own floor, the usual convention
+  // for disclosing "this axis does not start at zero" wherever a bar's baseline is truncated.
+  g+='<g stroke="'+C("mut")+'" stroke-width="1.4"><line x1="'+(PL-6)+'" y1="'+(H-PB+5)+'" x2="'+(PL+6)+'" y2="'+(H-PB-5)+'"/>'+
+     '<line x1="'+(PL-6)+'" y1="'+(H-PB+11)+'" x2="'+(PL+6)+'" y2="'+(H-PB+1)+'"/></g>';
   var body=bars.map(function(b,j){
     var x=PL+j*bw+bw*0.16, w=bw*0.68;
     var top=Y(Math.max(b.y0,b.y1)), bot=Y(Math.min(b.y0,b.y1));
@@ -3850,7 +3869,8 @@ function renderWaterfall(){
       '<text x="'+(x+w/2).toFixed(1)+'" y="'+(H-16)+'" text-anchor="middle" font-size="9.5" font-family="ui-monospace,monospace" fill="'+(b.type==="neg"?C("bad"):b.type==="pos"?C("ok"):C("mut"))+'">'+lbl+'</text>';
   }).join("");
   document.getElementById("waterfall").innerHTML=svg(W,H,g+body,
-    "Variance bridge from budget at completion to forecast at completion, decomposed by control account.");
+    "Variance bridge from budget at completion to forecast at completion, decomposed by control account. "+
+    "Y-axis zoomed to "+m(zoomMin)+"–"+m(zoomMax)+", not zero — see the break mark on the axis and the note below.");
   // hover/tap — same shared #tip element the S-curve uses, bound to click too (mobile upgrade,
   // see the scurve tooltip above for why)
   var host=document.getElementById("waterfall"), tip=document.getElementById("tip");
@@ -3869,10 +3889,10 @@ function renderWaterfall(){
   host.addEventListener("mousemove",waterfallTip);
   host.addEventListener("click",waterfallTip);
   host.addEventListener("mouseleave",function(){ tip.classList.remove("on"); });
-  renderWaterfallRead(sorted);
+  renderWaterfallRead(sorted,zoomMin,zoomMax);
 }
 
-function renderWaterfallRead(sorted){
+function renderWaterfallRead(sorted,zoomMin,zoomMax){
   var worst=sorted[0], offsetting=sorted.filter(function(r){ return r.vac>0; }).length;
   document.getElementById("waterfallRead").innerHTML=
     "<b style='color:rgb(var(--c-ink))'>"+worst.id+"</b> ("+worst.n.replace(/&amp;/g,"&")+
@@ -3880,7 +3900,9 @@ function renderWaterfallRead(sorted){
     pct(Math.abs(worst.vac)/T.grossOver,1)+" of the "+m(T.grossOver)+" gross overrun across every "+
     "account forecasting one. "+offsetting+" of "+rows.length+" accounts are forecasting an underrun, "+
     "partially offsetting it — net, BAC of "+m(T.bac)+" bridges to EAC of "+m(T.eac)+", a "+m(Math.abs(T.vac))+
-    " gap. Hover any bar for that account's own share.";
+    " gap. Hover any bar for that account's own share. The chart above is zoomed to "+m(zoomMin)+"–"+m(zoomMax)+
+    " (marked with the break symbol on the axis) — every account's own variance is only a few percent of "+
+    "the total budget, so a 0-to-budget axis would draw all of them as slivers a pixel or two tall.";
 }
 
 /* The math explainer — every bar's height is a real account's own VAC (BAC minus EAC, already
@@ -3902,7 +3924,14 @@ function renderWaterfallMath(){
     "): its own VAC of "+sgn(worst.vac)+" is <b style='color:rgb(var(--c-ink))'>"+
     pct(Math.abs(worst.vac)/T.grossOver,1)+"</b> of "+m(T.grossOver)+", the gross total across only the "+
     "accounts forecasting an overrun — the same &ldquo;share of gross overrun&rdquo; figure this "+
-    "program cites everywhere else it names this account.</p>";
+    "program cites everywhere else it names this account.</p>"+
+    "<p style='margin-top:8px'>The chart's y-axis is zoomed to the range this running total actually "+
+    "visits, plus 18% headroom each side — not a hardcoded window, recomputed from the real bar "+
+    "extents on every render. It is disclosed, not hidden: the break glyph on the axis and the lede/"+
+    "read-out above both name it, the standard convention wherever a bar chart's baseline doesn't "+
+    "start at zero. Doing that here (rather than on an ordinary bar chart) is defensible specifically "+
+    "because a waterfall's bars are already floating deltas read against their own printed labels, "+
+    "not magnitudes meant to be compared to a shared zero.</p>";
 }
 
 /* ---------- estimate-to-budget bridge ---------- */
