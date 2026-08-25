@@ -214,19 +214,19 @@ ok(/@media\(min-width:1050px\)\{/.test(indexSrc), "desktop nav-rail media query 
 ok(/#main\.wrap\{max-width:1320px;display:grid/.test(indexSrc), "nav-rail breakpoint switches #main to a two-column grid");
 ok(/\[role="tabpanel"\]\{grid-column:2;min-width:0\}/.test(indexSrc),
   "tabpanel grid items carry min-width:0 (same overflow-guard class as the mobile grid check above)");
-ok((indexSrc.match(/class="nav-ic"/g) || []).length === 11, "all 11 nav-rail tabs carry an icon");
+ok((indexSrc.match(/class="nav-ic"/g) || []).length === 12, "all 12 nav-rail tabs carry an icon");
 // the rail is presentation-only: TABS, activateTab(), and the tab click wiring are untouched —
 // confirmed here by re-checking the tab count/order the D9 TABS_CHECK already asserts elsewhere,
 // as a direct probe that this CSS/markup-only change didn't silently touch the tab logic
-ok(idsA.filter(id => /^t-(over|port|cost|sched|risk|del|ai|fw|act|gloss|data)$/.test(id)).length === 11,
-  "all 11 tab buttons still present with their original ids after the rail markup change");
+ok(idsA.filter(id => /^t-(over|port|cost|sched|risk|del|ai|fw|act|triage|gloss|data)$/.test(id)).length === 12,
+  "all 12 tab buttons still present with their original ids after the rail markup change");
 // roving tabindex on genuinely pristine (pre-any-click) markup: the D. interactions section's
 // own tabindex assertions run after earlier tests have already clicked several tabs, so they
 // verify the MECHANISM (flips correctly on activateTab) but not the untouched initial-load DOM.
 // This checks the static source directly, independent of any test execution order.
 ok(/id="t-over"[^>]*tabindex="0"/.test(indexSrc), "t-over declares tabindex=0 explicitly in markup (not relying on the button-default)");
-ok((indexSrc.match(/aria-selected="false" tabindex="-1"/g) || []).length === 10,
-  "all 10 non-default tabs declare tabindex=-1 in markup, matching t-over's explicit tabindex=0");
+ok((indexSrc.match(/aria-selected="false" tabindex="-1"/g) || []).length === 11,
+  "all 11 non-default tabs declare tabindex=-1 in markup, matching t-over's explicit tabindex=0");
 
 /* =========================================================================
    B. RUNTIME — index.html
@@ -3605,11 +3605,11 @@ console.log("== D9. data strategy tab ==");
 // Order flipped 2026-08-21 (altitude-grouped nav round): Data Strategy is governance/architecture
 // content, not reference material, so it moved ahead of Glossary in both the tab rail's visual
 // grouping and this array — see TABS' own comment in index.html for why indices 0-8 stayed put.
-ok(P.kpis && TABS_CHECK(), "TABS array carries 11 ids, ending in data then gloss");
+ok(P.kpis && TABS_CHECK(), "TABS array carries 12 ids, act -> triage -> data -> gloss");
 function TABS_CHECK() {
   const m = indexSrc.match(/var TABS=\[([^\]]+)\]/);
   const arr = m ? m[1].split(",").map(s => s.replace(/["']/g, "")) : [];
-  return arr.length === 11 && arr[9] === "data" && arr[10] === "gloss";
+  return arr.length === 12 && arr[8] === "act" && arr[9] === "triage" && arr[10] === "data" && arr[11] === "gloss";
 }
 ok(P.guardrails.length === 4, "4 guardrail types defined", String(P.guardrails.length));
 ok(P.discrepancySteps.length === 5, "5-step discrepancy-resolution flow defined", String(P.discrepancySteps.length));
@@ -6345,6 +6345,150 @@ console.log("== D45. GBM log-return chart made interactive -- bands, click-a-dot
   // reset to defaults so later tests in this file aren't affected by this block's own interactions
   P.state.gbmInspect = 50; P.state.gbmSelectedLabel = null; P.state.gbmBandsOn = true;
   P.renderGbmLogReturns();
+}
+
+console.log("== D46. Attention & Triage tab -- external spec, fact-checked before building (brainstorm-mode round, 2026-08-24) ==");
+{
+  // TJ pasted an external "Urgency & Attention Command" spec. Every number in it was independently
+  // fact-checked against the live ledger before this tab was built; two things did NOT check out
+  // and are asserted here as NOT present: the spec's hardcoded "Stale: 12d" for both A-09/A-11
+  // (the real isStale() day counts differ and must be live-recomputed, not hardcoded), and "DCMA
+  // Metric 6" (not an implemented check in this codebase, so it must not appear anywhere).
+  ok(idsA.includes("t-triage") && idsA.includes("p-triage"), "the tab button and its panel both exist");
+  ok(!!P.tabDrawer && !!P.tabDrawer.triage, "TAB_DRAWER carries a real triage entry (drives the hover-preview drawer and the jump breadcrumb's own label)");
+  ok(!indexSrc.includes("DCMA Metric 6") && !indexSrc.includes("Metric 6"), "the spec's fabricated 'DCMA Metric 6' citation was NOT carried into the build -- this codebase has no such implemented check");
+  ok(!indexSrc.includes('"Stale: 12d"') && !/Stale:\s*12d/.test(indexSrc), "the spec's hardcoded '12d' staleness figure was NOT carried into the build -- real day counts are computed live below");
+
+  // generateTriageQueue() itself -- every item independently re-derived from the same real
+  // functions/arrays the rest of the dashboard already uses (firingEscalations/isStale/
+  // actionStatus/deriveEwma), never a parallel re-implementation trusted against itself.
+  const queue = P.generateTriageQueue();
+  const escFiring = P.firingEscalations();
+  const escCount = escFiring.length;
+  const staleActions = P.actions.filter(a => !a.done && P.isStale(a));
+  const dueSoonActions = P.actions.filter(a => !a.done && P.actionStatus(a) === "due-soon");
+  const blockedActions = P.actions.filter(a => !a.done && P.actionStatus(a) === "blocked");
+  const cphSeries0 = P.cphCells[0].weeks.map(w => w.actual);
+  const eCph0 = P.deriveEwma(cphSeries0);
+  const cphFlags0 = eCph0.points.filter(p => p.flag).length;
+  const cphGapFirst = eCph0.points[0].ucl - eCph0.points[0].ewma, cphGapLast = eCph0.points[eCph0.points.length - 1].ucl - eCph0.points[eCph0.points.length - 1].ewma;
+  const cphNarrowingExpected = cphFlags0 === 0 && cphGapLast < cphGapFirst;
+  const expectedCount = escCount + staleActions.length + dueSoonActions.length + blockedActions.length + (cphNarrowingExpected ? 1 : 0);
+  ok(queue.length === expectedCount, "the queue's real item count matches an independent recount from the same 4 real sources (escalations/stale/due-soon/blocked/CPH)", queue.length + " vs expected " + expectedCount);
+
+  // Real, currently-firing escalation rows land in the queue with the tier this file's OWN clock
+  // text implies, re-derived from ESCALATION's real row text, not the spec's own tier boundaries
+  // (the spec put every negative-float item at Tier 1 / 72hr -- the real row's own clock is
+  // "Next weekly", so it must land at Tier 3, not Tier 1).
+  escFiring.forEach(row => {
+    const item = queue.find(it => it.title === row[0]);
+    ok(!!item, "firing escalation '" + row[0] + "' has a real queue item");
+    if (!item) return;
+    const expectTier = P.triageClockTier[row[3]] || 3;
+    ok(item.tier === expectTier, "'" + row[0] + "' (real clock '" + row[3] + "') lands at the tier that real clock text implies", "tier " + item.tier + " vs expected " + expectTier);
+  });
+  const negFloatItem = queue.find(it => it.id === "esc-negFloat");
+  if (T.negFloat && T.negFloat.length) {
+    ok(!!negFloatItem && negFloatItem.tier === 3, "negative-float items land at Tier 3 (real clock 'Next weekly'), NOT Tier 1 -- the spec's own 72-hour framing for this trigger does not match this dashboard's real escalation matrix");
+  }
+
+  // Gate 5 / contingency coverage item -- the exact formula the spec claimed, re-verified live.
+  const gate5Item = queue.find(it => it.id === "esc-contCoverage");
+  ok(!!gate5Item, "contingency-coverage escalation has a real queue item (fires whenever T.contCoverage < 1, true today)");
+  if (gate5Item) {
+    const expectMetric = "Coverage = " + m(T.contRemaining) + " ÷ (" + m(T.overrun) + " VAC overrun + " + m(T.riskExposure) + " risk exposure) = " + idx(T.contCoverage);
+    ok(gate5Item.metric === expectMetric, "Gate 5 item states the real, independently-recomputed formula and figures, not a hardcoded string", gate5Item.metric);
+    ok(gate5Item.tabLink && gate5Item.tabLink.tab === "fw" && gate5Item.tabLink.anchor === "gate5Card", "Gate 5 item deep-links to the real Operating Framework Gate 5 card");
+  }
+  // CP-601 driving CPLI -- confirmed for real earlier this round to be the genuinely worst-CPLI
+  // package (not CP-201, which has the worse FLOAT -- two different real packages, two different
+  // real metrics, exactly as the spec's own table (correctly) distinguished them).
+  const cpliItem = queue.find(it => it.id === "esc-cpli");
+  if (cpliItem) {
+    const worst = rows.reduce((a, b) => b.cpli < a.cpli ? b : a, rows[0]);
+    ok(cpliItem.metric.includes(worst.id), "the driving-CPLI item names the real worst-CPLI package (today, CP-601), independently re-derived, not assumed", worst.id);
+  }
+
+  // RAID staleness items -- real day counts, NOT the spec's hardcoded "12d" for both.
+  staleActions.forEach(a => {
+    const item = queue.find(it => it.id === "stale-" + a.id);
+    ok(!!item, a.id + " (real isStale()===true) has a real queue item");
+    if (!item) return;
+    const expectDays = P.actDays(a.touch);
+    ok(item.metric.includes("Inactive " + expectDays + "d"), a.id + "'s stale item states its own real, independently-recomputed inactive-day count", item.metric);
+    ok(item.actionId === a.id, a.id + "'s stale item links to the real action id, not a generic link");
+  });
+  // The two specific items the spec got wrong, by name: confirm they are NOT both "12d".
+  const a09 = P.actions.find(a => a.id === "A-09"), a11 = P.actions.find(a => a.id === "A-11");
+  if (a09 && a11 && P.isStale(a09) && P.isStale(a11)) {
+    const d09 = P.actDays(a09.touch), d11 = P.actDays(a11.touch);
+    ok(!(d09 === 12 && d11 === 12), "pre-registered: A-09 and A-11 do NOT both read exactly 12 days stale (the spec's own claim) -- the real, independently-recomputed counts differ", "A-09=" + d09 + "d, A-11=" + d11 + "d");
+  }
+
+  // Due-soon and blocked items -- same real-count discipline.
+  dueSoonActions.forEach(a => {
+    const item = queue.find(it => it.id === "duesoon-" + a.id);
+    ok(!!item, a.id + " (real actionStatus()==='due-soon') has a real queue item");
+    if (item) ok(item.metric.includes("Due in " + (-P.actDays(a.due)) + "d"), a.id + "'s due-soon item states its own real day count");
+  });
+  blockedActions.forEach(a => {
+    const item = queue.find(it => it.id === "blocked-" + a.id);
+    ok(!!item && item.tier === 4, a.id + " (real actionStatus()==='blocked') lands at Tier 4, watchlist not yet urgent by date");
+  });
+
+  // cntTriage badge + filter rail + card rendering, driven by a real tab activation (not calling
+  // renderTriage() directly), matching this file's established fire()-driven-navigation discipline.
+  fire(G["t-triage"], "click");
+  ok(P.state.tab === "triage", "clicking the Triage tab activates it");
+  ok(G.cntTriage.textContent === String(queue.length), "the nav badge shows the real, live item count");
+  let cardsHtml = G.triageCards._html;
+  queue.forEach(it => ok(cardsHtml.includes('data-triage-id="' + it.id + '"'), "queue item " + it.id + " actually rendered as a card, not just present in the data"));
+
+  // Filter rail — clicking a tier narrows the visible cards to just that tier, real count included.
+  if (queue.some(it => it.tier === 2)) {
+    fire(G.triageFilterRail, "click", { target: { closest: sel => sel === "[data-tier]" ? { dataset: { tier: "2" } } : null } });
+    ok(P.state.triageFilter === 2, "clicking the Tier 2 filter button sets state.triageFilter to 2");
+    cardsHtml = G.triageCards._html;
+    const tier2Ids = queue.filter(it => it.tier === 2).map(it => it.id);
+    const otherIds = queue.filter(it => it.tier !== 2).map(it => it.id);
+    ok(tier2Ids.every(id => cardsHtml.includes('data-triage-id="' + id + '"')), "every real Tier 2 item is shown under the Tier 2 filter");
+    ok(otherIds.every(id => !cardsHtml.includes('data-triage-id="' + id + '"')), "no non-Tier-2 item leaks through under the Tier 2 filter");
+    fire(G.triageFilterRail, "click", { target: { closest: sel => sel === "[data-tier]" ? { dataset: { tier: "" } } : null } });
+    ok(P.state.triageFilter === null, "clicking All clears the filter back to null");
+  }
+
+  // Acknowledge — dims/labels the card but the item MUST stay in the next queue read (never a
+  // silent removal of a still-real breach), matching this dashboard's own established ethic.
+  if (queue.length) {
+    const firstId = queue[0].id;
+    fire(G.triageCards, "click", { target: { closest: sel => sel === "[data-triage-ack]" ? { dataset: { triageAck: firstId } } : null } });
+    ok(P.state.triageAck[firstId] === true, "clicking Mark Acknowledged sets the real per-item ack flag");
+    cardsHtml = G.triageCards._html;
+    ok(cardsHtml.includes("Acknowledged") && cardsHtml.includes('data-triage-id="' + firstId + '"'), "the acknowledged item is labeled but still rendered, not hidden -- a real breach never silently disappears");
+    const queueAfterAck = P.generateTriageQueue();
+    ok(queueAfterAck.some(it => it.id === firstId), "the acknowledged item still appears in a fresh generateTriageQueue() read -- acknowledging is a UI overlay, not a fake resolution");
+    fire(G.triageCards, "click", { target: { closest: sel => sel === "[data-triage-ack]" ? { dataset: { triageAck: firstId } } : null } });
+    ok(P.state.triageAck[firstId] === false, "clicking again un-acknowledges it");
+  }
+
+  // Deep-link — Open Action reuses the real jumpToAction() (verified via its real side effects:
+  // tab switch + state.act set), Open source reuses the real jumpToEl() (tab switch only).
+  const actionItem = queue.find(it => it.actionId);
+  if (actionItem) {
+    fire(G.triageCards, "click", { target: { closest: sel => sel === "[data-triage-action]" ? { dataset: { triageAction: actionItem.actionId } } : null } });
+    ok(P.state.tab === "act" && P.state.act === actionItem.actionId, "Open Action reuses the real jumpToAction(), landing on the Actions tab with that real action selected");
+    fire(G["t-triage"], "click"); // back to Triage for the next check
+  }
+  const jumpItem = queue.find(it => !it.actionId && it.tabLink);
+  if (jumpItem) {
+    fire(G.triageCards, "click", { target: { closest: sel => sel === "[data-triage-jump-tab]" ? { dataset: { triageJumpTab: jumpItem.tabLink.tab, triageJumpEl: jumpItem.tabLink.anchor || "" } } : null } });
+    ok(P.state.tab === jumpItem.tabLink.tab, "Open source reuses the real jumpToEl(), landing on the real source tab");
+    fire(G["t-triage"], "click");
+  }
+
+  // reset so later tests in this file aren't affected by this block's own interactions
+  P.state.triageFilter = null; P.state.triageAck = {};
+  fire(G["t-over"], "click");
 }
 
 /* =========================================================================

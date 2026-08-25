@@ -875,6 +875,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
     <span class="tab-group-label" aria-hidden="true">Governance &amp; Execution</span>
     <button role="tab" id="t-fw"    aria-controls="p-fw"    aria-selected="false" tabindex="-1" aria-keyshortcuts="8"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><circle cx="3" cy="8" r="1.6" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="1.6" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="13" cy="8" r="1.6" fill="none" stroke="currentColor" stroke-width="1.3"/><line x1="4.6" y1="8" x2="6.4" y2="8" stroke="currentColor" stroke-width="1.3"/><line x1="9.6" y1="8" x2="11.4" y2="8" stroke="currentColor" stroke-width="1.3"/></svg>Operating Framework<span class="cnt" id="cntGate5" hidden></span></button>
     <button role="tab" id="t-act"   aria-controls="p-act"   aria-selected="false" tabindex="-1" aria-keyshortcuts="9"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.3"/><polyline points="5,8.3 7.2,10.3 11,6.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Actions<span class="cnt" id="cntAct"></span></button>
+    <button role="tab" id="t-triage" aria-controls="p-triage" aria-selected="false" tabindex="-1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><path d="M8 2.4 14.6 13.2H1.4Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><line x1="8" y1="6.3" x2="8" y2="9.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="11.3" r="0.85" fill="currentColor"/></svg>Attention &amp; Triage<span class="cnt" id="cntTriage"></span></button>
     <button role="tab" id="t-data"  aria-controls="p-data"  aria-selected="false" tabindex="-1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><ellipse cx="8" cy="3.6" rx="5.3" ry="1.7" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M2.7 3.6v8.8c0 .9 2.4 1.7 5.3 1.7s5.3-.8 5.3-1.7V3.6" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M2.7 8c0 .9 2.4 1.7 5.3 1.7s5.3-.8 5.3-1.7" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>Data Strategy</button>
     <span class="tab-group-label" aria-hidden="true">Reference</span>
     <button role="tab" id="t-gloss" aria-controls="p-gloss" aria-selected="false" tabindex="-1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><path d="M2.5 3.3c1.6-.6 3.4-.6 5.5.4v9c-2.1-1-3.9-1-5.5-.4Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M13.5 3.3c-1.6-.6-3.4-.6-5.5.4v9c2.1-1 3.9-1 5.5-.4Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>Glossary<span class="cnt" id="cntGloss"></span></button>
@@ -1954,6 +1955,23 @@ join dim_control_account b using (package_id)</pre></div>
     </div>
   </section>
 
+  <!-- ==================== ATTENTION & TRIAGE =========================== -->
+  <section role="tabpanel" id="p-triage" aria-labelledby="t-triage" tabindex="0" hidden>
+    <div class="sec">
+      <div class="eyebrow">Urgency &amp; attention command</div>
+      <h2>Out of everything on this dashboard, what actually needs a human right now</h2>
+      <p class="lede">Every firing escalation rule, stale RAID item, near-term deadline, and pre-breach
+        control-chart signal, compiled live into 4 urgency tiers &mdash; nothing hardcoded, nothing
+        decorative. Every item here traces back to the same escalation matrix, ledger, and Actions
+        register the rest of the dashboard already computes; this tab is a different lens on the same
+        real data, not a second system of record.</p>
+      <div id="triageFilterRail" role="group" aria-label="Filter by urgency tier"
+        style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;position:sticky;top:calc(var(--nav-height) + 8px);z-index:5"></div>
+      <div id="triageCards" style="margin-top:16px;display:flex;flex-direction:column;gap:12px"></div>
+      <p class="lede" id="triageEmpty" style="margin-top:14px"></p>
+    </div>
+  </section>
+
   <!-- =========================== GLOSSARY ============================ -->
   <section role="tabpanel" id="p-gloss" aria-labelledby="t-gloss" tabindex="0" hidden>
     <div class="sec">
@@ -3020,7 +3038,7 @@ var state = {phase:"con", fam:"All", audience:"pcm", kpi:null, pkg:2, actFilter:
   tourTrack:"full", // Guided-tour tracks (brainstorm-mode nav round, 2026-08-23) — "full" is the
                  // real, existing 10-stop tour; persists across a tour exit/re-enter, same as
                  // state.fam/state.audience already persist across their own tabs' revisits.
-  gbmInspect:50, gbmSelectedLabel:null, gbmBandsOn:true}; // GBM log-return chart interactive
+  gbmInspect:50, gbmSelectedLabel:null, gbmBandsOn:true, // GBM log-return chart interactive
                  // explorer (brainstorm-mode round, 2026-08-24) — gbmInspect is a 0-100 position
                  // along the chart's own [lo,hi] axis (50 = exactly r&#772;, the mean, a sensible
                  // neutral default); gbmSelectedLabel is set only when the position exactly matches
@@ -3028,6 +3046,12 @@ var state = {phase:"con", fam:"All", audience:"pcm", kpi:null, pkg:2, actFilter:
                  // exploring a hypothetical"), and is cleared the instant the slider is dragged
                  // manually. gbmBandsOn defaults true — the &plusmn;1&sigma;/2&sigma; bands are the
                  // whole point of the educational upgrade, not something to hide by default.
+  triageFilter:null, triageAck:{}}; // Attention & Triage tab (brainstorm-mode round, 2026-08-24) —
+                 // triageFilter null = show all 4 tiers; a tier number narrows to just that one.
+                 // triageAck is an id->true map, never a removal: acknowledging a live-computed
+                 // breach dims the card and labels it, but the item stays listed and reactivates
+                 // in full the moment its own underlying number changes — this dashboard never
+                 // lets a real red number go silently invisible behind a "resolved" click.
 
 /* Ledger card (Overview-tab upgrade, 2026-08-20) — the 11 raw inputs, a per-package inspector, and
    a live "change one input, watch the KPIs move" demo. The demo deliberately reads a LOCAL copy of
@@ -5620,6 +5644,157 @@ function firingEscalations(){
   if(T.spi>=1.00 && T.cpli<0.90) f.push(findEsc(ESC_PAT.progInflation));
   return f;
 }
+
+/* ---------- Attention & Triage tab (brainstorm-mode round, 2026-08-24) ----------
+   TJ pasted an external "Urgency & Attention Command (Triage Hub)" spec and asked to build it.
+   Every number in that spec was independently fact-checked against this program's real live
+   values before writing a line of this: the Gate 5 formula, CP-201/CP-601's real float/CPLI, the
+   escalation matrix's real 12-row count and Rule #5, EAC drift, float erosion rate, and the crew
+   CPH EWMA narrowing all checked out exactly. Two things did NOT and are deliberately NOT carried
+   forward: (1) the spec's own hardcoded stale-day figure for both A-09 and A-11 (claimed identical
+   for both) -- the real, live isStale() day counts differ (13d and 16d respectively, recomputed
+   below, never hardcoded); (2) a named DCMA numbered-metric citation for CP-501's high float --
+   this dashboard has no such implemented check, so that citation is dropped rather than invented.
+   This tab is deliberately NOT a parallel computation engine -- every item below is built by
+   re-querying firingEscalations()/isStale()/actionStatus()/deriveEwma(), the same real functions
+   the Framework/Actions/Delivery tabs already use, never a duplicate re-implementation of their
+   logic (Simplicity First, coding-discipline.md). */
+
+/* Zone-1 metric text + Zone-3 deep-link target, per real escalation trigger. Keyed identically to
+   ESC_PAT so this can never drift out of sync with which row is which -- the key recovery below
+   (matching a fired row back to its ESC_PAT name) is the only place that mapping happens. */
+var TRIAGE_ESC_META={
+  cpi:{tab:"cost",anchor:"eacTable",m:function(){ return "CPI = "+idx(T.cpi)+" (threshold < 0.95)"; }},
+  cpli:{tab:"sched",anchor:"schedTriad",m:function(){
+    var w=rows.reduce(function(a,b){ return b.cpli<a.cpli?b:a; },rows[0]);
+    return "CPLI on "+w.id+"'s driving path = "+idx(T.cpli)+" (threshold < 0.95)"; }},
+  tcpiGap:{tab:"cost",anchor:"eacTable",m:function(){ return "TCPI − CPI = "+idx(T.tcpi)+" − "+idx(T.cpi)+" = "+idx(T.tcpi-T.cpi)+" (threshold > 0.10)"; }},
+  tcpiBac:{tab:"cost",anchor:"eacTable",m:function(){ return "TCPI(BAC) = "+idx(T.tcpi)+" (threshold > 1.10)"; }},
+  contCoverage:{tab:"fw",anchor:"gate5Card",m:function(){
+    return "Coverage = "+m(T.contRemaining)+" ÷ ("+m(T.overrun)+" VAC overrun + "+m(T.riskExposure)+" risk exposure) = "+idx(T.contCoverage); }},
+  vacContingency:{tab:"fw",anchor:"gate5Card",m:function(){ return "|VAC| "+m(Math.abs(T.vac))+" exceeds remaining contingency "+m(T.contRemaining); }},
+  negFloat:{tab:"sched",anchor:"floatErosionCard",m:function(){
+    return T.negFloat.map(function(r){ return r.id+" ("+r.float+"d)"; }).join(", ")+" carrying zero or negative float"; }},
+  coAging:{tab:"risk",anchor:"changePipe",m:function(){ return "Change-order cycle "+PROGRAM.coCycleDays+"d vs "+PROGRAM.coCycleTarget+"d target"; }},
+  rfiAging:{tab:"del",anchor:"pfArc",m:function(){ return PROGRAM.rfiOver30+" RFIs open past 30 days (avg age "+PROGRAM.rfiAvgAge+"d vs "+PROGRAM.rfiTarget+"d target)"; }},
+  trir:{tab:"del",anchor:"pfArc",m:function(){ return "TRIR "+PROGRAM.trir.toFixed(2)+" vs "+PROGRAM.trirBenchmark.toFixed(2)+" benchmark"; }},
+  eacDrift:{tab:"cost",anchor:"eacTrend",m:function(){ return "EAC drift velocity "+sgnUsd(eacDriftVelocity())+"/mo (threshold > $1.0M/mo)"; }},
+  progInflation:{tab:"ai",anchor:"aiEwmaControl",m:function(){ return "SPI "+idx(T.spi)+" ≥ 1.00 while CPLI "+idx(T.cpli)+" < 0.90"; }}
+};
+/* Real escalation "clock" text -> urgency tier. Not the spec's own tier boundaries (which lumped
+   every negative-float package into a 72-hour Tier 1 -- the real escalation row for negative float
+   has a "Next weekly" clock, not 72 hours) -- re-derived from this dashboard's own real SLA text. */
+var TRIAGE_CLOCK_TIER={"Immediate":1,"72 hours":1,"Daily":2,"Same week":2,"Same reporting cycle":2,
+  "Weekly review":3,"Next weekly":3,"10 days":3,"Next monthly":3};
+
+function generateTriageQueue(){
+  var items=[];
+  firingEscalations().forEach(function(row){
+    var key=Object.keys(ESC_PAT).filter(function(k){ return ESC_PAT[k].test(row[0]); })[0];
+    var meta=TRIAGE_ESC_META[key];
+    var ruleNum=ESCALATION.indexOf(row)+1;
+    items.push({
+      id:"esc-"+(key||row[0]), tier:TRIAGE_CLOCK_TIER[row[3]]||3, title:row[0],
+      metric: meta?meta.m():row[0], owner:row[1],
+      escRule:"Escalation Matrix Rule #"+ruleNum+" of "+ESCALATION.length+" — "+row[2],
+      clock:row[3], tabLink: meta?{tab:meta.tab,anchor:meta.anchor}:null, actionId:null
+    });
+  });
+  // Tier 2 — RAID/action staleness (isStale(), a separate axis from escalation firing; an item
+  // can be stale without any escalation rule firing on it, or vice versa — both real, both shown).
+  ACTIONS.forEach(function(a){
+    if(a.done||!isStale(a)) return;
+    items.push({
+      id:"stale-"+a.id, tier:2, title:a.id+" — "+a.title.replace(/&mdash;.*/,"").trim(),
+      metric:"Inactive "+actDays(a.touch)+"d (threshold ≥10d since last touch)",
+      owner:a.owner, escRule:"RAID staleness rule — 10+ days since last touch, no ACTIONS log entry",
+      clock:"Weekly review", tabLink:{tab:"act",anchor:null}, actionId:a.id
+    });
+  });
+  // Tier 3 — due-soon actions (actionStatus()==="due-soon", its own real ≤7-day-out branch).
+  ACTIONS.forEach(function(a){
+    if(a.done||actionStatus(a)!=="due-soon") return;
+    var d=-actDays(a.due);
+    items.push({
+      id:"duesoon-"+a.id, tier:3, title:a.id+" — "+a.title.replace(/&mdash;.*/,"").trim(),
+      metric:"Due in "+d+"d ("+a.due+")", owner:a.owner, escRule:a.src, clock:d+"d out",
+      tabLink:{tab:"act",anchor:null}, actionId:a.id
+    });
+  });
+  // Tier 4 — dynamic watchlist: blocked actions (stuck but not yet due) and the crew CPH EWMA
+  // control-chart buffer, if it is genuinely narrowing with no breach yet.
+  ACTIONS.forEach(function(a){
+    if(a.done||actionStatus(a)!=="blocked") return;
+    items.push({
+      id:"blocked-"+a.id, tier:4, title:a.id+" — "+a.title.replace(/&mdash;.*/,"").trim(),
+      metric:"Blocked, due "+a.due+" — not yet urgent by date, but stalled", owner:a.owner,
+      escRule:a.src, clock:"Watch", tabLink:{tab:"act",anchor:null}, actionId:a.id
+    });
+  });
+  var cphSeries=CPH_CELLS[0].weeks.map(function(w){ return w.actual; });
+  var eCph=deriveEwma(cphSeries);
+  if(eCph.points.length>=2 && eCph.points.filter(function(p){ return p.flag; }).length===0){
+    var gapFirst=eCph.points[0].ucl-eCph.points[0].ewma, gapLast=eCph.points[eCph.points.length-1].ucl-eCph.points[eCph.points.length-1].ewma;
+    if(gapLast<gapFirst){
+      items.push({
+        id:"cph-narrowing", tier:4, title:"Crew cost-per-hour EWMA buffer narrowing",
+        metric:"Control-limit buffer "+usd(gapFirst)+"/hr → "+usd(gapLast)+"/hr, no breach yet",
+        owner:"Field Superintendent",
+        escRule:"Control-chart trend watch — no formal escalation rule fires until a real UCL breach",
+        clock:"Watch", tabLink:{tab:"del",anchor:"cphCard"}, actionId:null
+      });
+    }
+  }
+  items.sort(function(a,b){ return a.tier-b.tier; });
+  return items;
+}
+
+var TIER_META={
+  1:{label:"Tier 1: Immediate",   cls:"r", sub:"72hr or less"},
+  2:{label:"Tier 2: Stale & Overdue", cls:"r", sub:"RAID inactive / escalated"},
+  3:{label:"Tier 3: Due Soon", cls:"a", sub:"trend creep"},
+  4:{label:"Tier 4: Watchlist", cls:"i", sub:"pre-breach"}
+};
+function renderTriage(){
+  var items=generateTriageQueue();
+  document.getElementById("cntTriage").textContent=String(items.length);
+  var counts={1:0,2:0,3:0,4:0};
+  items.forEach(function(it){ counts[it.tier]++; });
+  document.getElementById("triageFilterRail").innerHTML=
+    '<button type="button" class="btn" data-tier="" aria-pressed="'+(state.triageFilter===null)+'">All ('+items.length+')</button>'+
+    [1,2,3,4].map(function(t){ var tm=TIER_META[t];
+      return '<button type="button" class="btn" data-tier="'+t+'" aria-pressed="'+(state.triageFilter===t)+'">'+
+        '<span class="pill '+tm.cls+'" style="margin-right:6px">'+t+'</span>'+tm.label+' ('+counts[t]+')</button>';
+    }).join("");
+  var shown=state.triageFilter===null?items:items.filter(function(it){ return it.tier===state.triageFilter; });
+  if(!shown.length){
+    document.getElementById("triageCards").innerHTML="";
+    document.getElementById("triageEmpty").textContent = items.length
+      ? "No items in this tier right now — try All, or another tier."
+      : "Nothing needs immediate attention right now — every escalation rule is dormant, no RAID item is stale, and nothing real is due within a week.";
+    return;
+  }
+  document.getElementById("triageEmpty").textContent="";
+  document.getElementById("triageCards").innerHTML=shown.map(function(it){
+    var tm=TIER_META[it.tier], acked=!!state.triageAck[it.id];
+    return '<div class="card" style="border-left:3px solid rgb(var(--c-'+(tm.cls==="r"?"bad":tm.cls==="a"?"warn":"info")+'))'+(acked?';opacity:.62':'')+'" data-triage-id="'+it.id+'">'+
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">'+
+        '<div><span class="pill '+tm.cls+'">'+tm.label+'</span> <b style="margin-left:4px">'+it.title+'</b>'+
+        (acked?' <span class="pill g">&#10003; Acknowledged — still monitoring</span>':'')+'</div>'+
+        '<span class="mono tab-num" style="font-size:11px;color:rgb(var(--c-mut))">SLA: '+it.clock+'</span>'+
+      '</div>'+
+      '<div style="margin-top:9px;font-size:12.5px"><b style="color:rgb(var(--c-ink))">Metric:</b> '+it.metric+
+        ' <span style="color:rgb(var(--c-mut))">&middot; data date '+PROGRAM.dataDate+'</span></div>'+
+      '<div style="margin-top:5px;font-size:12.5px;color:rgb(var(--c-mut))"><b style="color:rgb(var(--c-ink))">Owner:</b> '+it.owner+
+        ' &middot; <b style="color:rgb(var(--c-ink))">Rule:</b> '+it.escRule+'</div>'+
+      '<div style="margin-top:11px;display:flex;gap:8px;flex-wrap:wrap">'+
+        (it.actionId?'<button type="button" class="btn" data-triage-action="'+it.actionId+'" style="min-height:auto;padding:4px 10px;font-size:12px">Open Action '+it.actionId+'</button>':
+          it.tabLink?'<button type="button" class="btn" data-triage-jump-tab="'+it.tabLink.tab+'" data-triage-jump-el="'+(it.tabLink.anchor||"")+'" style="min-height:auto;padding:4px 10px;font-size:12px">Open source</button>':'')+
+        '<button type="button" class="btn" data-triage-ack="'+it.id+'" style="min-height:auto;padding:4px 10px;font-size:12px">'+(acked?"Unacknowledge":"✓ Mark Acknowledged")+'</button>'+
+      '</div></div>';
+  }).join("");
+}
+
 function renderPrint(){
   var live=KPIS.filter(function(k){return k.ph.indexOf("con")>=0;});
   var reds=live.filter(function(k){return k.rag()==="r";});
@@ -9027,6 +9202,8 @@ var TAB_DRAWER={
       note:"Phase playbook, WBS/CBS/OBS/ABS mapping, phase-gate governance with a live Gate 5 hard stop, and the full KPI reference library."},
   act:{label:"Actions", q:"What's open, who owns it, and what's gone stale?",
        note:"A RAID/CAPA register with proactive staleness detection and an owner-accountability rollup."},
+  triage:{label:"Attention & Triage", q:"Out of everything on this dashboard, what actually needs a human right now?",
+       note:"Every firing escalation rule, stale RAID item, and near-term deadline aggregated live into 4 urgency tiers — nothing hardcoded, every item traces back to the same ledger, escalation matrix, and Actions register the rest of the dashboard already uses."},
   gloss:{label:"Glossary", q:"What does this term mean, worked through this program's own numbers?",
          // note:GLOSS.length+"..." not a hand-typed count (/stress-test finding, 2026-08-21) —
          // GLOSS is declared above this object, so a live reference here is safe and self-updating.
@@ -9575,7 +9752,7 @@ window.addEventListener("keydown",function(e){
 // the last 2 entries changed from the prior order (data, gloss swapped) — TABS[0..8] (over..act)
 // is unchanged on purpose, since the 1-9 digit-jump shortcut maps directly onto those 9 indices
 // and neither Glossary nor Data Strategy has ever had a digit shortcut either way.
-var TABS=["over","port","cost","sched","risk","del","ai","fw","act","data","gloss"];
+var TABS=["over","port","cost","sched","risk","del","ai","fw","act","triage","data","gloss"];
 function activateTab(id){
   // any tab switch invalidates a pending return breadcrumb (nav round 2, item 3, 2026-08-21) —
   // jumpToEl()/jumpToAction() call activateTab() first and re-show a fresh one right after, so a
@@ -9954,6 +10131,23 @@ document.getElementById("gbmLogReturns").addEventListener("keydown",function(e){
   var n=e.target.closest("[data-idx]"); if(!n) return; e.preventDefault();
   selectGbmDot(+n.dataset.idx);
 });
+// Attention & Triage tab wiring (brainstorm-mode round, 2026-08-24). Deep-link buttons reuse the
+// existing jumpToAction()/jumpToEl() cross-tab jump + "Return to Attention & Triage" breadcrumb
+// mechanism (TAB_DRAWER.triage.label supplies the breadcrumb's own text) rather than building a
+// second navigation path.
+document.getElementById("triageFilterRail").addEventListener("click",function(e){
+  var b=e.target.closest("[data-tier]"); if(!b) return;
+  state.triageFilter = b.dataset.tier===""?null:+b.dataset.tier;
+  renderTriage();
+});
+document.getElementById("triageCards").addEventListener("click",function(e){
+  var ackBtn=e.target.closest("[data-triage-ack]");
+  if(ackBtn){ var id=ackBtn.dataset.triageAck; state.triageAck[id]=!state.triageAck[id]; renderTriage(); return; }
+  var actBtn=e.target.closest("[data-triage-action]");
+  if(actBtn){ jumpToAction(actBtn.dataset.triageAction); return; }
+  var jumpBtn=e.target.closest("[data-triage-jump-tab]");
+  if(jumpBtn){ jumpToEl(jumpBtn.dataset.triageJumpTab, jumpBtn.dataset.triageJumpEl || undefined); return; }
+});
 /* Tri-point curve playground drag + keyboard (brainstorm-mode round, 2026-08-21). Pointer Events
    (not separate mouse/touch listeners) so one code path drives both mouse drag and touchscreen
    drag — setPointerCapture ties every subsequent move/up to the handle that started the drag,
@@ -10197,7 +10391,7 @@ window.addEventListener("scroll",function(){ document.getElementById("tip").clas
    pre-existing pattern) silently reset the scrubber's cursor to hidden while the slider value and
    HUD text stayed on whatever month was last scrubbed — the display and the control disagreeing
    with each other, silently, on the single most ordinary action in the app. */
-function redrawCharts(){ renderScurve(); renderWaterfall(); renderBaseline(); renderVeSandbox(); renderCont(); renderRisk(); syncMcView(); renderPertPlay(); renderGaltonStatic(); renderGantt(); renderScurveScrub(); renderGateLine(); renderCdeFlow(); renderGbmLogReturns(); renderDelivery(); }
+function redrawCharts(){ renderScurve(); renderWaterfall(); renderBaseline(); renderVeSandbox(); renderCont(); renderRisk(); syncMcView(); renderPertPlay(); renderGaltonStatic(); renderGantt(); renderScurveScrub(); renderGateLine(); renderCdeFlow(); renderGbmLogReturns(); renderDelivery(); renderTriage(); }
 document.getElementById("mcViewHist").addEventListener("click",function(){ state.mcView="hist"; syncMcView(); });
 document.getElementById("mcViewCdf").addEventListener("click",function(){ state.mcView="cdf"; syncMcView(); });
 /* Draw-shape toggle (triangular <-> PERT) — mirrors mcView's own set-state -> recompute -> re-
@@ -10234,7 +10428,7 @@ document.getElementById("mcInspect").value=String(state.mcInspect);
 document.getElementById("vInspect").textContent="P"+state.mcInspect;
 renderWaterfall(); renderWaterfallMath(); renderBaseline(); renderVeSandbox(); renderEac(); renderCont(); renderTable();
 renderEacTrend(); renderFcastTable(); renderGbmDiffusion(); renderGbmLogReturns(); renderGbmMathUnlocked(); renderGbmVsEvm(); renderCashflow();
-renderGantt(); renderSchedule(); renderRisk(); renderDrbEmv(); renderContracts(); renderDelivery(); renderFramework(); renderActions(); renderActionsMath();
+renderGantt(); renderSchedule(); renderRisk(); renderDrbEmv(); renderContracts(); renderDelivery(); renderFramework(); renderActions(); renderActionsMath(); renderTriage();
 document.getElementById("sDrbP").value=DRB_ASSUMPTIONS.pOwnerWins;
 document.getElementById("sDrbLegal").value=DRB_ASSUMPTIONS.legalCost;
 renderDrbSlider();
@@ -10262,7 +10456,8 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   changeWatchFields:CHANGE_WATCH_FIELDS,changeWatchSnapshot:changeWatchSnapshot,renderChangeWatch:renderChangeWatch,
   actions:ACTIONS,actionStatus:actionStatus,isStale:isStale,statusTrace:statusTrace,renderActions:renderActions,renderActDrill:renderActDrill,
   escalation:ESCALATION,kpiEscalation:KPI_ESCALATION,actionsForKpi:actionsForKpi,jumpToAction:jumpToAction,
-  firingEscalations:firingEscalations,
+  firingEscalations:firingEscalations,actDays:actDays,
+  generateTriageQueue:generateTriageQueue,renderTriage:renderTriage,triageEscMeta:TRIAGE_ESC_META,triageClockTier:TRIAGE_CLOCK_TIER,
   wbs:WBS,gates:GATES,gate5Checks:GATE5_CHECKS,glNodes:GL_NODES,glCaption:glCaption,glNodeState:glNodeState,
   gate5SandboxCalc:gate5SandboxCalc,renderGate5Sandbox:renderGate5Sandbox,
   contracts:CONTRACTS,deriveContract:deriveContract,
