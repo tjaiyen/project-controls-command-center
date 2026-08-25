@@ -3,9 +3,21 @@ main = "index.js"
 compatibility_date = "2026-08-25"
 
 # Bind after `wrangler kv namespace create ASK_AI_KV` (see docs/ASK_AI_SETUP.md) -- paste the real
-# id it prints in place of REPLACE-ME below. Without this binding the Worker still answers
-# questions (env.ASK_AI_KV is undefined, guarded with `if (env.ASK_AI_KV)` in index.js), it just
-# can't enforce the rate limit or daily budget -- deploy with the real binding before going live.
+# id it prints in place of REPLACE-ME below. This one is best-effort per-IP rate limiting only
+# (KV has no atomic increment) -- if it's unbound the Worker still answers questions, it just
+# can't rate-limit by IP. Real cost enforcement is the Durable Object below, not this.
 [[kv_namespaces]]
 binding = "ASK_AI_KV"
 id = "REPLACE-ME"
+
+# The atomic daily-spend counter (worker/budget-do.js) -- REQUIRED, not optional. Unlike the KV
+# binding above, the Worker refuses every question if this isn't bound (fails closed, not open --
+# see worker/index.js's own comment on why). Durable Objects need a migration the first time a
+# class is introduced; wrangler handles this automatically from the block below on first deploy.
+[[durable_objects.bindings]]
+name = "BUDGET_DO"
+class_name = "BudgetCounter"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["BudgetCounter"]

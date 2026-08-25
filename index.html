@@ -6244,7 +6244,8 @@ function submitAskAi(){
       if(!res.ok || res.body.error){
         state.askAiHistory.unshift({q:q,error:res.body && res.body.error ? res.body.error : "The Ask AI service returned an error."});
       } else {
-        state.askAiHistory.unshift({q:q,answer:res.body.answer,citedFields:res.body.citedFields||[],
+        state.askAiHistory.unshift({q:q,answer:res.body.answer,
+          citedFields:Array.isArray(res.body.citedFields)?res.body.citedFields:[],
           unverifiedCount:res.body.unverifiedCount||0});
       }
     })

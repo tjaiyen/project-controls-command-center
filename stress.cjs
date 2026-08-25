@@ -6896,6 +6896,8 @@ console.log("== D50. Ask AI -- free-text Q&A over the real ledger, guardrailed (
   const snap = P.buildAskAiSnapshot();
   ok(askAiLib.callTool("get_totals", {}, snap).bac === T.bac && askAiLib.callTool("get_totals", {}, snap).contCoverage === T.contCoverage,
     "get_totals reads the real, live T.bac/T.contCoverage through the snapshot, not a copy");
+  ok(askAiLib.callTool("get_totals", {}, snap).asOf === P.program.dataDate,
+    "get_totals also exposes the real program data-as-of date -- /stress-test finding: without this, a truthful mention of the data date had no tool to ground it against and got wrongly flagged unverified");
   ok(askAiLib.callTool("get_kpi", {id: "cpi"}, snap).raw === T.cpi, "get_kpi('cpi') returns the real, live T.cpi");
   ok(askAiLib.callTool("get_kpi", {id: "nope"}, snap).error, "get_kpi with an unknown id fails closed with an error object, not undefined/a throw");
   const r01Real = P.risks.find(r => r.id === "R-01");
@@ -6911,15 +6913,41 @@ console.log("== D50. Ask AI -- free-text Q&A over the real ledger, guardrailed (
   ok(askAiLib.callTool("get_opening_date", {}, snap).forecast === revReal.fc && askAiLib.callTool("get_opening_date", {}, snap).driftDays === revReal.d, "get_opening_date returns the real forecast date and drift");
   ok(askAiLib.callTool("nonexistent_tool", {}, snap).error, "an unknown tool name fails closed with an error, never a throw or silent undefined");
 
-  // Mechanical fact-check -- the actual truth guardrail, tested against constructed ground truth
-  // (not the model, which this session cannot call -- see docs/ASK_AI_SETUP.md's stated limitation).
-  const claims = askAiLib.extractNumericClaims("Gate 5 is BLOCKED at a coverage ratio of 0.588 -- backup savings of $52.6M against $89.4M, opening 24 Apr 2028, +40d late.");
-  ["0.588", "$52.6M", "$89.4M", "24 Apr 2028", "+40d"].forEach(c =>
-    ok(claims.includes(c), "extractNumericClaims finds the real claim shape \"" + c + "\" in a sample answer", JSON.stringify(claims)));
+  // Mechanical fact-check -- the actual truth guardrail. /stress-test finding (2026-08-25, both an
+  // independent reviewer and direct probing): the FIRST version only extracted claims matching the
+  // dashboard's own exact formatter shapes ($X.XM, X.X%, 0.XXX, +Xd) -- any ordinary prose
+  // rephrasing sailed through completely unchecked, AND the snapshot's own raw totals (1303.67,
+  // not "$1,303.7M") meant a genuinely correct, properly-formatted dollar claim got reflexively
+  // flagged unverified. Replaced with broad extraction + verification by NUMERIC VALUE (with %/
+  // fraction and $M/raw-dollar scale variants) -- every test below is a regression guard for one
+  // of the two original failure modes, not just a fresh happy-path check.
+  const claims = askAiLib.extractNumericClaims(
+    "Gate 5 is BLOCKED at a coverage ratio of .588 -- backup savings of $52,600,000 against $89.4M, " +
+    "roughly 58.8 percent covered, R-01 and A-09 are tracking it, opening 24 Apr 2028, 40 days late.");
+  ok(claims.includes(".588"), "extractNumericClaims catches a leading-dot decimal (\".588\", no leading zero)", JSON.stringify(claims));
+  ok(claims.includes("$52,600,000"), "extractNumericClaims catches a full-digit comma-grouped dollar figure, not just the dashboard's own $X.XM shorthand");
+  ok(claims.includes("$89.4M"), "extractNumericClaims still catches the dashboard's own native $X.XM shape");
+  ok(claims.includes("58.8"), "extractNumericClaims catches a spelled-out percentage (\"58.8 percent\"), not just a literal % sign");
+  ok(claims.includes("24 Apr 2028"), "extractNumericClaims still catches real dates");
+  ok(claims.includes("40"), "extractNumericClaims catches a bare day-count integer");
+  ok(!claims.some(c => c.includes("01") || c.includes("09")), "extractNumericClaims does NOT extract the digits embedded in R-01/A-09 as numeric claims -- an ID reference must never get mangled by the fact-check", JSON.stringify(claims));
 
-  const groundTruth = askAiLib.buildGroundTruthText([{name: "get_totals", result: {contCoverage: 0.588, contRemaining: 52.6}}]);
-  const v1 = askAiLib.verifyClaims(["0.588", "$999.9M"], groundTruth);
-  ok(v1.verified.includes("0.588") && v1.unverified.includes("$999.9M"), "verifyClaims correctly splits a real, tool-backed claim from a fabricated one never returned by any tool this turn", JSON.stringify(v1));
+  const gtNumbers = askAiLib.buildGroundTruthNumbers([{name: "get_totals", result: {contCoverage: 0.588, contRemaining: 52.6}}]);
+  const gtText = askAiLib.buildGroundTruthText([{name: "get_totals", result: {contCoverage: 0.588, contRemaining: 52.6}}]);
+  const v1 = askAiLib.verifyClaims([".588", "$52,600,000", "58.8", "24 Apr 2028"], gtNumbers, gtText);
+  ok(v1.verified.length === 3, "3 of the 4 real claims verify: a leading-dot decimal, a full-digit dollar figure, and a spelled-out percentage -- all numerically match the SAME real 0.588/52.6, just phrased differently", JSON.stringify(v1));
+  ok(v1.unverified.includes("24 Apr 2028"), "a real-shaped date with no matching tool result this turn correctly fails verification (dates verify by exact text, not numeric tolerance)");
+
+  // The specific bug the independent reviewer found: real $-formatted totals must survive against
+  // RAW unformatted snapshot numbers (1303.67), not just against pre-formatted strings.
+  const totalsGtNumbers = askAiLib.buildGroundTruthNumbers([{name: "get_totals", result: {bac: 1240, eac: 1303.67}}]);
+  const v2 = askAiLib.verifyClaims(["$1,303.7M", "$1,240.0M"], totalsGtNumbers, "");
+  ok(v2.verified.length === 2, "correctly-formatted dollar totals ($1,303.7M/$1,240.0M) verify against the snapshot's raw numeric totals (1303.67/1240) -- the exact gap an independent reviewer found in the first version", JSON.stringify(v2));
+
+  // The specific bug direct probing found: a generous tolerance let a genuinely WRONG nearby
+  // number ("53") pass as "close enough" to the real 52.6 -- tightened tolerance must reject it.
+  const v3 = askAiLib.verifyClaims(["53", "999"], askAiLib.buildGroundTruthNumbers([{name: "get_totals", result: {contRemaining: 52.6}}]), "");
+  ok(v3.unverified.includes("53"), "pre-registered: a fabricated '53' does NOT verify against the real 52.6 -- tight tolerance correctly distinguishes a wrong nearby number from a legitimate rounding difference", JSON.stringify(v3));
 
   const sanitized = askAiLib.sanitizeAnswer("Coverage is 0.588 but also somehow $999.9M short.", ["$999.9M"]);
   ok(sanitized.includes("0.588") && sanitized.includes("[unverified]") && !sanitized.includes("$999.9M"),
@@ -6930,6 +6958,12 @@ console.log("== D50. Ask AI -- free-text Q&A over the real ledger, guardrailed (
   ok(askAiLib.checkRateLimit([1000, 2000], 3000, 10000, 3) === true, "checkRateLimit allows a 3rd request within the window under the max");
   ok(askAiLib.checkRateLimit([1000, 2000, 2500], 3000, 10000, 3) === false, "checkRateLimit refuses a 4th request within the window at the max");
   ok(askAiLib.checkRateLimit([1000], 20000, 10000, 1) === true, "checkRateLimit's window actually expires old timestamps, not a permanent lockout");
+
+  // Snapshot-size guardrail -- /stress-test finding: an oversized attacker-supplied snapshot
+  // could amplify real token cost across the tool-use loop with no bound. Now rejected up front.
+  ok(askAiLib.snapshotTooLarge(snap) === false, "the real, live snapshot is well under the size cap");
+  ok(askAiLib.snapshotTooLarge({risks: Array.from({length: 5000}, (_, i) => ({id: "R-" + i, name: "x".repeat(200)}))}) === true,
+    "an oversized fake snapshot correctly trips the size cap");
 
   /* ---- index.html client: dormant-by-default, opt-in, escaped rendering ---- */
 

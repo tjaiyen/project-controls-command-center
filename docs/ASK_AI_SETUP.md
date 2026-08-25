@@ -16,16 +16,27 @@ npm install -g wrangler
 wrangler login
 ```
 
-## 2. Create the KV namespace (rate limit + daily budget state)
+## 2. Create the KV namespace (per-IP rate limit only — best-effort)
 
 ```bash
 cd worker
 wrangler kv namespace create ASK_AI_KV
 ```
 
-Paste the `id` it prints into `worker/wrangler.toml`, replacing `REPLACE-ME`.
+Paste the `id` it prints into `worker/wrangler.toml`, replacing `REPLACE-ME`. This is the per-IP
+rate limiter only; if you skip it, the Worker still answers questions, it just can't rate-limit by
+IP (real cost enforcement is the Durable Object below, not this — a `/stress-test` finding
+2026-08-25: plain KV has no atomic increment, so a KV-only counter can be raced by ordinary
+concurrent traffic, not just an attacker; see `worker/budget-do.js`'s own comment for the numbers).
 
-## 3. Set the API key as a Worker secret (never in a file)
+## 3. The daily-budget Durable Object needs no separate creation step
+
+Unlike the KV namespace above, `BUDGET_DO` (in `worker/wrangler.toml`) doesn't need a `wrangler`
+command to provision — the `[[migrations]]` block in that file tells Cloudflare to create it on
+your **first** `wrangler deploy` (step 6). This one IS required, not optional: the Worker refuses
+every question if it's ever unbound (fails closed, not open) — see `worker/index.js`'s own comment.
+
+## 4. Set the API key as a Worker secret (never in a file)
 
 ```bash
 wrangler secret put ANTHROPIC_API_KEY
@@ -33,21 +44,28 @@ wrangler secret put ANTHROPIC_API_KEY
 
 Paste your key when prompted. It's stored encrypted by Cloudflare, never written to disk here.
 
-## 4. Review the config before deploying
+## 5. Review the config before deploying
 
 Open `worker/index.js` and check these constants match what you want:
 
-- `ALLOWED_ORIGIN` — must exactly match the dashboard's real origin (`https://tjaiyen.github.io`
-  by default). Any other value means the Worker will refuse every request from the live page.
-- `DAILY_BUDGET_USD` — hard ceiling across every visitor combined, per UTC day (default `$2.00`).
-  The page is public with no login, so this bounds worst-case cost, not per-visitor cost.
-- `RATE_LIMIT_MAX` / `RATE_LIMIT_WINDOW_MS` — per-IP question rate (default 6 per 10 minutes).
-- `RATE_IN_PER_M` / `RATE_OUT_PER_M` — the per-million-token rates used to estimate spend against
-  the budget cap. These are approximate as of when this was written — check current Anthropic
-  pricing and update them before trusting `DAILY_BUDGET_USD` precisely; the cap still fails safe
-  (refuses once *estimated* spend crosses it) even if these are somewhat off.
+- `ALLOWED_ORIGIN` — real CORS boundary against another site's visitors proxying through their own
+  browser (default `https://tjaiyen.github.io`). It is **not** a boundary against a direct
+  scripted caller (curl, a script) — Origin is just a header a non-browser client can set to
+  anything. The budget Durable Object and the rate limit are what actually bound cost against that.
+- `DAILY_BUDGET_USD` — hard ceiling across every visitor combined, per UTC day (default `$2.00`),
+  enforced atomically by the `BUDGET_DO` Durable Object (`worker/budget-do.js`), not a KV counter.
+- `RATE_LIMIT_MAX` / `RATE_LIMIT_WINDOW_MS` — per-IP question rate (default 6 per 10 minutes,
+  best-effort — see step 2).
+- Open `worker/budget-do.js` and check `RESERVE_PER_QUESTION_USD` (default `$0.05`) — a flat,
+  conservative reservation taken atomically for every question BEFORE Anthropic is ever called
+  (not the real per-question cost, which is usually well under this). Re-check it's still
+  comfortably above worst-case real cost if you ever raise `MAX_TOOL_ROUNDS` or the model's
+  `max_tokens` in `worker/index.js`.
+- `RATE_IN_PER_M` / `RATE_OUT_PER_M` in `worker/index.js` — informational only (logged per
+  response as `estCostUsd`, not used to gate anything) — update against current Anthropic pricing
+  if you want that figure to stay accurate.
 
-## 5. Dry-run, then deploy
+## 6. Dry-run, then deploy
 
 ```bash
 wrangler deploy --dry-run   # catches syntax/bundling errors with zero real deploy
@@ -56,7 +74,7 @@ wrangler deploy
 
 Wrangler prints the live URL, something like `https://pcc-ask-ai.<your-subdomain>.workers.dev`.
 
-## 6. Point the dashboard at it
+## 7. Point the dashboard at it
 
 In `index.html`, find:
 
@@ -64,7 +82,7 @@ In `index.html`, find:
 var ASK_AI_WORKER_URL = "https://REPLACE-ME.workers.dev/ask";
 ```
 
-Replace it with the real URL from step 5 (keep the `/ask` path — the Worker doesn't currently
+Replace it with the real URL from step 6 (keep the `/ask` path — the Worker doesn't currently
 route on it, but keeping a path makes future routing additions non-breaking). Commit and push.
 
 `stress.cjs`'s external-asset sweep only allowlists the literal `REPLACE-ME.workers.dev`
@@ -78,21 +96,27 @@ makes the "Enable Ask AI" toggle actually work instead of showing the "not yet c
 
 ## What this session did NOT do (accepted limitation, stated plainly)
 
-This build has no Cloudflare account access, so `worker/index.js` has **not** been exercised
-against a real Cloudflare runtime or the real Anthropic API. What HAS been tested, directly against
-the real Worker code (not just in isolation): `worker/lib.js`'s pure guardrail logic (tool
-dispatch, claim extraction/verification, rate-limit/budget math) via `stress.cjs`, plus
-`worker/index.js`'s own request handling — CORS/method/origin validation, malformed-body handling,
-daily-budget gating, and the full tool-use loop + mechanical fact-check running end-to-end — via
-`node worker/smoketest.js`, which scripts a fake Anthropic response so it never needs real network
-or a real key. Verified this smoke test genuinely catches a broken guardrail, not just a green
-mechanical pass: temporarily disabled the fact-check strip and confirmed the exact predicted test
-failure before restoring it.
+This build has no Cloudflare account access, so `worker/index.js` and `worker/budget-do.js` have
+**not** been exercised against a real Cloudflare runtime (real KV, a real Durable Object) or the
+real Anthropic API. What HAS been tested, directly against the real code (not just in isolation):
+`worker/lib.js`'s pure guardrail logic (tool dispatch, claim extraction/verification, rate-limit
+math) via `stress.cjs`; `worker/index.js`'s own request handling — CORS/method/origin/snapshot-size
+validation, the daily-budget-exhausted refusal, the tool-round-exhaustion fallback, and the full
+tool-use loop + mechanical fact-check running end-to-end — via `node worker/smoketest.js`, which
+scripts a fake Anthropic response, a fake KV, and a fake Durable Object stub so it never needs real
+network or a real key; and a genuine concurrent-request race test against that fake DO/KV (20
+simultaneous requests), confirming the Durable Object correctly bounds the count that succeeds
+where the original plain-KV version let all 20 through. Verified this smoke test genuinely catches
+a broken guardrail, not just a green mechanical pass: temporarily disabled the fact-check strip and
+confirmed the exact predicted test failure before restoring it.
 
 The one thing that genuinely cannot be tested without spending real money against a real
-deployment: whether the ACTUAL Anthropic API accepts this exact request/tool-use shape and Cloudflare's
-real KV binding behaves like the fake one here. Run `wrangler deploy --dry-run` first, then ask it
-one real question yourself and read the response before trusting it in front of anyone else.
+deployment: whether the ACTUAL Anthropic API accepts this exact request/tool-use shape, and
+whether a real Cloudflare Durable Object's `blockConcurrencyWhile` + storage behave exactly like
+the fake stub here (the *design* — single-threaded `fetch()` per DO id — is Cloudflare's own
+documented guarantee, not something this session invented, but it was never exercised against the
+real platform). Run `wrangler deploy --dry-run` first, then ask it one real question yourself and
+read the response before trusting it in front of anyone else.
 
 ## Turning it back off
 
