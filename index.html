@@ -739,7 +739,7 @@ pre.code b{color:rgb(var(--c-code));font-weight:600}
 @keyframes growright{from{transform:scaleX(0)}}
 .kpi{animation:rise .45s ease-out backwards}
 .stagger{animation:rise .3s ease-out backwards}
-#scurve path.draw,#mcChart polyline.draw{stroke-dasharray:2400;stroke-dashoffset:2400;animation:drawin 1.1s ease-out forwards}
+#scurve path.draw,#mcChart polyline.draw,#gbmLogReturns path.draw{stroke-dasharray:2400;stroke-dashoffset:2400;animation:drawin 1.1s ease-out forwards}
 /* Vertical bars (histogram, waterfall) grow from their own bottom edge; horizontal bars
    (tornado — width is the varying dimension, not height) grow from their own left edge instead —
    scaleY from bottom on a horizontal bar would squash it, not extend it. */
@@ -757,6 +757,13 @@ pre.code b{color:rgb(var(--c-code));font-weight:600}
    those the same treatment would make invisible rectangles flash visible on hover. */
 #waterfall rect.hot,#tornado rect.hot,#gantt rect.hot{transition:opacity .12s ease}
 #waterfall rect.hot:hover,#tornado rect.hot:hover,#gantt rect.hot:hover{opacity:1}
+/* GBM log-return chart interactive explorer (brainstorm-mode round, 2026-08-24) — click-to-select
+   ring on a real dot, matching the accent/focus language .flow-node already establishes rather
+   than inventing a new highlight color. */
+#gbmLogReturns circle.gbm-dot{cursor:pointer;transition:r .12s ease}
+#gbmLogReturns circle.gbm-dot:hover{r:7.5}
+#gbmLogReturns circle.gbm-dot:focus{outline:none}
+#gbmLogReturns circle.gbm-dot:focus-visible,#gbmLogReturns circle.gbm-dot.selected{stroke:rgb(var(--c-accent));stroke-width:2.6px}
 /* Cross-chart account highlight — the same control account can show up as a .rowbar (float/CPLI/
    productivity bars), a table row (the ledger), or an SVG rect (waterfall/Gantt), all on the same
    tab at once; one delegated listener (wireAccountHighlight) toggles this class on every element
@@ -1189,6 +1196,12 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         <div class="card"><h3>Cost diffusion &mdash; drift &amp; volatility<button type="button" class="help-ic" data-help="gbm" aria-label="What does this term mean?" aria-expanded="false">i</button></h3>
           <div id="costGbm"></div>
           <div class="chart" id="gbmLogReturns" style="margin-top:14px"></div>
+          <div style="display:flex;gap:10px;align-items:center;margin-top:10px;flex-wrap:wrap">
+            <span class="eyebrow" style="margin:0;white-space:nowrap">Explore a value</span>
+            <input type="range" id="gbmInspect" min="0" max="100" step="0.5" style="flex:1;min-width:140px">
+            <span class="mono tab-num" id="vGbmInspect" style="font-size:11.5px;min-width:64px;text-align:right"></span>
+          </div>
+          <p class="lede" id="gbmInspectOut" style="margin-top:6px;font-size:12.5px"></p>
           <details class="dbox" style="margin-top:14px">
             <summary>Math unlocked &mdash; what drift and volatility actually mean</summary>
             <div id="gbmMathUnlocked"></div>
@@ -2422,6 +2435,19 @@ function deriveGbmParams(vals){
     sUnbiased:sUnbiased,seRbar:seRbar,tCrit90:tCrit90,
     ciLowRbar:rbar-tCrit90*seRbar,ciHighRbar:rbar+tCrit90*seRbar};
 }
+/* Standard normal CDF, via the Abramowitz & Stegun 7.1.26 erf approximation (max error ~1.5e-7 --
+   a textbook approximation, not an invented formula). Added for the GBM log-return chart's
+   interactive z-score/percentile explorer (brainstorm-mode round, 2026-08-24, TJ's direct report:
+   "the graph is just a fixed graph... make it more interactive") -- turns the fitted curve from a
+   picture into something a reader can query: "how unusual would this value be under the fit?" */
+function erf(x){
+  var sign=x<0?-1:1; x=Math.abs(x);
+  var a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;
+  var t=1/(1+p*x);
+  var y=1-(((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x);
+  return sign*y;
+}
+function normCdf(z){ return 0.5*(1+erf(z/Math.SQRT2)); }
 
 /* Conventional qualitative probability bands. A naive p/5 would map P5 to 100% —
    i.e. certainty, which is an issue, not a risk. */
@@ -2991,9 +3017,17 @@ var state = {phase:"con", fam:"All", audience:"pcm", kpi:null, pkg:2, actFilter:
                  // idle/rework/baseline drill-down starts closed, same click-to-open idiom as cphDrill.
   riskDrill:null, // Risk & Change-tab upgrade (brainstorm-mode, 2026-08-23) — starts closed, same
                  // click-to-open idiom as portDrill/cphDrill/ewmaDrillWeek above.
-  tourTrack:"full"}; // Guided-tour tracks (brainstorm-mode nav round, 2026-08-23) — "full" is the
+  tourTrack:"full", // Guided-tour tracks (brainstorm-mode nav round, 2026-08-23) — "full" is the
                  // real, existing 10-stop tour; persists across a tour exit/re-enter, same as
                  // state.fam/state.audience already persist across their own tabs' revisits.
+  gbmInspect:50, gbmSelectedLabel:null, gbmBandsOn:true}; // GBM log-return chart interactive
+                 // explorer (brainstorm-mode round, 2026-08-24) — gbmInspect is a 0-100 position
+                 // along the chart's own [lo,hi] axis (50 = exactly r&#772;, the mean, a sensible
+                 // neutral default); gbmSelectedLabel is set only when the position exactly matches
+                 // a clicked REAL dot (so the readout can say "this really happened" vs. "you're
+                 // exploring a hypothetical"), and is cleared the instant the slider is dragged
+                 // manually. gbmBandsOn defaults true — the &plusmn;1&sigma;/2&sigma; bands are the
+                 // whole point of the educational upgrade, not something to hide by default.
 
 /* Ledger card (Overview-tab upgrade, 2026-08-20) — the 11 raw inputs, a per-package inspector, and
    a live "change one input, watch the KPIs move" demo. The demo deliberately reads a LOCAL copy of
@@ -4407,7 +4441,11 @@ function renderGbmDiffusion(){
    underlying price process, rbar + 0.5*sigma^2), not the mean of the log-return distribution
    these 5 points are draws from. Centering the curve on muHatMle would silently mismatch the
    curve to the dots it's supposed to explain. */
-function renderGbmLogReturns(){
+/* Shared geometry -- both renderGbmLogReturns() (full rebuild) and the lightweight marker/readout
+   updaters below (renderGbmInspectMarker/renderGbmInspectOut, fired on every slider drag) need the
+   exact same lo/hi/sigmaForCurve, so this is the one place that math lives -- never recomputed
+   twice with any risk of drifting apart. */
+function gbmGeom(){
   var series=acHistorySeries(), g=deriveGbmParams(series.map(function(p){ return p.ac; }));
   var pairs=g.logReturns.map(function(v,i){ return {v:v, from:series[i].m, to:series[i+1].m}; });
   var W=560,H=170,PL=44,PR=20,PT=14,PB=34;
@@ -4426,22 +4464,59 @@ function renderGbmLogReturns(){
   // sigma would make gaussPdf(rbar) itself Infinity/Infinity (NaN) at the curve's own peak, a
   // second, distinct edge case from the spread-collapse one above (/stress-test self-review).
   var sigmaForCurve=Math.max(g.sigmaHatMle,1e-6);
+  return {g:g,pairs:pairs,W:W,H:H,PL:PL,PR:PR,PT:PT,PB:PB,lo:lo,hi:hi,X:X,baseY:baseY,sigmaForCurve:sigmaForCurve};
+}
+/* Log-return strip plot + fitted-shape overlay (GBM/MLE brainstorm round, items 1-2, 2026-08-21;
+   made interactive 2026-08-24, TJ's direct report: "the graph is just a fixed graph... make it
+   more interactive, lively, engaging, more educational"). The honest version of the blueprint's
+   "log-return histogram with Gaussian overlay": n=5 real points cannot form a histogram shape (5
+   bars would be visual noise pretending to be a distribution), so this draws the 5 real values as
+   a strip/dot plot instead, each labeled by the two real months it spans, with a curve drawn OVER
+   them showing the Gaussian shape those same 5 points imply -- never presented as a forecast, only
+   as "the shape this data implies." Now also: shaded +/-1sigma/2sigma bands (toggleable), a
+   click-to-explore z-score/percentile readout on each real dot, and a draggable explorer that
+   queries any hypothetical value against the CURRENT fitted shape -- explicitly never a projection
+   forward in time (this dashboard already declined a GBM-projected P80 completion figure
+   elsewhere, for exactly that reason -- see renderGbmVsEvm()).
+   Correctness note: the curve is centered on rbar (the sample mean log-return MLE actually fits),
+   NOT muHatMle -- muHatMle is a DIFFERENT, Ito-adjusted quantity (the geometric drift of the
+   underlying price process, rbar + 0.5*sigma^2), not the mean of the log-return distribution
+   these 5 points are draws from. Centering the curve on muHatMle would silently mismatch the
+   curve to the dots it's supposed to explain. */
+function renderGbmLogReturns(){
+  var geom=gbmGeom(), g=geom.g, pairs=geom.pairs, W=geom.W, H=geom.H, PL=geom.PL, PR=geom.PR, PT=geom.PT,
+    lo=geom.lo, hi=geom.hi, X=geom.X, baseY=geom.baseY, sigmaForCurve=geom.sigmaForCurve;
   function gaussPdf(x){ return (1/(sigmaForCurve*Math.sqrt(2*Math.PI)))*Math.exp(-Math.pow(x-g.rbar,2)/(2*sigmaForCurve*sigmaForCurve)); }
-  var peakPdf=gaussPdf(g.rbar), curveH=H-PT-PB-26; // -26 leaves headroom above the dots' own row
+  var peakPdf=gaussPdf(g.rbar), curveH=H-PT-geom.PB-26; // -26 leaves headroom above the dots' own row
   var steps=60, curvePts=[];
   for(var i=0;i<=steps;i++){ var x=lo+(hi-lo)*(i/steps);
     curvePts.push(X(x).toFixed(1)+","+(baseY-26-(gaussPdf(x)/peakPdf)*curveH).toFixed(1)); }
   var curvePath="M"+curvePts.join(" L");
-  var dots=pairs.map(function(p){
-    return '<circle cx="'+X(p.v).toFixed(1)+'" cy="'+baseY+'" r="6" fill="'+C("accent")+'" stroke="'+C("bg")+'" stroke-width="1.5" class="hot">'+
+  // +/-1sigma/2sigma bands -- always within [lo,hi] by construction (spread is at least 3.2*sigma,
+  // strictly more than 2*sigma), so unlike the Galton fix earlier this session these never need an
+  // off-scale clamp/disclosure; the bands sit in a <g> so the toggle button can flip visibility
+  // via a direct style write, not a full chart re-render (same division of labor as the drag
+  // marker below).
+  var band2=[X(g.rbar-2*sigmaForCurve),X(g.rbar+2*sigmaForCurve)], band1=[X(g.rbar-sigmaForCurve),X(g.rbar+sigmaForCurve)];
+  var bandsHtml=
+    '<g id="gbmBands" style="display:'+(state.gbmBandsOn?"block":"none")+'" aria-hidden="true">'+
+      '<rect x="'+band2[0].toFixed(1)+'" y="'+PT+'" width="'+(band2[1]-band2[0]).toFixed(1)+'" height="'+(baseY-PT)+'" fill="'+C("info")+'" opacity=".08"/>'+
+      '<rect x="'+band1[0].toFixed(1)+'" y="'+PT+'" width="'+(band1[1]-band1[0]).toFixed(1)+'" height="'+(baseY-PT)+'" fill="'+C("info")+'" opacity=".14"/>'+
+    '</g>';
+  var dots=pairs.map(function(p,i){
+    return '<circle cx="'+X(p.v).toFixed(1)+'" cy="'+baseY+'" r="6" fill="'+C("accent")+'" stroke="'+C("bg")+'" stroke-width="1.5" '+
+      'class="hot stagger gbm-dot'+(state.gbmSelectedLabel===(p.from+" → "+p.to)?" selected":"")+'" style="animation-delay:'+(i*70)+'ms" '+
+      'data-idx="'+i+'" tabindex="0" role="button" aria-label="'+p.from+' to '+p.to+': '+pct(p.v,2)+' log-return, click to explore">'+
       '<title>'+p.from+' &rarr; '+p.to+': '+pct(p.v,2)+' log-return</title></circle>';
   }).join("");
   var body=
+    bandsHtml+
     '<line x1="'+PL+'" x2="'+(W-PR)+'" y1="'+baseY+'" y2="'+baseY+'" stroke="'+C("grid")+'" stroke-width="1"/>'+
-    '<path d="'+curvePath+'" fill="none" stroke="'+C("info")+'" stroke-width="1.8" opacity=".85"/>'+
+    '<path class="draw" d="'+curvePath+'" fill="none" stroke="'+C("info")+'" stroke-width="1.8" opacity=".85"/>'+
     '<line x1="'+X(g.rbar).toFixed(1)+'" x2="'+X(g.rbar).toFixed(1)+'" y1="'+PT+'" y2="'+baseY+'" stroke="'+C("info")+'" stroke-width="1.2" stroke-dasharray="2 2" opacity=".6"/>'+
     '<text x="'+X(g.rbar).toFixed(1)+'" y="'+(PT+9)+'" text-anchor="middle" font-size="9.5" font-family="ui-monospace,monospace" fill="'+C("info")+'">r&#772; '+pct(g.rbar,2)+'</text>'+
     dots+
+    gbmInspectMarkerSvg(geom)+
     '<text x="'+PL+'" y="'+(H-8)+'" font-size="9.5" font-family="ui-monospace,monospace" fill="'+C("mut")+'">'+pct(lo,1)+'</text>'+
     '<text x="'+(W-PR)+'" y="'+(H-8)+'" text-anchor="end" font-size="9.5" font-family="ui-monospace,monospace" fill="'+C("mut")+'">'+pct(hi,1)+'</text>';
   document.getElementById("gbmLogReturns").innerHTML=
@@ -4450,10 +4525,69 @@ function renderGbmLogReturns(){
     // that level of precision belongs; this caption now says only what a reader needs to read the
     // chart itself, in plain language.
     '<p class="lede" style="font-size:11.8px;margin-bottom:6px">The '+g.n+' real month-to-month cost '+
-    'changes behind the numbers above &mdash; hover a dot for which two months it spans. The curve is '+
-    'the bell-shaped pattern those '+g.n+' points imply, drawn to show what the fit actually says, '+
-    'never as a projection of what happens next.</p>'+
-    svg(W,H,body,"The "+g.n+" real log-returns as a strip plot, with the MLE-fitted Gaussian shape drawn over them.");
+    'changes behind the numbers above &mdash; click a dot, or drag the explorer below, for which two '+
+    'months it spans. The curve is the bell-shaped pattern those '+g.n+' points imply, drawn to show '+
+    'what the fit actually says, never as a projection of what happens next.</p>'+
+    svg(W,H,body,"The "+g.n+" real log-returns as a strip plot, with the MLE-fitted Gaussian shape drawn over them.")+
+    '<div class="legend" style="margin-top:8px">'+
+      // Swatch alpha here is legend-legibility alpha, deliberately HIGHER than the .14/.08 the
+      // actual chart bands render at (a tiny 15x3px chip at that low an alpha would be invisible;
+      // the real bands stay subtle because they sit behind a curve and 5 dots, this chip doesn't).
+      '<span><i style="background:rgb(var(--c-info) / .45)"></i>&plusmn;1&sigma; (~68% of a Gaussian)</span>'+
+      '<span><i style="background:rgb(var(--c-info) / .25)"></i>&plusmn;2&sigma; (~95% of a Gaussian)</span>'+
+      '<button type="button" class="btn" id="gbmBandsToggle" aria-pressed="'+state.gbmBandsOn+'" style="margin-left:auto;min-height:auto;padding:2px 9px;font-size:11px">'+
+        (state.gbmBandsOn?"Hide":"Show")+' bands</button>'+
+    '</div>';
+  var slider=document.getElementById("gbmInspect");
+  if(slider){ slider.value=String(state.gbmInspect); }
+  renderGbmInspectOut();
+}
+/* Drag-to-explore marker, same division of labor as #mcInspect/#sConf already establish elsewhere
+   on this dashboard: the SVG group's own <g> is written once by renderGbmLogReturns() above, then
+   dragging the slider only moves this group + rewrites the readout paragraph -- never re-running
+   the whole chart (which would also unhelpfully replay the draw-in animation on every drag tick). */
+function gbmInspectMarkerSvg(geom){
+  var x=geom.X(geom.lo+(geom.hi-geom.lo)*(state.gbmInspect/100));
+  return '<g id="gbmInspectMarker" data-role="inspect">'+
+    '<line x1="'+x.toFixed(1)+'" x2="'+x.toFixed(1)+'" y1="'+geom.PT+'" y2="'+geom.baseY+'" stroke="'+C("accent")+'" stroke-width="2"/>'+
+    '<polygon points="'+(x-4).toFixed(1)+','+(geom.baseY+6)+' '+(x+4).toFixed(1)+','+(geom.baseY+6)+' '+x.toFixed(1)+','+(geom.baseY+11)+'" fill="'+C("accent")+'"/>'+
+  '</g>';
+}
+function renderGbmInspectMarker(){
+  var geom=gbmGeom(), gEl=document.getElementById("gbmInspectMarker"); if(!gEl) return;
+  var x=geom.X(geom.lo+(geom.hi-geom.lo)*(state.gbmInspect/100));
+  var line=gEl.querySelector("line"), tri=gEl.querySelector("polygon");
+  line.setAttribute("x1",x.toFixed(1)); line.setAttribute("x2",x.toFixed(1));
+  tri.setAttribute("points",(x-4).toFixed(1)+","+(geom.baseY+6)+" "+(x+4).toFixed(1)+","+(geom.baseY+6)+" "+x.toFixed(1)+","+(geom.baseY+11));
+}
+/* Real-value-vs-hypothetical readout. gbmSelectedLabel is set only when the current position
+   exactly matches a clicked real dot (see selectGbmDot() below) -- everything else, including the
+   default centered position, is framed plainly as exploring the fitted shape, not a forecast. */
+function renderGbmInspectOut(){
+  var geom=gbmGeom(), g=geom.g;
+  var x=geom.lo+(geom.hi-geom.lo)*(state.gbmInspect/100);
+  var z=(x-g.rbar)/geom.sigmaForCurve, pctile=normCdf(z)*100;
+  var real=state.gbmSelectedLabel;
+  document.getElementById("vGbmInspect").textContent=pct(x,2);
+  document.getElementById("gbmInspectOut").innerHTML=
+    (real?"<b style='color:rgb(var(--c-ink))'>Real observation, "+real+":</b> ":"<b style='color:rgb(var(--c-ink))'>Exploring a hypothetical value:</b> ")+
+    pct(x,2)+" log-return &mdash; <b style='color:rgb(var(--c-ink))'>"+Math.abs(z).toFixed(2)+"&sigma;</b> "+(z>=0?"above":"below")+
+    " the fitted mean, around the <b style='color:rgb(var(--c-ink))'>P"+pctile.toFixed(0)+"</b> of the fitted distribution."+
+    (real?"":" <span style='color:rgb(var(--c-mut))'>Exploring the current fitted shape only &mdash; not a projection of what happens next.</span>");
+}
+/* Click/keyboard select on a real dot -- snaps the same slider+marker+readout the drag explorer
+   drives to that dot's own exact value, so "click a real point" and "drag a hypothetical one"
+   share one mechanism instead of two competing displays. */
+function selectGbmDot(i){
+  var geom=gbmGeom(), p=geom.pairs[i]; if(!p) return;
+  state.gbmSelectedLabel=p.from+" → "+p.to;
+  state.gbmInspect=((p.v-geom.lo)/(geom.hi-geom.lo))*100;
+  var slider=document.getElementById("gbmInspect"); if(slider) slider.value=String(state.gbmInspect);
+  Array.prototype.forEach.call(document.querySelectorAll("#gbmLogReturns circle.gbm-dot"),function(el){
+    el.classList.toggle("selected",+el.dataset.idx===i);
+  });
+  renderGbmInspectMarker();
+  renderGbmInspectOut();
 }
 /* Plain-language "Math unlocked" drawer (item 4) -- zero new computation, reuses g's already-real
    numbers, same pattern as this project's own established low-risk narrative-only additions. */
@@ -9796,6 +9930,30 @@ document.getElementById("mcInspect").addEventListener("input",function(){
   renderMcInspectMarker();
   renderMcInspectOut();
 });
+// GBM log-return chart drag-to-explore + click-a-dot (brainstorm-mode round, 2026-08-24). Same
+// division of labor as #mcInspect just above: dragging only moves the marker + rewrites the
+// readout, never re-running renderGbmLogReturns() (which would also replay the draw-in animation
+// on every tick). Dragging manually clears gbmSelectedLabel -- once you move off a clicked real
+// dot, the readout correctly reframes as "hypothetical" again, not still claiming to be that dot.
+document.getElementById("gbmInspect").addEventListener("input",function(){
+  state.gbmInspect=+this.value; state.gbmSelectedLabel=null;
+  Array.prototype.forEach.call(document.querySelectorAll("#gbmLogReturns circle.gbm-dot"),function(el){ el.classList.remove("selected"); });
+  renderGbmInspectMarker();
+  renderGbmInspectOut();
+});
+document.getElementById("gbmLogReturns").addEventListener("click",function(e){
+  var n=e.target.closest("[data-idx]"); if(n){ selectGbmDot(+n.dataset.idx); return; }
+  if(e.target.closest("#gbmBandsToggle")){ state.gbmBandsOn=!state.gbmBandsOn;
+    var g=document.getElementById("gbmBands"), b=document.getElementById("gbmBandsToggle");
+    if(g) g.style.display=state.gbmBandsOn?"block":"none";
+    if(b){ b.textContent=(state.gbmBandsOn?"Hide":"Show")+" bands"; b.setAttribute("aria-pressed",String(state.gbmBandsOn)); }
+  }
+});
+document.getElementById("gbmLogReturns").addEventListener("keydown",function(e){
+  if(e.key!=="Enter"&&e.key!==" ") return;
+  var n=e.target.closest("[data-idx]"); if(!n) return; e.preventDefault();
+  selectGbmDot(+n.dataset.idx);
+});
 /* Tri-point curve playground drag + keyboard (brainstorm-mode round, 2026-08-21). Pointer Events
    (not separate mouse/touch listeners) so one code path drives both mouse drag and touchscreen
    drag — setPointerCapture ties every subsequent move/up to the handle that started the drag,
@@ -10113,6 +10271,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   renderNarr:renderNarr,renderEwmaControl:renderEwmaControl,renderEwmaWeekDrill:renderEwmaWeekDrill,
   renderIngestSim:renderIngestSim,renderCircuitDemo:renderCircuitDemo,renderWbsCrosswalk:renderWbsCrosswalk,
   deriveDrbEmv:deriveDrbEmv,drbAssumptions:DRB_ASSUMPTIONS,deriveGbmParams:deriveGbmParams,
+  erf:erf,normCdf:normCdf,
   deriveEarnedSchedule:deriveEarnedSchedule,
   risks:RISKS,pBand:P_BAND,pBandName:P_BAND_NAME,tweenNum:tweenNum,mcQuantile:mcQuantile,
   renderRisk:renderRisk,riskLinkedActions:riskLinkedActions,renderRiskDrill:renderRiskDrill,

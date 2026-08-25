@@ -3915,8 +3915,8 @@ ok(indexSrc.includes("#mcChart rect,#waterfall rect,#baseBridgeChart rect{transf
   "waterfall bars (vertical) reuse growup, same as the Monte Carlo histogram and the estimate-to-budget bridge");
 ok(indexSrc.includes('#tornado rect,#gantt rect{transform-box:fill-box;transform-origin:left;animation:growright'),
   "tornado + tracking-Gantt bars (horizontal — width is the varying dimension) share the distinct growright, not growup, which would squash them");
-ok(indexSrc.includes('#scurve path.draw,#mcChart polyline.draw{stroke-dasharray:2400'),
-  "the Monte Carlo CDF polyline reuses the S-curve's draw-in technique");
+ok(indexSrc.includes('#scurve path.draw,#mcChart polyline.draw,#gbmLogReturns path.draw{stroke-dasharray:2400'),
+  "the Monte Carlo CDF polyline and the GBM log-return curve both reuse the S-curve's draw-in technique, sharing one selector rather than three separate rules");
 ok(indexSrc.includes('var body=\'<polyline class="draw" points="'),
   "the CDF polyline actually carries the draw class in its markup, not just the CSS selector existing unused");
 
@@ -6253,6 +6253,98 @@ console.log("== D44. Whole-dashboard tab-organization check -- closed 5 tabs' an
   ok(!!smtBlock2, "scroll-margin-top rule block still exists and was extended, not replaced");
   const allIds = Object.values(TAB_RAILS).reduce((a, b) => a.concat(b), []);
   allIds.forEach(id => ok(!!smtBlock2 && smtBlock2.includes("#" + id), "scroll-margin-top rule covers real anchor target #" + id));
+}
+
+console.log("== D45. GBM log-return chart made interactive -- bands, click-a-dot, drag-to-explore (brainstorm-mode round, 2026-08-24) ==");
+{
+  // TJ's direct report: "the graph is just a fixed graph... make it more interactive, lively,
+  // engaging, more educational." Every expected value below is re-derived independently from
+  // deriveGbmParams()/acHistorySeries(), never copied from the rendered markup.
+  const g = P.deriveGbmParams(P.acHistorySeries().map(p => p.ac));
+  const series = P.acHistorySeries();
+  const pairs = g.logReturns.map((v, i) => ({ v, from: series[i].m, to: series[i + 1].m }));
+  const spread = Math.max(g.sigmaHatMle * 3.2, Math.max(...pairs.map(p => Math.abs(p.v - g.rbar))) * 1.35, 1e-4);
+  const lo = g.rbar - spread, hi = g.rbar + spread;
+  const sigmaForCurve = Math.max(g.sigmaHatMle, 1e-6);
+
+  // normCdf/erf sanity against known textbook reference values -- not re-derived from the
+  // production code's own formula (that would just check the code agrees with itself).
+  ok(Math.abs(P.normCdf(0) - 0.5) < 1e-6, "normCdf(0) is exactly 0.5 -- the median of any normal distribution");
+  ok(Math.abs(P.normCdf(1.0) - 0.8413) < 1e-3, "normCdf(1.0) matches the textbook one-sigma reference value (0.8413)", P.normCdf(1.0).toFixed(4));
+  ok(Math.abs(P.normCdf(-1.0) - 0.1587) < 1e-3, "normCdf(-1.0) matches the textbook reference value (0.1587)", P.normCdf(-1.0).toFixed(4));
+
+  P.renderGbmLogReturns();
+  let svgHtml = G.gbmLogReturns._html;
+  ok(svgHtml.includes('class="draw" d='), "the fitted curve now carries the shared draw-in animation class, not a static path");
+  ok(svgHtml.includes('id="gbmBands"') && svgHtml.includes('style="display:block"'), "the +/-sigma bands render, visible by default (P.state.gbmBandsOn defaults true)");
+  pairs.forEach((p, i) => {
+    ok(svgHtml.includes('data-idx="' + i + '"') && svgHtml.includes('class="hot stagger gbm-dot'), "dot #" + i + " is a real click/keyboard target (data-idx + gbm-dot class), not just a hover-only shape");
+    ok(svgHtml.includes('aria-label="' + p.from + ' to ' + p.to), "dot #" + i + "'s aria-label states its own real month pair, not a generic label");
+  });
+
+  // Default position (P.state.gbmInspect starts at 50 -- exactly r-bar, since lo/hi are symmetric
+  // around it by construction) — z should be exactly 0, percentile exactly 50.
+  ok(P.state.gbmInspect === 50, "sanity: default explorer position is centered");
+  let x = lo + (hi - lo) * (P.state.gbmInspect / 100);
+  ok(Math.abs(x - g.rbar) < 1e-9, "at the default position, the explored value IS r-bar exactly (0-100 maps linearly onto the symmetric [lo,hi] axis)");
+  let out = G.gbmInspectOut._html;
+  ok(out.includes("0.00&sigma;") && out.includes(">P50<"), "at the default centered position, the readout states 0 sigma and the 50th percentile", out);
+
+  // Click a real dot (#2, an arbitrary middle one) -- the click handler should snap gbmInspect to
+  // that dot's own real value and gbmSelectedLabel to its real month pair, then the readout should
+  // state the real, independently-recomputed z-score/percentile for THAT specific dot.
+  const pick = 2;
+  fire(G.gbmLogReturns, "click", { target: { closest: (sel) => sel === "[data-idx]" ? { dataset: { idx: String(pick) } } : null } });
+  ok(P.state.gbmSelectedLabel === pairs[pick].from + " → " + pairs[pick].to, "clicking dot #" + pick + " sets gbmSelectedLabel to its own real month pair", P.state.gbmSelectedLabel);
+  const expectPct = ((pairs[pick].v - lo) / (hi - lo)) * 100;
+  ok(Math.abs(P.state.gbmInspect - expectPct) < 1e-6, "clicking dot #" + pick + " moves the explorer to its own exact real value on the [lo,hi] axis", String(P.state.gbmInspect) + " vs expected " + expectPct);
+  const expectZ = (pairs[pick].v - g.rbar) / sigmaForCurve, expectPctile = P.normCdf(expectZ) * 100;
+  out = G.gbmInspectOut._html;
+  ok(out.includes("Real observation, " + pairs[pick].from + " → " + pairs[pick].to), "the readout correctly frames a clicked real dot as a real observation, not a hypothetical");
+  ok(out.includes(Math.abs(expectZ).toFixed(2) + "&sigma;"), "the readout states dot #" + pick + "'s own independently-recomputed z-score, not a generic number", Math.abs(expectZ).toFixed(2));
+  ok(out.includes(">P" + expectPctile.toFixed(0) + "<"), "the readout states dot #" + pick + "'s own independently-recomputed percentile", expectPctile.toFixed(0));
+  // selectGbmDot()'s own visual selection ring (.selected, applied via a live
+  // document.querySelectorAll(...).forEach(classList.toggle...) pass) is NOT checkable here --
+  // this stub's querySelectorAll always returns [] (documented limitation, same one already noted
+  // for selectGL()/#kboard elsewhere in this file), so that forEach is always a safe no-op under
+  // test. The state/readout effects it's paired with (asserted above and below) ARE real coverage;
+  // the pure-visual ring itself needs live-browser verification, not a fabricated assertion here.
+
+  // Dragging the slider must clear gbmSelectedLabel -- moving off a clicked real dot re-frames the
+  // readout back to "hypothetical," never still claiming to be that dot.
+  G.gbmInspect.value = "10";
+  fire(G.gbmInspect, "input");
+  ok(P.state.gbmSelectedLabel === null, "dragging the explorer slider clears gbmSelectedLabel");
+  x = lo + (hi - lo) * (10 / 100);
+  const zAt10 = (x - g.rbar) / sigmaForCurve, pctileAt10 = P.normCdf(zAt10) * 100;
+  out = G.gbmInspectOut._html;
+  ok(out.includes("Exploring a hypothetical value"), "after dragging, the readout correctly reframes as hypothetical, not still claiming to be the previously-clicked real dot");
+  ok(out.includes((zAt10 >= 0 ? "above" : "below") + " the fitted mean"), "the readout states the correct direction (above/below the mean) for the dragged-to position");
+  ok(out.includes(">P" + pctileAt10.toFixed(0) + "<"), "the readout states the correct, independently-recomputed percentile for the dragged-to position", pctileAt10.toFixed(0));
+  ok(out.includes("not a projection of what happens next"), "a hypothetical explored value carries the same non-forecast disclosure the chart's own caption states");
+
+  // Bands toggle -- click flips state and the live DOM node's visibility, without a full chart
+  // re-render (checked by confirming the toggle button element itself, not a fresh svgHtml string,
+  // still reflects the new state — a full re-render would also be correct behavior, but the whole
+  // point of this control is that it does NOT re-run the draw-in animation on every toggle).
+  ok(P.state.gbmBandsOn === true, "sanity: bands start on");
+  fire(G.gbmLogReturns, "click", { target: { closest: (sel) => sel === "#gbmBandsToggle" ? {} : null } });
+  ok(P.state.gbmBandsOn === false, "clicking the bands toggle flips P.state.gbmBandsOn");
+  ok(G.gbmBands.style.display === "none", "clicking the bands toggle hides the live bands group directly, not via a full chart re-render");
+  ok(G.gbmBandsToggle.textContent.includes("Show bands"), "the toggle button's own label flips to match the new state");
+  fire(G.gbmLogReturns, "click", { target: { closest: (sel) => sel === "#gbmBandsToggle" ? {} : null } });
+  ok(P.state.gbmBandsOn === true && G.gbmBands.style.display === "block", "clicking again restores the bands");
+
+  // Keyboard activation (Enter) on a dot -- same real click-handler-equivalent coverage as the
+  // gateLine/cdeFlow keyboard tests already establish for this exact data-idx idiom.
+  P.renderGbmLogReturns(); // fresh render so gbmSelectedLabel/dot state start clean for this check
+  const pick2 = 0;
+  fire(G.gbmLogReturns, "keydown", { key: "Enter", preventDefault(){}, target: { closest: (sel) => sel === "[data-idx]" ? { dataset: { idx: String(pick2) } } : null } });
+  ok(P.state.gbmSelectedLabel === pairs[pick2].from + " → " + pairs[pick2].to, "pressing Enter on dot #" + pick2 + " activates it identically to a click");
+
+  // reset to defaults so later tests in this file aren't affected by this block's own interactions
+  P.state.gbmInspect = 50; P.state.gbmSelectedLabel = null; P.state.gbmBandsOn = true;
+  P.renderGbmLogReturns();
 }
 
 /* =========================================================================
