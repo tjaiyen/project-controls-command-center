@@ -764,6 +764,13 @@ pre.code b{color:rgb(var(--c-code));font-weight:600}
 #gbmLogReturns circle.gbm-dot:hover{r:7.5}
 #gbmLogReturns circle.gbm-dot:focus{outline:none}
 #gbmLogReturns circle.gbm-dot:focus-visible,#gbmLogReturns circle.gbm-dot.selected{stroke:rgb(var(--c-accent));stroke-width:2.6px}
+/* Attention & Triage per-card collapse header (UX upgrade round, 2026-08-24) — same focus/hover
+   language as .flow-node/.gbm-dot above, not a new visual idiom. */
+#triageCards [data-triage-collapse]{border-radius:6px}
+#triageCards [data-triage-collapse]:focus{outline:none}
+#triageCards [data-triage-collapse]:focus-visible{outline:2px solid rgb(var(--c-accent));outline-offset:2px}
+#triageFilterRail button[data-tier]{transition:opacity .12s ease}
+#triageFilterRail button[data-tier]:hover{opacity:.85}
 /* Cross-chart account highlight — the same control account can show up as a .rowbar (float/CPLI/
    productivity bars), a table row (the ledger), or an SVG rect (waterfall/Gantt), all on the same
    tab at once; one delegated listener (wireAccountHighlight) toggles this class on every element
@@ -1965,8 +1972,17 @@ join dim_control_account b using (package_id)</pre></div>
         decorative. Every item here traces back to the same escalation matrix, ledger, and Actions
         register the rest of the dashboard already computes; this tab is a different lens on the same
         real data, not a second system of record.</p>
+      <details class="dbox" style="margin-top:14px">
+        <summary>How the 4 tiers are decided</summary>
+        <div id="triageExplainer"></div>
+      </details>
       <div id="triageFilterRail" role="group" aria-label="Filter by urgency tier"
-        style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;position:sticky;top:calc(var(--nav-height) + 8px);z-index:5"></div>
+        style="display:flex;flex-direction:column;gap:8px;margin-top:14px;position:sticky;top:calc(var(--nav-height) + 8px);z-index:5"></div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px">
+        <input class="gsearch" id="triageSearch" type="search" autocomplete="off" style="flex:1;min-width:180px"
+          placeholder="Filter by title or owner&hellip;" aria-label="Filter triage items by title or owner">
+        <button type="button" class="btn" id="triageSortToggle" style="min-height:auto;padding:5px 10px;font-size:12.5px">Sort: Tier order</button>
+      </div>
       <div id="triageCards" style="margin-top:16px;display:flex;flex-direction:column;gap:12px"></div>
       <p class="lede" id="triageEmpty" style="margin-top:14px"></p>
     </div>
@@ -3046,12 +3062,18 @@ var state = {phase:"con", fam:"All", audience:"pcm", kpi:null, pkg:2, actFilter:
                  // exploring a hypothetical"), and is cleared the instant the slider is dragged
                  // manually. gbmBandsOn defaults true — the &plusmn;1&sigma;/2&sigma; bands are the
                  // whole point of the educational upgrade, not something to hide by default.
-  triageFilter:null, triageAck:{}}; // Attention & Triage tab (brainstorm-mode round, 2026-08-24) —
+  triageFilter:null, triageAck:{}, triageSearch:"", triageSort:"tier", triageCollapsed:{}}; // Attention
+                 // & Triage tab (brainstorm-mode round, 2026-08-24; UX upgrade round, 2026-08-24) —
                  // triageFilter null = show all 4 tiers; a tier number narrows to just that one.
                  // triageAck is an id->true map, never a removal: acknowledging a live-computed
                  // breach dims the card and labels it, but the item stays listed and reactivates
                  // in full the moment its own underlying number changes — this dashboard never
                  // lets a real red number go silently invisible behind a "resolved" click.
+                 // triageSearch filters by title/owner substring; triageSort toggles "tier"
+                 // (default, matches generateTriageQueue()'s own real severity order) vs "owner"
+                 // (alphabetical, for "what does person X need to see"); triageCollapsed is an
+                 // id->true map, defaulting every card OPEN (unchanged behavior) until a reader
+                 // chooses to collapse one.
 
 /* Ledger card (Overview-tab upgrade, 2026-08-20) — the 11 raw inputs, a per-package inspector, and
    a live "change one input, watch the KPIs move" demo. The demo deliberately reads a LOCAL copy of
@@ -5782,43 +5804,101 @@ var TIER_META={
   3:{label:"Tier 3: Due Soon", cls:"a", sub:"trend creep"},
   4:{label:"Tier 4: Watchlist", cls:"i", sub:"pre-breach"}
 };
+// Distinct per-tier bar colors (UX upgrade round, 2026-08-24) -- TIER_META's own .cls only has 3
+// values (Tier 1/2 share "r", both genuinely severe, correct for a card border) but a 4-segment
+// distribution chart needs Tier 1 and 2 visually distinguishable, so this reuses the same
+// alpha-over-semantic-token mechanism the Galton/heat-map fixes already established this session
+// rather than inventing new hues.
+var TIER_BAR_COLOR={1:"rgb(var(--c-bad))",2:"rgb(var(--c-bad) / .55)",3:"rgb(var(--c-warn))",4:"rgb(var(--c-info))"};
+// Plain-language, real-logic description per tier -- states exactly the same TRIAGE_CLOCK_TIER/
+// isStale()/actionStatus() branches generateTriageQueue() actually runs, not a simplified retelling
+// that could drift from the real code.
+var TIER_DESC={
+  1:"Fires when a real escalation rule's own clock reads “Immediate” or “72 hours” — a board-level hard stop or a 3-day formal-recovery-analysis window.",
+  2:"Fires when a RAID/Actions item has gone 10+ real days without a touch, or an escalation rule's clock reads “Daily,” “Same week,” or “Same reporting cycle.”",
+  3:"Fires when a real action is due within 7 days, or an escalation rule's clock reads “Weekly review,” “Next weekly,” “10 days,” or “Next monthly.”",
+  4:"A pre-breach watchlist — actions genuinely blocked but not yet due, plus control-chart trend signals (like the crew CPH EWMA buffer) that haven't crossed a real threshold yet."
+};
+function renderTriageExplainer(items){
+  var byTier={1:[],2:[],3:[],4:[]};
+  items.forEach(function(it){ byTier[it.tier].push(it); });
+  document.getElementById("triageExplainer").innerHTML=
+    '<p style="margin:10px 0 0;font-size:12.5px">Every item above is tiered from the SAME real clock '+
+    'text this dashboard&rsquo;s own 12-rule escalation matrix, RAID staleness rule, and Actions '+
+    'register already carry &mdash; not a separate judgment call layered on top.</p>'+
+    [1,2,3,4].map(function(t){
+      var tm=TIER_META[t], ex=byTier[t][0];
+      return '<p style="margin:10px 0 0;font-size:12.5px"><b style="color:rgb(var(--c-ink))">'+tm.label+
+        '</b> <span style="color:rgb(var(--c-mut))">('+tm.sub+')</span> &mdash; '+TIER_DESC[t]+
+        (ex?' <span style="color:rgb(var(--c-mut))">Right now, for example: '+ex.title+' (SLA: '+ex.clock+').</span>'
+            :' <span style="color:rgb(var(--c-mut))">Nothing real is in this tier right now.</span>');
+    }).join("");
+}
 function renderTriage(){
   var items=generateTriageQueue();
   document.getElementById("cntTriage").textContent=String(items.length);
   var counts={1:0,2:0,3:0,4:0};
   items.forEach(function(it){ counts[it.tier]++; });
+  renderTriageExplainer(items);
+  // Visual tier-distribution bar (UX upgrade round, 2026-08-24, TJ's direct report: "make it more
+  // interactive, lively, engaging, educational") -- the same real counts the filter buttons below
+  // already state, drawn as one glanceable bar instead of read off 4 separate button labels;
+  // segments are real button elements carrying the same data-tier attribute the filter buttons
+  // below use, so a click reuses the SAME delegated filter listener already wired below, no
+  // second click handler needed.
+  var distHtml = items.length
+    ? '<div style="height:26px;border-radius:6px;overflow:hidden;display:flex" role="img" '+
+        'aria-label="Tier distribution: '+[1,2,3,4].map(function(t){ return counts[t]+" in "+TIER_META[t].label; }).join(", ")+'">'+
+        [1,2,3,4].filter(function(t){ return counts[t]>0; }).map(function(t){
+          return '<button type="button" data-tier="'+t+'" style="flex:'+counts[t]+' 0 0;min-width:3px;border:none;cursor:pointer;background:'+TIER_BAR_COLOR[t]+'" '+
+            'aria-label="Filter to '+TIER_META[t].label+' ('+counts[t]+')" title="'+TIER_META[t].label+': '+counts[t]+'"></button>';
+        }).join("")+
+      '</div>'
+    : '<div style="height:26px;border-radius:6px;background:rgb(var(--c-ok) / .16);display:flex;align-items:center;padding:0 10px;font-size:11.5px;color:rgb(var(--c-ok))">All clear — nothing needs attention right now</div>';
   document.getElementById("triageFilterRail").innerHTML=
-    '<button type="button" class="btn" data-tier="" aria-pressed="'+(state.triageFilter===null)+'">All ('+items.length+')</button>'+
-    [1,2,3,4].map(function(t){ var tm=TIER_META[t];
-      return '<button type="button" class="btn" data-tier="'+t+'" aria-pressed="'+(state.triageFilter===t)+'">'+
-        '<span class="pill '+tm.cls+'" style="margin-right:6px">'+t+'</span>'+tm.label+' ('+counts[t]+')</button>';
-    }).join("");
+    distHtml+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
+      '<button type="button" class="btn" data-tier="" aria-pressed="'+(state.triageFilter===null)+'">All ('+items.length+')</button>'+
+      [1,2,3,4].map(function(t){ var tm=TIER_META[t];
+        return '<button type="button" class="btn" data-tier="'+t+'" aria-pressed="'+(state.triageFilter===t)+'">'+
+          '<span class="pill '+tm.cls+'" style="margin-right:6px">'+t+'</span>'+tm.label+' ('+counts[t]+')</button>';
+      }).join("")+
+    '</div>';
   var shown=state.triageFilter===null?items:items.filter(function(it){ return it.tier===state.triageFilter; });
+  // Search (Tier 2 upgrade) -- title/owner substring, real fields, no separate index to keep in sync.
+  var q=state.triageSearch.trim().toLowerCase();
+  if(q) shown=shown.filter(function(it){ return it.title.toLowerCase().indexOf(q)>=0 || it.owner.toLowerCase().indexOf(q)>=0; });
+  // Sort toggle (Tier 2 upgrade) -- "tier" is generateTriageQueue()'s own real severity order
+  // (untouched); "owner" groups the same real items by who actually has to act, tier as tiebreaker.
+  if(state.triageSort==="owner") shown=shown.slice().sort(function(a,b){ return a.owner.localeCompare(b.owner)||a.tier-b.tier; });
   if(!shown.length){
     document.getElementById("triageCards").innerHTML="";
-    document.getElementById("triageEmpty").textContent = items.length
-      ? "No items in this tier right now — try All, or another tier."
-      : "Nothing needs immediate attention right now — every escalation rule is dormant, no RAID item is stale, and nothing real is due within a week.";
+    document.getElementById("triageEmpty").textContent = !items.length
+      ? "Nothing needs immediate attention right now — every escalation rule is dormant, no RAID item is stale, and nothing real is due within a week."
+      : q ? "No item's title or owner matches “"+state.triageSearch.trim()+"” — try a different search, or clear it."
+      : "No items in this tier right now — try All, or another tier.";
     return;
   }
   document.getElementById("triageEmpty").textContent="";
-  document.getElementById("triageCards").innerHTML=shown.map(function(it){
-    var tm=TIER_META[it.tier], acked=!!state.triageAck[it.id];
-    return '<div class="card" style="border-left:3px solid rgb(var(--c-'+(tm.cls==="r"?"bad":tm.cls==="a"?"warn":"info")+'))'+(acked?';opacity:.62':'')+'" data-triage-id="'+it.id+'">'+
-      '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">'+
+  document.getElementById("triageCards").innerHTML=shown.map(function(it,i){
+    var tm=TIER_META[it.tier], acked=!!state.triageAck[it.id], collapsed=!!state.triageCollapsed[it.id];
+    return '<div class="card stagger" style="animation-delay:'+(i*40)+'ms;border-left:3px solid rgb(var(--c-'+(tm.cls==="r"?"bad":tm.cls==="a"?"warn":"info")+'))'+(acked?';opacity:.62':'')+'" data-triage-id="'+it.id+'">'+
+      '<div data-triage-collapse="'+it.id+'" tabindex="0" role="button" aria-expanded="'+(!collapsed)+'" style="cursor:pointer;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">'+
         '<div><span class="pill '+tm.cls+'">'+tm.label+'</span> <b style="margin-left:4px">'+it.title+'</b>'+
         (acked?' <span class="pill g">&#10003; Acknowledged — still monitoring</span>':'')+'</div>'+
-        '<span class="mono tab-num" style="font-size:11px;color:rgb(var(--c-mut))">SLA: '+it.clock+'</span>'+
+        '<span class="mono tab-num" style="font-size:11px;color:rgb(var(--c-mut))">SLA: '+it.clock+' <span aria-hidden="true">'+(collapsed?"&#9656;":"&#9662;")+'</span></span>'+
       '</div>'+
-      '<div style="margin-top:9px;font-size:12.5px"><b style="color:rgb(var(--c-ink))">Metric:</b> '+it.metric+
-        ' <span style="color:rgb(var(--c-mut))">&middot; data date '+PROGRAM.dataDate+'</span></div>'+
-      '<div style="margin-top:5px;font-size:12.5px;color:rgb(var(--c-mut))"><b style="color:rgb(var(--c-ink))">Owner:</b> '+it.owner+
-        ' &middot; <b style="color:rgb(var(--c-ink))">Rule:</b> '+it.escRule+'</div>'+
-      '<div style="margin-top:11px;display:flex;gap:8px;flex-wrap:wrap">'+
-        (it.actionId?'<button type="button" class="btn" data-triage-action="'+it.actionId+'" style="min-height:auto;padding:4px 10px;font-size:12px">Open Action '+it.actionId+'</button>':
-          it.tabLink?'<button type="button" class="btn" data-triage-jump-tab="'+it.tabLink.tab+'" data-triage-jump-el="'+(it.tabLink.anchor||"")+'" style="min-height:auto;padding:4px 10px;font-size:12px">Open source</button>':'')+
-        '<button type="button" class="btn" data-triage-ack="'+it.id+'" style="min-height:auto;padding:4px 10px;font-size:12px">'+(acked?"Unacknowledge":"✓ Mark Acknowledged")+'</button>'+
-      '</div></div>';
+      (collapsed?"":
+        '<div style="margin-top:9px;font-size:12.5px"><b style="color:rgb(var(--c-ink))">Metric:</b> '+it.metric+
+          ' <span style="color:rgb(var(--c-mut))">&middot; data date '+PROGRAM.dataDate+'</span></div>'+
+        '<div style="margin-top:5px;font-size:12.5px;color:rgb(var(--c-mut))"><b style="color:rgb(var(--c-ink))">Owner:</b> '+it.owner+
+          ' &middot; <b style="color:rgb(var(--c-ink))">Rule:</b> '+it.escRule+'</div>'+
+        '<div style="margin-top:11px;display:flex;gap:8px;flex-wrap:wrap">'+
+          (it.actionId?'<button type="button" class="btn" data-triage-action="'+it.actionId+'" style="min-height:auto;padding:4px 10px;font-size:12px">Open Action '+it.actionId+'</button>':
+            it.tabLink?'<button type="button" class="btn" data-triage-jump-tab="'+it.tabLink.tab+'" data-triage-jump-el="'+(it.tabLink.anchor||"")+'" style="min-height:auto;padding:4px 10px;font-size:12px">Open source</button>':'')+
+          '<button type="button" class="btn" data-triage-ack="'+it.id+'" style="min-height:auto;padding:4px 10px;font-size:12px">'+(acked?"Unacknowledge":"✓ Mark Acknowledged")+'</button>'+
+        '</div>')+
+      '</div>';
   }).join("");
 }
 
@@ -10174,6 +10254,32 @@ document.getElementById("triageCards").addEventListener("click",function(e){
   if(actBtn){ jumpToAction(actBtn.dataset.triageAction); return; }
   var jumpBtn=e.target.closest("[data-triage-jump-tab]");
   if(jumpBtn){ jumpToEl(jumpBtn.dataset.triageJumpTab, jumpBtn.dataset.triageJumpEl || undefined); return; }
+  // Per-card collapse toggle (UX upgrade round, 2026-08-24) -- same tabindex+role=button click/
+  // keydown idiom as ledger-item/portTable rows elsewhere in this file, not a new pattern.
+  var collapseBtn=e.target.closest("[data-triage-collapse]");
+  if(collapseBtn){ var cid=collapseBtn.dataset.triageCollapse; state.triageCollapsed[cid]=!state.triageCollapsed[cid]; renderTriage(); return; }
+});
+document.getElementById("triageCards").addEventListener("keydown",function(e){
+  if(e.key!=="Enter"&&e.key!==" ") return;
+  var collapseBtn=e.target.closest("[data-triage-collapse]"); if(!collapseBtn) return; e.preventDefault();
+  var cid=collapseBtn.dataset.triageCollapse; state.triageCollapsed[cid]=!state.triageCollapsed[cid]; renderTriage();
+});
+// Search + sort (Tier 2 UX upgrade, 2026-08-24). Deliberately DEBOUNCED, unlike #glossQ's own
+// immediate-recompute search -- checked first: #glossQ's .gcard results carry no animation class
+// at all, so re-rendering on every keystroke there is free. Triage cards carry .stagger (the
+// entrance animation this same round added), so an un-debounced re-render would replay that
+// animation on every single keystroke -- a real, different UX cost #glossQ's own precedent
+// doesn't have, so this intentionally does NOT match it.
+var triageSearchTimer=null;
+document.getElementById("triageSearch").addEventListener("input",function(){
+  state.triageSearch=this.value;
+  if(triageSearchTimer!=null) clearTimeout(triageSearchTimer);
+  triageSearchTimer=setTimeout(function(){ triageSearchTimer=null; renderTriage(); },220);
+});
+document.getElementById("triageSortToggle").addEventListener("click",function(){
+  state.triageSort = state.triageSort==="tier" ? "owner" : "tier";
+  this.textContent = "Sort: " + (state.triageSort==="tier" ? "Tier order" : "By owner");
+  renderTriage();
 });
 /* Tri-point curve playground drag + keyboard (brainstorm-mode round, 2026-08-21). Pointer Events
    (not separate mouse/touch listeners) so one code path drives both mouse drag and touchscreen

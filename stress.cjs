@@ -3899,11 +3899,11 @@ ok(/\.finished\.then\(/.test(indexSrc) && !/\.onfinish=/.test(indexSrc),
   // first run of this exact check)
   const markupOnly = indexSrc.slice(0, indexSrc.indexOf("<script>"));
   const detailsCount = (markupOnly.match(/<details class="dbox"/g) || []).length;
-  // 13 as of the GBM/MLE brainstorm round (2026-08-21), up from 12 — 1 new panel added (the
-  // "Math unlocked" drift/volatility explainer on the Cost tab). Updated here, not just to make
-  // the count pass, since a stale expectation is exactly the kind of thing this check exists to
-  // catch on the NEXT panel added after this one.
-  ok(detailsCount === 13, "exactly 13 details.dbox panels exist for this to wire", String(detailsCount));
+  // 14 as of the Attention & Triage UX upgrade round (2026-08-24), up from 13 — 1 new panel added
+  // (the "How the 4 tiers are decided" explainer). Updated here, not just to make the count pass,
+  // since a stale expectation is exactly the kind of thing this check exists to catch on the NEXT
+  // panel added after this one.
+  ok(detailsCount === 14, "exactly 14 details.dbox panels exist for this to wire", String(detailsCount));
 }
 
 // Extended growup/draw-in (2026-08-19) — source-level only, same stub limitation as above;
@@ -6569,6 +6569,109 @@ console.log("== D46. Attention & Triage tab -- external spec, fact-checked befor
 
   // reset so later tests in this file aren't affected by this block's own interactions
   P.state.triageFilter = null; P.state.triageAck = {};
+  fire(G["t-over"], "click");
+}
+
+console.log("== D47. Attention & Triage UX upgrade -- distribution bar, explainer, search/sort, collapse (brainstorm-mode round, 2026-08-24) ==");
+{
+  fire(G["t-triage"], "click");
+  const queue = P.generateTriageQueue();
+  const counts = { 1: 0, 2: 0, 3: 0, 4: 0 };
+  queue.forEach(it => counts[it.tier]++);
+
+  // Distribution bar -- real per-tier counts, drawn as real button segments (not divs) so the
+  // existing #triageFilterRail delegated click handler picks them up for free.
+  let railHtml = G.triageFilterRail._html;
+  [1, 2, 3, 4].forEach(t => {
+    if (counts[t] > 0) {
+      ok(railHtml.includes('data-tier="' + t + '"') && railHtml.includes("flex:" + counts[t] + " 0 0"),
+        "tier " + t + "'s distribution-bar segment states its own real, live count as its flex width", counts[t]);
+    } else {
+      ok(!railHtml.includes('data-tier="' + t + '" style="flex:'), "tier " + t + " (0 real items today) renders no bar segment at all, not a 0-width one");
+    }
+  });
+  // Clicking a bar segment reuses the SAME filter mechanism as the text buttons -- verified by
+  // firing through the real delegated listener with a segment's own shape (data-tier only, no
+  // aria-pressed attribute, unlike the text buttons -- confirms the handler doesn't secretly
+  // depend on button-specific markup).
+  const populatedTier = [1, 2, 3, 4].find(t => counts[t] > 0);
+  if (populatedTier) {
+    fire(G.triageFilterRail, "click", { target: { closest: sel => sel === "[data-tier]" ? { dataset: { tier: String(populatedTier) } } : null } });
+    ok(P.state.triageFilter === populatedTier, "clicking a distribution-bar segment filters exactly like its text-button counterpart");
+    fire(G.triageFilterRail, "click", { target: { closest: sel => sel === "[data-tier]" ? { dataset: { tier: "" } } : null } });
+  }
+
+  // Explainer drawer -- real tier descriptions + a REAL current worked example per populated
+  // tier, independently re-derived from the live queue, not copied from the production string.
+  const explainerHtml = G.triageExplainer._html;
+  [1, 2, 3, 4].forEach(t => {
+    const tm = { 1: "Tier 1: Immediate", 2: "Tier 2: Stale & Overdue", 3: "Tier 3: Due Soon", 4: "Tier 4: Watchlist" }[t];
+    ok(explainerHtml.includes(tm), "explainer states " + tm + "'s own real label");
+    const ex = queue.find(it => it.tier === t);
+    if (ex) {
+      ok(explainerHtml.includes("for example: " + ex.title), "Tier " + t + "'s explainer cites a REAL current item as its worked example, not a generic placeholder", ex.title);
+    } else {
+      ok(explainerHtml.includes("Nothing real is in this tier right now"), "Tier " + t + " (empty today) honestly states nothing is there, rather than fabricating an example");
+    }
+  });
+
+  // Search — filters by real title/owner substring. Tested against renderTriage()'s own logic
+  // directly (state -> render), not the debounced input event -- this file's own established
+  // idiom for timer-driven UI (see galtonStepOnce's "bypasses the timer-paced path" precedent) is
+  // to test the underlying state/logic layer synchronously, not to fake real setTimeout delays.
+  const sampleOwner = queue[0].owner;
+  P.state.triageSearch = sampleOwner;
+  P.renderTriage();
+  let cardsHtml = G.triageCards._html;
+  const matchingIds = queue.filter(it => it.owner === sampleOwner).map(it => it.id);
+  const nonMatchingIds = queue.filter(it => it.owner !== sampleOwner && it.owner.indexOf(sampleOwner) < 0 && sampleOwner.indexOf(it.owner) < 0).map(it => it.id);
+  ok(matchingIds.every(id => cardsHtml.includes('data-triage-id="' + id + '"')), "searching a real owner's name shows every real item with that owner");
+  ok(nonMatchingIds.every(id => !cardsHtml.includes('data-triage-id="' + id + '"')), "searching a real owner's name hides items with no matching title/owner substring");
+  P.state.triageSearch = "zzz-no-real-item-matches-this-zzz";
+  P.renderTriage();
+  ok(G.triageCards._html === "" && G.triageEmpty.textContent.includes("No item's title or owner matches"), "a search with zero real matches shows the correct empty-state message, not a blank silent list");
+  P.state.triageSearch = "";
+  // Debounce mechanism itself -- confirmed present in source (the actual timing behavior needs
+  // live-browser verification, the same accepted split this file uses elsewhere for timer-driven UI).
+  ok(indexSrc.includes("triageSearchTimer=setTimeout"), "the search input is debounced in source (live-browser-verified for actual timing, not re-derivable in this synchronous stub)");
+
+  // Sort toggle — "tier" (default, matches generateTriageQueue()'s own order) vs "owner"
+  // (alphabetical, real localeCompare, tier as tiebreaker) -- re-derived independently here.
+  P.state.triageSort = "owner";
+  P.renderTriage();
+  cardsHtml = G.triageCards._html;
+  const expectOwnerOrder = queue.slice().sort((a, b) => a.owner.localeCompare(b.owner) || a.tier - b.tier).map(it => it.id);
+  const actualOrderPositions = expectOwnerOrder.map(id => cardsHtml.indexOf('data-triage-id="' + id + '"'));
+  const isSorted = actualOrderPositions.every((pos, i) => i === 0 || pos > actualOrderPositions[i - 1]);
+  ok(isSorted, "the 'By owner' sort renders cards in real alphabetical-owner order (tier as tiebreaker), independently re-derived", JSON.stringify(actualOrderPositions));
+  P.state.triageSort = "tier";
+  P.renderTriage();
+
+  // Per-card collapse — toggling hides the metric/owner/actions body but keeps the header (title +
+  // tier + SLA) visible; the item is never removed from the DOM entirely, just its detail body.
+  const collapseId = queue[0].id;
+  // Extract just the ONE card's own HTML fragment (bounded by its own data-triage-id marker and
+  // the next card's, or end of list) -- checking the WHOLE #triageCards blob for "Rule:" would be
+  // wrong with 2+ cards present, since every OTHER card correctly stays expanded and still shows it.
+  function cardFragment(html, id) {
+    const start = html.indexOf('data-triage-id="' + id + '"');
+    if (start < 0) return null;
+    const nextCardStart = html.indexOf('data-triage-id="', start + 1);
+    return html.slice(start, nextCardStart < 0 ? html.length : nextCardStart);
+  }
+  fire(G.triageCards, "click", { target: { closest: sel => sel === "[data-triage-collapse]" ? { dataset: { triageCollapse: collapseId } } : null } });
+  ok(P.state.triageCollapsed[collapseId] === true, "clicking a card's header collapses it");
+  cardsHtml = G.triageCards._html;
+  let frag = cardFragment(cardsHtml, collapseId);
+  ok(!!frag && !frag.includes("Rule:"), "a collapsed card still shows its header (still present in the DOM) but its own Metric/Owner/Rule body is gone, not just visually hidden");
+  fire(G.triageCards, "click", { target: { closest: sel => sel === "[data-triage-collapse]" ? { dataset: { triageCollapse: collapseId } } : null } });
+  ok(P.state.triageCollapsed[collapseId] === false, "clicking again re-expands it");
+  cardsHtml = G.triageCards._html;
+  frag = cardFragment(cardsHtml, collapseId);
+  ok(!!frag && frag.includes("Rule:"), "re-expanding restores that card's own full body");
+
+  // reset so later tests in this file aren't affected by this block's own interactions
+  P.state.triageFilter = null; P.state.triageAck = {}; P.state.triageSearch = ""; P.state.triageSort = "tier"; P.state.triageCollapsed = {};
   fire(G["t-over"], "click");
 }
 
