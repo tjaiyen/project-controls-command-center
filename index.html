@@ -405,6 +405,11 @@ h4{font-size:.86rem;margin:0 0 5px}
 .pill.a{background:rgb(var(--c-warn) / .16);color:var(--c-pill-a)}
 .pill.r{background:rgb(var(--c-bad) / .15);color:var(--c-pill-r)}
 .pill.i{background:rgb(var(--c-info) / .15);color:var(--c-pill-i)}
+/* "changed since last visit" header badge (brainstorm-mode UX round, 2026-08-24) -- same amber
+   token .pill.a already uses, applied to a .btn instead of a .pill since it's a real jump-link
+   (data-jump-tab/data-jump-el), not a static status chip. Same specificity as .btn, wins on
+   source order alone -- no !important needed. */
+.cw-changed{background:rgb(var(--c-warn) / .16);color:var(--c-pill-a);border-color:rgb(var(--c-warn) / .4)}
 /* category icons — a small tinted glyph badge in front of a table cell, distinguishing a fixed
    taxonomy (action type, guardrail check type) at a glance instead of plain text alone */
 .ticon{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;
@@ -807,6 +812,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
       <span>Project Controls Command Center<small id="brandSub">capital program operating framework</small></span></a>
     <div class="right">
       <span class="pill i" id="ddBadge">data date &mdash;</span>
+      <button class="btn" id="changeWatchBadge" type="button" data-jump-tab="over" data-jump-el="changeWatchCard" style="display:none"></button>
       <a class="btn" href="architecture.html" style="text-decoration:none;display:inline-flex;align-items:center">Architecture map</a>
       <button class="btn" id="printBtn" type="button">Print brief</button>
       <button class="btn" id="tourBtn" type="button" aria-pressed="false" aria-keyshortcuts="ArrowLeft ArrowRight Escape">Take the tour<span class="fv-badge" id="fvBadge">&#10148; new here? start here</span></button>
@@ -848,6 +854,15 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
 
   <!-- ============================ OVERVIEW ============================ -->
   <section role="tabpanel" id="p-over" aria-labelledby="t-over" tabindex="0">
+    <details class="anchor-rail">
+      <summary>Jump to section</summary>
+      <nav aria-label="Section anchors">
+        <a href="#ledgerCard">The Ledger</a>
+        <a href="#familiesCard">Six Lenses</a>
+        <a href="#kboard">KPI Board</a>
+        <a href="#velocityPulse">Velocity Pulse</a>
+      </nav>
+    </details>
     <div class="sec" style="padding-top:30px">
       <div class="eyebrow">Capital program controls &middot; phase-gated &middot; 20 derived KPIs</div>
       <h1>A framework for running the program, not just reporting on it</h1>
@@ -875,6 +890,8 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         <div class="estats" id="execStats"></div>
         <p id="execBottomLine" style="margin:14px 0 0;font-size:13.6px;line-height:1.7;max-width:74ch"></p>
       </div>
+
+      <div class="card" style="margin-top:16px" id="changeWatchCard"></div>
 
       <!-- entry point, not a second narrator (2026-08-19): the tour itself lives in the fixed
            #tourBar so it can follow the visitor across tabs; this card is just an on-page invite
@@ -1414,6 +1431,16 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
 
   <!-- ========================= RISK & CHANGE ========================== -->
   <section role="tabpanel" id="p-risk" aria-labelledby="t-risk" tabindex="0" hidden>
+    <details class="anchor-rail">
+      <summary>Jump to section</summary>
+      <nav aria-label="Section anchors">
+        <a href="#tornado">Sensitivity</a>
+        <a href="#risks">Register</a>
+        <a href="#contractTable">Contracts</a>
+        <a href="#changePipe">Change Pipeline</a>
+        <a href="#drbEmv">Settlement</a>
+      </nav>
+    </details>
     <div class="sec">
       <div class="sec-h"><h2>Risk exposure, priced</h2><span class="tag">quantified</span></div>
       <p class="lede">A risk register that is not priced is a list. Exposure is probability-weighted cost,
@@ -1461,8 +1488,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
           principles. Pending change is carried in the forecast at the independent estimate, not the ask.</p>
         <div class="tw" style="min-width:0"><table id="coDefense"></table></div>
         <p class="lede" id="coDefenseNote" style="font-size:12.5px;margin-top:11px"></p>
-        <div class="slider" style="margin-top:14px"><label for="sCoMix">If X% of pending change settles at the
-          contractor&rsquo;s ask instead of the independent estimate</label><input type="range" id="sCoMix" min="0" max="100" step="5"><span class="tab-num mono" id="vCoMix"></span></div>
+        <div class="slider" style="margin-top:14px"><label for="sCoMix">% of pending settled at ask</label><input type="range" id="sCoMix" min="0" max="100" step="5"><span class="tab-num mono" id="vCoMix"></span></div>
         <p class="lede" style="font-size:12px;margin-top:6px;color:rgb(var(--c-mut))">Blended pending exposure at that mix:
           <b id="coMixBlend" style="color:rgb(var(--c-ink))"></b> &mdash; illustrative only; the program&rsquo;s own
           forecast still carries pending change at the independent estimate in the table above, not this slider.</p></div>
@@ -1487,6 +1513,15 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
 
   <!-- ============================ DELIVERY ============================ -->
   <section role="tabpanel" id="p-del" aria-labelledby="t-del" tabindex="0" hidden>
+    <details class="anchor-rail">
+      <summary>Jump to section</summary>
+      <nav aria-label="Section anchors">
+        <a href="#pfArc">Delivery Health</a>
+        <a href="#cascadeCard">Cascade</a>
+        <a href="#ncrCard">NCR Register</a>
+        <a href="#cphCard">Crew CPH</a>
+      </nav>
+    </details>
     <div class="sec">
       <div class="sec-h"><h2>Delivery health</h2><span class="tag">productivity &middot; document control &middot; quality</span></div>
       <p class="lede">Cost and schedule indices are lagging indicators &mdash; by the time CPI moves, the money
@@ -1883,6 +1918,18 @@ join dim_control_account b using (package_id)</pre></div>
 
   <!-- ========================= DATA STRATEGY =========================== -->
   <section role="tabpanel" id="p-data" aria-labelledby="t-data" tabindex="0" hidden>
+    <details class="anchor-rail">
+      <summary>Jump to section</summary>
+      <nav aria-label="Section anchors">
+        <a href="#wbsCrosswalk">The Problem</a>
+        <a href="#cdeFlow">Architecture</a>
+        <a href="#guardrailGrid">Guardrails</a>
+        <a href="#discrepancyFlow">Disagreement</a>
+        <a href="#circuitDemo">Error Recovery</a>
+        <a href="#parityCard">Dual-Stack Parity</a>
+        <a href="#rolloutCards">Rollout Path</a>
+      </nav>
+    </details>
     <div class="sec">
       <div class="eyebrow">Beyond this program &middot; the real problem, not the synthetic one</div>
       <h2>Connecting scattered, unclean, real-world data</h2>
@@ -3207,12 +3254,21 @@ function renderPortDrill(lines){
     '<div class="eyebrow">Portfolio drill-down</div>'+
     '<h3 style="margin:0">'+line.name.replace(/&mdash;.*/,'')+' &mdash; 8 real control accounts</h3></div>'+
     '<button class="btn" id="portDrillClose" type="button">Close &times;</button></div>'+
-    '<table style="width:100%;margin-top:10px;border-collapse:collapse"><thead><tr>'+
-    '<th style="text-align:left;font-size:11px;color:rgb(var(--c-mut))">Account</th>'+
-    '<th style="text-align:left;font-size:11px;color:rgb(var(--c-mut))">Scope</th>'+
-    '<th style="text-align:right;font-size:11px;color:rgb(var(--c-mut))">BAC</th>'+
-    '<th style="text-align:right;font-size:11px;color:rgb(var(--c-mut))">CPI</th>'+
-    '<th style="text-align:right;font-size:11px;color:rgb(var(--c-mut))">EAC</th></tr></thead><tbody>'+
+    // Plain overflow-x:auto wrapper, not .tw (brainstorm-mode UX round, 2026-08-24) -- .tw's own
+    // scroll-edge shadow-cue gradient hardcodes rgb(var(--c-bg)) as its cover color, documented
+    // (index.html ~429-433) as correct only because every .tw "sits directly on the page
+    // background (never nested inside a .card)" -- this table sits inside .drawer, whose own
+    // background is --c-card, not --c-bg. Reusing .tw verbatim here would paint a visibly
+    // mismatched seam at the scroll edge; a plain wrapper gets the real fix (mobile overflow)
+    // without inheriting an assumption this context breaks. scope="col" added to match the ~39
+    // other <th>s on the page that already carry it -- this table's own screen-reader gap.
+    '<div style="overflow-x:auto;margin-top:10px">'+
+    '<table style="width:100%;border-collapse:collapse"><thead><tr>'+
+    '<th scope="col" style="text-align:left;font-size:11px;color:rgb(var(--c-mut))">Account</th>'+
+    '<th scope="col" style="text-align:left;font-size:11px;color:rgb(var(--c-mut))">Scope</th>'+
+    '<th scope="col" style="text-align:right;font-size:11px;color:rgb(var(--c-mut))">BAC</th>'+
+    '<th scope="col" style="text-align:right;font-size:11px;color:rgb(var(--c-mut))">CPI</th>'+
+    '<th scope="col" style="text-align:right;font-size:11px;color:rgb(var(--c-mut))">EAC</th></tr></thead><tbody>'+
     rows.map(function(r){
       return '<tr><td class="mono" style="font-size:12px;padding:4px 0">'+r.id+'</td>'+
         '<td style="font-size:12px">'+r.n.replace(/&amp;/g,"&")+'</td>'+
@@ -3220,7 +3276,7 @@ function renderPortDrill(lines){
         '<td class="tab-num mono" style="font-size:12px;text-align:right">'+idx(r.cpi)+'</td>'+
         '<td class="tab-num mono" style="font-size:12px;text-align:right">'+m(r.eac)+'</td></tr>';
     }).join("")+
-    '</tbody></table>'+
+    '</tbody></table></div>'+
     '<p style="margin:10px 0 0;font-size:11.5px;color:rgb(var(--c-mut))">These 8 rows sum to exactly '+
     m(line.bac)+' BAC and '+m(line.eac)+' EAC &mdash; the same figures this line shows in the table above, '+
     'because this IS that line, not a separate number that happens to agree.</p>'+
@@ -3395,8 +3451,10 @@ function renderDetail(){
   el.innerHTML='<div class="drawer"><div class="dh"><div>'+
     '<div class="eyebrow">'+k.fam+' · '+k.abbr+'</div>'+
     '<h3 style="margin:0">'+k.name+'</h3></div>'+
+    '<div style="display:flex;align-items:flex-start;gap:12px">'+
     '<div style="text-align:right"><div style="font:600 1.7rem/1 ui-monospace,monospace;color:'+RAG[rag]+'">'+k.val()+'</div>'+
-    '<div class="mono" style="font-size:11px;color:rgb(var(--c-mut));margin-top:4px">'+k.sub()+'</div></div></div>'+
+    '<div class="mono" style="font-size:11px;color:rgb(var(--c-mut));margin-top:4px">'+k.sub()+'</div></div>'+
+    '<button class="btn" id="closeDetail" type="button">Close &times;</button></div></div>'+
     '<div class="formula">'+k.f+'</div>'+
     '<div class="dgrid">'+
       '<div class="dbox"><h4>Why it exists</h4><p>'+k.why+'</p></div>'+
@@ -3411,7 +3469,7 @@ function renderDetail(){
     '<p style="margin:14px 0 0;font-size:12.3px;color:rgb(var(--c-mut))">'+
       '<b style="color:rgb(var(--c-ink))">Meaningful in:</b> '+phNames+
       (live?'':' <span class="pill a" style="margin-left:6px">not this phase</span>')+'</p>'+
-    '<button class="btn" id="closeDetail" type="button" style="margin-top:14px">Close</button></div>';
+    '<button class="btn" id="closeDetail2" type="button" style="margin-top:14px">Close</button></div>';
   el.scrollIntoView({block:"nearest"});
 }
 
@@ -4063,18 +4121,22 @@ function renderBaseline(){
 function renderBaseDrawer(){
   return '<div class="drawer"><div class="dh"><div><div class="eyebrow">Controlled baseline &middot; by control account</div>'+
     '<h3 style="margin:0">'+PKGS.length+' accounts, summing to '+m(T.bac)+'</h3></div></div>'+
-    '<table style="width:100%;margin-top:10px;border-collapse:collapse"><thead><tr>'+
-    '<th style="text-align:left;font-size:11px;color:rgb(var(--c-mut))">Account</th>'+
-    '<th style="text-align:left;font-size:11px;color:rgb(var(--c-mut))">Scope</th>'+
-    '<th style="text-align:right;font-size:11px;color:rgb(var(--c-mut))">BAC</th>'+
-    '<th style="text-align:right;font-size:11px;color:rgb(var(--c-mut))">Share</th></tr></thead><tbody>'+
+    // Plain overflow-x:auto wrapper, not .tw -- same reason as renderPortDrill's/renderContractDrill's
+    // own tables: .tw's shadow-cue gradient hardcodes --c-bg, correct only outside a .card/.drawer.
+    // scope="col" added to match the page's own established table convention.
+    '<div style="overflow-x:auto;margin-top:10px">'+
+    '<table style="width:100%;border-collapse:collapse"><thead><tr>'+
+    '<th scope="col" style="text-align:left;font-size:11px;color:rgb(var(--c-mut))">Account</th>'+
+    '<th scope="col" style="text-align:left;font-size:11px;color:rgb(var(--c-mut))">Scope</th>'+
+    '<th scope="col" style="text-align:right;font-size:11px;color:rgb(var(--c-mut))">BAC</th>'+
+    '<th scope="col" style="text-align:right;font-size:11px;color:rgb(var(--c-mut))">Share</th></tr></thead><tbody>'+
     PKGS.map(function(p){
       return '<tr><td class="mono" style="font-size:12px;padding:4px 0">'+p.id+'</td>'+
         '<td style="font-size:12px">'+p.n+'</td>'+
         '<td class="tab-num mono" style="font-size:12px;text-align:right">'+m(p.bac)+'</td>'+
         '<td class="tab-num mono" style="font-size:12px;text-align:right;color:rgb(var(--c-mut))">'+pct(p.bac/T.bac,1)+'</td></tr>';
     }).join("")+
-    '</tbody></table>'+
+    '</tbody></table></div>'+
     '<button class="btn" id="baseDrawerClose" type="button" style="margin-top:12px">Close</button></div>';
 }
 /* "Defend the baseline" sandbox — one real macro toggle (declined the brief's itemized per-VE-item
@@ -5811,12 +5873,17 @@ function renderContractDrill(cs){
     '<div class="eyebrow">Contract drill-down</div>'+
     '<h3 style="margin:0">'+c.title+' &mdash; '+crows.length+' real control account'+(crows.length===1?"":"s")+'</h3></div>'+
     '<button class="btn" id="contractDrillClose" type="button">Close &times;</button></div>'+
-    '<table style="width:100%;margin-top:10px;border-collapse:collapse"><thead><tr>'+
-    '<th style="text-align:left;font-size:11px;color:rgb(var(--c-mut))">Account</th>'+
-    '<th style="text-align:left;font-size:11px;color:rgb(var(--c-mut))">Scope</th>'+
-    '<th style="text-align:right;font-size:11px;color:rgb(var(--c-mut))">BAC</th>'+
-    '<th style="text-align:right;font-size:11px;color:rgb(var(--c-mut))">CPI</th>'+
-    '<th style="text-align:right;font-size:11px;color:rgb(var(--c-mut))">EAC</th></tr></thead><tbody>'+
+    // Plain overflow-x:auto wrapper, not .tw -- same reason as renderPortDrill's own table
+    // (index.html ~3246): .tw's shadow-cue gradient hardcodes --c-bg as its cover color, correct
+    // only outside a .card/.drawer; this table sits inside .drawer (background: --c-card).
+    // scope="col" added to match the page's own established table convention.
+    '<div style="overflow-x:auto;margin-top:10px">'+
+    '<table style="width:100%;border-collapse:collapse"><thead><tr>'+
+    '<th scope="col" style="text-align:left;font-size:11px;color:rgb(var(--c-mut))">Account</th>'+
+    '<th scope="col" style="text-align:left;font-size:11px;color:rgb(var(--c-mut))">Scope</th>'+
+    '<th scope="col" style="text-align:right;font-size:11px;color:rgb(var(--c-mut))">BAC</th>'+
+    '<th scope="col" style="text-align:right;font-size:11px;color:rgb(var(--c-mut))">CPI</th>'+
+    '<th scope="col" style="text-align:right;font-size:11px;color:rgb(var(--c-mut))">EAC</th></tr></thead><tbody>'+
     crows.map(function(r){
       return '<tr><td class="mono" style="font-size:12px;padding:4px 0">'+r.id+'</td>'+
         '<td style="font-size:12px">'+r.n.replace(/&amp;/g,"&")+'</td>'+
@@ -5824,7 +5891,7 @@ function renderContractDrill(cs){
         '<td class="tab-num mono" style="font-size:12px;text-align:right">'+idx(r.cpi)+'</td>'+
         '<td class="tab-num mono" style="font-size:12px;text-align:right">'+m(r.eac)+'</td></tr>';
     }).join("")+
-    '</tbody></table>'+
+    '</tbody></table></div>'+
     '<details class="dbox" style="margin-top:12px"><summary>How award and contingency are actually computed, for this contract</summary>'+
     '<p style="margin:8px 0 0;font-size:12px">Award = sum of BAC across its '+crows.length+' linked account'+(crows.length===1?"":"s")+
     ' = '+crows.map(function(r){return m(r.bac);}).join(" + ")+' = <b>'+m(c.award)+'</b>.</p>'+
@@ -7368,7 +7435,8 @@ function renderActDrill(rows){
     '<span class="mono" style="font-size:11px;color:rgb(var(--c-mut));margin-left:8px">owner: '+a.owner+
     ' &middot; opened '+a.opened+' &middot; due '+a.due+
     (a.pkg?' &middot; package '+a.pkg:'')+'</span></div>'+
-    '<div style="margin-top:12px">'+body+'</div></div>';
+    '<div style="margin-top:12px">'+body+'</div>'+
+    '<button class="btn" id="closeAct2" type="button" style="margin-top:14px">Close</button></div>';
   renderActStatusMath(a);
 }
 /* actionStatus() branching-logic trace (brainstorm-mode upgrade, 2026-08-23) — walks the SAME
@@ -8270,6 +8338,11 @@ var GLOSS=[
  {k:"cbsobs", cat:"data", jT:"fw", jE:"wbsTable", t:"CBS/OBS — Cost & Organizational Breakdown Structure", p:"Two more views of the same scope the WBS already describes: the CBS (Cost Breakdown Structure) is the cost-category lens — labor, material, equipment, subcontract; the OBS (Organizational Breakdown Structure) is who's accountable, by named role. A control account is the intersection of one WBS element and one OBS owner — and, per the ABS glossary entry, the same control account also carries the maintainable asset it hands over as.",
   e:function(){ var w=WBS.filter(function(x){return x.ca==="CP-201";})[0];
     return "The tunnel's own WBS row: CBS category \""+w.cbs+"\", OBS owner \""+w.obs+"\", ABS tag \""+w.abs+"\" — the same control account (CP-201) read through three different structural lenses at once."; }},
+ {k:"rag", cat:"data", jT:"over", jE:"kboard", t:"RAG status — Red, Amber, Green", p:"A traffic-light convention for rolling many metrics up into one glance: green on track, amber at risk, red needs action now. A standard UK-government/PRINCE2 project-reporting pattern, not invented for this dashboard — this page's colored pills (KPI cards, the risk heat map, the escalation matrix, the integrity gate) already follow it; this entry just names the convention they share.",
+  e:function(){ var live=KPIS.filter(function(k){return k.ph.indexOf(state.phase)>=0;});
+    var r=live.filter(function(k){return k.rag()==="r";}).length, a=live.filter(function(k){return k.rag()==="a";}).length,
+        g=live.filter(function(k){return k.rag()==="g";}).length;
+    return "Right now, of the "+live.length+" KPIs live in this phase: "+g+" green, "+a+" amber, "+r+" red — the same rollup the KPI board below colors every card by."; }},
  {k:"excusablecompensable", cat:"sched", jT:"sched", jE:"tiaReg", t:"Excusable-compensable vs. non-excusable delay", p:"Two independent axes classify every delay event: excusable (was it the contractor's fault?) and compensable (does the contractor get paid for it, not just extra time?). Owner-caused or genuinely unforeseeable delays are excusable; only owner-caused ones are also compensable. Contractor-caused delay is neither.",
   e:function(){ var d01=DELAYS.filter(function(d){return d.id==="D-01";})[0], d03=DELAYS.filter(function(d){return d.id==="D-03";})[0];
     return "D-01 ("+d01.n.toLowerCase()+") is \""+d01.cls+"\" — the contractor gets both time and money. D-03 ("+d03.n.toLowerCase()+
@@ -9338,7 +9411,7 @@ document.getElementById("kboard").addEventListener("click",function(e){
   syncKpiAriaExpanded();
 });
 document.getElementById("kdetail").addEventListener("click",function(e){
-  if(e.target.id==="closeDetail"){ state.kpi=null; renderDetail(); syncKpiAriaExpanded(); return; }
+  if(e.target.id==="closeDetail"||e.target.id==="closeDetail2"){ state.kpi=null; renderDetail(); syncKpiAriaExpanded(); return; }
   var b=e.target.closest("[data-jump]"); if(b) jumpToAction(b.dataset.jump);
 });
 document.getElementById("invCard").addEventListener("click",function(e){
@@ -9491,7 +9564,7 @@ document.getElementById("actBoard").addEventListener("keydown",function(e){
   actToggle(c.dataset.act,"actBoard");
 });
 document.getElementById("actDrill").addEventListener("click",function(e){
-  if(e.target.id==="closeAct"){ state.act=null; renderActions(); }
+  if(e.target.id==="closeAct"||e.target.id==="closeAct2"){ state.act=null; renderActions(); }
 });
 // Portfolio drill-down (brainstorm-mode upgrade, 2026-08-23) — same closest("[data-x]")/toggle idiom
 // as every other row-click drawer on this dashboard, scoped to portTable's own live row only.
@@ -9743,6 +9816,56 @@ try{
 applyTextSize();
 document.getElementById("textDownBtn").addEventListener("click",function(){ state.textSize--; applyTextSize(); });
 document.getElementById("textUpBtn").addEventListener("click",function(){ state.textSize++; applyTextSize(); });
+/* "Changed since you last looked" (brainstorm-mode UX round, 2026-08-24 -- external research
+   finding: real dashboards solve this server-side with per-user last-viewed state (Smartsheet);
+   this tool has no backend, so the client-side equivalent is a localStorage snapshot-diff on every
+   load, same idiom as the browser-only text-size/first-visit persistence just above). Watches the
+   same 9 real headline totals renderPrint()'s own "Position" table already shows -- not a new
+   category invented for this, just watching the existing one across visits. Honest by
+   construction: no prior snapshot (first-ever visit, or localStorage cleared) renders nothing,
+   never a fabricated "no change" claim -- and it only ever reflects this one browser/device, stated
+   plainly in the card, not implied as a cross-device sync. Same try/catch guard as fvVisited/
+   applyTextSize (no localStorage in the stress.cjs stub, can throw in private browsing) -- either
+   failure just means the feature quietly does nothing, never a crash. */
+var CHANGE_WATCH_FIELDS=[
+ {k:"bac",l:"BAC",fmt:m},{k:"eac",l:"EAC",fmt:m},{k:"vac",l:"VAC",fmt:sgn},
+ {k:"cpi",l:"CPI",fmt:idx},{k:"spi",l:"SPI",fmt:idx},{k:"tcpi",l:"TCPI",fmt:idx},
+ {k:"cpli",l:"CPLI",fmt:idx},{k:"contRemaining",l:"Contingency remaining",fmt:m},
+ {k:"contCoverage",l:"Contingency coverage",fmt:idx}
+];
+function changeWatchSnapshot(){
+  var s={}; CHANGE_WATCH_FIELDS.forEach(function(f){ s[f.k]=T[f.k]; }); return s;
+}
+function renderChangeWatch(){
+  var badge=document.getElementById("changeWatchBadge"), card=document.getElementById("changeWatchCard");
+  if(!badge||!card) return;
+  var cur=changeWatchSnapshot(), prev=null;
+  try{
+    var raw=window.localStorage&&window.localStorage.getItem("pccLastSnapshot");
+    if(raw) prev=JSON.parse(raw);
+  }catch(e){ prev=null; }
+  if(!prev){
+    badge.style.display="none"; card.innerHTML="";
+  } else {
+    var changed=CHANGE_WATCH_FIELDS.filter(function(f){ return Math.abs((prev[f.k]||0)-(cur[f.k]||0))>1e-9; });
+    badge.style.display="inline-flex";
+    badge.className="btn"+(changed.length?" cw-changed":"");
+    badge.textContent=changed.length? changed.length+" changed since last visit →" : "No change since last visit";
+    card.innerHTML='<div class="eyebrow">Changed since your last visit</div>'+
+      (changed.length?
+        '<h3 style="margin:4px 0 0">'+changed.length+' of the '+CHANGE_WATCH_FIELDS.length+' headline figures moved</h3>'+
+        changed.map(function(f){ return '<div class="rowbar" style="grid-template-columns:1fr auto;cursor:default">'+
+          '<span style="font-size:12.5px">'+f.l+'</span>'+
+          '<span class="tab-num mono" style="font-size:12px">'+f.fmt(prev[f.k])+' &rarr; '+f.fmt(cur[f.k])+'</span></div>'; }).join("")
+        :'<h3 style="margin:4px 0 0">No change since your last visit</h3><p style="margin:6px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">'+
+        'All '+CHANGE_WATCH_FIELDS.length+' headline figures ('+CHANGE_WATCH_FIELDS.map(function(f){return f.l;}).join(", ")+
+        ') read the same as your last visit.</p>')+
+      '<p style="margin:10px 0 0;font-size:11.5px;color:rgb(var(--c-mut))">Compared against a snapshot stored in this browser '+
+      'only &mdash; clears if you clear site data, and only ever reflects this device.</p>';
+  }
+  try{ if(window.localStorage) window.localStorage.setItem("pccLastSnapshot",JSON.stringify(cur)); }catch(e){}
+}
+renderChangeWatch();
 document.getElementById("glossQ").addEventListener("input",function(){ renderGlossary(this.value); });
 window.addEventListener("scroll",function(){ document.getElementById("tip").classList.remove("on"); },{passive:true});
 
@@ -9816,8 +9939,9 @@ wireAccountHighlight();
 renderScurveScrub(); // after renderGantt() above, so the Gantt reference marker is correct on first paint too
 
 /* expose for verification */
-window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM,eacs:EACS,mc:MC,
-  actions:ACTIONS,actionStatus:actionStatus,isStale:isStale,statusTrace:statusTrace,renderActions:renderActions,
+window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM,eacs:EACS,mc:MC,renderDetail:renderDetail,
+  changeWatchFields:CHANGE_WATCH_FIELDS,changeWatchSnapshot:changeWatchSnapshot,renderChangeWatch:renderChangeWatch,
+  actions:ACTIONS,actionStatus:actionStatus,isStale:isStale,statusTrace:statusTrace,renderActions:renderActions,renderActDrill:renderActDrill,
   escalation:ESCALATION,kpiEscalation:KPI_ESCALATION,actionsForKpi:actionsForKpi,jumpToAction:jumpToAction,
   firingEscalations:firingEscalations,
   wbs:WBS,gates:GATES,gate5Checks:GATE5_CHECKS,glNodes:GL_NODES,glCaption:glCaption,glNodeState:glNodeState,

@@ -3700,7 +3700,7 @@ console.log("== D10. inline term help ==");
 // 57 as of the same round's follow-up: a real "pband" entry, same reasoning as impactscore -- the
 // probability scale had no glossary entry either, and TJ's own follow-up question ("why P4, no
 // parameters given") is exactly what it closes.
-ok(P.gloss.length === 57, "GLOSS grew to 57 entries (56 prior + pband, 2026-08-24)", String(P.gloss.length));
+ok(P.gloss.length === 58, "GLOSS grew to 58 entries (57 prior + rag, 2026-08-24)", String(P.gloss.length));
 // title independently re-typed per term (/stress-test finding, 2026-08-21: the prior version only
 // checked g.p/g.e() were non-empty, which passes even for a totally wrong or swapped-in entry) —
 // guards that findGloss(k) actually resolves to the RIGHT term, not just SOME term.
@@ -4658,7 +4658,7 @@ console.log("== D23. Glossary upgrade round, items 1-3 (2026-08-21) ==");
   // Item 3 — every one of the 56 real GLOSS entries carries a real cat, and every cat resolves
   // to a known category. Independently re-derived from the raw array, not read back from the
   // rendered pill counts and trusted against itself. (56 as of 2026-08-24's impactscore addition.)
-  ok(P.gloss.length === 57, "sanity: still 57 real glossary terms");
+  ok(P.gloss.length === 58, "sanity: still 58 real glossary terms");
   const validCats = Object.keys(P.cats);
   P.gloss.forEach(g => ok(validCats.indexOf(g.cat) >= 0, "term '" + g.k + "' carries a real category (" + g.cat + ")", g.cat));
 
@@ -5584,8 +5584,10 @@ console.log("== D35. Global nav upgrade -- 3 more anchor rails, live Glossary co
     ok(indexSrc.includes('href="#' + id + '"'), "AI & Data's new anchor rail links to the real #" + id));
   ["actStrip", "ownerTable", "actFilters", "actionsMathBody"].forEach(id =>
     ok(indexSrc.includes('href="#' + id + '"'), "Actions' new anchor rail links to the real #" + id));
-  const railCount = (indexSrc.match(/class="anchor-rail"/g) || []).length;
-  ok(railCount === 5, "exactly 5 tabs now carry the real sticky anchor rail (Cost, Schedule + this round's 3 new ones), not the brief's fabricated claim it already existed on 5", String(railCount));
+  // Total anchor-rail count is asserted where it's authoritative for the CURRENT state of the page
+  // (the brainstorm-mode UX round below, 2026-08-24) rather than hardcoded here too -- this D35
+  // block only owns "these 3 tabs' own rails link to their own real ids," not the page-wide total,
+  // which a later round legitimately grows.
 
   // B. live Glossary tab-rail count badge -- real GLOSS.length, not the brief's fabricated 38
   ok(String(G.cntGloss.textContent) === String(P.gloss.length), "Glossary tab badge shows the real live GLOSS.length, not a hand-typed number", G.cntGloss.textContent + " vs " + P.gloss.length);
@@ -5993,6 +5995,81 @@ console.log("== D42. Integrity-gate failure demo -- 'Try it' toggle shows a real
   has("aiGuards", "GREEN", "gate reads GREEN again after toggling the demo back off");
 }
 
+console.log("== D43. UX upgrade round -- 4 more anchor rails, standardized drill-down close buttons, table overflow-wrap/scope=col fixes, sCoMix label fix, RAG glossary entry (brainstorm-mode round, 2026-08-24) ==");
+{
+  // 1. Anchor rails extended to Overview, Risk & Change, Delivery, Data Strategy -- was Cost,
+  // Schedule, Operating Framework, AI & Data, Actions only (5). Real ids, independently confirmed
+  // to exist in markup (idsA), not just referenced from the rail itself.
+  const OVER_ANCHORS = ["ledgerCard", "familiesCard", "kboard", "velocityPulse"];
+  const RISK_ANCHORS = ["tornado", "risks", "contractTable", "changePipe", "drbEmv"];
+  const DEL_ANCHORS = ["pfArc", "cascadeCard", "ncrCard", "cphCard"];
+  const DATA_ANCHORS = ["wbsCrosswalk", "cdeFlow", "guardrailGrid", "discrepancyFlow", "circuitDemo", "parityCard", "rolloutCards"];
+  [OVER_ANCHORS, RISK_ANCHORS, DEL_ANCHORS, DATA_ANCHORS].forEach(list => list.forEach(id => {
+    ok(idsA.includes(id), "anchor target #" + id + " really exists in markup");
+    ok(indexSrc.includes('href="#' + id + '"'), "an anchor rail links to the real #" + id);
+  }));
+  const railCount = (indexSrc.match(/class="anchor-rail"/g) || []).length;
+  ok(railCount === 9, "exactly 9 tabs now carry the sticky anchor rail (5 prior + this round's 4 new ones)", String(railCount));
+
+  // 2. Standardized drill-down close buttons -- kdetail and actDrill each gain a 2nd close button,
+  // matching the top+bottom pattern portDrill/riskDrill/contractDrill already established.
+  P.state.kpi = "cpi"; P.renderDetail();
+  let kdHtml = R.registry.kdetail._html;
+  ok(kdHtml.includes('id="closeDetail"') && kdHtml.includes('id="closeDetail2"'),
+    "KPI drawer now has both a top (closeDetail) and bottom (closeDetail2) close button, was bottom-only");
+  fire(R.registry.kdetail, "click", { target: { id: "closeDetail" } });
+  ok(P.state.kpi === null, "the TOP close button actually closes the KPI drawer");
+  P.state.kpi = "cpi"; P.renderDetail();
+  fire(R.registry.kdetail, "click", { target: { id: "closeDetail2" } });
+  ok(P.state.kpi === null, "the BOTTOM close button still closes the KPI drawer too");
+
+  P.state.act = "A-01"; P.renderActDrill();
+  let adHtml = R.registry.actDrill._html;
+  ok(adHtml.includes('id="closeAct"') && adHtml.includes('id="closeAct2"'),
+    "Actions drawer now has both a top (closeAct) and bottom (closeAct2) close button, was top-only");
+  fire(R.registry.actDrill, "click", { target: { id: "closeAct2" } });
+  ok(P.state.act === null, "the new BOTTOM close button actually closes the Actions drawer");
+  P.state.act = null; P.renderActDrill();
+
+  // 3. 3 drawer-nested tables: plain overflow-x:auto wrapper (never .tw -- its shadow-cue gradient
+  // hardcodes --c-bg, wrong once nested inside .drawer's own --c-card background) + scope="col".
+  P.state.portDrill = "link-lrt"; P.renderPortfolio();
+  const pdHtml = R.registry.portDrill._html;
+  ok(pdHtml.includes("overflow-x:auto") && !pdHtml.includes('class="tw"'),
+    "portfolio drill's table sits in a plain overflow-x:auto wrapper, not .tw");
+  ok((pdHtml.match(/<th scope="col"/g) || []).length === 5, "portfolio drill's table: all 5 <th> now carry scope=\"col\"", String((pdHtml.match(/<th scope="col"/g) || []).length));
+  P.state.portDrill = null; P.renderPortfolio();
+
+  P.state.contractDrill = "CTE-BB-01"; P.renderContracts();
+  const cdHtml = R.registry.contractDrill._html;
+  ok(cdHtml.includes("overflow-x:auto") && !cdHtml.includes('class="tw"'),
+    "contract drill's table sits in a plain overflow-x:auto wrapper, not .tw");
+  ok((cdHtml.match(/<th scope="col"/g) || []).length === 5, "contract drill's table: all 5 <th> now carry scope=\"col\"", String((cdHtml.match(/<th scope="col"/g) || []).length));
+  P.state.contractDrill = null; P.renderContracts();
+
+  P.state.baseDrawerOpen = true; P.renderBaseline();
+  const bdHtml = R.registry.baseBridge._html;
+  ok(bdHtml.includes("overflow-x:auto"), "baseline drawer's table sits in a plain overflow-x:auto wrapper");
+  ok((bdHtml.match(/<th scope="col"/g) || []).length === 4, "baseline drawer's table: all 4 <th> now carry scope=\"col\"", String((bdHtml.match(/<th scope="col"/g) || []).length));
+  P.state.baseDrawerOpen = false; P.renderBaseline();
+
+  // 4. sCoMix slider label fix -- the old 14-word sentence forced into the 96px .slider label
+  // column is gone, replaced with a short label matching every other slider's own length budget.
+  ok(!indexSrc.includes("If X% of pending change settles at the"), "the old overflowing sCoMix label sentence is gone");
+  ok(indexSrc.includes('<label for="sCoMix">% of pending settled at ask</label>'),
+    "sCoMix now has a short label matching the established slider-label length budget");
+
+  // 6. RAG glossary entry -- real live KPI counts by RAG color, not fabricated
+  const ragGloss = P.gloss.filter(g => g.k === "rag")[0];
+  ok(!!ragGloss, "the new 'rag' glossary entry exists");
+  const liveKpis = P.kpis.filter(k => k.ph.indexOf(P.state.phase) >= 0);
+  const rCount = liveKpis.filter(k => k.rag() === "r").length, aCount = liveKpis.filter(k => k.rag() === "a").length,
+    gCount = liveKpis.filter(k => k.rag() === "g").length;
+  ok(ragGloss.e().includes(gCount + " green, " + aCount + " amber, " + rCount + " red"),
+    "RAG glossary entry's live example states the real, independently recomputed KPI RAG rollup, not a fabricated count",
+    ragGloss.e());
+}
+
 /* =========================================================================
    E. otak.html — runtime + internal consistency
    ========================================================================= */
@@ -6187,6 +6264,58 @@ console.log("== G. text-size localStorage persistence ==");
   // out-of-range saved value (e.g. from a future version with more steps) must clamp, not crash
   // or index past the array into undefined.
   ok(!!P3 && P3.state.textSize === 2, "an out-of-range saved value clamps to the ceiling on init, not undefined/NaN", P3 && String(P3.state.textSize));
+}
+
+/* =========================================================================
+   H. "CHANGED SINCE YOU LAST LOOKED" LOCALSTORAGE SNAPSHOT-DIFF (brainstorm-mode UX round,
+   2026-08-24) — same isolation reason section G above documents: needs a seeded
+   window.localStorage BEFORE the page's own init code runs, so each case gets its own runPage()
+   eval, placed after G for the identical reason G itself is placed last.
+   ========================================================================= */
+console.log('== H. "changed since you last looked" localStorage snapshot-diff ==');
+// field keys read off the real CHANGE_WATCH_FIELDS (via P, the main eval's own __PCC__) rather
+// than a hand-typed parallel list -- if that array's own keys ever change, this test's seed keeps
+// them in sync automatically instead of silently drifting out of step.
+const CW_FIELDS_ORDER = P.changeWatchFields.map(f => f.k);
+{
+  // no prior snapshot at all (first-ever visit, or cleared site data) -- badge must stay hidden,
+  // card empty, never a fabricated "no change" claim with nothing to actually compare against
+  const R4 = runPage(indexSrc, {});
+  ok(!R4.err, "4th index.html eval (no snapshot) ran without runtime errors", R4.err && R4.err.message);
+  ok(R4.registry.changeWatchBadge.style.display === "none", "no prior snapshot: header badge stays hidden");
+  ok(R4.registry.changeWatchCard._html === "", "no prior snapshot: Overview card renders nothing");
+}
+{
+  // a prior snapshot IDENTICAL to today's real live totals -- must report "no change," not silently
+  // stay hidden (that would be indistinguishable from the no-snapshot-at-all case above)
+  const snap = {};
+  CW_FIELDS_ORDER.forEach(k => { snap[k] = T[k]; });
+  const R5 = runPage(indexSrc, { pccLastSnapshot: JSON.stringify(snap) });
+  const P5 = R5.win.__PCC__;
+  ok(!!P5, "5th index.html eval (identical snapshot) ran without runtime errors");
+  ok(R5.registry.changeWatchBadge.style.display !== "none", "identical prior snapshot: badge becomes visible");
+  ok(R5.registry.changeWatchBadge.textContent === "No change since last visit", "identical prior snapshot: badge states no change, not hidden");
+  ok(!/cw-changed/.test(R5.registry.changeWatchBadge.className || ""), "identical prior snapshot: badge does NOT carry the amber cw-changed class");
+  ok(R5.registry.changeWatchCard._html.includes("No change since your last visit"), "identical prior snapshot: Overview card states no change");
+}
+{
+  // a prior snapshot that genuinely differs (BAC $40M lower) -- must report exactly 1 changed
+  // figure, name it, and show the real prev -> cur values, not a vague "something changed"
+  const snap = {};
+  CW_FIELDS_ORDER.forEach(k => { snap[k] = T[k]; });
+  snap.bac = T.bac - 40;
+  const R6 = runPage(indexSrc, { pccLastSnapshot: JSON.stringify(snap) });
+  const badgeHtml = R6.registry.changeWatchBadge;
+  ok(badgeHtml.textContent === "1 changed since last visit →", "changed prior snapshot: badge states exactly 1 changed", badgeHtml.textContent);
+  ok(/cw-changed/.test(badgeHtml.className || ""), "changed prior snapshot: badge carries the amber cw-changed class");
+  const cardHtml = R6.registry.changeWatchCard._html;
+  ok(cardHtml.includes("BAC") && cardHtml.includes(m(T.bac - 40)) && cardHtml.includes(m(T.bac)),
+    "changed prior snapshot: Overview card names BAC and shows the real prev -> cur values, not fabricated ones");
+  ok(!cardHtml.includes("EAC</span>"), "changed prior snapshot: only the ONE genuinely-changed field is listed, not the other 8");
+  // this eval's own render also overwrote pccLastSnapshot with TODAY's real totals -- confirms the
+  // write-back actually happened (a real snapshot-then-diff cycle, not a read-only demo)
+  ok(R6.win.localStorage.getItem("pccLastSnapshot") === JSON.stringify((() => { const s = {}; CW_FIELDS_ORDER.forEach(k => { s[k] = T[k]; }); return s; })()),
+    "the render also wrote today's real totals back to localStorage, so the NEXT load compares against this one");
 }
 
 console.log("\n" + pass + " passed, " + fail + " failed");
