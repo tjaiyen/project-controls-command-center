@@ -4395,7 +4395,10 @@ console.log("== D19. in-tab sticky anchor rail, Cost/Schedule (nav round 2, 2026
   // would tuck its target under the sticky header exactly the way this rule exists to prevent.
   // Every id is asserted individually (not just block presence) so a future rail that forgets to
   // extend this list fails loudly, not silently.
-  const smtBlock = (indexSrc.match(/#scurve,#eacTable[\s\S]{0,600}?\{\s*scroll-margin-top:[^}]+\}/) || [])[0];
+  // Unbounded lazy match (was a fixed {0,600} char budget, then {0,900} -- both went stale the
+  // moment a later round grew the selector past the bound, silently failing every id check below
+  // it, not just the block-exists one. Unbounded removes the need to ever re-bump this again.
+  const smtBlock = (indexSrc.match(/#scurve,#eacTable[\s\S]*?\{\s*scroll-margin-top:[^}]+\}/) || [])[0];
   ok(!!smtBlock, "scroll-margin-top rule block exists");
   ["scurve", "eacTable", "eacTrend", "mcChart", "costGbm", "gantt", "schedTriad", "floatErosionCard", "tiaReg",
    "ledgerCard", "familiesCard", "layersGrid", "kboard", "velocityPulse",
@@ -6021,7 +6024,10 @@ console.log("== D43. UX upgrade round -- 4 more anchor rails, standardized drill
     ok(indexSrc.includes('href="#' + id + '"'), "an anchor rail links to the real #" + id);
   }));
   const railCount = (indexSrc.match(/class="anchor-rail"/g) || []).length;
-  ok(railCount === 9, "exactly 9 tabs now carry the sticky anchor rail (5 prior + this round's 4 new ones)", String(railCount));
+  // Total count assertion (was hardcoded here) removed a second time -- same reasoning as the D43
+  // comment just above it: the current, authoritative total is asserted fresh in the whole-tab
+  // organization pass further down, not hand-copied here on every round that adds a rail.
+  ok(railCount >= 9, "at least 9 tabs carry the sticky anchor rail (this file's own historical floor)", String(railCount));
 
   // 2. Standardized drill-down close buttons -- kdetail and actDrill each gain a 2nd close button,
   // matching the top+bottom pattern portDrill/riskDrill/contractDrill already established.
@@ -6080,6 +6086,67 @@ console.log("== D43. UX upgrade round -- 4 more anchor rails, standardized drill
   ok(ragGloss.e().includes(gCount + " green, " + aCount + " amber, " + rCount + " red"),
     "RAG glossary entry's live example states the real, independently recomputed KPI RAG rollup, not a fabricated count",
     ragGloss.e());
+}
+
+console.log("== D44. Whole-dashboard tab-organization check -- closed 5 tabs' anchor-rail gaps + added Portfolio's missing rail (2026-08-24) ==");
+{
+  // TJ's request: "check the entire overview" (D43, above) then "now check all the tabs." Read
+  // every real <h2>/<h3> section id in the file, per tab, and compared against that tab's own
+  // anchor rail (or lack of one). Found: Cost's rail covered only 5 of 11 real sections (missing
+  // #waterfall, #baseBridge, a not-yet-id'd What-If card, #galtonCanvas, #pertPlayChart,
+  // #pkgTable) AND had #costGbm listed AFTER #mcChart despite appearing BEFORE it in real DOM
+  // order; Schedule missing #schedDriftCard; AI & Data missing #aiIngestGuards; Operating
+  // Framework missing #escTable/#cadence/#stakeMap/#libTable; Portfolio had NO rail at all despite
+  // being exactly as dense (1 h2 + 4 h3 sub-sections) as Delivery/Actions, which do. Risk & Change,
+  // Delivery, Actions, Data Strategy, Overview were already complete -- re-confirmed here, not
+  // re-fixed a second time.
+  const TAB_RAILS = {
+    "p-cost": ["scurve", "waterfall", "baseBridge", "eacTable", "eacTrend", "costGbm", "whatIfCard", "mcChart", "galtonCanvas", "pertPlayChart", "pkgTable"],
+    "p-sched": ["gantt", "schedTriad", "floatErosionCard", "schedDriftCard", "tiaReg"],
+    "p-risk": ["tornado", "risks", "contractTable", "changePipe", "drbEmv"],
+    "p-del": ["pfArc", "cascadeCard", "ncrCard", "cphCard"],
+    "p-ai": ["arch", "aiGuards", "aiStatControl", "aiEwmaControl", "aiIngestGuards", "aiNarr"],
+    "p-fw": ["gateLine", "wbsTable", "gateTable", "gate5Card", "escTable", "invCard", "cadence", "stakeMap", "libTable"],
+    "p-act": ["actStrip", "ownerTable", "actFilters", "actionsMathBody"],
+    "p-data": ["wbsCrosswalk", "cdeFlow", "guardrailGrid", "discrepancyFlow", "circuitDemo", "parityCard", "rolloutCards"],
+    "p-over": ["ledgerCard", "familiesCard", "layersGrid", "kboard", "velocityPulse"],
+    "p-port": ["portTable", "fundingGapBar", "portSandbox", "fundingTierRead"],
+  };
+  Object.keys(TAB_RAILS).forEach(tabId => {
+    const ids = TAB_RAILS[tabId];
+    ids.forEach(id => {
+      ok(idsA.includes(id), tabId + "'s anchor rail target #" + id + " really exists in markup");
+      ok(indexSrc.includes('href="#' + id + '"'), tabId + "'s rail links to the real #" + id);
+    });
+    // real DOM order: each id's own element definition appears in increasing file-position order,
+    // matching the rail's own listed order -- catches the exact costGbm-after-mcChart bug this
+    // pass found in the Cost tab (a rail whose links don't match DOM order jumps backward partway
+    // through, confusing to actually click through).
+    const positions = ids.map(id => indexSrc.indexOf('id="' + id + '"'));
+    const sorted = positions.slice().sort((a, b) => a - b);
+    ok(JSON.stringify(positions) === JSON.stringify(sorted),
+      tabId + "'s rail entries are listed in real DOM order, not just all-present",
+      JSON.stringify(positions) + " vs sorted " + JSON.stringify(sorted));
+  });
+
+  // Glossary confirmed still correctly exempt -- a self-contained search+filter interface, not a
+  // scrolling list of distinct topics -- explicitly re-checked, not just left unmentioned.
+  ok(!/<details class="anchor-rail">/.test(indexSrc.match(/id="p-gloss"[\s\S]*?<\/section>/)[0]),
+    "Glossary correctly has no anchor rail -- confirmed still true, not assumed");
+
+  // Authoritative current total, asserted once here, not hand-copied into every round's own
+  // historical count assertion above (D35/D43 each keep their own point-in-time count/floor).
+  const totalRails = (indexSrc.match(/class="anchor-rail"/g) || []).length;
+  ok(totalRails === 10, "exactly 10 of 11 tabs now carry a real, complete anchor rail (every tab except Glossary, which genuinely doesn't need one)", String(totalRails));
+
+  // scroll-margin-top selector covers every real target across every rail -- the exact regression
+  // class /stress-test already caught once this session (D43's own finding, for the prior round's
+  // 4 new rails), re-swept here across every id this pass touched or added.
+  // Unbounded lazy match, not a fixed char budget -- same fragility fix as smtBlock above.
+  const smtBlock2 = (indexSrc.match(/#scurve,#eacTable[\s\S]*?\{\s*scroll-margin-top:[^}]+\}/) || [])[0];
+  ok(!!smtBlock2, "scroll-margin-top rule block still exists and was extended, not replaced");
+  const allIds = Object.values(TAB_RAILS).reduce((a, b) => a.concat(b), []);
+  allIds.forEach(id => ok(!!smtBlock2 && smtBlock2.includes("#" + id), "scroll-margin-top rule covers real anchor target #" + id));
 }
 
 /* =========================================================================

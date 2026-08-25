@@ -242,7 +242,14 @@ a{color:rgb(var(--c-accent))}
 #ledgerCard,#familiesCard,#layersGrid,#kboard,#velocityPulse,
 #tornado,#risks,#contractTable,#changePipe,#drbEmv,
 #pfArc,#cascadeCard,#ncrCard,#cphCard,
-#wbsCrosswalk,#cdeFlow,#guardrailGrid,#discrepancyFlow,#circuitDemo,#parityCard,#rolloutCards{
+#wbsCrosswalk,#cdeFlow,#guardrailGrid,#discrepancyFlow,#circuitDemo,#parityCard,#rolloutCards,
+#waterfall,#baseBridge,#whatIfCard,#galtonCanvas,#pertPlayChart,#pkgTable,
+#schedDriftCard,#aiIngestGuards,
+#escTable,#cadence,#stakeMap,#libTable,
+#portTable,#fundingGapBar,#portSandbox,#fundingTierRead,
+#arch,#aiGuards,#aiStatControl,#aiEwmaControl,#aiNarr,
+#gateLine,#wbsTable,#gateTable,#gate5Card,#invCard,
+#actStrip,#ownerTable,#actFilters,#actionsMathBody{
   scroll-margin-top:calc(var(--nav-height) + 56px)}
 
 /* Tier 3 — left nav rail on wide viewports. Same DOM, same TABS array, same activateTab() logic
@@ -1008,6 +1015,15 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
 
   <!-- ============================= PORTFOLIO ============================ -->
   <section role="tabpanel" id="p-port" aria-labelledby="t-port" tabindex="0" hidden>
+    <details class="anchor-rail">
+      <summary>Jump to section</summary>
+      <nav aria-label="Section anchors">
+        <a href="#portTable">Portfolio Rollup</a>
+        <a href="#fundingGapBar">Funding Gap</a>
+        <a href="#portSandbox">Stress Test</a>
+        <a href="#fundingTierRead">Funding Tier</a>
+      </nav>
+    </details>
     <div class="sec">
       <div class="eyebrow">Board &amp; executive altitude &middot; agency portfolio</div>
       <h2>One line of business is the ground truth; three are the rollup</h2>
@@ -1072,10 +1088,16 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
       <summary>Jump to section</summary>
       <nav aria-label="Section anchors">
         <a href="#scurve">S-Curve</a>
+        <a href="#waterfall">Variance Bridge</a>
+        <a href="#baseBridge">Baseline Bridge</a>
         <a href="#eacTable">4-Method EAC</a>
         <a href="#eacTrend">Forecast Reliability</a>
-        <a href="#mcChart">Monte Carlo</a>
         <a href="#costGbm">GBM Diffusion</a>
+        <a href="#whatIfCard">What-If Model</a>
+        <a href="#mcChart">Monte Carlo</a>
+        <a href="#galtonCanvas">Galton Engine</a>
+        <a href="#pertPlayChart">PERT Playground</a>
+        <a href="#pkgTable">Control Ledger</a>
       </nav>
     </details>
     <div class="sec">
@@ -1184,7 +1206,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
       <p class="lede">Drag the performance indices and watch the forecast move. This is the conversation a
         controls manager has with a program director: not &ldquo;we are over&rdquo;, but &ldquo;here is what
         it costs if nothing changes, and here is the efficiency we would have to hit to land on budget.&rdquo;</p>
-      <div class="card" style="margin-top:15px">
+      <div class="card" style="margin-top:15px" id="whatIfCard">
         <div class="slider"><label for="sCpi">Cost index</label><input type="range" id="sCpi" min="0.80" max="1.20" step="0.005"><span class="tab-num mono" id="vCpi"></span></div>
         <div class="slider"><label for="sSpi">Schedule index</label><input type="range" id="sSpi" min="0.80" max="1.20" step="0.005"><span class="tab-num mono" id="vSpi"></span></div>
         <div class="slider"><label for="sCont">Contingency $M</label><input type="range" id="sCont" min="0" max="300" step="1"><span class="tab-num mono" id="vCont"></span></div>
@@ -1343,6 +1365,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         <a href="#gantt">Tracking Gantt</a>
         <a href="#schedTriad">SPI / CPLI / BEI</a>
         <a href="#floatErosionCard">Float Erosion</a>
+        <a href="#schedDriftCard">Forecast Drift</a>
         <a href="#tiaReg">Delay Fragnets</a>
       </nav>
     </details>
@@ -1606,6 +1629,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         <a href="#aiGuards">Integrity Gate</a>
         <a href="#aiStatControl">Statistical Control</a>
         <a href="#aiEwmaControl">EWMA Chart</a>
+        <a href="#aiIngestGuards">Ingestion Validation</a>
         <a href="#aiNarr">AI Narrative</a>
       </nav>
     </details>
@@ -1757,7 +1781,11 @@ join dim_control_account b using (package_id)</pre></div>
         <a href="#wbsTable">WBS/OBS Mapping</a>
         <a href="#gateTable">Phase Gates</a>
         <a href="#gate5Card">Gate 5</a>
+        <a href="#escTable">Escalation Matrix</a>
         <a href="#invCard">Working Backward</a>
+        <a href="#cadence">Cadence</a>
+        <a href="#stakeMap">Stakeholders</a>
+        <a href="#libTable">KPI Library</a>
       </nav>
     </details>
     <div class="sec">
