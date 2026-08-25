@@ -4398,7 +4398,7 @@ console.log("== D19. in-tab sticky anchor rail, Cost/Schedule (nav round 2, 2026
   const smtBlock = (indexSrc.match(/#scurve,#eacTable[\s\S]{0,600}?\{\s*scroll-margin-top:[^}]+\}/) || [])[0];
   ok(!!smtBlock, "scroll-margin-top rule block exists");
   ["scurve", "eacTable", "eacTrend", "mcChart", "costGbm", "gantt", "schedTriad", "floatErosionCard", "tiaReg",
-   "ledgerCard", "familiesCard", "kboard", "velocityPulse",
+   "ledgerCard", "familiesCard", "layersGrid", "kboard", "velocityPulse",
    "tornado", "risks", "contractTable", "changePipe", "drbEmv",
    "pfArc", "cascadeCard", "ncrCard", "cphCard",
    "wbsCrosswalk", "cdeFlow", "guardrailGrid", "discrepancyFlow", "circuitDemo", "parityCard", "rolloutCards"
@@ -6012,7 +6012,7 @@ console.log("== D43. UX upgrade round -- 4 more anchor rails, standardized drill
   // 1. Anchor rails extended to Overview, Risk & Change, Delivery, Data Strategy -- was Cost,
   // Schedule, Operating Framework, AI & Data, Actions only (5). Real ids, independently confirmed
   // to exist in markup (idsA), not just referenced from the rail itself.
-  const OVER_ANCHORS = ["ledgerCard", "familiesCard", "kboard", "velocityPulse"];
+  const OVER_ANCHORS = ["ledgerCard", "familiesCard", "layersGrid", "kboard", "velocityPulse"];
   const RISK_ANCHORS = ["tornado", "risks", "contractTable", "changePipe", "drbEmv"];
   const DEL_ANCHORS = ["pfArc", "cascadeCard", "ncrCard", "cphCard"];
   const DATA_ANCHORS = ["wbsCrosswalk", "cdeFlow", "guardrailGrid", "discrepancyFlow", "circuitDemo", "parityCard", "rolloutCards"];
