@@ -2163,6 +2163,13 @@ join dim_control_account b using (package_id)</pre></div>
         <button type="button" class="btn" data-jump-tab="ai" data-jump-el="aiGuards" style="margin-left:6px">See it live &rarr;</button></p>
       <div class="ledgerGrid" id="guardrailGrid"></div>
       <div class="card" style="margin-top:15px" id="ingestSim"></div>
+      <p class="lede" style="margin-top:10px;font-size:12px;color:rgb(var(--c-mut))">A third real
+        check &mdash; no claim posted after the data date &mdash; runs one layer down, at
+        <code>pipeline/run_pipeline.py</code>, not in this browser demo: it needs a real per-claim
+        date field, which this page's own ledger (aggregated totals only) doesn't carry but the
+        pipeline's <code>stg_progress_claims.claim_month</code> genuinely does. Verified live there
+        (<code>python3 pipeline/run_pipeline.py</code>), same "prove it, don't screenshot it" rule
+        as everything else on this tab.</p>
 
       <div class="sec-h" style="margin-top:30px"><h3>When systems disagree</h3></div>
       <p class="lede">Most reporting tools skip this entirely. The actual process, step by step
@@ -2707,7 +2714,14 @@ var GATE5_CHECKS=[
    quarantine conditions are honestly computable against this static, already-clean ledger — the
    other 4 (schedule-import logic quality, cost-code-mapping enforcement, post-data-date rejection,
    signed-change-order authorization) need a live schedule/ERP feed this demo doesn't have; named in the
-   section's own copy rather than silently built. Same {key,n,run} shape as GATE5_CHECKS above. */
+   section's own copy rather than silently built. Same {key,n,run} shape as GATE5_CHECKS above.
+   2026-08-26 update (brainstorm-mode round, harvested from a pasted external blueprint after
+   fact-checking it): "post-data-date rejection" stopped being purely hypothetical -- it's now a
+   REAL, live-run check, but at pipeline/run_pipeline.py, not here. Reason: this array's own PKGS
+   is aggregated (bac/pv/ev/ac totals only), no per-claim dates to check against -- but the
+   pipeline's stg_progress_claims.claim_month IS a real per-claim date field, so that's the one
+   place in this repo the check can be genuine rather than invented. Still 2 checks here; the 3rd
+   real one lives one layer down, cross-referenced in the Data Strategy tab's own copy below. */
 var INGEST_GUARDS=[
  {key:"noNegAc", n:"No negative actual cost anywhere in the control-account ledger", run:function(){
    var ok=PKGS.every(function(p){ return p.ac>=0; });
@@ -9431,6 +9445,8 @@ var GLOSS=[
   e:function(){ return "The driving path runs through "+G_UT.id+": "+G_UT.cpRem+" days of critical work remain with "+days(G_UT.float)+" of float — CPLI "+idx(G_UT.cpli)+", meaning the plan must run faster than scheduled from tomorrow onward."; }},
  {k:"bei", cat:"sched", jT:"sched", jE:"schedTriad", t:"BEI — Baseline Execution Index", p:"A simple honesty counter: of the activities the plan said would be finished by now, how many actually are? Counts, not dollars — so big expensive tasks cannot hide small missed ones.",
   e:function(){ return T.actsD.toLocaleString("en-US")+" of "+T.actsP.toLocaleString("en-US")+" planned activities are complete — BEI "+idx(T.bei)+". Below 0.95 the misses start piling up faster than they can be worked off."; }},
+ {k:"dcma14", cat:"sched", jT:"sched", jE:"schedTriad", t:"DCMA 14-Point Assessment", p:"The Defense Contract Management Agency's real, widely-used checklist for whether a CPM schedule is even trustworthy enough to forecast from — 14 tests covering logic gaps, artificial constraints, float health, and activity throughput. This dashboard implements 2 of the 14, live: CPLI (test 13, critical path length) and BEI (test 14, baseline execution). The other 12 &mdash; missing logic, leads, lags, relationship types, hard constraints, high float, negative float, high duration, invalid dates, resource loading, missed tasks, and the critical-path continuity test &mdash; need individual activity records (upstream/downstream logic links, lag values, constraint types) that this dashboard's package-level ledger doesn't carry. Named honestly here rather than faked.",
+  e:function(){ return "CPLI reads "+idx(G_UT.cpli)+" and BEI reads "+idx(T.bei)+" &mdash; 2 of the DCMA's 14 checks, both real and live; the other 12 would need this program's actual activity-level schedule file, not just its package-level rollup."; }},
  {k:"changeorder", cat:"risk", jT:"risk", jE:"changePipe", t:"Change order", p:"A formal amendment to the contract — scope, price or time — signed by both sides. The rate of change against the original contract value is one of the best predictors of a troubled program; the cycle time to process each one is the part you can actually control.",
   e:function(){ return PROGRAM.coApprovedCount+" approved changes worth "+m(PROGRAM.coApprovedValue)+" — "+pct(T.coRate,2)+" of the original "+m(PROGRAM.origContract)+" contract — with "+PROGRAM.coPendingCount+" more pending. Processing is running "+(PROGRAM.coCycleDays-PROGRAM.coCycleTarget)+" days past the "+PROGRAM.coCycleTarget+"-day target."; }},
  {k:"rfi", cat:"field", jT:"del", jE:"docctl", t:"RFI — Request for Information", p:"A formal question to the designer when the drawings do not answer something. Work stops or guesses until it is answered — so aging RFIs are tomorrow's claims.",

@@ -3761,7 +3761,7 @@ console.log("== D10. inline term help ==");
 // 57 as of the same round's follow-up: a real "pband" entry, same reasoning as impactscore -- the
 // probability scale had no glossary entry either, and TJ's own follow-up question ("why P4, no
 // parameters given") is exactly what it closes.
-ok(P.gloss.length === 58, "GLOSS grew to 58 entries (57 prior + rag, 2026-08-24)", String(P.gloss.length));
+ok(P.gloss.length === 59, "GLOSS grew to 59 entries (58 prior + dcma14, 2026-08-26)", String(P.gloss.length));
 // title independently re-typed per term (/stress-test finding, 2026-08-21: the prior version only
 // checked g.p/g.e() were non-empty, which passes even for a totally wrong or swapped-in entry) —
 // guards that findGloss(k) actually resolves to the RIGHT term, not just SOME term.
@@ -4749,7 +4749,7 @@ console.log("== D23. Glossary upgrade round, items 1-3 (2026-08-21) ==");
   // Item 3 — every one of the 56 real GLOSS entries carries a real cat, and every cat resolves
   // to a known category. Independently re-derived from the raw array, not read back from the
   // rendered pill counts and trusted against itself. (56 as of 2026-08-24's impactscore addition.)
-  ok(P.gloss.length === 58, "sanity: still 58 real glossary terms");
+  ok(P.gloss.length === 59, "sanity: still 59 real glossary terms");
   const validCats = Object.keys(P.cats);
   P.gloss.forEach(g => ok(validCats.indexOf(g.cat) >= 0, "term '" + g.k + "' carries a real category (" + g.cat + ")", g.cat));
 
@@ -4900,8 +4900,10 @@ console.log("== D25. whole-repo /stress-test round -- pipeline comment + dead CS
   const fs2 = require("fs");
   const pipelineSrc = fs2.readFileSync(DIR + "pipeline/run_pipeline.py", "utf8");
   const realCheckCount = (pipelineSrc.match(/check\("guardrail/g) || []).length;
-  ok(realCheckCount === 14, "sanity: the pipeline really does have 14 real guardrail checks", String(realCheckCount));
-  ok(pipelineSrc.indexOf("All 14 checks below") >= 0, "the pipeline's own comment states the real, current check count, not a stale earlier one");
+  // 2026-08-26: grew 14 -> 15 with the real claim_month temporal-fence guardrail (harvested from a
+  // pasted external blueprint, after fact-checking it -- see pipeline/run_pipeline.py's own comment).
+  ok(realCheckCount === 15, "sanity: the pipeline really does have 15 real guardrail checks", String(realCheckCount));
+  ok(pipelineSrc.indexOf("All 15 checks below") >= 0, "the pipeline's own comment states the real, current check count, not a stale earlier one");
   ok(indexSrc.indexOf(".inf{color:var(--c-pill-i)}") === -1, "the dead .inf CSS rule (zero markup/JS usages, confirmed by a full-file word-boundary sweep) has been removed");
   ok(indexSrc.indexOf("--c-pill-i") >= 0, "the underlying --c-pill-i token itself is still used elsewhere (.pill.i/.ticon.i/RAG.i) -- only the unused .inf shorthand was dead, not the color");
 }
@@ -7236,6 +7238,43 @@ console.log("== D51. Data Strategy-tab upgrade -- CDE auto-play, cross-tab jumps
     "a prior pending revert timer is cleared before a new one is scheduled, so repeated clicks collapse into one correct final revert instead of two racing timers (the other half)");
 
   fire(G["t-over"], "click");
+}
+
+console.log("== D52. Two real items harvested from a pasted 'Enterprise Command Center' blueprint (brainstorm-mode round, 2026-08-26) ==");
+{
+  // TJ pasted a full architecture-rewrite blueprint (Python FastAPI + DuckDB + Polars + Apache
+  // Arrow + Next.js). Fact-checked before building anything: nearly everything it proposed was
+  // already built here under different names (Gate 5 circuit breaker, dual-stack parity, 4-tier
+  // urgency, plain-English Executive Hub, glass-box formula drawers), and its specific numbers
+  // repeated fabrications this session had ALREADY caught twice before -- the exact stale "54
+  // checks" figure a prior round in this file already corrected once, and the exact same wrong
+  // ABS code ("ABS-SYS-04" for CP-201, real: ABS-TUN-PLN-201) a prior Data Strategy round already
+  // rejected. Recommended against the rewrite; harvested the 2 genuinely real, portable gaps.
+  ["54 checks", "ABS-SYS-04", "October 8, 2027", "committed_cost: 210000000"].forEach(bad =>
+    ok(!indexSrc.includes(bad), 'fabricated blueprint content never made it into index.html: "' + bad + '"'));
+
+  // Item 1 -- the real temporal-fence guardrail, at the pipeline layer where a genuine per-claim
+  // date field exists (this dashboard's own PKGS[] is aggregated, no per-claim dates -- verified
+  // false to add a client-side check with nothing real to validate against).
+  const pipelineSrc = fs.readFileSync(DIR + "pipeline/run_pipeline.py", "utf8");
+  ok(pipelineSrc.includes('check("guardrail: claim_month <= data date everywhere (no future-dated claims)"'),
+    "the real temporal-fence guardrail exists in the pipeline, checking the genuine per-claim claim_month field");
+  const schemaSrc = fs.readFileSync(DIR + "pipeline/models/schema.yml", "utf8");
+  ok(schemaSrc.includes("claim_month") && schemaSrc.includes('max_value: "2026-07-31"'),
+    "schema.yml declares the matching dbt-style test -- keeps the file's own '1:1 with schema.yml' claim honest, not silently unmapped");
+  ok(indexSrc.includes("pipeline/run_pipeline.py") && indexSrc.includes("stg_progress_claims.claim_month"),
+    "the Data Strategy tab honestly cross-references the real pipeline-layer check rather than faking an equivalent client-side one");
+
+  // Item 2 -- honest DCMA 14-point framing, added to the real glossary (not a new parallel system).
+  const dcma = P.gloss.find(g => g.k === "dcma14");
+  ok(!!dcma, "a real dcma14 glossary entry exists");
+  ok(dcma.p.includes("2 of the 14") || dcma.p.includes("2 of the 14, live"), "the entry states the real, honest count: 2 of 14 implemented, not a fabricated full 14");
+  ok(dcma.p.includes("doesn't carry"), "the entry honestly names the real data-model gap (no activity-level records) rather than silently implying full coverage");
+  const cp601Real = P.rows.find(r => r.id === "CP-601");
+  const dcmaExample = dcma.e();
+  ok(dcmaExample.includes(idx(cp601Real.cpli)), "the live example cites the REAL, independently-recomputed driving-path CPLI (CP-601), not a hand-typed number");
+  ok(dcmaExample.includes(idx(T.bei)), "the live example cites the REAL, independently-recomputed program BEI, not a hand-typed number");
+  ok(dcma.jT === "sched" && dcma.jE === "schedTriad", "the entry cross-links to the real, existing schedule triad rather than a new, invented anchor");
 }
 
 /* =========================================================================

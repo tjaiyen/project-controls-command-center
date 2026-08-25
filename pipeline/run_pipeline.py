@@ -98,9 +98,11 @@ for p in PKGS:
 # only 4 of schema.yml's declared tests were actually implemented (and one of those 4 had a
 # mislabeled check() string, "ev <= pv" printed for what was actually an ev<=bac test — fixed
 # below too), silently understating what README/HANDOFF's "enforces the guardrails in
-# models/schema.yml" claim promised. All 14 checks below map 1:1 to a schema.yml test declaration.
+# models/schema.yml" claim promised. All 15 checks below map 1:1 to a schema.yml test declaration.
 # (/stress-test finding, 2026-08-22: this comment itself still said "10" after later rounds grew
-# the real count to 14 — the exact class of drift this comment already exists to warn against.)
+# the real count to 14 — the exact class of drift this comment already exists to warn against.
+# 2026-08-26: grew to 15 with the claim_month temporal-fence check below -- update this count
+# again the next time a check is added, or this becomes the same stale-number bug it warns about.)
 con.execute("create table fct_control_account as " + MODEL.read_text())
 
 # fct_control_account model-level invariants (schema.yml's 3 dbt_utils.expression_is_true tests)
@@ -132,6 +134,14 @@ orphan      = con.execute("""select count(*) from stg_progress_claims s
 pv_neg      = con.execute("select count(*) from stg_progress_claims where pv_delta < 0").fetchone()[0]
 ev_neg      = con.execute("select count(*) from stg_progress_claims where ev_delta < 0").fetchone()[0]
 ac_neg      = con.execute("select count(*) from stg_progress_claims where ac_delta < 0").fetchone()[0]
+# Temporal fence (brainstorm-mode round, 2026-08-26, harvested from a pasted external blueprint
+# after fact-checking it) -- the model's own WHERE clause already EXCLUDES a future-dated claim
+# from the ledger silently; this is the separate, explicit guardrail that treats one existing at
+# all as a reportable violation, same as every other check in this section. claim_month is the
+# real per-claim date field this dashboard's client-side PKGS[] array doesn't carry (aggregated,
+# no per-claim dates) -- this is the one place in the whole repo that field genuinely exists, so
+# this is the one place the check can be real rather than invented.
+future_dated = con.execute(f"select count(*) from stg_progress_claims where claim_month > DATE '{DATA_DATE}'").fetchone()[0]
 check("guardrail: claim_id unique", claim_dup == 0, f"{claim_dup} duplicates")
 check("guardrail: claim_id not null", claim_null == 0, f"{claim_null} nulls")
 check("guardrail: package_id not null (stg_progress_claims)", claimpkg_null == 0, f"{claimpkg_null} nulls")
@@ -139,6 +149,7 @@ check("guardrail: package_id relationships to dim_control_account", orphan == 0,
 check("guardrail: pv_delta >= 0 everywhere", pv_neg == 0, f"{pv_neg} negative rows")
 check("guardrail: ev_delta >= 0 everywhere", ev_neg == 0, f"{ev_neg} negative rows")
 check("guardrail: ac_delta >= 0 everywhere", ac_neg == 0, f"{ac_neg} negative rows")
+check("guardrail: claim_month <= data date everywhere (no future-dated claims)", future_dated == 0, f"{future_dated} claims after {DATA_DATE}")
 
 # --- 6. Emit the proof artifact --------------------------------------------
 out = {
