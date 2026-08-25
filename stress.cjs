@@ -516,7 +516,10 @@ has("eacTable", "$1,297.3M", "EAC table: BAC/CPI $1,297.3M");
 // chart. Confirmed live: at 1400px both cards now measure the SAME full width and stack, not
 // split into halves — this static check locks in the markup change (12 other grid g2 pairs
 // elsewhere on the page are deliberately untouched, only this one pair's wrapper changed).
-ok(/How the baseline was built[\s\S]{0,600}<div class="grid">\s*<div class="card">\s*<h3>Estimate at completion/.test(indexSrc),
+// {0,900} widened from {0,600} (brainstorm-mode round, 2026-08-24) -- the lede paragraph between
+// these two anchors grew when the baseline bridge's own y-axis-zoom disclosure was added; the
+// window is just budget for "no grid.g2 wrapper in between," not a meaningful constant on its own.
+ok(/How the baseline was built[\s\S]{0,900}<div class="grid">\s*<div class="card">\s*<h3>Estimate at completion/.test(indexSrc),
   "the EAC-methods / contingency-vs-progress pair no longer uses the 2-column grid.g2 wrapper");
 has("drill", "CP-201", "default drill-down is CP-201");
 has("drill", (shareCP201 * 100).toFixed(1) + "%", "drill: CP-201 share of gross overrun " + (shareCP201 * 100).toFixed(1) + "%");
@@ -4822,6 +4825,35 @@ console.log("== D26. estimate-to-budget bridge upgrade -- animated waterfall, st
     "the bridge's own final step reconciles exactly to the live T.bac, not a separately hand-typed number",
     steps[steps.length - 1].v + " vs " + P.totals.bac);
   ok(steps[0].v === 1318.0, "the bridge starts at the real Engineer's estimate, $1,318.0M", String(steps[0].v));
+
+  // Zoomed y-axis (brainstorm-mode round, 2026-08-24 -- TJ's follow-up after the variance bridge's
+  // own fix: this bridge has the identical tiny-middle-bars shape). Independently re-derive the
+  // expected zoom window from the real steps, same discipline as the waterfall's own test above.
+  {
+    const allV = steps.reduce((a, s) => a.concat(s.type === "total" ? [s.y1] : [s.y0, s.y1]), []);
+    const dataMin = Math.min(...allV), dataMax = Math.max(...allV);
+    const pad = (dataMax - dataMin) * 0.18;
+    const zoomMin = dataMin - pad, zoomMax = dataMax + pad;
+    const zoomStr = m(zoomMin) + "–" + m(zoomMax);
+    has("baseBridge", zoomStr, "bridge chart caption states the independently re-derived zoom window, not a fabricated range");
+    ok((R.registry.baseBridge._html.match(/<line x1="[\d.]+" y1="[\d.]+" x2="[\d.]+" y2="[\d.]+"\/>/g) || []).length >= 2,
+      "break-glyph line elements render in the SVG markup, disclosing the axis doesn't start at zero");
+    // Quantify the actual fix: VE's own bar (the smallest-magnitude "cut" step, $46M) is now tall
+    // enough to be legible. H-PT-PB below are the same literal constants (H=280, PT=22, PB=54)
+    // renderBaseline() itself declares.
+    const plotH = 280 - 22 - 54;
+    const veStep = steps.find(s => /Value engineering/.test(s.l));
+    const expectHeight = Math.abs(veStep.v) / (zoomMax - zoomMin) * plotH;
+    const rectTag = (R.registry.baseBridge._html.match(/<rect[^>]*data-step="1"[^>]*>/) || [])[0];
+    ok(!!rectTag, "VE's own bar rect (step index 1) is findable in the rendered SVG");
+    if (rectTag) {
+      const renderedHeight = +((rectTag.match(/height="([\d.]+)"/) || [])[1] || 0);
+      ok(Math.abs(renderedHeight - expectHeight) < 1,
+        "VE's bar renders at the real zoomed-axis height, matching independent recomputation",
+        renderedHeight + " vs expected " + expectHeight.toFixed(1));
+      ok(renderedHeight > 30, "VE's bar is now clearly legible on the zoomed axis (>30px tall)", String(renderedHeight));
+    }
+  }
 
   const bbHtml = R.registry.baseBridge._html;
   ok(bbHtml.includes("baseBridgeChart"), "#baseBridge renders the SVG chart mount");
