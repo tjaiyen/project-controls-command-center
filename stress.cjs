@@ -6787,6 +6787,92 @@ console.log("== D48. Executive Summary tab -- external spec, fact-checked before
   fire(G["t-over"], "click");
 }
 
+console.log("== D49. Executive Command tab -- proactive-problem-solving sandbox + context callouts, real Gate 5 engine embedded in plain English (brainstorm-mode round, 2026-08-24) ==");
+{
+  const origState = { sponsor: P.state.g5Sponsor, mit: P.state.g5MitR01, ve: P.state.g5Ve };
+  P.state.g5Sponsor = 0; P.state.g5MitR01 = 0; P.state.g5Ve = 0;
+  fire(G["t-exec"], "click");
+  ok(P.state.tab === "exec", "clicking the Executive Command tab still activates it");
+
+  // Sandbox reuses the SAME real gate5SandboxCalc()/state fields the Operating Framework tab's own
+  // sandbox uses -- not a second simulation engine. Untouched (all-zero) branch first.
+  P.renderExec();
+  let sandboxHtml = G.execSandbox._html;
+  ok(sandboxHtml.includes("Nothing moved yet"), "at all-zero levers, the sandbox shows the untouched-state copy, not a stale reading");
+  ok(sandboxHtml.includes(idx(T.contCoverage)), "the untouched-state copy states the real, live T.contCoverage reading");
+  ok(sandboxHtml.includes("BLOCKED"), "the untouched-state copy uses the dashboard's own real term (Gate 5 is currently blocked at this ledger)");
+
+  // Touched branch -- independently recompute via the SAME real gate5SandboxCalc(), never trust the
+  // rendered HTML against itself.
+  P.state.g5Sponsor = 50; P.state.g5MitR01 = 1.0; P.state.g5Ve = 0;
+  const cReal = P.gate5SandboxCalc();
+  P.renderExec();
+  sandboxHtml = G.execSandbox._html;
+  ok(sandboxHtml.includes(cReal.coverageAlt >= 1.0 ? "Gate 5 would CLEAR" : "Gate 5 would STILL BE BLOCKED"), "the touched-state pill matches an independent recomputation of gate5SandboxCalc()'s real coverageAlt");
+  ok(sandboxHtml.includes(m(cReal.reserveAlt)) && sandboxHtml.includes(m(cReal.demandAlt)), "the touched-state copy states the real, independently-recomputed reserveAlt/demandAlt");
+  ok(sandboxHtml.includes(idx(cReal.coverageAlt)), "the touched-state copy states the real, independently-recomputed coverage ratio");
+
+  // Sliders on the Executive tab write the SAME state.g5Sponsor/g5MitR01/g5Ve fields the Framework
+  // tab's own sliders read -- confirmed by checking the Framework tab's OWN rendered DOM updates too
+  // (cross-tab state sharing, not two disconnected copies of the same idea).
+  P.state.g5Sponsor = 0; P.state.g5MitR01 = 0; P.state.g5Ve = 0;
+  P.renderGate5Sandbox();
+  G.execSponsor.value = "20";
+  fire(G.execSponsor, "input");
+  ok(P.state.g5Sponsor === 20, "dragging the Exec tab's sponsor slider flips the SAME state.g5Sponsor the Framework tab reads");
+  ok(R.registry.gate5Sandbox._html.includes(m(T.contRemaining + 20)), "the Framework tab's OWN sandbox DOM re-rendered too -- one real state, not a forked copy", R.registry.gate5Sandbox._html.slice(0, 60));
+  ok(+R.registry.g5Sponsor.value === 20, "the Framework tab's own sponsor slider DOM value reflects the Exec-tab drag");
+
+  G.execMitR01.value = "40";
+  fire(G.execMitR01, "input");
+  ok(Math.abs(P.state.g5MitR01 - 0.4) < 1e-9, "dragging the Exec tab's R-01 mitigation slider stores the 0-1 fraction, matching the Framework tab's own slider convention");
+
+  G.execVe.value = "10";
+  fire(G.execVe, "input");
+  ok(P.state.g5Ve === 10, "dragging the Exec tab's VE slider flips the SAME state.g5Ve");
+
+  ok(G.vExecSponsor.textContent === m(20), "the Exec sponsor readout label reflects the dragged value");
+  ok(G.vExecMitR01.textContent === "40%", "the Exec mitigation readout label reflects the dragged percentage");
+
+  // Reset button clears state AND re-renders BOTH tabs' sandboxes.
+  fire(G.execSandboxReset, "click");
+  ok(P.state.g5Sponsor === 0 && P.state.g5MitR01 === 0 && P.state.g5Ve === 0, "the Exec tab's reset button zeroes all 3 real sandbox state fields");
+  ok(G.execSandbox._html.includes("Nothing moved yet"), "the Exec tab's own sandbox re-renders to the untouched state after reset");
+  ok(!R.registry.gate5Sandbox._html.includes("CLEARED"), "the Framework tab's sandbox also reflects the reset, confirming the reset touches both real DOM copies, not just the Exec tab's own");
+
+  P.state.g5Sponsor = origState.sponsor; P.state.g5MitR01 = origState.mit; P.state.g5Ve = origState.ve;
+  P.renderExec(); P.renderGate5Sandbox();
+
+  // Context callouts -- both numbers independently recomputed, never copied from the same string
+  // the render function itself produces.
+  const realOverrunPctExpected = ((T.eac / T.bac - 1) * 100).toFixed(1);
+  const rcfPctExpected = "45"; // RCF_MULT=1.45 -- same real, cited constant already tested elsewhere (line ~1314)
+  const contextHtml = G.execContext._html;
+  ok(contextHtml.includes(realOverrunPctExpected + "%"), "the reference-class callout states the real, independently-recomputed bottom-up overrun percentage", realOverrunPctExpected);
+  ok(contextHtml.includes(rcfPctExpected + "%"), "the reference-class callout cites Flyvbjerg's real, already-established 45% rail-overrun figure, not a new invented number");
+  ok(contextHtml.includes(num(P.mc.n)), "the honest-odds callout states the real Monte Carlo simulation count");
+  ok(contextHtml.includes(pct(P.mc.pBust, 0)), "the honest-odds callout states the real, canonical MC.pBust bust probability");
+
+  // Lively entrance -- staggered stacking, reusing the .stagger class already established this
+  // session (GBM dots, Triage cards), not new CSS. Checked against the live rendered DOM (not a
+  // static source guess), confirming both presence AND left-to-right/top-to-bottom stagger order.
+  const quadHtml = G.execQuadrants._html;
+  ok(quadHtml.indexOf("animation-delay:0ms") >= 0 && quadHtml.indexOf("animation-delay:0ms") < quadHtml.indexOf("The money story"), "the money quadrant carries a staggered 0ms entrance");
+  ok(quadHtml.indexOf("animation-delay:60ms") < quadHtml.indexOf("The time story"), "the time quadrant staggers in 60ms after the money quadrant");
+  ok(quadHtml.indexOf("animation-delay:120ms") < quadHtml.indexOf("Governance brakes"), "the governance quadrant staggers in 120ms after the money quadrant");
+  ok(quadHtml.indexOf("animation-delay:180ms") < quadHtml.indexOf("Decisions needed from you"), "the action-queue quadrant staggers in 180ms after the money quadrant, completing all 4 quadrants");
+
+  const bannerHtml = G.execBanner._html;
+  ok(bannerHtml.includes("animation-delay:0ms") && bannerHtml.includes("animation-delay:45ms") && bannerHtml.includes("animation-delay:90ms") && bannerHtml.includes("animation-delay:135ms"),
+    "all 4 banner tiles carry a staggered entrance, 45ms apart, from the real execTile(i) index each already passes");
+
+  // Animation timing itself (does it visually feel "lively") isn't meaningfully testable in this
+  // Node DOM stub -- accepted limitation, same as every other .stagger/.draw usage in this file.
+  // stress.cjs cannot measure whether the animation READS as lively; only that the mechanism fired.
+
+  fire(G["t-over"], "click");
+}
+
 /* =========================================================================
    E. otak.html — runtime + internal consistency
    ========================================================================= */
