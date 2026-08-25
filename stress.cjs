@@ -1392,6 +1392,23 @@ try {
   has("pertPlayChart", 'data-handle="m"', "chart renders the mode handle");
   has("pertPlayChart", 'data-handle="b"', "chart renders the maximum-bound handle");
 
+  // /stress-test finding (2026-08-24, TJ's live screenshot): the pin value labels (handleY+21) sat
+  // at y=191 on a 190px-tall SVG -- 1px past the viewBox's own height, so the SVG's default
+  // overflow:hidden clipped the bottom off every "0.XXX" label, exactly matching the cut-off
+  // numerals TJ screenshotted. Independently re-derived from the ACTUAL rendered SVG (its own
+  // viewBox height + every real <text> element's own y-coordinate), not the source constants, so
+  // this catches a future geometry change reintroducing the same overflow, not just today's fix.
+  {
+    const chartHtml = G.pertPlayChart._html;
+    const viewBoxMatch = chartHtml.match(/viewBox="0 0 [\d.]+ ([\d.]+)"/);
+    const svgHeight = viewBoxMatch && +viewBoxMatch[1];
+    const textYs = [...chartHtml.matchAll(/<text[^>]*\by="([\d.]+)"/g)].map((m) => +m[1]);
+    ok(!!svgHeight && textYs.length > 0, "pre-registered: the chart's own viewBox height and its text elements' y-coordinates are both extractable");
+    const maxTextY = Math.max(...textYs);
+    ok(maxTextY < svgHeight, "no text element's own y-coordinate exceeds the SVG's own viewBox height -- REGRESSION GUARD for the confirmed pin-label clipping bug", maxTextY + " vs viewBox height " + svgHeight);
+    ok(svgHeight - maxTextY >= 5, "the lowest text element keeps at least 5px of real clearance from the SVG's bottom edge, not just barely inside", (svgHeight - maxTextY).toFixed(1) + "px");
+  }
+
   // PERT mean formula, independently recomputed against the live default bounds
   const mu0 = (bounds0.a + 4 * bounds0.m + bounds0.b) / 6;
   ok(G.pertPlayRead._html.includes(idx(mu0)), "rendered PERT mean matches independent (a+4m+b)/6 recomputation", idx(mu0));

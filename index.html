@@ -4818,7 +4818,12 @@ function renderPertPlay(){
   var contribs=samples.map(function(s){return s.contrib;}).sort(function(a,b){return a-b;});
   document.getElementById("pertPlayName").textContent=r.n.replace(/&amp;/g,"&")+" ("+r.id+") — future efficiency";
 
-  var W=760,H=190,PL=44,PR=20,PT=14,PB=40;
+  // PB widened 40->48 (TJ's direct finding, live screenshot, 2026-08-24): each pin's value label
+  // (handleY+21) sat at y=191 on a 190px-tall SVG -- 1px past the viewBox's own bottom edge, so the
+  // SVG's default overflow:hidden clipped the last couple pixels off every "0.XXX" label, exactly
+  // matching the cut-off numerals in the screenshot. +8px of bottom padding puts the label's own
+  // baseline at H-7 (7px of real clearance), not just visually "looks like enough room."
+  var W=760,H=190,PL=44,PR=20,PT=14,PB=48;
   var lo=dom.lo,hi=dom.hi;
   var X=function(v){ return PL+((v-lo)/(hi-lo))*(W-PL-PR); };
   var bins=36, bw=(hi-lo)/bins, counts=[],i;
