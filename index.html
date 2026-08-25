@@ -6196,28 +6196,130 @@ function renderAskAiGate(){
   var b=document.getElementById("askAiEnableBtn");
   if(b) b.addEventListener("click",function(){ state.askAiEnabled=true; renderAskAiGate(); renderAskAiPanel(); });
 }
+
+/* UX upgrade round (2026-08-25, TJ's direct ask: "more interactive, engaging, lively,
+   educational, predictable, goal oriented, solution oriented, intuitive"). Every piece below
+   reuses a mechanism this dashboard already has, rather than inventing a new one:
+     - starter/follow-up chips populate the input (don't auto-answer) -- same "see it before you
+       commit" idiom as every other what-if control on this page, applied to a feature that costs
+       real money per question.
+     - cross-link chips reuse the SAME data-jump-tab/data-jump-el(+openkpi/+riskdrill) attributes
+       the rest of the page's "See it live" buttons already use -- picked up by the EXISTING
+       global window click handler, zero new navigation code.
+     - "show your work" and the verified-claim count render the Worker's own real toolCalls/
+       totalClaims fields verbatim -- never a second summary that could drift from what the
+       mechanical fact-check itself used.
+     - the entrance animation and thinking-dots reuse .stagger/livePulse, the same classes/
+       keyframes already used elsewhere this session -- no new CSS. */
+var ASK_AI_STARTERS=[
+  {group:"Is this on track?", qs:["Are we going to open on time?","Are we really on budget?","What are the honest odds we bust the budget and contingency?"]},
+  {group:"What needs my decision?", qs:["What's blocking Gate 5 right now?","What's the single most urgent action item?"]},
+  {group:"How risky is this?", qs:["What's the program's biggest risk, and who owns it?","How much of the overrun traces back to one package?"]}
+];
+// Maps a real tool call to the SAME real cross-tab jump this page already offers elsewhere for
+// that exact fact (Gate 5's card, the MC chart, a KPI's own drawer, a risk's own drill-down, an
+// action's own record) -- never a parallel/invented destination.
+function askAiJumpFor(tc){
+  var name=tc.name, id=tc.args&&tc.args.id;
+  if(name==="get_gate5_status") return {tab:"fw",el:"gate5Card",label:"See Gate 5 live"};
+  if(name==="get_mc_stats") return {tab:"cost",el:"mcChart",label:"See the simulation"};
+  if(name==="get_opening_date") return {tab:"sched",el:"miles",label:"See the milestones"};
+  if(name==="get_kpi"&&id) return {tab:"over",el:"kboard",openkpi:id,label:"See "+id.toUpperCase()+" live"};
+  if(name==="get_risk"&&id) return {tab:"risk",el:"riskDrill",riskdrill:id,label:"See "+id+" live"};
+  if(name==="get_action"&&id) return {action:id,label:"Open "+id};
+  return null;
+}
+function askAiJumpChipHtml(tc){
+  var j=askAiJumpFor(tc); if(!j) return "";
+  if(j.action) return '<button type="button" class="btn" data-ask-action="'+escHtml(j.action)+'" style="min-height:auto;padding:2px 9px;font-size:11.5px">'+escHtml(j.label)+' &rarr;</button>';
+  return '<button type="button" class="btn" data-jump-tab="'+j.tab+'" data-jump-el="'+j.el+'"'+
+    (j.openkpi?' data-jump-openkpi="'+escHtml(j.openkpi)+'"':'')+(j.riskdrill?' data-jump-riskdrill="'+escHtml(j.riskdrill)+'"':'')+
+    ' style="min-height:auto;padding:2px 9px;font-size:11.5px">'+escHtml(j.label)+' &rarr;</button>';
+}
+// One suggested next question per tool actually cited -- a real, small nudge toward the next
+// useful thing to ask, not a generic "anything else?" prompt.
+var ASK_AI_FOLLOWUPS={
+  get_gate5_status:"What would it take to clear Gate 5?", get_totals:"What's driving the overrun?",
+  get_risk:"What's being done about that risk?", get_mc_stats:"How does that compare to similar programs?",
+  get_opening_date:"Why is the opening date moving?"
+};
+function askAiFollowupFor(toolCalls){
+  for(var i=0;i<toolCalls.length;i++){ var q=ASK_AI_FOLLOWUPS[toolCalls[i].name]; if(q) return q; }
+  return null;
+}
+function askAiFormatResult(result){
+  if(result==null) return "";
+  if(typeof result!=="object") return escHtml(String(result));
+  return Object.keys(result).map(function(k){
+    var v=result[k];
+    if(Array.isArray(v)) v="["+v.length+" item(s)]";
+    else if(v&&typeof v==="object") v=JSON.stringify(v);
+    return escHtml(k)+": "+escHtml(String(v));
+  }).join(", ");
+}
+function askAiWorkHtml(toolCalls){
+  if(!toolCalls||!toolCalls.length) return "";
+  return '<details class="dbox" style="margin-top:8px"><summary style="font-size:11px">Show your work ('+
+    toolCalls.length+" tool call"+(toolCalls.length===1?"":"s")+')</summary>'+
+    '<ul class="t" style="margin-top:6px;font-size:11px">'+toolCalls.map(function(tc){
+      var args=tc.args&&Object.keys(tc.args).length?JSON.stringify(tc.args):"";
+      return '<li><code>'+escHtml(tc.name)+(args?"("+escHtml(args)+")":"()")+'</code> &rarr; '+askAiFormatResult(tc.result)+'</li>';
+    }).join("")+'</ul></details>';
+}
+function askAiVerifiedReadout(h){
+  if(!h.totalClaims) return '<span class="pill i" style="margin-top:6px;font-size:10.5px">no specific figures stated</span>';
+  var verifiedN=h.totalClaims-h.unverifiedCount;
+  return '<span class="pill '+(h.unverifiedCount?"a":"g")+'" style="margin-top:6px;font-size:10.5px">'+
+    verifiedN+" of "+h.totalClaims+" claim"+(h.totalClaims===1?"":"s")+" verified against live data"+
+    (h.unverifiedCount?" — "+h.unverifiedCount+" removed":"")+'</span>';
+}
+function askAiStartersHtml(){
+  return ASK_AI_STARTERS.map(function(g){
+    return '<div style="margin-top:8px"><div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.03em;color:rgb(var(--c-mut));margin-bottom:4px">'+
+      escHtml(g.group)+'</div><div style="display:flex;gap:6px;flex-wrap:wrap">'+g.qs.map(function(q){
+        return '<button type="button" class="btn" data-ask-fill="'+escHtml(q)+'" style="min-height:auto;padding:4px 10px;font-size:12px" '+(state.askAiBusy?"disabled":"")+'>'+escHtml(q)+'</button>';
+      }).join("")+'</div></div>';
+  }).join("");
+}
+// Rotates the input's placeholder through real example questions while it's empty -- wired ONCE
+// at page init (below), not re-created per render, so no leaked timers accumulate across renders.
+var ASK_AI_PLACEHOLDERS=["Are we going to open on time?","What's blocking Gate 5?","What's our biggest risk right now?","How much of the overrun is one package?"];
+var askAiPlaceholderIdx=0;
+function wireAskAiPlaceholderRotation(){
+  setInterval(function(){
+    askAiPlaceholderIdx=(askAiPlaceholderIdx+1)%ASK_AI_PLACEHOLDERS.length;
+    var input=document.getElementById("askAiInput");
+    if(input&&!input.value) input.placeholder='Try: "'+ASK_AI_PLACEHOLDERS[askAiPlaceholderIdx]+'"';
+  },4000);
+}
 function renderAskAiPanel(){
   document.getElementById("askAiPanel").hidden = !state.askAiEnabled;
   if(!state.askAiEnabled) return;
-  var historyHtml = state.askAiHistory.map(function(h){
-    return '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--c-line)">'+
+  var historyHtml = state.askAiHistory.map(function(h,i){
+    var jumpChips = !h.error && h.toolCalls ? h.toolCalls.map(askAiJumpChipHtml).filter(Boolean).join(" ") : "";
+    var followup = !h.error && h.toolCalls ? askAiFollowupFor(h.toolCalls) : null;
+    return '<div '+(i===0?'class="stagger" ':'')+'style="'+(i===0?"animation-delay:0ms;":"")+'margin-top:12px;padding-top:12px;border-top:1px solid var(--c-line)">'+
       '<p style="font-size:12.5px;margin:0"><b>Q:</b> '+escHtml(h.q)+'</p>'+
       (h.error
         ? '<p style="font-size:12.5px;margin:6px 0 0;color:rgb(var(--c-bad))">'+escHtml(h.error)+'</p>'
         : '<p style="font-size:.95rem;margin:6px 0 0">'+escHtml(h.answer)+'</p>'+
-          (h.citedFields && h.citedFields.length ? '<p style="font-size:11px;margin:6px 0 0;color:rgb(var(--c-mut))">Grounded in: '+
-            h.citedFields.map(function(c){ return escHtml(c); }).join(", ")+'</p>' : "")+
-          '<span class="pill '+(h.unverifiedCount ? "a" : "g")+'" style="margin-top:6px;font-size:10.5px">'+
-            (h.unverifiedCount ? h.unverifiedCount+" unverified claim(s) removed" : "fully grounded")+'</span>')+
+          askAiVerifiedReadout(h)+
+          (jumpChips?'<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">'+jumpChips+'</div>':"")+
+          askAiWorkHtml(h.toolCalls)+
+          (followup?'<button type="button" class="btn" data-ask-fill="'+escHtml(followup)+'" style="margin-top:8px;min-height:auto;padding:3px 10px;font-size:11.5px">Ask: '+escHtml(followup)+' &rarr;</button>':""))+
       '</div>';
   }).join("");
   document.getElementById("askAiPanel").innerHTML =
     (askAiConfigured() ? "" :
       '<p style="font-size:12.5px;color:rgb(var(--c-warn))">Not yet configured &mdash; see docs/ASK_AI_SETUP.md to deploy the Worker, then set ASK_AI_WORKER_URL.</p>')+
-    '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
+    askAiStartersHtml()+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">'+
       '<input class="gsearch" id="askAiInput" type="text" style="flex:1;min-width:220px" placeholder="Ask anything about this program&hellip;" aria-label="Ask a free-text question about this program" '+(state.askAiBusy?"disabled":"")+'>'+
       '<button type="button" class="btn" id="askAiSubmit" style="min-height:auto;padding:5px 12px;font-size:12.5px" '+(state.askAiBusy?"disabled":"")+'>'+(state.askAiBusy?"Asking…":"Ask")+'</button>'+
     '</div>'+
+    (state.askAiBusy ? '<p style="margin-top:8px;font-size:12px;color:rgb(var(--c-mut))">Reading the live ledger'+
+      [0,.2,.4].map(function(d){ return '<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:currentColor;margin-left:4px;animation:livePulse 1.4s ease-in-out '+d+'s infinite"></span>'; }).join("")+
+      '</p>' : "")+
     '<p style="font-size:11px;margin-top:6px;color:rgb(var(--c-mut))">Questions asked this session: '+state.askAiCount+'</p>'+
     historyHtml;
   var submitBtn=document.getElementById("askAiSubmit");
@@ -6245,7 +6347,8 @@ function submitAskAi(){
         state.askAiHistory.unshift({q:q,error:res.body && res.body.error ? res.body.error : "The Ask AI service returned an error."});
       } else {
         state.askAiHistory.unshift({q:q,answer:res.body.answer,
-          citedFields:Array.isArray(res.body.citedFields)?res.body.citedFields:[],
+          toolCalls:Array.isArray(res.body.toolCalls)?res.body.toolCalls:[],
+          totalClaims:typeof res.body.totalClaims==="number"?res.body.totalClaims:0,
           unverifiedCount:res.body.unverifiedCount||0});
       }
     })
@@ -9814,6 +9917,7 @@ function renderShortcutsOverlay(){
       'The same keys drive Presentation Mode’s beats and the Guided Tour’s stops while either is active.</dd>'+
     '<dt>N&nbsp;&nbsp;P</dt><dd>Next / previous beat, while Presentation Mode is active.</dd>'+
     '<dt>/</dt><dd>Jump straight to the Glossary tab and focus its search box.</dd>'+
+    '<dt>A</dt><dd>Jump to Ask AI (Executive Command tab) and focus the question box.</dd>'+
     '<dt>T</dt><dd>Toggle dark/light theme &mdash; the same real toggle as the Theme button.</dd>'+
     '<dt>Esc</dt><dd>Close whatever’s open &mdash; a popover, this panel, Presentation Mode, or the Tour.</dd>'+
     '<dt>?</dt><dd>Toggle this panel.</dd>'+
@@ -10216,6 +10320,16 @@ window.addEventListener("keydown",function(e){
   // handler rather than duplicating its dark/light logic, so the keyboard path and the mouse path
   // can never drift out of sync with each other.
   if(e.key==="t"||e.key==="T"){ document.getElementById("themeBtn").click(); return; }
+  // "a" jumps to Ask AI and focuses the question box (UX upgrade round, 2026-08-25) -- a
+  // deliberate keypress is the same tier of explicit intent as clicking "Enable Ask AI" (still
+  // never fires a network call on its own), so it's fine for this one shortcut to also flip the
+  // opt-in rather than just land on a still-gated panel.
+  if(e.key==="a"||e.key==="A"){
+    document.getElementById("t-exec").click();
+    if(!state.askAiEnabled){ state.askAiEnabled=true; renderAskAiGate(); renderAskAiPanel(); }
+    var askInput=document.getElementById("askAiInput"); if(askInput) askInput.focus();
+    return;
+  }
   if(e.key==="Escape"&&shortcutsOpen()){ closeShortcuts(); return; }
   // Escape also dismisses a standing return breadcrumb (nav round 2, item 3, 2026-08-21) — same
   // "Escape closes whatever's open" convention as every other dismissible surface on this page.
@@ -10733,6 +10847,19 @@ document.getElementById("execFaqButtons").addEventListener("click",function(e){
   document.getElementById("execFaqAnswer").innerHTML='<b style="color:rgb(var(--c-ink))">'+f.q+'</b> '+f.a();
 });
 document.getElementById("execPrintBtn").addEventListener("click",function(){ renderPrint(); window.print(); });
+// Ask AI panel delegation (UX upgrade round, 2026-08-25) -- wired ONCE here, not re-attached per
+// render, same convention as every other feature-area container listener above. data-ask-fill
+// (starter/follow-up chips) populates the input without submitting -- "see it before you commit"
+// on a feature that costs real money per question. data-ask-action reuses the real jumpToAction()
+// already used everywhere else; the tab/KPI/risk cross-link chips deliberately do NOT need an
+// entry here -- they carry the page's own generic data-jump-tab attributes and are already picked
+// up by the existing global window click handler below, not a second copy of that logic.
+document.getElementById("askAiPanel").addEventListener("click",function(e){
+  var fill=e.target.closest("[data-ask-fill]");
+  if(fill){ var input=document.getElementById("askAiInput"); if(input){ input.value=fill.dataset.askFill; input.focus(); } return; }
+  var act=e.target.closest("[data-ask-action]");
+  if(act){ jumpToAction(act.dataset.askAction); return; }
+});
 /* Tri-point curve playground drag + keyboard (brainstorm-mode round, 2026-08-21). Pointer Events
    (not separate mouse/touch listeners) so one code path drives both mouse drag and touchscreen
    drag — setPointerCapture ties every subsequent move/up to the handle that started the drag,
@@ -11033,6 +11160,7 @@ document.getElementById("sSpi").value=T.spi;
 document.getElementById("sCont").value=PROGRAM.contingency;
 renderWhatIf(true);
 wireDetailsAnimation();
+wireAskAiPlaceholderRotation();
 wireAccountHighlight();
 renderScurveScrub(); // after renderGantt() above, so the Gantt reference marker is correct on first paint too
 
@@ -11049,6 +11177,8 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   submitAskAi:submitAskAi,escHtml:escHtml,askAiConfigured:askAiConfigured,
   getAskAiWorkerUrl:function(){ return ASK_AI_WORKER_URL; },
   setAskAiWorkerUrl:function(v){ ASK_AI_WORKER_URL=v; },
+  askAiStarters:ASK_AI_STARTERS,askAiJumpFor:askAiJumpFor,askAiFollowups:ASK_AI_FOLLOWUPS,
+  askAiFollowupFor:askAiFollowupFor,askAiFormatResult:askAiFormatResult,askAiPlaceholders:ASK_AI_PLACEHOLDERS,
   wbs:WBS,gates:GATES,gate5Checks:GATE5_CHECKS,glNodes:GL_NODES,glCaption:glCaption,glNodeState:glNodeState,
   gate5SandboxCalc:gate5SandboxCalc,renderGate5Sandbox:renderGate5Sandbox,
   contracts:CONTRACTS,deriveContract:deriveContract,

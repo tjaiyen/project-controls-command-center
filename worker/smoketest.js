@@ -232,6 +232,10 @@ async function run() {
     ok(body.answer.includes("58.8 percent"), "a real number rephrased in plain prose as a percentage ('58.8 percent', the real 0.588 contCoverage x100) also survives -- the broadened extractor catches it, not just the dashboard's own $X.XM/X.X% formats");
     ok(!body.answer.includes("47 million dollars") && body.answer.includes("[unverified]"), "a fabricated claim phrased in ordinary prose ('47 million dollars') is caught and stripped -- NOT just the narrow shapes the first guardrail version checked");
     ok(typeof body.estCostUsd === "number" && body.estCostUsd > 0, "the response reports a real, non-zero estimated cost for visibility");
+    ok(Array.isArray(body.toolCalls) && body.toolCalls.length === 1 && body.toolCalls[0].name === "get_totals",
+      "the response carries the REAL {name,args,result} of every tool call made this turn (UX round, 2026-08-25), not just a flattened field-name string", JSON.stringify(body.toolCalls));
+    ok(body.toolCalls[0].result.eac === 1303.67, "toolCalls[0].result is the actual real tool result object, usable client-side for 'show your work'");
+    ok(typeof body.totalClaims === "number" && body.totalClaims >= 4, "the response reports the real total claim count the fact-check evaluated, not just how many failed", body.totalClaims);
   }
   // 12. Anthropic fails mid-loop (a 5xx, a timeout) -- an independent reviewer's finding: does the
   // real spend already incurred before the failure get accounted for? Under this design it must,

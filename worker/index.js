@@ -141,7 +141,6 @@ async function handleAsk(request, env, origin) {
   var claims = lib.extractNumericClaims(finalText);
   var v = lib.verifyClaims(claims, groundTruthNumbers, groundTruthText);
   var safeAnswer = v.unverified.length ? lib.sanitizeAnswer(finalText, v.unverified) : finalText;
-  var citedFields = toolResults.map(function (t) { return t.name + (t.args && t.args.id ? "(" + t.args.id + ")" : ""); });
 
   // Rate-limit bookkeeping only -- best-effort, see the config comment above. The real spend
   // enforcement already happened atomically in the DO reservation before Anthropic was ever
@@ -154,7 +153,12 @@ async function handleAsk(request, env, origin) {
     } catch (e) { /* logging-only failure, never blocks the response */ }
   }
 
-  return json({answer: safeAnswer, citedFields: citedFields, unverifiedCount: v.unverified.length, estCostUsd: estCostUsd}, 200, origin);
+  // toolCalls carries the REAL {name, args, result} of every tool call made this turn -- not just
+  // a flattened field-name string -- so the client can render "show your work" and cross-link
+  // chips (UX upgrade round, 2026-08-25) straight from the same real data the fact-check itself
+  // used, never a second summary that could drift from it.
+  return json({answer: safeAnswer, toolCalls: toolResults, totalClaims: claims.length,
+    unverifiedCount: v.unverified.length, estCostUsd: estCostUsd}, 200, origin);
 }
 
 module.exports = {
