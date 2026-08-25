@@ -7115,6 +7115,103 @@ console.log("== D50. Ask AI -- free-text Q&A over the real ledger, guardrailed (
   fire(G["t-over"], "click");
 }
 
+console.log("== D51. Data Strategy-tab upgrade -- CDE auto-play, cross-tab jumps, integrity strip, ledger reference, real Copy SQL (brainstorm-mode round, 2026-08-25) ==");
+{
+  // TJ pasted a large external spec ("Enterprise Ingestion & Ledger Conformance"). Fact-checked
+  // extensively before building: the proposed SQL (a field_hours CTE, a schedule_cpm join) is
+  // fabricated -- the real fct_control_account.sql has neither. "54 DuckDB SQL Checks <-> 1,279
+  // Client JS Assertions" is wrong on both numbers (real: 64 and this file's own live count).
+  // Named vendor systems (Oracle Unifier, SAP, JD Edwards, HeavyJob, Procore) appear nowhere in
+  // this codebase. The crosswalk example (CP-201 -> "ABS-SYS-04: Guideway") is wrong -- CP-201's
+  // real ABS is ABS-TUN-PLN-201, not a Guideway code. None of that made it in.
+  ["field_hours", "schedule_cpm", "Oracle Unifier", "JD Edwards", "HeavyJob", "Procore", "ABS-SYS-04", "1,279", "1279"].forEach(bad =>
+    ok(!indexSrc.includes(bad), 'fabricated spec content never made it into index.html: "' + bad + '"'));
+
+  fire(G["t-data"], "click");
+
+  // Auto-Play -- steps the SAME real DS_NODES story selectDS() already narrates on manual
+  // Next/Back, timer-driven. Tested by capturing the real setInterval callback (not waiting on
+  // real time), so the actual tick logic runs, not just the state toggle.
+  const dsIdxBefore = P.getDsIdx();
+  ok(P.state.dsAutoPlay === false, "auto-play starts off -- the real, existing manual-step default, not a surprise autoplay");
+  const realSetInterval = global.setInterval;
+  let capturedTick = null;
+  global.setInterval = (fn) => { capturedTick = fn; return 999; };
+  P.toggleDsAutoPlay();
+  global.setInterval = realSetInterval;
+  ok(P.state.dsAutoPlay === true, "toggling auto-play on flips the real state");
+  ok(G.dsAutoPlay.getAttribute("aria-pressed") === "true" && G.dsAutoPlay.textContent.includes("Pause"), "the button reflects the real playing state (aria-pressed + label), same convention as themeBtn's own toggle");
+  ok(typeof capturedTick === "function", "toggling on really registers a real interval callback, not a no-op");
+  capturedTick(); // simulate one real tick
+  ok(P.getDsIdx() === dsIdxBefore + 1, "one simulated tick genuinely advances dsIdx by calling the real selectDS(), not a separate copy of the narration");
+  // Pre-registered: driving dsIdx to the real last node and ticking once more must auto-stop, not
+  // wrap silently back to the start.
+  P.state.dsAutoPlay = true; // re-arm for this probe (toggleDsAutoPlay() ran once already above)
+  for (let i = P.getDsIdx(); i < P.dsNodes.length - 1; i++) capturedTick(); // walk to the real last node
+  ok(P.getDsIdx() === P.dsNodes.length - 1, "repeated ticks really walk to the real last node");
+  capturedTick(); // one more tick AT the last node
+  ok(P.state.dsAutoPlay === false, "pre-registered: ticking again at the real last node auto-stops rather than looping back to the start unannounced");
+  ok(G.dsAutoPlay.textContent.includes("Auto-play") && G.dsAutoPlay.getAttribute("aria-pressed") === "false", "the button resets to its real idle label/state once stopped");
+  P.stopDsAutoPlay(); // ensure clean state for later tests regardless of path taken above
+  // Manual Back/Next while playing stops it -- no two forces fighting over dsIdx.
+  P.toggleDsAutoPlay();
+  fire(G.dsNext, "click");
+  ok(P.state.dsAutoPlay === false, "clicking Next manually while auto-play is running stops it, rather than racing the timer");
+  // Self-heals if the reader navigates to a different tab mid-play.
+  global.setInterval = (fn) => { capturedTick = fn; return 999; };
+  P.toggleDsAutoPlay();
+  global.setInterval = realSetInterval;
+  fire(G["t-cost"], "click");
+  capturedTick();
+  ok(P.state.dsAutoPlay === false, "a tick firing after the reader navigated away self-heals by stopping, rather than silently narrating a tab no one is looking at");
+  fire(G["t-data"], "click");
+
+  // Cross-tab jump: AI & Data's real pipeline DAG -> Data Strategy's real CDE flow (Tier 1 item 2).
+  fire(G["t-ai"], "click");
+  fire(G.arch, "click", { target: { closest: sel => sel === "[data-k]" ? { dataset: { k: "marts" } } : null } });
+  ok(G.archDetail._html.includes('data-jump-tab="data"') && G.archDetail._html.includes('data-jump-el="cdeFlow"'),
+    "the real marts node's detail carries a real cross-tab jump chip to the Data Strategy CDE flow, reusing the page's own existing global jump mechanism");
+  fire(R.win, "click", { target: { closest: sel => sel === "[data-jump-tab]" ? { dataset: { jumpTab: "data", jumpEl: "cdeFlow" } } : null } });
+  ok(P.state.tab === "data", "clicking that chip really navigates to the Data Strategy tab");
+
+  // Reciprocal jump: Data Strategy -> the real SQL card on AI & Data (completing the loop, Tier 2 item 5).
+  ok(indexSrc.includes('data-jump-tab="ai" data-jump-el="archSqlCard"'), "Data Strategy's CDE lede carries a real reciprocal jump chip to the real SQL card, not a dead end");
+
+  // Integrity-assertion strip (Tier 1 item 3) -- independently recomputed from the SAME real
+  // WBS/PKGS arrays, never copied from the pasted spec's fabricated "8/8" claim.
+  const orphansReal = P.pkgs.filter(p => !P.wbs.some(w => w.ca === p.id));
+  const mappedBacReal = P.pkgs.filter(p => P.wbs.some(w => w.ca === p.id)).reduce((s, p) => s + p.bac, 0);
+  const distinctOwnersReal = [...new Set(P.wbs.map(w => w.obs))];
+  const stripHtml = G.wbsIntegrityStrip._html;
+  ok(stripHtml.includes(orphansReal.length ? orphansReal.length + " unmapped" : "0 orphaned"), "the orphan-check stat matches an independent recomputation against the real WBS/PKGS arrays", orphansReal.length);
+  ok(stripHtml.includes(pct(mappedBacReal / T.bac, 0)), "the budget-mapped percentage matches an independent recomputation, not a hand-typed figure");
+  ok(stripHtml.includes(distinctOwnersReal.length + " across " + P.wbs.length + " accounts"),
+    "the distinct-OBS-owner count is the real, independently-recomputed number -- NOT the pasted spec's fabricated '8/8' claim", distinctOwnersReal.length + " of " + P.wbs.length);
+
+  // Ledger field reference (Tier 2 item 4) -- reuses the REAL LEDGER_INPUTS the Overview tab's own
+  // ledger card already defines, never a second hand-typed copy; filterable; cross-linked, not duplicated.
+  ok(G.ledgerRefList._html.includes("Earned Hours") && G.ledgerRefList._html.includes("Actual Cost"),
+    "the ledger reference renders the SAME real 11 field names LEDGER_INPUTS already defines");
+  ok(G.ledgerRefCount.textContent.includes(String(P.ledgerInputs.length)), "the count readout states the real, live field count, not a hardcoded '11'");
+  P.renderLedgerReference("hours");
+  const hoursMatches = P.ledgerInputs.filter(li => (li.n + " " + li.abbr + " " + li.d).toLowerCase().includes("hours"));
+  ok(hoursMatches.length >= 2 && hoursMatches.length < P.ledgerInputs.length, "pre-registered: filtering by 'hours' narrows to a real subset (Earned/Actual Hours), neither zero nor everything", hoursMatches.length);
+  ok(G.ledgerRefList._html.split("gcard").length - 1 === hoursMatches.length, "the rendered card count after filtering matches the real filtered-list length exactly");
+  P.renderLedgerReference("");
+  ok(G.ledgerRefList._html.split("gcard").length - 1 === P.ledgerInputs.length, "clearing the filter restores all 11 real fields, not a stuck partial view");
+  ok(indexSrc.includes('data-jump-tab="over" data-jump-el="ledgerCard"'), "the ledger reference cross-links to the real Overview ledger card rather than duplicating its per-package inspector");
+
+  // Real Copy SQL (Tier 2 item 5) -- the embedded ARCH_SQL_FULL constant is checked against the
+  // ACTUAL file on disk, not just internally self-consistent -- the strongest anti-fabrication
+  // check available: if this ever drifts from the real pipeline file, this assertion catches it.
+  const realSqlFile = fs.readFileSync(DIR + "pipeline/models/fct_control_account.sql", "utf8");
+  ok(P.archSqlFull.trim() === realSqlFile.trim(), "the 'Copy SQL' button's embedded content is byte-identical (modulo trailing whitespace) to the REAL pipeline/models/fct_control_account.sql file on disk -- not a hand-retyped or truncated copy");
+  fire(G.archSqlCopy, "click");
+  ok(G.archSqlCopy.textContent === "Clipboard unavailable", "with no Clipboard API present (this Node stub, same as some real browser contexts), the button honestly reports it couldn't copy rather than falsely claiming success");
+
+  fire(G["t-over"], "click");
+}
+
 /* =========================================================================
    E. otak.html — runtime + internal consistency
    ========================================================================= */

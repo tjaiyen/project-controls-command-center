@@ -1684,7 +1684,8 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
       </div>
 
       <div class="grid g2">
-        <div class="card"><h3>The model &mdash; <span class="mono" style="font-size:.85em">fct_control_account.sql</span></h3>
+        <div class="card" id="archSqlCard"><h3>The model &mdash; <span class="mono" style="font-size:.85em">fct_control_account.sql</span>
+          <button type="button" class="btn" id="archSqlCopy" style="min-height:auto;padding:2px 9px;font-size:11.5px;margin-left:6px;vertical-align:middle">Copy SQL</button></h3>
           <pre class="code">with monthly as (
   select package_id,
          sum(pv_delta) as pv,
@@ -2091,6 +2092,16 @@ join dim_control_account b using (package_id)</pre></div>
         crosswalk, all 8 control accounts, contractor WBS scope resolved against the owner's ABS
         asset code:</p>
       <div class="tw"><table id="wbsCrosswalk"></table></div>
+      <div id="wbsIntegrityStrip"></div>
+
+      <div class="sec-h" style="margin-top:30px"><h3>The 11 ledger fields &mdash; what each one means and where it's defined</h3></div>
+      <p class="lede">Not the same view as the Overview tab's own ledger inspector &mdash; that shows
+        one package's live numbers; this is the field-level reference, once, regardless of package.
+        <button type="button" class="btn" style="min-height:auto;padding:1px 8px;font-size:12.5px" data-jump-tab="over" data-jump-el="ledgerCard">See live per-package values &rarr;</button></p>
+      <input class="gsearch" id="ledgerRefQ" type="search" autocomplete="off"
+        placeholder="Filter fields&hellip; try &ldquo;hours&rdquo; or &ldquo;float&rdquo;" aria-label="Filter the ledger field reference">
+      <p class="lede" id="ledgerRefCount" style="margin-top:8px;font-size:12px"></p>
+      <div class="grid g2" id="ledgerRefList" style="margin-top:10px"></div>
 
       <div class="sec-h" style="margin-top:30px"><h3>Architecture &mdash; a governed staging pipeline, not a direct feed</h3></div>
       <p class="lede">The AEC industry's own real, named version of "stage before trust" is the
@@ -2100,7 +2111,8 @@ join dim_control_account b using (package_id)</pre></div>
         matters most isn't the four states themselves &mdash; it's that nothing downstream ever
         reads a raw source directly, and nothing advances without its gate. Drawn below as a flow,
         with the discrepancy-resolution loop from "When systems disagree" (further down this tab)
-        folded in at the point it actually happens &mdash; the verification gate into Shared.</p>
+        folded in at the point it actually happens &mdash; the verification gate into Shared.
+        <button type="button" class="btn" style="min-height:auto;padding:1px 8px;font-size:12.5px" data-jump-tab="ai" data-jump-el="archSqlCard">See the real SQL that builds the Published mart &rarr;</button></p>
       <div class="card"><div class="chart" id="cdeFlow"></div></div>
       <div id="dsDetail" aria-live="polite"></div>
       <div class="card" style="margin-top:14px" id="dsStoryCard">
@@ -2112,6 +2124,7 @@ join dim_control_account b using (package_id)</pre></div>
           <span class="story-dots" id="dsDots" aria-hidden="true"></span>
           <span class="mono" id="dsPos" style="font-size:11px;color:rgb(var(--c-mut))"></span>
           <button class="btn" id="dsNext" type="button">Next &rarr;</button>
+          <button class="btn" id="dsAutoPlay" type="button" aria-pressed="false" style="margin-left:4px">&#9654; Auto-play</button>
         </div>
       </div>
       <div class="dgrid" style="margin-top:16px">
@@ -3117,7 +3130,7 @@ var state = {phase:"con", fam:"All", audience:"pcm", kpi:null, pkg:2, actFilter:
                  // (alphabetical, for "what does person X need to see"); triageCollapsed is an
                  // id->true map, defaulting every card OPEN (unchanged behavior) until a reader
                  // chooses to collapse one.
-  askAiEnabled:false, askAiCount:0, askAiBusy:false, askAiHistory:[]}; // Ask AI opt-in Q&A
+  askAiEnabled:false, askAiCount:0, askAiBusy:false, askAiHistory:[], // Ask AI opt-in Q&A
                  // (brainstorm-mode round, 2026-08-25) — askAiEnabled false = dormant by default,
                  // same "cost-conscious default" idiom as riskIncluded starting empty above; the
                  // feature makes zero network calls until a reader deliberately opts in. askAiCount
@@ -3125,6 +3138,11 @@ var state = {phase:"con", fam:"All", audience:"pcm", kpi:null, pkg:2, actFilter:
                  // transparency, not a spend cap itself — the real cap lives server-side in the
                  // Worker, which the client cannot see or bypass. askAiHistory holds the
                  // question/answer pairs asked this session, newest first, for on-page display.
+  dsAutoPlay:false}; // Data Strategy CDE-flow Auto-play (brainstorm-mode round, 2026-08-25) —
+                 // false = the real, existing manual-step default; the interval handle itself
+                 // lives in a plain module var (dsAutoPlayTimer), not state, matching the same
+                 // "timer identity isn't meaningful app state" convention as
+                 // wireAskAiPlaceholderRotation()'s own setInterval.
 
 /* Ledger card (Overview-tab upgrade, 2026-08-20) — the 11 raw inputs, a per-package inspector, and
    a live "change one input, watch the KPIs move" demo. The demo deliberately reads a LOCAL copy of
@@ -8594,12 +8612,59 @@ function archCaption(node){
     case "changelog": return {t:"Change log",x:"Feeds the change-order register — approved, pending and proposed values reconciled on the Cost tab's change pricing defense table."};
     case "riskreg": return {t:"Risk register",x:"Feeds RISKS — the probability &times; impact heat map, the exposure total, and the DRB EMV decision tree's own pending-value input on the Risk &amp; Change tab."};
     case "staging": return {t:"dbt staging &middot; stg_progress_claims",x:"Raw records land here first, one row per source system above, before anything is reconciled across sources — nothing downstream ever reads a raw feed directly, only this staged version."};
-    case "marts": return {t:"marts &middot; fct_control_account",x:"The reconciled per-control-account table — this IS the PKGS array every tab on this dashboard reads from, not a separate copy that merely happens to agree with it."};
+    case "marts": return {t:"marts &middot; fct_control_account",x:"The reconciled per-control-account table — this IS the PKGS array every tab on this dashboard reads from, not a separate copy that merely happens to agree with it. "+
+      '<button type="button" class="btn" style="min-height:auto;padding:1px 8px;font-size:12.5px" data-jump-tab="data" data-jump-el="cdeFlow">See the full source-to-ledger governance pipeline &rarr;</button>'};
     case "gate": return {t:"Integrity gate",x:"64 dbt-side checks run against the mart before it's trusted. A separate "+GUARDS.length+"-check JS gate (this tab's own Integrity gate card, above) independently re-derives the same headline totals in a different language, from the same mart — two stacks, one set of numbers, not one gate wearing two names."};
     case "dashboard": return {t:"This dashboard",x:"Every chart, KPI card and table on this page is a pure function of the mart above — move the data date or edit a row and every downstream figure recomputes; nothing is cached separately."};
     case "brief": return {t:"Executive brief",x:"The print one-pager (the Print brief button on every tab) reads the identical mart — never a hand-copied summary that can drift from the live figures."};
     case "narrative": return {t:"AI narrative draft",x:"This tab's own narrative prose is drafted from the mart, then every cited figure is independently re-derived and checked before it's allowed to post — verified, not trusted on the model's say-so."};
   }
+}
+// The real, COMPLETE file content of pipeline/models/fct_control_account.sql (brainstorm-mode
+// round, 2026-08-25, "Copy SQL" button) -- the <pre> block above shows a display-truncated
+// version (the vac line ends "..." for width); this is what a reader actually gets on copy,
+// verified verbatim against the real file, not the truncated display text.
+var ARCH_SQL_FULL=
+"-- fct_control_account.sql — the model that builds the control-account ledger\n"+
+"-- from raw monthly progress claims. DuckDB dialect; written dbt-style so the\n"+
+"-- same file drops into a dbt project (swap the plain table refs for ref()).\n"+
+"--\n"+
+"-- Determinism contract: same source rows in -> same ledger out, always.\n"+
+"-- No window over run order, no clock-dependent filters, no sampling.\n\n"+
+"with monthly as (\n"+
+"  select\n"+
+"    package_id,\n"+
+"    sum(pv_delta) as pv,\n"+
+"    sum(ev_delta) as ev,\n"+
+"    sum(ac_delta) as ac\n"+
+"  from stg_progress_claims\n"+
+"  where claim_month <= date '2026-07-31'          -- data date, explicit\n"+
+"  group by package_id\n"+
+")\n\n"+
+"select\n"+
+"  m.package_id,\n"+
+"  b.package_name,\n"+
+"  b.bac,\n"+
+"  m.pv,\n"+
+"  m.ev,\n"+
+"  m.ac,\n"+
+"  m.ev - m.pv                              as sv,\n"+
+"  m.ev - m.ac                              as cv,\n"+
+"  m.ev / nullif(m.pv, 0)                   as spi,\n"+
+"  m.ev / nullif(m.ac, 0)                   as cpi,\n"+
+"  b.bac / (m.ev / nullif(m.ac, 0))         as eac,      -- at current efficiency\n"+
+"  b.bac - b.bac / (m.ev / nullif(m.ac, 0)) as vac,\n"+
+"  m.ev / b.bac                             as pct_complete\n"+
+"from monthly m\n"+
+"join dim_control_account b using (package_id)\n"+
+"order by m.package_id\n";
+function copyArchSql(){
+  var btn=document.getElementById("archSqlCopy"); if(!btn) return;
+  var orig=btn.textContent;
+  var flash=function(label){ btn.textContent=label; setTimeout(function(){ btn.textContent=orig; },1600); };
+  if(typeof navigator!=="undefined"&&navigator.clipboard&&navigator.clipboard.writeText)
+    navigator.clipboard.writeText(ARCH_SQL_FULL).then(function(){ flash("Copied ✓"); },function(){ flash("Couldn't copy"); });
+  else flash("Clipboard unavailable"); // never claims success it can't back up
 }
 var archIdx=0;
 function selectArch(idx){
@@ -9556,6 +9621,29 @@ function selectDS(idx){
   document.getElementById("dsDots").innerHTML=DS_NODES.map(function(_,j){
     return '<i class="'+(j===dsIdx?"on":"")+'"></i>'; }).join("");
 }
+// Auto-play (brainstorm-mode round, 2026-08-25) -- steps through the SAME real DS_NODES story
+// selectDS() already narrates on manual Next/Back, just timer-driven. Predictable, not a silent
+// loop: stops at the real last node (Archived) rather than wrapping back to the start unannounced,
+// and self-heals if the reader navigates to a different tab while it's running.
+var dsAutoPlayTimer=null;
+function stopDsAutoPlay(){
+  if(dsAutoPlayTimer){ clearInterval(dsAutoPlayTimer); dsAutoPlayTimer=null; }
+  state.dsAutoPlay=false;
+  var b=document.getElementById("dsAutoPlay");
+  if(b){ b.textContent="▶ Auto-play"; b.setAttribute("aria-pressed","false"); }
+}
+function toggleDsAutoPlay(){
+  if(state.dsAutoPlay){ stopDsAutoPlay(); return; }
+  if(dsIdx>=DS_NODES.length-1) selectDS(0); // restart from the top if already at the real end
+  state.dsAutoPlay=true;
+  var b=document.getElementById("dsAutoPlay");
+  if(b){ b.textContent="⏸ Pause"; b.setAttribute("aria-pressed","true"); }
+  dsAutoPlayTimer=setInterval(function(){
+    if(state.tab!=="data"){ stopDsAutoPlay(); return; }
+    if(dsIdx>=DS_NODES.length-1){ stopDsAutoPlay(); return; }
+    selectDS(dsIdx+1);
+  },2200);
+}
 function renderCdeFlow(){
   var W=1180,H=330;
   var LANE_C={main:C("accent"),gate:C("mut"),branch:C("warn")};
@@ -9637,10 +9725,48 @@ function renderWbsCrosswalk(){
        '<td style="font-size:12px">'+w.obs+'</td>'+
        '<td class="mono" style="font-size:11px;color:rgb(var(--c-mut))">'+w.abs+'</td></tr>';
    }).join("")+'</tbody>';
+  // Integrity-assertion strip (brainstorm-mode round, 2026-08-25) -- real, independently computed
+  // from the SAME real WBS/PKGS arrays the table above renders, never hand-typed or copied from a
+  // pasted spec's invented numbers. A pasted spec this round claimed "8/8 OBS Owners" -- the real
+  // count is 6 distinct owners across 8 control accounts (two owners each cover two accounts),
+  // a different and more useful fact than a false 1:1 implication.
+  var stripEl=document.getElementById("wbsIntegrityStrip"); if(!stripEl) return;
+  var orphans=PKGS.filter(function(p){ return !WBS.some(function(w){ return w.ca===p.id; }); });
+  var mappedBac=PKGS.filter(function(p){ return WBS.some(function(w){ return w.ca===p.id; }); })
+    .reduce(function(s,p){ return s+p.bac; },0);
+  var pctMapped=mappedBac/T.bac;
+  var distinctOwners=WBS.map(function(w){ return w.obs; }).filter(function(o,i,arr){ return arr.indexOf(o)===i; });
+  stripEl.innerHTML=
+    '<div class="strip" style="margin-top:10px">'+
+    '<div><div class="k">Orphan check</div><div class="v" style="color:'+(orphans.length?"rgb(var(--c-bad))":"rgb(var(--c-ok))")+'">'+
+      (orphans.length? orphans.length+" unmapped":"0 orphaned")+'</div></div>'+
+    '<div><div class="k">Budget mapped to a crosswalk row</div><div class="v" style="color:'+(pctMapped>=1?"rgb(var(--c-ok))":"rgb(var(--c-warn))")+'">'+pct(pctMapped,0)+'</div></div>'+
+    '<div><div class="k">Distinct OBS owners</div><div class="v">'+distinctOwners.length+' across '+WBS.length+' accounts</div></div>'+
+    '</div>';
+}
+/* Ledger field reference (brainstorm-mode round, 2026-08-25, Tier 2) -- reuses LEDGER_INPUTS
+   verbatim (the Overview tab's own "Ledger card" already built these 11 real name/description
+   pairs) rather than a second, hand-typed copy that could drift. Different framing, not a
+   duplicate: the Overview card answers "what is THIS package's real number," this answers "what
+   does this field mean, once" -- cross-linked both directions, never redundant. */
+function renderLedgerReference(q){
+  q=(q||"").toLowerCase();
+  var list=LEDGER_INPUTS.filter(function(li){
+    return !q || (li.n+" "+li.abbr+" "+li.d).toLowerCase().indexOf(q)>=0;
+  });
+  document.getElementById("ledgerRefList").innerHTML=list.map(function(li){
+    return '<div class="gcard"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap">'+
+      '<h3 style="margin:0">'+li.n+'</h3><span class="mono eyebrow" style="margin:0">'+li.abbr+'</span></div>'+
+      '<p class="gp">'+li.d+'</p></div>';
+  }).join("");
+  document.getElementById("ledgerRefCount").textContent =
+    list.length===LEDGER_INPUTS.length ? LEDGER_INPUTS.length+" fields — the same 11 raw inputs every KPI on this dashboard derives from."
+                                        : list.length+" of "+LEDGER_INPUTS.length+" fields match";
 }
 function renderDataStrategy(){
   renderCdeFlow();
   renderWbsCrosswalk();
+  renderLedgerReference(""); // real, existing convention: renderGlossary("") gets the same literal-empty init call
   renderIngestSim();
   renderCircuitDemo();
   // 4-tile status grid (UI/UX upgrade round, 2026-08-21) — was a plain 3-column table; same
@@ -10604,15 +10730,16 @@ document.getElementById("glPrev").addEventListener("click",function(){ selectGL(
 document.getElementById("glNext").addEventListener("click",function(){ selectGL(glIdx+1); });
 document.getElementById("cdeFlow").addEventListener("click",function(e){
   var n=e.target.closest("[data-k]"); if(!n) return;
-  var i=DS_NODES.map(function(d){return d.k;}).indexOf(n.dataset.k); if(i>=0) selectDS(i);
+  var i=DS_NODES.map(function(d){return d.k;}).indexOf(n.dataset.k); if(i>=0){ stopDsAutoPlay(); selectDS(i); }
 });
 document.getElementById("cdeFlow").addEventListener("keydown",function(e){
   if(e.key!=="Enter"&&e.key!==" ") return;
   var n=e.target.closest("[data-k]"); if(!n) return; e.preventDefault();
-  var i=DS_NODES.map(function(d){return d.k;}).indexOf(n.dataset.k); if(i>=0) selectDS(i);
+  var i=DS_NODES.map(function(d){return d.k;}).indexOf(n.dataset.k); if(i>=0){ stopDsAutoPlay(); selectDS(i); }
 });
-document.getElementById("dsPrev").addEventListener("click",function(){ selectDS(dsIdx-1); });
-document.getElementById("dsNext").addEventListener("click",function(){ selectDS(dsIdx+1); });
+document.getElementById("dsPrev").addEventListener("click",function(){ stopDsAutoPlay(); selectDS(dsIdx-1); });
+document.getElementById("dsNext").addEventListener("click",function(){ stopDsAutoPlay(); selectDS(dsIdx+1); });
+document.getElementById("dsAutoPlay").addEventListener("click",toggleDsAutoPlay);
 document.getElementById("arch").addEventListener("click",function(e){
   var n=e.target.closest("[data-k]"); if(!n) return;
   var i=ARCH_NODES.map(function(d){return d.k;}).indexOf(n.dataset.k); if(i>=0) selectArch(i);
@@ -10860,6 +10987,8 @@ document.getElementById("askAiPanel").addEventListener("click",function(e){
   var act=e.target.closest("[data-ask-action]");
   if(act){ jumpToAction(act.dataset.askAction); return; }
 });
+document.getElementById("archSqlCopy").addEventListener("click",copyArchSql);
+document.getElementById("ledgerRefQ").addEventListener("input",function(){ renderLedgerReference(this.value); });
 /* Tri-point curve playground drag + keyboard (brainstorm-mode round, 2026-08-21). Pointer Events
    (not separate mouse/touch listeners) so one code path drives both mouse drag and touchscreen
    drag — setPointerCapture ties every subsequent move/up to the handle that started the drag,
@@ -11186,6 +11315,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   cphCells:CPH_CELLS,deriveCph:deriveCph,deriveZScores:deriveZScores,deriveEwma:deriveEwma,ingestGuards:INGEST_GUARDS,
   renderNarr:renderNarr,renderEwmaControl:renderEwmaControl,renderEwmaWeekDrill:renderEwmaWeekDrill,
   renderIngestSim:renderIngestSim,renderCircuitDemo:renderCircuitDemo,renderWbsCrosswalk:renderWbsCrosswalk,
+  renderLedgerReference:renderLedgerReference,copyArchSql:copyArchSql,archSqlFull:ARCH_SQL_FULL,
   deriveDrbEmv:deriveDrbEmv,drbAssumptions:DRB_ASSUMPTIONS,deriveGbmParams:deriveGbmParams,
   erf:erf,normCdf:normCdf,
   deriveEarnedSchedule:deriveEarnedSchedule,
@@ -11198,6 +11328,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   tourTracks:TOUR_TRACKS,activeTourBeats:activeTourBeats,enterTour:enterTour,exitTour:exitTour,
   goToTourStop:goToTourStop,renderTourBar:renderTourBar,
   guardrails:GUARDRAILS,discrepancySteps:DISCREPANCY_STEPS,rollout:ROLLOUT,dsNodes:DS_NODES,dsCaption:dsCaption,
+  toggleDsAutoPlay:toggleDsAutoPlay,stopDsAutoPlay:stopDsAutoPlay,getDsIdx:function(){ return dsIdx; },
   archNodes:ARCH_NODES,archCaption:archCaption,
   gloss:GLOSS,findGloss:findGloss,
   miles:MILES,delays:DELAYS,spark:SPARK,baseline:BASELINE,baseSteps:baseSteps,veSandboxCalc:veSandboxCalc,renderBaseline:renderBaseline,
