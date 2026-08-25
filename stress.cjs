@@ -2905,24 +2905,30 @@ console.log("== D5.3. forecast model (actual vs plan) ==");
   ok(ciHalfWidthPct > 0.25, "pre-registered: the 90% CI half-width is >25% of the point estimate itself — the concrete number behind the 'too thin to trust' caveat, not just the phrase", (ciHalfWidthPct * 100).toFixed(1) + "%");
 
   ok(idsA.includes("costGbm"), "markup contains #costGbm");
-  has("costGbm", "too thin to trust", "GBM card states the small-sample caveat");
+  // Content rewrite (brainstorm-mode round, 2026-08-24) -- TJ pasted a full plain-language rewrite
+  // of this card's prose ("The Main Idea" / "The Important Warning" / "Standard Forecasts vs. This
+  // Method"), every number in it fact-checked against a fresh live read before adopting: n=5,
+  // drift 6.83%, volatility 1.74%, CI 4.96%-8.67% all matched exactly. Adopted near-verbatim below.
+  has("costGbm", "Don&rsquo;t bet the farm on " + g.n + " data points", "GBM card states the small-sample caveat, TJ's own 'don't bet the farm' framing");
   has("costGbm", pct(muHatMle, 2), "GBM card shows the formatted drift figure matching the independent recomputation");
   has("costGbm", pct(sigmaHatMle, 2), "GBM card shows the formatted volatility figure matching the independent recomputation");
   has("costGbm", pct(ciLowRbar, 2) + " to " + pct(ciHighRbar, 2), "GBM card shows the formatted 90% CI matching the independent recomputation");
-  // Clarity round (brainstorm-mode, 2026-08-24 -- TJ's direct finding: "I have no idea what I'm
-  // looking at"). Item 1: plain-language lede, matching the sibling cards' own established pattern
-  // (this card was the only one in its row without one).
-  has("costGbm", "Two plain questions", "GBM card now opens with a plain-language lede, matching its sibling cards");
-  ok(G.costGbm._html.indexOf("Two plain questions") < G.costGbm._html.indexOf("too thin to trust"),
-    "the plain-language lede sits BEFORE the technical caveat, not after -- the exact order fix this round was about");
-  // Item 2: a plain one-line gloss under each of the 3 stat tiles.
+  has("costGbm", "Most project reports give you a single price tag", "GBM card now opens with TJ's own 'Main Idea' lede, matching its sibling cards' established pattern (this card was the only one in its row without one)");
+  ok(G.costGbm._html.indexOf("Most project reports give you a single price tag") < G.costGbm._html.indexOf("Don&rsquo;t bet the farm"),
+    "the plain-language lede sits BEFORE the technical caveat, not after -- the exact order fix a prior round was about, re-confirmed after this round's rewrite");
+  // Real bug found and fixed while rewriting this exact paragraph: the OLD caveat text said "what
+  // n=6 can and cannot support" one sentence after saying "Only 5 log-returns" -- two different,
+  // unexplained numbers in the same paragraph. Confirmed gone; the caveat now reads g.n throughout.
+  ok(!/n=6/.test(G.costGbm._html), "the stale, contradictory 'n=6' reference is gone from the card's own rendered text (g.n=5 used consistently instead)");
+  // Item 2 (prior round, re-confirmed unchanged by this round's rewrite): a plain one-line gloss
+  // under each of the 3 stat tiles.
   has("costGbm", "average monthly cost growth", "Drift tile carries a plain gloss");
   has("costGbm", "typical month-to-month wobble", "Volatility tile carries a plain gloss");
   has("costGbm", "how uncertain that average is", "90% CI tile carries a plain gloss");
   // load-bearing position check: the caveat sentence must render BEFORE the numeric mu-hat tile —
   // a plain text-presence check (has()) wouldn't catch a regression that buries the caveat below
   // the numbers, since has() only confirms the text exists somewhere in the card.
-  const caveatIdx = G.costGbm._html.indexOf("too thin to trust");
+  const caveatIdx = G.costGbm._html.indexOf("Don&rsquo;t bet the farm");
   const muValIdx = G.costGbm._html.indexOf(pct(muHatMle, 2));
   ok(caveatIdx >= 0 && muValIdx >= 0 && caveatIdx < muValIdx,
     "the small-sample caveat renders BEFORE the numeric mu-hat tile, not as a trailing footnote", "caveat@" + caveatIdx + " value@" + muValIdx);
@@ -4636,7 +4642,10 @@ console.log("== D22. GBM/MLE brainstorm round, items 1-4 (2026-08-21) ==");
   P.renderGbmVsEvm();
   const evmHtml = G.gbmVsEvm._html;
   // Item 4 (Tier 2 light polish, clarity round 2026-08-24): heading softened, substance unchanged.
-  ok(evmHtml.indexOf("What today&rsquo;s CPI-based forecast assumes") >= 0, "the comparison box's heading uses the softer, more accessible phrasing");
+  // Rewritten again this round (was "What today's CPI-based forecast assumes vs. what this fit
+  // admits") to TJ's own pasted "Standard forecasts vs. this method" heading.
+  ok(evmHtml.indexOf("Standard forecasts vs. this method") >= 0, "the comparison box's heading uses TJ's own pasted phrasing");
+  ok(evmHtml.indexOf("The standard method") >= 0 && evmHtml.indexOf("This method") >= 0, "the opening paragraph names both methods explicitly, matching TJ's own two-part framing");
   ok(evmHtml.indexOf("CPI-extrapolation") === -1, "the jargon-compound 'CPI-extrapolation' is gone from the card's own heading (the glossary term's own title is untouched, a separate, deliberate scope choice)");
   ok(evmHtml.indexOf(idx(T.cpi)) >= 0, "the comparison cites this program's own real live CPI, not a hand-typed figure");
   ok(evmHtml.indexOf(pct(g.sigmaHatMle, 2)) >= 0, "the comparison cites the real sigmaHatMle, not a hand-typed figure");

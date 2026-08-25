@@ -4336,22 +4336,30 @@ function renderEacTrend(){
 function renderGbmDiffusion(){
   var g=deriveGbmParams(acHistorySeries().map(function(p){ return p.ac; }));
   document.getElementById("costGbm").innerHTML=
-    // Plain-language lede (brainstorm-mode round, 2026-08-24 -- TJ's direct finding: this card
-    // was the only one in its row with no lede, jumping straight into stats notation before any
-    // plain-English framing. Matches the sibling cards' own established lede pattern, just applied
-    // here for the first time.
-    '<p class="lede" style="font-size:12.5px;margin-bottom:10px">Two plain questions, fitted straight '+
-    'from this program&rsquo;s own cost history: is monthly cost trending up on average '+
-    '(<b style="color:rgb(var(--c-ink))">drift</b>), and how much does any single month wobble around '+
-    'that trend (<b style="color:rgb(var(--c-ink))">volatility</b>)? Real math on real numbers below, '+
-    'not a guess &mdash; the honest caveat is how much a program this young can actually support, not '+
-    'whether the arithmetic is right.</p>'+
-    '<p style="margin:0 0 12px;font-size:12.5px"><b style="color:rgb(var(--c-bad))">Only '+g.n+
-    ' log-returns behind this &mdash; too thin to trust as a fitted forecast.</b> '+
-    '<span style="color:rgb(var(--c-mut))">The 90% confidence interval below is wide enough to make that '+
-    'concrete: its half-width is roughly a quarter of the point estimate itself. The numbers are real '+
-    'arithmetic on this program&rsquo;s real actual-cost history; the honest caveat is what n=6 can and '+
-    'cannot support, not that the arithmetic is wrong.</span></p>'+
+    // Plain-language lede, rewritten (brainstorm-mode round, 2026-08-24) -- TJ's own pasted
+    // rewrite, "The Main Idea," adopted near-verbatim: it lands the whole card's point in one
+    // paragraph better than the terser version this replaces.
+    '<p class="lede" style="font-size:12.5px;margin-bottom:10px">Most project reports give you a '+
+    'single price tag at the end and assume everything moves in a straight line. Real life does '+
+    'not work that way &mdash; costs grow, but they also wobble month to month. This section breaks '+
+    'that movement into two simple parts: the overall direction it&rsquo;s moving '+
+    '(<b style="color:rgb(var(--c-ink))">drift</b>), and how bumpy the ride is along the way '+
+    '(<b style="color:rgb(var(--c-ink))">volatility</b>).</p>'+
+    // Caveat, rewritten (TJ's "The Important Warning: Don't Bet the Farm on N Data Points").
+    // /stress-test finding surfaced while rewriting this exact paragraph: the OLD text said "what
+    // n=6 can and cannot support" one sentence after saying "Only 5 log-returns" -- two different,
+    // unexplained numbers in the same paragraph (n=6 counts the 6 raw AC levels; g.n=5 counts the
+    // log-returns derived from them, the number every OTHER mention on this card actually uses).
+    // Fixed to consistently read g.n throughout, matching TJ's own "5 data points" framing.
+    '<p style="margin:0 0 12px;font-size:12.5px"><b style="color:rgb(var(--c-bad))">Don&rsquo;t bet '+
+    'the farm on '+g.n+' data points.</b> <span style="color:rgb(var(--c-mut))">These numbers come '+
+    'from only '+g.n+' real past monthly cost jumps &mdash; too small a sample to trust as an '+
+    'official forecast. The 90% confidence interval below shows exactly how wide that uncertainty '+
+    'is: with only '+g.n+' months of history, the math can only narrow the true monthly trend down '+
+    'to somewhere between roughly '+pct(g.ciLowRbar,0)+' and '+pct(g.ciHighRbar,0)+' &mdash; a wide '+
+    'gap. The arithmetic itself is completely correct; the honest limit is what '+g.n+' data points '+
+    'can and cannot prove, not that the arithmetic is wrong &mdash; which is why this warning comes '+
+    'first, before the numbers below.</span></p>'+
     '<div style="display:flex;gap:22px;flex-wrap:wrap">'+
     // 4th array slot: a plain one-line gloss under each stat tile (brainstorm-mode round,
     // 2026-08-24) -- so a reader can understand the number without leaving the tile to hunt for a
@@ -4436,10 +4444,14 @@ function renderGbmMathUnlocked(){
     'persistent trend after stripping out month-to-month noise -- this program\'s own fitted drift is '+
     pct(g.muHatMle,2)+' per month, meaning costs are growing systematically by that much every period, on top '+
     'of whatever random wobble any single month shows.</p>'+
+    // Volatility paragraph tightened toward TJ's own pasted phrasing (brainstorm-mode round,
+    // 2026-08-24) -- "surprise risk" is more concrete than "genuinely different risk"; substance
+    // (two programs, same drift, different volatility, different risk) was already correct here.
     '<p style="margin:10px 0 0;font-size:12.5px"><b style="color:rgb(var(--c-code))">Volatility (&sigma;&#770;)</b> is '+
     'how much any single month can deviate from that trend -- '+pct(g.sigmaHatMle,2)+' here. A higher number means '+
-    'less predictable, not necessarily worse: two programs with the same drift but different volatility carry '+
-    'genuinely different risk, which a single CPI number can\'t distinguish.</p>'+
+    'less predictable, not necessarily worse: two programs could both be growing at the same drift, but the one '+
+    'with bigger swings carries a lot more surprise risk than a steady, predictable one -- a distinction a '+
+    'single CPI number can\'t make.</p>'+
     '<p style="margin:10px 0 0;font-size:12.5px"><b style="color:rgb(var(--c-code))">Why MLE, not a guess?</b> Maximum '+
     'Likelihood Estimation picks the &mu;/&sigma; pair that makes the '+g.n+' real observed log-returns the most '+
     'probable outcome, out of every possible &mu;/&sigma; pair -- a specific, defensible answer to "what does this '+
@@ -4463,15 +4475,19 @@ function renderGbmMathUnlocked(){
 function renderGbmVsEvm(){
   var g=deriveGbmParams(acHistorySeries().map(function(p){ return p.ac; }));
   document.getElementById("gbmVsEvm").innerHTML=
-    // Tier 2 light polish (brainstorm-mode round, 2026-08-24) -- "CPI-extrapolation" softened to
-    // "today's CPI-based forecast," the more accessible phrase; substance unchanged.
-    '<h4>What today&rsquo;s CPI-based forecast assumes vs. what this fit admits <button type="button" class="help-ic" data-help="gbmvsevm" aria-label="What does this term mean?" aria-expanded="false">i</button></h4>'+
-    '<p>Classical EAC (BAC&divide;CPI) implicitly assumes the remaining work happens at exactly today\'s CPI ('+
-    idx(T.cpi)+'), every month, with zero variance around it -- a single deterministic line. It is not that this is '+
-    'wrong, it is that the assumption is invisible unless someone says it out loud. GBM\'s own MLE fit makes the '+
-    'opposite move: it names a real volatility ('+pct(g.sigmaHatMle,2)+'/period) instead of assuming it away -- the '+
-    'more honest failure mode, even though (as the caveat above states plainly) this program\'s own '+g.n+' data '+
-    'points are too few to trust that volatility figure as a forecasting input on their own.</p>'+
+    // Rewritten (brainstorm-mode round, 2026-08-24) -- TJ's own pasted "Standard Forecasts vs.
+    // This Method" framing, adopted for the heading and opening paragraph. The declined-item
+    // disclosure paragraph below (P80/Stochastic TCPI) is untouched -- it's stress-test-verified
+    // against a real prior tautology bug (see the assertion comment further down in stress.cjs).
+    '<h4>Standard forecasts vs. this method <button type="button" class="help-ic" data-help="gbmvsevm" aria-label="What does this term mean?" aria-expanded="false">i</button></h4>'+
+    '<p><b style="color:rgb(var(--c-ink))">The standard method</b> assumes work finishes at exactly today\'s CPI ('+
+    idx(T.cpi)+'), every month, with zero bumps or bad days ahead &mdash; one straight, optimistic line to the '+
+    'end. It is not that this assumption is wrong, it is that it is invisible unless someone says it out loud. '+
+    '<b style="color:rgb(var(--c-ink))">This method</b> acknowledges that real jobsites have monthly wobbles: it '+
+    'names a real volatility ('+pct(g.sigmaHatMle,2)+'/period) instead of assuming it away, giving leadership an '+
+    'honest look at how messy the numbers really are &mdash; even though (as the warning above states plainly) '+
+    'this program\'s own '+g.n+' data points are too few to trust that volatility figure as a forecasting input '+
+    'on their own.</p>'+
     '<p style="margin-top:8px;font-size:12.5px;color:rgb(var(--c-mut))">Deliberately not shown: a GBM-projected P80 '+
     'completion figure alongside EAC. That comparison would mean simulating this same thin-sample &sigma;&#770; '+
     'forward to a future date -- trusting it a second time, the identical reasoning that already declined a '+
