@@ -4336,6 +4336,16 @@ function renderEacTrend(){
 function renderGbmDiffusion(){
   var g=deriveGbmParams(acHistorySeries().map(function(p){ return p.ac; }));
   document.getElementById("costGbm").innerHTML=
+    // Plain-language lede (brainstorm-mode round, 2026-08-24 -- TJ's direct finding: this card
+    // was the only one in its row with no lede, jumping straight into stats notation before any
+    // plain-English framing. Matches the sibling cards' own established lede pattern, just applied
+    // here for the first time.
+    '<p class="lede" style="font-size:12.5px;margin-bottom:10px">Two plain questions, fitted straight '+
+    'from this program&rsquo;s own cost history: is monthly cost trending up on average '+
+    '(<b style="color:rgb(var(--c-ink))">drift</b>), and how much does any single month wobble around '+
+    'that trend (<b style="color:rgb(var(--c-ink))">volatility</b>)? Real math on real numbers below, '+
+    'not a guess &mdash; the honest caveat is how much a program this young can actually support, not '+
+    'whether the arithmetic is right.</p>'+
     '<p style="margin:0 0 12px;font-size:12.5px"><b style="color:rgb(var(--c-bad))">Only '+g.n+
     ' log-returns behind this &mdash; too thin to trust as a fitted forecast.</b> '+
     '<span style="color:rgb(var(--c-mut))">The 90% confidence interval below is wide enough to make that '+
@@ -4343,11 +4353,15 @@ function renderGbmDiffusion(){
     'arithmetic on this program&rsquo;s real actual-cost history; the honest caveat is what n=6 can and '+
     'cannot support, not that the arithmetic is wrong.</span></p>'+
     '<div style="display:flex;gap:22px;flex-wrap:wrap">'+
-    [["Drift &mu;&#770; (MLE)",pct(g.muHatMle,2)+"/period",""],
-     ["Volatility &sigma;&#770; (MLE)",pct(g.sigmaHatMle,2)+"/period",""],
-     ["90% CI, mean log-return",pct(g.ciLowRbar,2)+" to "+pct(g.ciHighRbar,2),"ba"]
+    // 4th array slot: a plain one-line gloss under each stat tile (brainstorm-mode round,
+    // 2026-08-24) -- so a reader can understand the number without leaving the tile to hunt for a
+    // definition elsewhere. Same real content the "Math unlocked" panel already states, compressed.
+    [["Drift &mu;&#770; (MLE)",pct(g.muHatMle,2)+"/period","","average monthly cost growth"],
+     ["Volatility &sigma;&#770; (MLE)",pct(g.sigmaHatMle,2)+"/period","","typical month-to-month wobble"],
+     ["90% CI, mean log-return",pct(g.ciLowRbar,2)+" to "+pct(g.ciHighRbar,2),"ba","how uncertain that average is"]
     ].map(function(r){ return '<div><div class="k" style="font:600 9.5px/1.3 ui-monospace,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgb(var(--c-mut))">'+
-      r[0]+'</div><div class="v '+r[2]+'" style="margin-top:5px;font:600 .95rem/1.2 inherit">'+r[1]+'</div></div>'; }).join("")+
+      r[0]+'</div><div class="v '+r[2]+'" style="margin-top:5px;font:600 .95rem/1.2 inherit">'+r[1]+'</div>'+
+      '<div style="margin-top:3px;font-size:10.5px;color:rgb(var(--c-mut))">'+r[3]+'</div></div>'; }).join("")+
     '</div>'+
     '<p style="margin:12px 0 0;font-size:11.5px;color:rgb(var(--c-mut))">Fit via Maximum Likelihood Estimation '+
     'to '+g.n+' monthly log-returns of this program&rsquo;s own actual-cost history (population-variance MLE '+
@@ -4403,11 +4417,14 @@ function renderGbmLogReturns(){
     '<text x="'+PL+'" y="'+(H-8)+'" font-size="9.5" font-family="ui-monospace,monospace" fill="'+C("mut")+'">'+pct(lo,1)+'</text>'+
     '<text x="'+(W-PR)+'" y="'+(H-8)+'" text-anchor="end" font-size="9.5" font-family="ui-monospace,monospace" fill="'+C("mut")+'">'+pct(hi,1)+'</text>';
   document.getElementById("gbmLogReturns").innerHTML=
-    '<p class="lede" style="font-size:11.8px;margin-bottom:6px">The '+g.n+' real log-returns behind the numbers above -- '+
-    'hover a point for the two real months it spans. The curve is the Gaussian shape MLE fits '+
-    '<em>to these 5 points</em> (centered on r&#772;, the sample mean log-return -- not &mu;&#770;, a '+
-    'different, Ito-adjusted quantity), drawn to show what the fit actually implies, never as a '+
-    'projection of anything future.</p>'+
+    // Simplified always-visible caption (brainstorm-mode round, 2026-08-24) -- the rbar-vs-muHatMle
+    // technical distinction this used to state inline moved to renderGbmMathUnlocked() below, where
+    // that level of precision belongs; this caption now says only what a reader needs to read the
+    // chart itself, in plain language.
+    '<p class="lede" style="font-size:11.8px;margin-bottom:6px">The '+g.n+' real month-to-month cost '+
+    'changes behind the numbers above &mdash; hover a dot for which two months it spans. The curve is '+
+    'the bell-shaped pattern those '+g.n+' points imply, drawn to show what the fit actually says, '+
+    'never as a projection of what happens next.</p>'+
     svg(W,H,body,"The "+g.n+" real log-returns as a strip plot, with the MLE-fitted Gaussian shape drawn over them.");
 }
 /* Plain-language "Math unlocked" drawer (item 4) -- zero new computation, reuses g's already-real
@@ -4426,7 +4443,17 @@ function renderGbmMathUnlocked(){
     '<p style="margin:10px 0 0;font-size:12.5px"><b style="color:rgb(var(--c-code))">Why MLE, not a guess?</b> Maximum '+
     'Likelihood Estimation picks the &mu;/&sigma; pair that makes the '+g.n+' real observed log-returns the most '+
     'probable outcome, out of every possible &mu;/&sigma; pair -- a specific, defensible answer to "what does this '+
-    'data actually support," not a subjective contingency percentage picked by feel.</p>';
+    'data actually support," not a subjective contingency percentage picked by feel.</p>'+
+    // Relocated from the log-return chart's own always-visible caption (brainstorm-mode round,
+    // 2026-08-24) -- this level of precision belongs in the optional deep-dive, not in text every
+    // reader sees just to orient themselves.
+    '<p style="margin:10px 0 0;font-size:12.5px"><b style="color:rgb(var(--c-code))">Why the curve above is '+
+    'centered on r&#772;, not &mu;&#770;</b> The strip-plot chart above draws its bell curve centered on '+
+    'r&#772; (the plain average of the '+g.n+' log-returns), not &mu;&#770; (drift) &mdash; they are two '+
+    'different numbers. &mu;&#770; = r&#772; + &frac12;&sigma;&#770;&sup2; is the Ito-adjusted growth rate '+
+    'of the underlying cost trend itself, not the mean of the log-return distribution those points are '+
+    'drawn from. Centering the curve on &mu;&#770; instead would silently mismatch it to the dots it is '+
+    'meant to explain.</p>';
 }
 /* EVM vs. GBM -- reframed as a METHODOLOGY comparison (item 3), not a forecast comparison. The
    declined items (fan chart, P80-completion-vs-EAC) would need projecting sigmaHatMle forward in
@@ -4436,7 +4463,9 @@ function renderGbmMathUnlocked(){
 function renderGbmVsEvm(){
   var g=deriveGbmParams(acHistorySeries().map(function(p){ return p.ac; }));
   document.getElementById("gbmVsEvm").innerHTML=
-    '<h4>What CPI-extrapolation assumes vs. what GBM admits <button type="button" class="help-ic" data-help="gbmvsevm" aria-label="What does this term mean?" aria-expanded="false">i</button></h4>'+
+    // Tier 2 light polish (brainstorm-mode round, 2026-08-24) -- "CPI-extrapolation" softened to
+    // "today's CPI-based forecast," the more accessible phrase; substance unchanged.
+    '<h4>What today&rsquo;s CPI-based forecast assumes vs. what this fit admits <button type="button" class="help-ic" data-help="gbmvsevm" aria-label="What does this term mean?" aria-expanded="false">i</button></h4>'+
     '<p>Classical EAC (BAC&divide;CPI) implicitly assumes the remaining work happens at exactly today\'s CPI ('+
     idx(T.cpi)+'), every month, with zero variance around it -- a single deterministic line. It is not that this is '+
     'wrong, it is that the assumption is invisible unless someone says it out loud. GBM\'s own MLE fit makes the '+

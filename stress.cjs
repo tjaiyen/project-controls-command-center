@@ -2892,6 +2892,16 @@ console.log("== D5.3. forecast model (actual vs plan) ==");
   has("costGbm", pct(muHatMle, 2), "GBM card shows the formatted drift figure matching the independent recomputation");
   has("costGbm", pct(sigmaHatMle, 2), "GBM card shows the formatted volatility figure matching the independent recomputation");
   has("costGbm", pct(ciLowRbar, 2) + " to " + pct(ciHighRbar, 2), "GBM card shows the formatted 90% CI matching the independent recomputation");
+  // Clarity round (brainstorm-mode, 2026-08-24 -- TJ's direct finding: "I have no idea what I'm
+  // looking at"). Item 1: plain-language lede, matching the sibling cards' own established pattern
+  // (this card was the only one in its row without one).
+  has("costGbm", "Two plain questions", "GBM card now opens with a plain-language lede, matching its sibling cards");
+  ok(G.costGbm._html.indexOf("Two plain questions") < G.costGbm._html.indexOf("too thin to trust"),
+    "the plain-language lede sits BEFORE the technical caveat, not after -- the exact order fix this round was about");
+  // Item 2: a plain one-line gloss under each of the 3 stat tiles.
+  has("costGbm", "average monthly cost growth", "Drift tile carries a plain gloss");
+  has("costGbm", "typical month-to-month wobble", "Volatility tile carries a plain gloss");
+  has("costGbm", "how uncertain that average is", "90% CI tile carries a plain gloss");
   // load-bearing position check: the caveat sentence must render BEFORE the numeric mu-hat tile —
   // a plain text-presence check (has()) wouldn't catch a regression that buries the caveat below
   // the numbers, since has() only confirms the text exists somewhere in the card.
@@ -4597,13 +4607,20 @@ console.log("== D22. GBM/MLE brainstorm round, items 1-4 (2026-08-21) ==");
   ok(Math.abs(g.rbar - g.muHatMle) > 1e-6, "sanity: rbar and muHatMle are genuinely different numbers for this program's real data (the Ito adjustment is non-zero)", "rbar=" + g.rbar.toFixed(5) + " muHatMle=" + g.muHatMle.toFixed(5));
   ok(svgHtml.indexOf("r&#772; " + pct(g.rbar, 2)) >= 0, "pre-registered: the reference line/label is centered on rbar, not muHatMle");
   ok(svgHtml.indexOf(pct(g.muHatMle, 2)) === -1 || pct(g.muHatMle, 2) === pct(g.rbar, 2), "the muHatMle value does not appear mislabeled as the curve's own center");
-  ok(svgHtml.indexOf("never as a projection of anything future") >= 0, "the chart's own caption states plainly this is not a forecast");
+  ok(svgHtml.indexOf("never as a projection of what happens next") >= 0, "the chart's own caption states plainly this is not a forecast");
+  // Item 3 (clarity round, 2026-08-24): "Ito-adjusted quantity" moved OUT of this always-visible
+  // caption and INTO the optional Math-unlocked panel -- relocated, not deleted, so the precision
+  // isn't lost, just no longer blocking a first-time reader's path through the chart.
+  ok(svgHtml.indexOf("Ito-adjusted") === -1, "the jargon-dense 'Ito-adjusted quantity' phrase is gone from the always-visible chart caption");
 
   // Item 3 — EVM vs GBM methodology comparison. Must compare what each method ASSUMES, using
   // real numbers already on the page, and must explicitly NOT contain a forward-projected
   // completion figure (the declined item) -- checked directly, not just absent by omission.
   P.renderGbmVsEvm();
   const evmHtml = G.gbmVsEvm._html;
+  // Item 4 (Tier 2 light polish, clarity round 2026-08-24): heading softened, substance unchanged.
+  ok(evmHtml.indexOf("What today&rsquo;s CPI-based forecast assumes") >= 0, "the comparison box's heading uses the softer, more accessible phrasing");
+  ok(evmHtml.indexOf("CPI-extrapolation") === -1, "the jargon-compound 'CPI-extrapolation' is gone from the card's own heading (the glossary term's own title is untouched, a separate, deliberate scope choice)");
   ok(evmHtml.indexOf(idx(T.cpi)) >= 0, "the comparison cites this program's own real live CPI, not a hand-typed figure");
   ok(evmHtml.indexOf(pct(g.sigmaHatMle, 2)) >= 0, "the comparison cites the real sigmaHatMle, not a hand-typed figure");
   ok(evmHtml.indexOf("Deliberately not shown") >= 0 && evmHtml.indexOf("Stochastic TCPI") >= 0, "the comparison explicitly states what it declined and why, not just silently omitting it");
@@ -4626,6 +4643,11 @@ console.log("== D22. GBM/MLE brainstorm round, items 1-4 (2026-08-21) ==");
   const mathHtml = G.gbmMathUnlocked._html;
   ok(mathHtml.indexOf(pct(g.muHatMle, 2)) >= 0 && mathHtml.indexOf(pct(g.sigmaHatMle, 2)) >= 0, "the drawer cites the real, live-computed drift and volatility, not placeholder text");
   ok(mathHtml.indexOf("Maximum Likelihood Estimation") >= 0, "the drawer explains MLE in plain language");
+  // Item 3's relocation target (clarity round, 2026-08-24): the rbar-vs-muHatMle technical
+  // distinction moved here from the log-return chart's own always-visible caption -- confirmed it
+  // actually landed, not just removed from the other spot (checked separately above).
+  ok(mathHtml.indexOf("Ito-adjusted") >= 0, "the relocated Ito-adjusted-quantity explanation actually landed in the optional Math-unlocked panel");
+  ok(mathHtml.indexOf("centered on") >= 0 && mathHtml.indexOf("r&#772;") >= 0, "the panel explains why the chart's curve is centered on rbar, not muHatMle");
 
   // 13th details.dbox panel actually exists in markup (cross-checked against A's own count above).
   ok(indexSrc.indexOf('<summary>Math unlocked') >= 0, "the new Math-unlocked <details> panel exists in markup");
