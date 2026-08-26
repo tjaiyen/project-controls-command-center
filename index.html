@@ -1584,6 +1584,13 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
       <p class="lede" id="contractFoot" style="margin-top:9px;font-size:12.5px"></p>
       <div id="contractDrill" aria-live="polite" style="margin-top:10px"></div>
 
+      <div class="sec-h" style="margin-top:24px"><h3>Subcontractor financial-health watch</h3></div>
+      <p class="lede">Real market pressure, not a hypothetical: the surety industry's own trade
+        association reported the direct loss ratio for all US surety writers at its highest level
+        in five years, and underwriting has tightened in response. A proactive quarterly check on
+        the highest-exposure contracts, not a surprise when a subcontractor can't perform.</p>
+      <div class="tw"><table id="subHealthTable" style="min-width:640px"></table></div>
+
       <div class="sec-h" style="margin-top:34px"><h2>Change &amp; claims</h2><span class="tag">commercial</span></div>
       <p class="lede">Change order rate against original contract value is one of the strongest, most
         closely tracked predictors of a troubled program. Cycle time is the one you can actually control.</p>
@@ -6136,6 +6143,21 @@ function generateTriageQueue(){
       tabLink:o.tabLink, actionId:null
     });
   });
+  // Subcontractor financial-health watch (brainstorm-mode round, 2026-08-26) — only surfaces an
+  // item once its own check cycle is actually overdue or its status reads red; a green,
+  // on-cycle check is real but not yet something a human needs to act on, so it stays off this
+  // queue the same way a dormant escalation rule does.
+  SUB_HEALTH.forEach(function(s){
+    var d=subHealthOverdue(s);
+    if(s.status!=="red" && d<0) return;
+    var c=CONTRACTS.filter(function(x){ return x.id===s.contractId; })[0];
+    items.push({
+      id:"subhealth-"+s.contractId, tier:subHealthTier(s), title:"Re-check bonding capacity — "+(c?c.title:s.contractId),
+      metric:s.note, owner:"Procurement",
+      escRule:"Subcontractor financial-health watch — "+SUB_HEALTH_CYCLE_DAYS+"-day check cycle",
+      clock: d>=0?(d+"d past cycle"):"Status watch", tabLink:{tab:"risk",anchor:"contractTable"}, actionId:null
+    });
+  });
   // Tier 2/3/4 — RAID/action staleness, due-soon, and blocked are 3 INDEPENDENT real axes
   // (isStale() by last-touch date, actionStatus()==="due-soon" by due date, ==="blocked" by the
   // a.blocked flag) -- nothing about one implies or excludes another, so the SAME action can
@@ -7397,6 +7419,21 @@ function renderContracts(){
   }
   renderContractDrill(cs);
 }
+function renderSubHealth(){
+  var el=document.getElementById("subHealthTable");
+  if(!el) return;
+  el.innerHTML=
+    '<caption class="tw-caption">Subcontractor financial-health watch — '+SUB_HEALTH.length+' of '+CONTRACTS.length+' contracts, the highest combined change exposure, on a '+SUB_HEALTH_CYCLE_DAYS+'-day check cycle.</caption>'+
+    '<thead><tr><th scope="col">Status</th><th scope="col">Contract</th><th scope="col">Last checked</th><th scope="col">Cycle status</th><th scope="col">Note</th></tr></thead><tbody>'+
+    SUB_HEALTH.map(function(s){
+      var c=CONTRACTS.filter(function(x){ return x.id===s.contractId; })[0];
+      var d=subHealthOverdue(s);
+      var cls=s.status==="red"?"r":s.status==="amber"?"a":"g";
+      return '<tr style="cursor:default"><td><span class="pill '+cls+'">'+s.status.charAt(0).toUpperCase()+s.status.slice(1)+'</span></td>'+
+      '<td>'+(c?c.title:s.contractId)+'</td><td class="mono">'+s.lastCheck+'</td>'+
+      '<td>'+(d>=0?(d+"d past the "+SUB_HEALTH_CYCLE_DAYS+"-day cycle"):((-d)+"d until due")) +'</td>'+
+      '<td style="white-space:normal;max-width:260px">'+s.note+'</td></tr>'; }).join("")+'</tbody>';
+}
 /* Contract drill-down (brainstorm-mode round, 2026-08-24) -- same drawer template as
    renderPortDrill/renderRiskDrill: null-means-closed, two close buttons, and a closing line that
    says plainly these figures ARE the row above, not a separate number that happens to agree.
@@ -8363,6 +8400,23 @@ var OWNER_DECISIONS=[
   blocks:"CP-601's driving schedule path — R-02's own utility-approval risk",
   tabLink:{tab:"risk",anchor:null}, ref:odRiskRef("R-02")}
 ];
+/* Subcontractor financial-health / bonding-capacity watch (brainstorm-mode round, 2026-08-26) --
+   direct answer to a real industry finding: SFAA (the surety industry's own trade association)
+   reported the direct loss ratio for all US surety writers hit 24.9% in the first 9 months of
+   2024, the highest in 5 years -- underwriting has tightened in response (see the vault's own
+   11_STRATEGIC_CHALLENGES_AND_SOLUTIONS.md #14). Watches the 3 real contracts carrying the
+   highest combined approved-CO + pending-trends exposure -- CONTRACTS' own real fields, not an
+   arbitrary pick; verified by stress.cjs against a fresh independent sort, not just asserted
+   here -- on a standing 90-day check cycle. */
+var SUB_HEALTH_CYCLE_DAYS=90;
+var SUB_HEALTH=[
+ {contractId:"CTE-BB-02", lastCheck:"2026-05-15", status:"green", note:"Bonding capacity and current ratio both confirmed against the tunnel package's remaining commitment"},
+ {contractId:"CTE-BB-01", lastCheck:"2026-04-20", status:"amber", note:"Renewal bond rate up at the last underwriting review; capacity still sufficient for remaining scope"},
+ {contractId:"CTE-UT-06", lastCheck:"2026-03-10", status:"red", note:"Check is past due — last confirmed capacity predates this quarter's award growth"}
+];
+function subHealthOverdue(s){ return actDays(s.lastCheck)-SUB_HEALTH_CYCLE_DAYS; } // positive = days past the 90-day cycle
+function subHealthTier(s){ var d=subHealthOverdue(s); return (s.status==="red"||d>=14)?1:(s.status==="amber"||d>=0)?2:4; }
+
 // Positive = days past the neededBy date (overdue); negative = days remaining. Same arithmetic
 // direction as actionStatus()'s own d=actDays(a.due) — one sign convention across both registers.
 function odDaysOverdue(o){ return actDays(o.neededBy); }
@@ -12262,7 +12316,7 @@ document.getElementById("mcInspect").value=String(state.mcInspect);
 document.getElementById("vInspect").textContent="P"+state.mcInspect;
 renderWaterfall(); renderWaterfallMath(); renderBaseline(); renderVeSandbox(); renderEac(); renderCont(); renderTable();
 renderEacTrend(); renderFcastTable(); renderGbmDiffusion(); renderGbmLogReturns(); renderGbmMathUnlocked(); renderGbmVsEvm(); renderCashflow();
-renderGantt(); renderSchedule(); renderRisk(); renderDrbEmv(); renderContracts(); renderDelivery(); renderFramework(); renderActions(); renderActionsMath(); renderTriage(); renderExec();
+renderGantt(); renderSchedule(); renderRisk(); renderDrbEmv(); renderContracts(); renderSubHealth(); renderDelivery(); renderFramework(); renderActions(); renderActionsMath(); renderTriage(); renderExec();
 document.getElementById("sDrbP").value=DRB_ASSUMPTIONS.pOwnerWins;
 document.getElementById("sDrbLegal").value=DRB_ASSUMPTIONS.legalCost;
 renderDrbSlider();
@@ -12297,6 +12351,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   firingEscalations:firingEscalations,actDays:actDays,
   generateTriageQueue:generateTriageQueue,renderTriage:renderTriage,triageEscMeta:TRIAGE_ESC_META,triageClockTier:TRIAGE_CLOCK_TIER,
   ownerDecisions:OWNER_DECISIONS,odTier:odTier,odDaysOverdue:odDaysOverdue,odDaysOpen:odDaysOpen,
+  subHealth:SUB_HEALTH,subHealthOverdue:subHealthOverdue,subHealthTier:subHealthTier,renderSubHealth:renderSubHealth,
   renderExec:renderExec,execCp201Share:execCp201Share,execFundingGap:execFundingGap,execTopActions:execTopActions,execTranslate:EXEC_TRANSLATE,
   execDrawerContent:execDrawerContent,execFaq:EXEC_FAQ,
   buildAskAiSnapshot:buildAskAiSnapshot,renderAskAiGate:renderAskAiGate,renderAskAiPanel:renderAskAiPanel,

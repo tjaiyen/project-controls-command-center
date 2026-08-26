@@ -6451,8 +6451,13 @@ console.log("== D46. Attention & Triage tab -- external spec, fact-checked befor
   // OWNER_DECISIONS (brainstorm-mode round, 2026-08-26) -- a 5th, fully independent real source;
   // it's its own register (no ACTIONS overlap possible, so no dedup logic needed against it).
   const ownerDecisionCount = P.ownerDecisions.length;
-  const expectedCount = escCount + staleActions.length + dueSoonNotStale.length + blockedNotClaimed.length + (cphNarrowingExpected ? 1 : 0) + ownerDecisionCount;
-  ok(queue.length === expectedCount, "the queue's real item count matches an independent recount from the same 5 real sources, deduped by the same stale>due-soon>blocked priority", queue.length + " vs expected " + expectedCount);
+  // SUB_HEALTH (brainstorm-mode round, 2026-08-26) -- a 6th independent source, but conditional:
+  // only fires when its own status reads red OR its check cycle is actually overdue (same
+  // "dormant rules don't queue" principle as ESCALATION) -- independently recomputed here, not
+  // read back from the app's own filter.
+  const subHealthFiring = P.subHealth.filter((s) => s.status === "red" || P.subHealthOverdue(s) >= 0).length;
+  const expectedCount = escCount + staleActions.length + dueSoonNotStale.length + blockedNotClaimed.length + (cphNarrowingExpected ? 1 : 0) + ownerDecisionCount + subHealthFiring;
+  ok(queue.length === expectedCount, "the queue's real item count matches an independent recount from the same 6 real sources, deduped by the same stale>due-soon>blocked priority", queue.length + " vs expected " + expectedCount);
 
   // General invariant, not tied to today's specific overlap: no real action id should ever
   // produce more than one per-action card (stale-/duesoon-/blocked- ids all carry the same
@@ -8421,6 +8426,47 @@ console.log("== K. Pending owner/agency decisions register (brainstorm-mode roun
       ok(item.tier === P.odTier(o), o.id + "'s triage tier matches odTier(), not a hardcoded value");
       ok(item.title === o.ask, o.id + "'s triage title is the real ask text");
     }
+  });
+}
+
+console.log("== L. Subcontractor financial-health watch (brainstorm-mode round, 2026-08-26) ==");
+{
+  // Direct answer to a real researched finding (11_STRATEGIC_CHALLENGES_AND_SOLUTIONS.md #14 --
+  // SFAA's own 24.9% surety loss-ratio figure). Pre-registered expectation: the 3 watched
+  // contracts are genuinely the 3 highest-exposure real contracts, independently re-sorted here,
+  // not asserted from the register's own comment.
+  const sh = P.subHealth;
+  ok(sh.length === 3, "3 contracts are on the financial-health watch", String(sh.length));
+  const topByExposure = P.contracts.slice().sort((a, b) => (b.approvedCO + b.pendingTrends) - (a.approvedCO + a.pendingTrends)).slice(0, 3).map((c) => c.id);
+  const watched = sh.map((s) => s.contractId).slice().sort();
+  ok(JSON.stringify(watched) === JSON.stringify(topByExposure.slice().sort()), "the 3 watched contracts are genuinely the 3 highest-exposure real contracts (approvedCO+pendingTrends), independently re-sorted, not an arbitrary pick", JSON.stringify(watched) + " vs " + JSON.stringify(topByExposure));
+
+  // subHealthOverdue/subHealthTier -- independently recomputed, not read back from the app.
+  sh.forEach((s) => {
+    const expectDays = Math.round((Date.UTC(2026, 6, 31) - Date.parse(s.lastCheck + "T00:00:00Z")) / 86400000) - 90;
+    ok(P.subHealthOverdue(s) === expectDays, s.contractId + "'s subHealthOverdue matches an independent 90-day-cycle recomputation", String(P.subHealthOverdue(s)));
+    const expectTier = (s.status === "red" || expectDays >= 14) ? 1 : (s.status === "amber" || expectDays >= 0) ? 2 : 4;
+    ok(P.subHealthTier(s) === expectTier, s.contractId + "'s subHealthTier matches an independent recomputation");
+  });
+  // Pre-registered, live-checked fact (this run): exactly one is red, one amber, one clean green
+  // and not yet due -- the 3-state spread this feature is built to demonstrate.
+  ok(sh.filter((s) => s.status === "red").length === 1 && sh.filter((s) => s.status === "amber").length === 1 && sh.filter((s) => s.status === "green" && P.subHealthOverdue(s) < 0).length === 1,
+    "pre-registered: exactly one red, one amber, and one on-cycle green watch item exist today");
+
+  // Rendered table -- real content.
+  const tblHtml = G.subHealthTable._html;
+  sh.forEach((s) => {
+    const c = P.contracts.find((x) => x.id === s.contractId);
+    ok(tblHtml.includes(c.title) && tblHtml.includes(s.lastCheck) && tblHtml.includes(s.note), s.contractId + "'s contract title, last-check date, and note all render in the real table");
+  });
+
+  // Triage-queue integration -- the on-cycle green item must NOT appear (dormant, same principle
+  // as an unfired escalation rule); red/amber/overdue items must.
+  const queue = P.generateTriageQueue();
+  sh.forEach((s) => {
+    const shouldFire = s.status === "red" || P.subHealthOverdue(s) >= 0;
+    const item = queue.find((it) => it.id === "subhealth-" + s.contractId);
+    ok(!!item === shouldFire, s.contractId + "'s triage presence matches the pre-registered fire/dormant expectation", String(shouldFire));
   });
 }
 
