@@ -7701,6 +7701,104 @@ console.log("== D57. Learning layer -- Glossary retrieval-practice quiz, domain 
   P8.quizSave(prog);
   const afterSave = P8.quizProgress();
   ok(afterSave[key] && afterSave[key].reps === 1, "a graded answer actually persists to localStorage and reads back correctly", JSON.stringify(afterSave[key]));
+
+  // Tier 1.3 fix, closing finding #5's coverage gap -- the mastery badge's ONLY prior test ran
+  // against an EMPTY progress object, where any counting formula (correctCount>0, seenCount>0, a
+  // hardcoded 0) produces the identical "0 mastered" result. This populated-state case actually
+  // exercises the counting condition: one term graded "got it" twice in a row (reps=2,
+  // lastResult="got it") must count; the SAME term graded a third time and missed must immediately
+  // drop back OUT of the count, matching what an SM-2 reps-reset already means -- a real regression
+  // guard for the "mastery never decays" bug this round fixed.
+  P8.sm2Update(prog[key], 4); // second straight "got it" on the same item -> reps=2
+  P8.quizSave(prog);
+  P8.renderMasteryBadge();
+  ok(R8.registry.masteryBadge.textContent === "Mastery: 1 / " + P8.gloss.length + " terms",
+    "mastery badge counts a term with 2 straight correct reviews", R8.registry.masteryBadge.textContent);
+  prog[key] = P8.sm2Update(prog[key], 1); // now miss it
+  P8.quizSave(prog);
+  P8.renderMasteryBadge();
+  ok(R8.registry.masteryBadge.textContent === "Mastery: 0 / " + P8.gloss.length + " terms",
+    "...and the SAME term drops back OUT of the count the instant it's missed -- mastery reflects current state, not lifetime history",
+    R8.registry.masteryBadge.textContent);
+}
+
+console.log("== D58. /stress-test round fixes -- SM-2 timezone bug, mastery-badge honesty, AI System Card accuracy, interval-clamp crash (2026-08-26) ==");
+{
+  // Finding #1 -- AI System Card no longer overstates Ask AI's actual data access. The OLD claim
+  // ("Covers the 20 KPIs and 26 charts") is gone; the new text names exactly what
+  // buildAskAiSnapshot() actually contains and explicitly discloses the per-package gap.
+  ok(!indexSrc.includes("Covers\n            the 20 KPIs and 26 charts") && !/Covers[\s\S]{0,20}20 KPIs and 26 charts/.test(indexSrc),
+    "the old, inaccurate '20 KPIs and 26 charts' coverage claim is gone");
+  ok(indexSrc.includes("not per-package") && indexSrc.includes("Waterfall or PF") ,
+    "AI System Card now honestly discloses the real per-package/per-control-account gap, naming a real example chart");
+  ok(indexSrc.includes("program-wide totals, all 20 KPI values, the risk register,\n            tracked actions, Gate 5's status, and the Monte Carlo forecast") ||
+     (indexSrc.includes("program-wide totals") && indexSrc.includes("all 20 KPI values") && indexSrc.includes("the risk register") && indexSrc.includes("Gate 5's status") && indexSrc.includes("the Monte Carlo forecast")),
+    "'What it can access' names the REAL fields buildAskAiSnapshot() returns, not a vague claim");
+
+  // Finding #2 -- SM-2/pickQuizTerm no longer use the UTC-slicing toISOString() pattern for
+  // calendar-day math; localDateStr() (local Y/M/D components) is used instead.
+  ok(!/function sm2Update[\s\S]{0,900}toISOString/.test(indexSrc), "sm2Update() no longer computes its due date via toISOString() (the UTC-slicing bug)");
+  ok(!/function pickQuizTerm[\s\S]{0,300}toISOString/.test(indexSrc), "pickQuizTerm() no longer computes 'today' via toISOString()");
+  ok(indexSrc.includes("function localDateStr(d){") && /due\.due\s*=\s*localDateStr|item\.due\s*=\s*localDateStr/.test(indexSrc),
+    "sm2Update() now derives its due date from the new localDateStr() helper");
+
+  // Empirical, forced-timezone repro of the ORIGINAL bug and its fix -- not just a source-text
+  // check. Forces process.env.TZ to a real behind-UTC zone (Node re-reads TZ for new Date objects
+  // created afterward), builds a moment late in the evening (11pm local), and confirms
+  // localDateStr() reports the correct LOCAL calendar day while the OLD toISOString().slice(0,10)
+  // pattern would have reported the NEXT day -- the exact mismatch that silently delayed every
+  // evening review by a full day. TZ restored immediately after so later sections are unaffected.
+  {
+    const prevTz = process.env.TZ;
+    process.env.TZ = "America/Los_Angeles";
+    const evening = new Date(2026, 7, 25, 23, 0, 0); // Aug 25, 11pm PACIFIC LOCAL
+    const buggyOldPattern = evening.toISOString().slice(0, 10);
+    const fixedNewPattern = P.localDateStr(evening);
+    ok(buggyOldPattern === "2026-08-26", "pre-registered: confirms the OLD toISOString() pattern really does roll over to the next day at 11pm Pacific (proves the bug is real, not hypothetical)", buggyOldPattern);
+    ok(fixedNewPattern === "2026-08-25", "localDateStr() correctly reports the same-day local date instead", fixedNewPattern);
+    process.env.TZ = prevTz;
+  }
+
+  // Finding #4 -- interval clamp prevents the Date-range overflow crash. Pre-registered: BEFORE
+  // the fix, sm2Update() with a corrupted/huge stored interval threw an uncaught RangeError inside
+  // the grade-click handler (probe-verified during authoring: interval=500,000,000 crashed with
+  // "RangeError: Invalid time value"). After the fix, the same input must return normally with the
+  // interval clamped, not throw.
+  let crashed = false, clampedItem = null;
+  try { clampedItem = P.sm2Update({ reps: 5, interval: 500000000, ease: 2.5 }, 4); }
+  catch (e) { crashed = true; }
+  ok(!crashed, "sm2Update() no longer throws on a corrupted/huge stored interval");
+  ok(clampedItem && clampedItem.interval <= 3650, "the resulting interval is clamped to the stated 3650-day ceiling, not left unbounded", clampedItem && String(clampedItem.interval));
+
+  // Finding #6 -- quiz-scope note names the real active category, not a generic placeholder.
+  P.state.glossCat = "risk";
+  ok(P.quizScopeNote().includes("Quizzing on:") && P.quizScopeNote().includes("Risk, Commercial & Governance"),
+    "quiz-scope note names the REAL active category label (from the real CATS object), not a generic placeholder", P.quizScopeNote());
+  ok(P.quizScopeNote().includes("exit the quiz to change category"), "quiz-scope note explains WHY the category filter disappeared, closing the silent-UI-change gap");
+  P.state.glossCat = "cost";
+  ok(P.quizScopeNote().includes("Cost & EVM") && !P.quizScopeNote().includes("Risk, Commercial"),
+    "quiz-scope note updates to whichever category is actually active, not stuck on the first one checked");
+  P.state.glossCat = "All";
+  ok(P.quizScopeNote().includes("All categories"), "quiz-scope note says 'All categories' when no category filter is active, not 'undefined'");
+
+  // Finding #7 -- the "/" glossary-search shortcut no longer fires while quizzing (previously a
+  // silent no-op: focus() on the hidden #glossQ input did nothing, with zero feedback). Its own
+  // FRESH instance (R9/P9), not the original R/P -- by this point in the file the earlier R8
+  // fresh-instance block above has already reassigned global.document/window, and activateTab()'s
+  // OWN document.getElementById() calls close over whatever global.document is CURRENT at call
+  // time, not whatever it was when R was first built. Using the stale original R/P here would be
+  // exactly the same document-reassignment trap this file's own D57 comment already documents
+  // (and had to move a block to the end to avoid) -- reproduced live while authoring this test:
+  // it failed with state.tab left at "cost" even after exiting quiz mode, because activateTab()
+  // was mutating R8's page, not R's.
+  const R9 = runPage(indexSrc, {});
+  const P9 = R9.win.__PCC__;
+  P9.state.tab = "cost"; P9.state.quizMode = true;
+  fire(R9.win, "keydown", { key: "/", target: { tagName: "BODY" }, preventDefault(){} });
+  ok(P9.state.tab === "cost", "'/' shortcut does NOT jump to the Glossary tab while quizzing");
+  P9.state.quizMode = false;
+  fire(R9.win, "keydown", { key: "/", target: { tagName: "BODY" }, preventDefault(){} });
+  ok(P9.state.tab === "gloss", "...but still works normally once the quiz is exited -- the fix is a guard, not a removal");
 }
 
 /* =========================================================================

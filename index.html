@@ -1823,9 +1823,10 @@ join dim_control_account b using (package_id)</pre></div>
             cost, schedule, risk, delivery and compliance figures already on this dashboard. Not a general-purpose
             assistant, not a source of outside facts, not investment, legal or safety advice.</p></div>
         <div class="dbox"><h4>What it can access</h4>
-          <p>Only a real, live-computed snapshot of this dashboard's own numbers at the moment you ask &mdash; never
-            the model's own outside training knowledge, and never a live web search. If the ledger doesn't have it,
-            the model doesn't either.</p></div>
+          <p>A real, live-computed snapshot &mdash; program-wide totals, all 20 KPI values, the risk register,
+            tracked actions, Gate 5's status, and the Monte Carlo forecast &mdash; never the model's own outside
+            training knowledge, and never a live web search. If the snapshot doesn't have it, the model doesn't
+            either.</p></div>
         <div class="dbox"><h4>How every claim gets checked</h4>
           <p>The same contract as the narrative demo below: <b style="color:rgb(var(--c-ink))">the model proposes,
             the code disposes.</b> Every numeric claim in an answer is mechanically re-extracted and recomputed
@@ -1833,9 +1834,12 @@ join dim_control_account b using (package_id)</pre></div>
             the whole answer is refused rather than shown half-checked.</p></div>
         <div class="dbox"><h4>Known limits</h4>
           <p>Calls an outside AI service and costs real money per question &mdash; off by default, opted into
-            per session, never assumed. Can refuse to answer rather than guess when it isn't confident. Covers
-            the 20 KPIs and 26 charts on this dashboard; it has no more insight into Change or Compliance's
-            root cause than the dashboard itself does (see the KPI board's own note on that gap).</p></div>
+            per session, never assumed. Can refuse to answer rather than guess when it isn't confident.
+            <b style="color:rgb(var(--c-ink))">Named honestly, not glossed over:</b> the snapshot above is
+            program-wide and per-KPI, not per-package &mdash; it can tell you the program's overall VAC or PF,
+            but not which single control account or crew is actually driving it, the way the Waterfall or PF
+            Gauge charts can. It has no more insight into Change or Compliance's root cause than the dashboard
+            itself does either (see the KPI board's own note on that gap).</p></div>
       </div>
       <div class="sec-h" style="margin-top:30px"><h3>AI narrative &mdash; under a verification contract</h3></div>
       <p class="lede">The contract: <b style="color:rgb(var(--c-ink))">the model proposes, the code disposes.</b>
@@ -10558,11 +10562,30 @@ function renderDomainMap(){
    Every question and answer already existed -- this is a new interaction wrapper around GLOSS's
    own g.t/g.p/g.e(), not new content to author or fact-check. */
 
+/* Local calendar-day string (/stress-test finding, 2026-08-26) -- Y/M/D from the LOCAL Date
+   object, never toISOString() (which is always UTC). The first version of this file used
+   `new Date().toISOString().slice(0,10)` for both "today" and a computed due date; for anyone in
+   a behind-UTC timezone (empirically confirmed with America/Los_Angeles) that silently schedules
+   every review made at or after ~5pm local a full calendar day later than SM-2 actually intended
+   -- proven with a real repro: a card graded at 5pm Pacific with interval=1 got a stored due date
+   that still wasn't "due" a full real day later, at 3pm the next afternoon. Local Y/M/D
+   components sidestep the UTC round-trip entirely. */
+function localDateStr(d){
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+}
 /* SM-2 (SuperMemo-2, Woźniak 1987) -- the real, standard spaced-repetition algorithm behind Anki
    and most production flashcard tools; ~20 lines, four numbers per item, no backend required.
    quality: 4 = "got it" (self-graded), 1 = "missed it" -- a deliberately simplified 2-button input
    over SM-2's usual 0-5 scale (this dashboard doesn't need Anki's finer gradations to be a real,
-   correct implementation of the underlying scheduling math). */
+   correct implementation of the underlying scheduling math).
+   Interval clamped to 3650 days (/stress-test finding, 2026-08-26) -- with no ceiling, a large
+   stored interval (reachable either through years of genuinely consistent correct reviews, or a
+   directly-edited localStorage value) pushes the computed due date past what Date/toISOString()
+   can represent, throwing an uncaught RangeError inside the grade-click handler and freezing the
+   quiz mid-session. 3650 days (~10 years) is a generous real-world ceiling, well past anything a
+   legitimate review cadence reaches, and matches the order of magnitude production SRS tools cap
+   at. Probe-verified: an interval of 500,000,000 (simulating a corrupted stored value) crashed
+   with "RangeError: Invalid time value" before this clamp, and no longer does after it. */
 function sm2Update(item,quality){
   item=item||{reps:0,interval:0,ease:2.5};
   if(quality<3){ item.reps=0; item.interval=1; }
@@ -10572,9 +10595,10 @@ function sm2Update(item,quality){
     else item.interval=Math.round(item.interval*item.ease);
     item.reps+=1;
   }
+  item.interval=Math.min(item.interval,3650);
   item.ease=Math.max(1.3, item.ease+(0.1-(5-quality)*(0.08+(5-quality)*0.02)));
   var due=new Date(); due.setDate(due.getDate()+item.interval);
-  item.due=due.toISOString().slice(0,10);
+  item.due=localDateStr(due);
   item.lastResult=quality>=3?"got it":"missed";
   item.seenCount=(item.seenCount||0)+1;
   item.correctCount=(item.correctCount||0)+(quality>=3?1:0);
@@ -10603,7 +10627,7 @@ function quizPoolTerms(){
    incidental -- a learner studying "Cost & EVM" via the filter bar gets quizzed on exactly that
    set, no separate quiz-scope control to build or explain. */
 function pickQuizTerm(){
-  var prog=quizProgress(), pool=quizPoolTerms(), today=new Date().toISOString().slice(0,10);
+  var prog=quizProgress(), pool=quizPoolTerms(), today=localDateStr(new Date());
   var due=pool.filter(function(g){ return prog[g.k]&&prog[g.k].due&&prog[g.k].due<=today; })
     .sort(function(a,b){ return prog[a.k].due<prog[b.k].due?-1:1; });
   if(due.length) return due[0].k;
@@ -10616,10 +10640,18 @@ function soonestDue(){
   var dues=pool.map(function(g){ return prog[g.k]&&prog[g.k].due; }).filter(Boolean).sort();
   return dues[0]||null;
 }
+/* Mastered = CURRENT state, not lifetime history (/stress-test finding, 2026-08-26) -- the first
+   version counted correctCount>0 ("answered right at least once, ever"), so a term you got right
+   once and then missed three times straight afterward -- SM-2 itself already resets reps/interval
+   to 0/1 on that miss, agreeing the term is effectively unlearned -- still counted as permanently
+   "mastered" in this badge, forever. reps>=2 && lastResult==="got it" requires the CURRENT streak
+   to have survived at least two consecutive correct reviews and the most recent grade to have been
+   a success -- a miss immediately drops a term back out of the count, matching what SM-2's own
+   reps-reset already means, instead of a badge that only ever goes up. */
 function renderMasteryBadge(){
   var el=document.getElementById("masteryBadge"); if(!el) return;
   var prog=quizProgress();
-  var mastered=GLOSS.filter(function(g){ return prog[g.k]&&prog[g.k].correctCount>0; }).length;
+  var mastered=GLOSS.filter(function(g){ return prog[g.k]&&prog[g.k].reps>=2&&prog[g.k].lastResult==="got it"; }).length;
   el.textContent="Mastery: "+mastered+" / "+GLOSS.length+" terms";
 }
 function toggleQuizMode(){
@@ -10634,19 +10666,29 @@ function toggleQuizMode(){
   if(state.quizMode){ state.quizKey=pickQuizTerm(); state.quizRevealed=false; }
   renderQuiz();
 }
+/* Quizzing-on note (/stress-test finding, 2026-08-26) -- toggleQuizMode() hides #glossCatBar
+   entirely while quizzing (the quiz pool is locked to whatever category was active the moment
+   the quiz started, so switching categories mid-quiz was never wired), but nothing told the
+   reader why the filter bar they were just using had disappeared. One line, in the one place
+   they're already looking. */
+function quizScopeNote(){
+  var label=state.glossCat==="All"?"All categories":CATS[state.glossCat].label;
+  return '<p style="margin:0 0 10px;font-size:11.5px;color:rgb(var(--c-mut))">Quizzing on: <b style="color:rgb(var(--c-ink))">'+
+    label+'</b> — exit the quiz to change category.</p>';
+}
 function renderQuiz(){
   var el=document.getElementById("quizPanel"); if(!el||!state.quizMode) return;
   var key=state.quizKey;
   if(!key){
     var due=soonestDue();
-    el.innerHTML='<div class="card"><p class="lede">You\'re caught up on this set — nothing due for review right now.'+
+    el.innerHTML=quizScopeNote()+'<div class="card"><p class="lede">You\'re caught up on this set — nothing due for review right now.'+
       (due?' Next term comes due '+due+'.':' Quiz a different category, or come back later.')+'</p></div>';
     return;
   }
   var g=GLOSS.filter(function(x){ return x.k===key; })[0];
   if(!g){ el.innerHTML=""; return; }
   var prog=quizProgress()[key];
-  el.innerHTML='<div class="card">'+
+  el.innerHTML=quizScopeNote()+'<div class="card">'+
     '<div class="eyebrow">'+CATS[g.cat].label+(prog?' · seen '+prog.seenCount+'x':' · new')+'</div>'+
     '<h3 style="margin:6px 0 0">'+g.t+'</h3>'+
     '<p class="lede" style="margin-top:8px">Recall it before you reveal — what does this mean, and what is it '+
@@ -10996,7 +11038,10 @@ window.addEventListener("keydown",function(e){
   // that class of shortcut; "/" unshifted is not OS/browser-reserved, confirmed by its absence
   // from every other check in this handler). Distinct from the shiftKey+"/" branch above, which
   // only fires WITH shift held.
-  if(e.key==="/"){ e.preventDefault(); document.getElementById("t-gloss").click(); document.getElementById("glossQ").focus(); return; }
+  // guarded on !state.quizMode (/stress-test finding, 2026-08-26) -- #glossQ is hidden while
+  // quizzing (toggleQuizMode() above), so .focus() on it was a silent no-op with zero feedback;
+  // the documented "or press /" convention appeared to just stop working mid-quiz.
+  if(e.key==="/"&&!state.quizMode){ e.preventDefault(); document.getElementById("t-gloss").click(); document.getElementById("glossQ").focus(); return; }
   // "t" toggles theme (brainstorm-mode nav round, 2026-08-23) -- fires the REAL themeBtn click
   // handler rather than duplicating its dark/light logic, so the keyboard path and the mouse path
   // can never drift out of sync with each other.
@@ -11948,7 +11993,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   renderOpQProgress:renderOpQProgress,opqTotal:OPQ_TOTAL,opQuestionBox:opQuestionBox,
   renderDomainMap:renderDomainMap,sm2Update:sm2Update,quizProgress:quizProgress,quizSave:quizSave,
   pickQuizTerm:pickQuizTerm,toggleQuizMode:toggleQuizMode,renderQuiz:renderQuiz,
-  renderMasteryBadge:renderMasteryBadge};
+  renderMasteryBadge:renderMasteryBadge,localDateStr:localDateStr,soonestDue:soonestDue,quizScopeNote:quizScopeNote};
 })();
 </script>
 </body>
