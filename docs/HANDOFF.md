@@ -30,24 +30,27 @@ anywhere in this repository. The method is the content, not the numbers.
 
 | | |
 |---|---|
-| Primary file | `index.html` — 7,874 lines, one file, no build step |
-| Top-level JS functions | 176 (not re-audited this round — see §18 gap note) |
-| Tabs | 11 |
+| Primary file | `index.html` — 12,249 lines, one file, no build step |
+| Top-level JS functions | 375 (fresh `grep -nE "^\s*function [a-zA-Z_]" index.html \| wc -l`, this pass — the prior "176 vs 204" mismatch (§18) was never reconciled to a trusted baseline, so this is a clean recount, not a patch to the old number) |
+| Tabs | 13, grouped into 5 altitudes on the tab rail (Executive · Program Performance · Field & Assurance · Governance & Execution · Reference) |
 | KPIs (with formula/threshold/phase/source/play each) | 20 |
 | KPI families (`KPI_FAMILIES` — Cost/Schedule/Risk/Change/Delivery/Compliance) | 6, each with its own operational question + why-it-matters card on Overview |
 | JS integrity-gate checks (`GUARDS`) | 28, re-run on every page load |
 | Ingestion-validation checks (`INGEST_GUARDS`) | 2 |
-| SQL/DuckDB parity checks (`pipeline/run_pipeline.py`) | 64, independently re-run and verified this pass |
-| Glossary terms (each with a live-computed worked example) | 55 |
+| SQL/DuckDB parity checks (`pipeline/run_pipeline.py`) | 65, independently re-run and verified this pass (installed `duckdb` into a throwaway venv, ran fresh) |
+| Escalation-matrix rules (`ESCALATION`) | 12, each with a named owner and a clock |
+| Glossary terms (each with a live-computed worked example) | 61 |
 | Actions/RAID register items | 17 (6 Issue, 10 Task, 1 Decision) |
 | Control accounts / packages | 8 |
 | Contracts | 6 |
 | Risks | 6 |
 | Delay events | 4 |
-| `stress.cjs` test assertions | 2,260, all passing (Gate 5 solvency sandbox round, 2026-08-24) |
-| Companion pages | `otak.html` (fit brief), `architecture.html` (static pipeline map) |
+| `stress.cjs` test assertions | 3,330, all passing |
+| `worker/smoketest.js` assertions (Ask AI backend, §10) | 25, all passing — a 3rd, independent test harness, Node-only, no real network/Cloudflare runtime |
+| Companion pages | `otak.html` (fit brief, 449 lines), `architecture.html` (static pipeline map, 598 lines) |
+| Companion backend (never deployed — see §10) | `worker/` — a Cloudflare Worker for the Ask AI feature; `ASK_AI_WORKER_URL` in `index.html` is still the `REPLACE-ME` placeholder |
 | Hosting | GitHub Pages, served directly from `main`, zero build |
-| Git history | 130 commits |
+| Git history | 178 commits |
 
 Current EVM tie-out (verify live in the browser console via `__PCC__.totals`, or `node verify.cjs`):
 
@@ -74,6 +77,20 @@ architecture.html        a static, hand-verified snapshot of the pipeline diagra
 README.md                public-facing overview (shorter, sales-oriented version of this doc)
 stress.cjs                adversarial test harness — stubs the DOM, exercises every interaction
 verify.cjs                independent EVM tie-out — re-derives every total from raw package data
+worker/                  Cloudflare Worker backend for the Executive Command tab's "Ask AI"
+                         free-text Q&A — NOT deployed (ASK_AI_WORKER_URL is still the REPLACE-ME
+                         placeholder in index.html; the feature is dormant on the live page). §10.
+  index.js                request handler: CORS, rate limit, closed tool-use loop, mechanical
+                         fact-check against the real ledger, cost accounting
+  lib.js                  pure guardrail logic factored out for unit testing (the 10-tool TOOLS
+                         array, fact-check regex, budget math) — no network/KV/DO dependency
+  budget-do.js             BudgetCounter Durable Object — an atomic shared daily-spend ceiling
+                         (a plain KV check-then-write let concurrent requests race past the cap;
+                         see the file's own comment for the 2026-08-25 /stress-test numbers)
+  smoketest.js             25-assertion Node test harness for index.js/lib.js's request-handling
+                         logic end-to-end, against a scripted fake Anthropic response + fake KV/DO
+                         — a 3rd, independent test harness alongside stress.cjs/verify.cjs (§11)
+  wrangler.toml            Cloudflare Worker + KV namespace + Durable Object binding config
 pipeline/
   run_pipeline.py         synthesizes raw claims, builds the ledger in DuckDB, proves SQL == JS
   models/
@@ -82,6 +99,9 @@ pipeline/
   output/                 gitignored — the pipeline's own JSON artifact, regenerated on each run
 docs/
   HANDOFF.md               this file
+  ASK_AI_SETUP.md          TJ-only deployment steps to turn the (currently dormant) Ask AI
+                         feature on — Cloudflare account + own Anthropic key, never handed to an
+                         assistant
 .private/, otak-session-notes.md   gitignored — internal research notes, never published
 ```
 
@@ -93,7 +113,8 @@ in this repo (GitHub Pages serves the static files directly from `main` with no 
 ## 4. Architecture & stack
 
 **Static HTML, one file, zero dependencies.** `index.html` is CSS (inline `<style>`) + markup +
-one `<script>` block containing a single IIFE with 169 top-level functions. No framework, no
+one `<script>` block containing a single IIFE with 375 top-level functions (fresh count, this
+pass — see §2's note on the prior 176-vs-204 mismatch). No framework, no
 bundler, no CDN, no `npm install`. Opening the file directly in a browser (`file://`) or serving it
 with any static file server works identically — the repo's own convention for local testing is
 `python3 -m http.server` from the repo root.
@@ -140,12 +161,13 @@ browser's dev console to independently sanity-check a number.
 | `KPIS` | 20 | id/family/abbr/name/tier/formula/threshold/phase/source/why/play, per metric | Overview KPI board, Operating Framework's reference library |
 | `GUARDS` | 28 | Deterministic reconciliation checks, re-run against the live ledger on every load | AI & Data tab's integrity gate |
 | `INGEST_GUARDS` | 2 | Raw-record validation (no negative AC, EV ≤ BAC) — distinct from `GUARDS`' reconciliation | AI & Data tab |
+| `ESCALATION` | 12 | Escalation-matrix rule: trigger condition, owner, response-time clock | Operating Framework tab's escalation matrix |
 | `RISKS` | 6 | id/name/probability(1-5)/impact-cost/root cause | Risk & Change tab (tornado chart + heat map) |
 | `DELAYS` | 4 | id/classification (`Excusable — compensable` / `Non-excusable` / `Recovered`)/days/fragnet | Schedule tab's TIA register |
 | `CONTRACTS` | 6 | Award value, approved/pending change, contingency allocation, per contract | Risk & Change tab's commercial register (a third axis, distinct from control accounts) |
 | `ACTIONS` | 17 | RAID register: Issue/Task/Decision, owner, opened/due/touch dates, root/corrective/preventive fields | Actions tab |
 | `CPH_CELLS` | 1 crew, 6 weeks | Crew cost-per-hour history for CP-201's tunnel crew | Delivery tab, AI & Data's z-score/EWMA control charts |
-| `GLOSS` | 55 | Term/definition/live-computed worked example, each independently traceable to real data | Glossary tab + every inline "i" help icon site-wide |
+| `GLOSS` | 61 | Term/definition/live-computed worked example, each independently traceable to real data | Glossary tab + every inline "i" help icon site-wide |
 | `LEDGER_INPUTS` | 11 | Name/abbr/description/live-computed worked example, one per raw `PKGS` field — human-facing metadata for the ledger card, not a second copy of the data itself | Overview tab's ledger card |
 | `KPI_LEDGER` / `KPI_LEDGER_MIXED` / `KPI_LEDGER_NONE` | 14 / 3 / 6 | Which raw ledger fields actually feed each KPI, stated honestly — pure-ledger, mixed with another register, or not ledger-derived at all | KPI drawer's "Computed from the ledger" / "Not from the ledger" box |
 | `PROGRAM` | 32 fields | Everything not per-package: contingency, funding, safety (TRIR), RFI aging, subcontractor turnaround, change-order pipeline | Cost, Schedule, Delivery, Risk & Change tabs |
@@ -199,23 +221,42 @@ Beyond the core EVM block, three more derivation families exist:
 
 ## 7. Tab-by-tab guide
 
+Tabs are grouped on the rail into 5 altitudes (real DOM order, `.tab-group-label` markup,
+`index.html:901-916` — **not** the `TABS=[...]` JS array's own literal order, which lists `exec`
+last; that array's own comment claims it "matches the tab rail's visual/DOM order," which this
+pass found is no longer true — flagged, not fixed here, since it's a code comment, not a doc):
+
+| Altitude | Tabs | Why grouped together |
+|---|---|---|
+| **Executive** | Overview, Executive Command, Portfolio | Board-level rollups, the 20-KPI health check, and a plain-language proactive-problem-solving view |
+| **Program Performance** | Cost, Schedule, Risk & Change | Core EVM, CPM driving path, priced/commercial risk — Risk & Change sits here, not with Delivery, because it's priced/commercial content, not field-level telemetry |
+| **Field & Assurance** | Delivery, AI & Data | What's happening on the ground + whether the data behind it can be trusted |
+| **Governance & Execution** | Operating Framework, Actions, Attention & Triage, Data Strategy | Attention & Triage sits with Actions — both are accountability/follow-through tooling, not a reference lookup |
+| **Reference** | Glossary | The one genuine lookup tool, alone on purpose |
+
 | # | Tab (id) | What's on it |
 |---|---|---|
-| 1 | **Overview** (`over`) | A "Six lenses, not one blended score" card explaining what each of the 6 KPI families (Cost/Schedule/Risk/Change/Delivery/Compliance) actually asks and why it can't be folded into the others, a "Three layers, not one number" card naming this dashboard's own leading-telemetry / confirming-EVM / independent-assurance architecture for the first time (each layer real, already built, just never named as one system), directly above the 20-KPI board with drill-down detail (formula/threshold/source/play per card, plus a "computed from the ledger" / "not from the ledger" provenance box, honestly stated per KPI), a live root-cause-to-owner trace, the eleven-input ledger card (all 11 raw fields, a per-package inspector, and a live "change one input, watch the KPIs move" demo — reads a local snapshot, never mutates the real ledger), a 10-stop guided Tour with tab-jumping evidence links (§18 gap #8 — this doc previously called it "five-chapter," a stale phrase with no matching code), an executive summary. |
-| 2 | **Portfolio** (`port`) | Agency-level rollup across 4 lines of business — one reads live off this program's own totals (never duplicated, `GUARDS`-checked), three are summary-only illustrative peers. |
-| 3 | **Cost** (`cost`) | EVM S-curve + variance bridge, an estimate-to-budget baseline bridge reconciled to the ledger, four-method EAC, a forecast-reliability section (EAC trend, forecast-accuracy scorecard, monthly cash flow), what-if forecasting with 3 live sliders + scenario comparison, Monte Carlo completion distribution (10,000 runs, seeded/reproducible, a Triangular/PERT draw-shape toggle, an opt-in AACE 57R-09 risk-driver layer), the cost-diffusion (GBM) card — now with a log-return strip plot + fitted-curve overlay, a "Math unlocked" plain-language drawer, and an EVM-vs-GBM methodology comparison (what each method assumes, never a forward-projected figure). |
-| 4 | **Schedule** (`sched`) | DCMA-style schedule health — SPI, SPI(t)/Earned Schedule, CPLI, BEI, the full objective metric triad the DCMA 14-Point Assessment and ANSI/EIA-748 sit under, named explicitly (checks 13/14, with the other 12 stated as a real gap) — a Gantt-style bar with baseline vs. forecast, a fragnet-based delay & TIA register tied to package float, revenue-service forecast drift, statistical control charts (z-score + EWMA) over crew cost-per-hour. |
-| 5 | **Risk & Change** (`risk`) | A priced risk register (probability × impact heat map + sensitivity tornado chart), a contract commercial register (a third axis distinct from control accounts), change pipeline with proposed-vs-settled pricing defense, the settle-vs-DRB EMV decision tree with an **interactive slider + chart** (§8). |
-| 6 | **Delivery** (`del`) | Leading indicators (productivity factor by package, RFI/submittal aging, a quality NCR register with real open counts and per-item aging read live off the Actions/RAID register), the crew cost-per-hour module with a drill-down into idle/rework/baseline attribution. |
-| 7 | **AI & Data** (`ai`) | The pipeline architecture diagram (now interactive — §8), the SQL model, a live 28-check integrity gate + 2 ingestion-validation checks, statistical control (z-score/EWMA) with worked-math accordions, and AI narrative generation under a verification contract (§10). |
-| 8 | **Operating Framework** (`fw`) | Phase playbook, the WBS/CBS/OBS/ABS control-account mapping (with a worked "100% Rule" proof, now carrying an illustrative ABS tag per row alongside WBS/CBS/OBS), Board phase-gate governance with a live Gate-5 hard stop, escalation matrix, a live Working-Backward/inversion worked example, reporting cadence, stakeholder interface map, the 20-metric KPI reference library. |
-| 9 | **Actions** (`act`) | A RAID/CAPA register with proactive staleness detection, owner accountability rollup, a worked-math accordion for `actionStatus()`'s threshold logic. |
-| 10 | **Glossary** (`gloss`) | 55 terms, each with a live-computed worked example, a real category (5 domains — Cost & EVM, Schedule & CPM, Risk/Commercial & Governance, Field Telemetry & Quality, Data Strategy & Architecture — with a live pill filter), and a real "See it live" cross-tab jump button — the same content the inline "i" help icons pull from site-wide. Filterable by search AND category together, and reachable from anywhere via a bare `/` keypress. |
-| 11 | **Data Strategy** (`data`) | A real-world plan for connecting scattered, multi-system data — ISO 19650 CDE staging architecture as an interactive flow diagram (§8), a 4-tile IDS guardrail status grid with a genuinely live 2-check ingestion-validation panel embedded in it, automated guardrails, a discrepancy-resolution decision flow folded into that same diagram, a Category/Trigger/Routing proactive-error-recovery table, a Dual-Stack Parity card citing this program's own real, live CPI against the actual SQL that independently re-derives it. |
+| 1 | **Overview** (`over`) | A "Six lenses, not one blended score" card explaining what each of the 6 KPI families (Cost/Schedule/Risk/Change/Delivery/Compliance) actually asks and why it can't be folded into the others, a "Three layers, not one number" card naming this dashboard's own leading-telemetry / confirming-EVM / independent-assurance architecture for the first time (each layer real, already built, just never named as one system), directly above the 20-KPI board with drill-down detail (formula/threshold/source/play per card, plus a "computed from the ledger" / "not from the ledger" provenance box, honestly stated per KPI), a live root-cause-to-owner trace, the eleven-input ledger card (all 11 raw fields, a per-package inspector, and a live "change one input, watch the KPIs move" demo — reads a local snapshot, never mutates the real ledger), a 10-stop guided Tour with tab-jumping evidence links, an executive summary. |
+| 2 | **Executive Command** (`exec`) | Plain-English Gate 5 status, a proactive-problem-solving sandbox, context callouts — the board-level "what does this actually mean" reading of the same real data, distinct from Overview's KPI-board detail view. Also hosts the **Ask AI** free-text Q&A (§10) — dormant by default (opt-in per session, zero network calls until enabled) and not yet deployed live (`ASK_AI_WORKER_URL` is still the `REPLACE-ME` placeholder). |
+| 3 | **Portfolio** (`port`) | Agency-level rollup across 4 lines of business — one reads live off this program's own totals (never duplicated, `GUARDS`-checked), three are summary-only illustrative peers. |
+| 4 | **Cost** (`cost`) | EVM S-curve + variance bridge, an estimate-to-budget baseline bridge reconciled to the ledger, four-method EAC, a forecast-reliability section (EAC trend, a naive-drift-vs-linear-regression forecaster comparison with a disclosed identical-first-value caveat, monthly cash flow), what-if forecasting with 3 live sliders + scenario comparison, Monte Carlo completion distribution (10,000 runs, seeded/reproducible, a Triangular/PERT draw-shape toggle, an opt-in AACE 57R-09 risk-driver layer), the cost-diffusion (GBM) card — with a log-return strip plot + fitted-curve overlay, a "Math unlocked" plain-language drawer, and an EVM-vs-GBM methodology comparison (what each method assumes, never a forward-projected figure), a sticky in-tab section-anchor rail. |
+| 5 | **Schedule** (`sched`) | DCMA-style schedule health — SPI, SPI(t)/Earned Schedule, CPLI, BEI, the full objective metric triad the DCMA 14-Point Assessment and ANSI/EIA-748 sit under, named explicitly (checks 13/14, with the other 12 stated as a real gap) — a Gantt-style bar with baseline vs. forecast, a fragnet-based delay & TIA register tied to package float, revenue-service forecast drift, statistical control charts (z-score + EWMA) over crew cost-per-hour. |
+| 6 | **Risk & Change** (`risk`) | A priced risk register (probability × impact heat map + sensitivity tornado chart), a contract commercial register (a third axis distinct from control accounts), change pipeline with proposed-vs-settled pricing defense, the settle-vs-DRB EMV decision tree with an **interactive slider + chart** (§8). |
+| 7 | **Delivery** (`del`) | Leading indicators (productivity factor by package, RFI/submittal aging, a quality NCR register with real open counts and per-item aging read live off the Actions/RAID register), the crew cost-per-hour module with a drill-down into idle/rework/baseline attribution. |
+| 8 | **AI & Data** (`ai`) | The pipeline architecture diagram (interactive — §8), the SQL model, a live 28-check integrity gate + 2 ingestion-validation checks, statistical control (z-score/EWMA) with worked-math accordions, a multivariate anomaly score across all 8 packages (a root-sum-of-squares composite over every metric's z-score, with a signed-sum direction disclosure so a package that outperforms everywhere isn't rendered with the same color as one that's genuinely bad), and AI narrative generation under a verification contract (§10). |
+| 9 | **Operating Framework** (`fw`) | Phase playbook, the WBS/CBS/OBS/ABS control-account mapping (with a worked "100% Rule" proof, carrying an illustrative ABS tag per row alongside WBS/CBS/OBS), Board phase-gate governance with a live Gate-5 hard stop, a 12-rule escalation matrix, a live Working-Backward/inversion worked example, reporting cadence, stakeholder interface map, the 20-metric KPI reference library. |
+| 10 | **Actions** (`act`) | A RAID/CAPA register with proactive staleness detection, owner accountability rollup, a worked-math accordion for `actionStatus()`'s threshold logic. |
+| 11 | **Attention & Triage** (`triage`) | Cross-cutting "what needs a human right now" view — every firing escalation rule, stale RAID item, near-term deadline, and pre-breach condition, pulled live from the same registers every other tab reads (no duplicated data). |
+| 12 | **Data Strategy** (`data`) | A real-world plan for connecting scattered, multi-system data — ISO 19650 CDE staging architecture as an interactive flow diagram (§8), a 4-tile IDS guardrail status grid with a genuinely live 2-check ingestion-validation panel embedded in it, automated guardrails, a discrepancy-resolution decision flow folded into that same diagram, a Category/Trigger/Routing proactive-error-recovery table, a Dual-Stack Parity card citing this program's own real, live CPI against the actual SQL that independently re-derives it. |
+| 13 | **Glossary** (`gloss`) | 61 terms, each with a live-computed worked example, a real category (5 domains — Cost & EVM, Schedule & CPM, Risk/Commercial & Governance, Field Telemetry & Quality, Data Strategy & Architecture — with a live pill filter), and a real "See it live" cross-tab jump button — the same content the inline "i" help icons pull from site-wide. Filterable by search AND category together, and reachable from anywhere via a bare `/` keypress. |
 
 Plus, outside the tab body: **Presentation Mode** (a scripted 2-set walkthrough with presenter
-notes), a **10-stop guided Tour**, a **printable executive brief**, light/dark **Theme** toggle, and
-a text-size control (`A-`/`Normal`/`A+`, persisted to `localStorage`).
+notes), a **10-stop guided Tour**, a **printable executive brief**, light/dark **Theme** toggle,
+a text-size control (`A-`/`Normal`/`A+`, persisted to `localStorage`), and — below 1050px — a
+**sticky tab bar + anchor rail** so switching sections or jumping to an in-tab anchor no longer
+requires scrolling back to the top (`--bar-height`/`--tabs-height` custom properties, kept accurate
+live via `ResizeObserver`, since the header grows to multiple rows below 1050px and no fixed pixel
+offset is correct at every width).
 
 ---
 
@@ -251,7 +292,7 @@ Everything below is a real DOM interaction, independently covered by `stress.cjs
   display state only and never mutate `DRB_ASSUMPTIONS`; a small SVG chart makes the "escalating
   can never beat settling" structural finding visible across the whole probability range instead
   of asserting it as one static delta.
-- **55-term glossary** with live search filter, plus a click-driven inline "i" help icon next to
+- **61-term glossary** with live search filter, plus a click-driven inline "i" help icon next to
   jargon anywhere on the page — both read from the same `GLOSS` array, so there's one source of
   truth for every definition.
 - **1 six-KPI-families card** (Overview: `KPI_FAMILIES`) — each of the 6 family tiles carries its
@@ -325,6 +366,25 @@ Everything below is a real DOM interaction, independently covered by `stress.cjs
   governance principle explicitly (a locked baseline should never move without the same
   independent review the lock required) — narrative only, since no re-baseline event is modeled
   on this synthetic ledger to gate against, stated honestly as a principle, not an enforced check.
+- **Multivariate anomaly score** (AI & Data tab) — a root-sum-of-squares composite z-score across
+  all 8 packages' full metric set, ranking packages by *breadth* of deviation rather than any
+  single metric. Direction-blind by construction (a package that outperforms on every metric scores
+  identically to one that's genuinely bad), so a signed-sum (`dir`/`sumSigned`) drives the bar's
+  red/amber/green coloring and an explicit "the real story is…" disclosure sentence, rather than
+  letting the neutral composite number imply a verdict it can't honestly give.
+- **Forecaster comparison** (Cost tab, forecast-reliability section) — naive-drift vs. a 2-point
+  least-squares linear regression, stepped one period ahead. The two methods' first forecast row is
+  mathematically guaranteed identical (a 2-point fit stepped one period ahead reduces to the same
+  formula as the naive drift), disclosed on-page rather than left to read as a bug.
+- **Sticky tab bar + anchor rail below 1050px** — `.tabs`/`.anchor-rail` gain `position:sticky`
+  once the header wraps to more than one row (below 1050px, where a fixed `--nav-height` offset is
+  no longer accurate); `syncStickyNavOffsets()` keeps `--bar-height`/`--tabs-height` live via
+  `ResizeObserver`, called once at the very end of the render cascade (not at its own definition
+  site) so the header's badges/counts are already populated before the first measurement — an
+  earlier version measured too early and captured a wrong, too-short header height.
+- **Ask AI free-text Q&A** (Executive Command tab, dormant by default — §10) — a guardrailed
+  question-answering panel over the real ledger, opt-in per session, zero network calls until
+  enabled, and not yet deployed live (`ASK_AI_WORKER_URL` is still the placeholder).
 - **12 `<details class="dbox">` "how this is actually computed" accordions** — each walks a
   worked example against real data (S-curve PV formula, waterfall bridge, Gantt forecast-finish,
   CPLI driving-path arithmetic, risk exposure, Monte Carlo per-run formula, crew cost-per-hour
@@ -356,28 +416,62 @@ Three layers, each catching a different failure mode:
    actual cost, no package with EV > BAC. A different failure class than `GUARDS` (a record that's
    internally consistent but individually implausible vs. one that's inconsistent with the rest of
    the ledger).
-3. **`pipeline/run_pipeline.py`** (64 checks, SQL/DuckDB, offline) — the same ledger built twice,
+3. **`pipeline/run_pipeline.py`** (65 checks, SQL/DuckDB, offline) — the same ledger built twice,
    independently, in two different languages. See §12.
 
 ---
 
-## 10. AI narrative generation
+## 10. AI features — narrative generation + Ask AI
 
-The AI & Data tab includes an AI-generated narrative draft — but every cited figure is
-independently re-derived and checked against the live ledger before it's allowed to post (the
-`FIGS[]`/`renderNarr()` pattern: figures are pulled from `rows`/`T` by name, never hand-typed into
-the prose string). This was a real bug class earlier in this project's history — a magic-index
-array coupling in an earlier draft of `renderNarr()` let the narrative silently cite the wrong
-package's numbers — fixed and now guarded by a `stress.cjs` assertion that the cited figure
-matches an independent recomputation, not just that *a* number is present.
+Two distinct AI features exist on this dashboard, both under a verification contract:
+
+**AI narrative generation** (AI & Data tab) — an AI-generated narrative draft where every cited
+figure is independently re-derived and checked against the live ledger before it's allowed to post
+(the `FIGS[]`/`renderNarr()` pattern: figures are pulled from `rows`/`T` by name, never hand-typed
+into the prose string). This was a real bug class earlier in this project's history — a
+magic-index array coupling in an earlier draft of `renderNarr()` let the narrative silently cite
+the wrong package's numbers — fixed and now guarded by a `stress.cjs` assertion that the cited
+figure matches an independent recomputation, not just that *a* number is present.
+
+**Ask AI** (Executive Command tab) — a free-text Q&A panel over the real ledger, dormant by
+default (`state.askAiEnabled` starts `false`; a reader must click "Enable Ask AI for this
+session" — zero network calls until then) and **not deployed live**: `ASK_AI_WORKER_URL` in
+`index.html` is still the `REPLACE-ME` placeholder (deploying it is a TJ-only step —
+`docs/ASK_AI_SETUP.md`). The backend (`worker/`, a Cloudflare Worker) holds the real Anthropic API
+key — `index.html` is fully static/public and can never hold it. Guardrails, most to least novel:
+
+- **Closed tool-use, not open generation.** The model can only call 10 named, narrowly-scoped
+  tools (`get_totals`, `get_kpi`, `list_kpis`, `get_risk`, `list_risks`, `get_action`,
+  `list_actions`, `get_gate5_status`, `get_mc_stats`, `get_opening_date`, all defined in
+  `worker/lib.js`'s `TOOLS` array) — it cannot free-generate a number, only ask for one by name and
+  quote what the tool returns.
+- **Mechanical fact-check**, not model self-report — the response is checked against the real
+  ledger after generation, the same "verify, don't trust the model's own claim" contract §10's
+  narrative feature already uses.
+- **Atomic daily budget ceiling** (`worker/budget-do.js`, a Durable Object, not plain KV) — a
+  `/stress-test` finding (2026-08-25): a plain KV check-then-write let 20 concurrent requests all
+  succeed, with 19 of 20 real cost updates silently lost to a last-write-wins race (recorded spend
+  $0.30 for what should have read ~$6.00). A Durable Object serializes calls against the same id,
+  which is what makes the fix atomically correct, not a bigger retry loop. `$2.00`/day hard
+  ceiling, reserved conservatively upfront per question, before ever calling Anthropic.
+- **Per-IP rate limit** (KV-backed, best-effort only — KV has no atomic increment, so this specific
+  limiter can be raced under a burst; the Durable Object budget cap above is the real backstop on
+  total cost regardless).
+- **`worker/smoketest.js`** (25 assertions) exercises the full request-handling logic end-to-end
+  against a scripted fake Anthropic response and fake KV/DO — real coverage despite `stress.cjs`
+  structurally being unable to test this (no real network/KV/DO exists in its Node DOM stub).
+  Verify with `wrangler deploy --dry-run` and one real question before trusting it live.
 
 ---
 
 ## 11. Testing & verification
 
-**`stress.cjs`** (2,260 assertions, all passing) — stubs the DOM, loads `index.html`'s script
+**`stress.cjs`** (3,330 assertions, all passing) — stubs the DOM, loads `index.html`'s script
 verbatim into that stub, and exercises it exactly like a user would: every tab switch, every
-filter, every drawer, every slider drag, every keyboard interaction. 57 labeled sections:
+filter, every drawer, every slider drag, every keyboard interaction. 81 labeled sections (fresh
+`grep -c 'console.log("=='` count, this pass — a different, coarser methodology than the prior
+"57" figure, which was never re-derived the same way, so treat this as a fresh baseline, not a
+patched number):
 
 ```
 A. static structure          B/B2. runtime + portfolio tab       C. narrative vs. data
@@ -407,6 +501,15 @@ node verify.cjs   # prints the tie-out table; compare against §2 above
 node stress.cjs   # prints "N passed, 0 failed" — any regression fails loudly
 ```
 
+**`worker/smoketest.js`** (25 assertions) — a third, independent harness, covering the Ask AI
+backend's request-handling logic (§10) end-to-end against a scripted fake Anthropic response and
+fake KV/DO. This is real coverage `stress.cjs` structurally cannot provide (no network/KV/DO exists
+in its Node DOM stub):
+
+```bash
+node worker/smoketest.js   # prints "N passed, 0 failed"
+```
+
 ---
 
 ## 12. Data pipeline — SQL/DuckDB parity proof
@@ -434,14 +537,15 @@ portfolio: {'bac': 1240.0, 'pv': 847.0, 'ev': 819.7, 'ac': 857.6}
 ALL CHECKS PASSED
 ```
 
-64 PASS, 0 FAIL — matching both `index.html`'s own "64 checks" prose and `README.md`'s claim
+65 PASS, 0 FAIL — matching both `index.html`'s own "65 checks" prose and `README.md`'s claim
 exactly, and the portfolio totals match the JS-side tie-out in §2 to the decimal. Requires
 `pip install duckdb`; no other dependency, no network access, no credentials. (Count grew from 54
 to 64 on 2026-08-21, `/stress-test` round: `schema.yml` declared 10 guardrail tests — claim_id
 unique/not_null, package_id not_null + referential integrity, pv/ev/ac_delta ≥ 0 on
 `stg_progress_claims`, plus package_id/bac not_null and bac≥1 on `fct_control_account` — that
 `run_pipeline.py` documented but never actually ran; all 10 are now real checks. Also fixed a
-mislabeled check() string that printed "ev <= pv" for what was actually testing ev≤bac.)
+mislabeled check() string that printed "ev <= pv" for what was actually testing ev≤bac. Grew again,
+64→65, on 2026-08-25: a temporal-fence guardrail added to `schema.yml`.)
 The raw claim rows are synthesized to sum back to the dashboard's own PV/EV/AC totals by
 construction (a residual-cents plug, see `run_pipeline.py`'s own `distribute()` comment) — so this
 proof covers the SQL aggregation/formula layer agreeing with the JS layer, not an independently-
@@ -453,19 +557,25 @@ more than a synthetic single-source demo can prove.
 ## 13. Companion pages
 
 - **`otak.html`** — "Fit Brief: requirement-by-requirement coverage against a Project Controls
-  Manager posting, gaps included." A separate, self-contained HTML file (448 lines) built around
+  Manager posting, gaps included." A separate, self-contained HTML file (449 lines) built around
   the same design system, honestly naming shortfalls rather than only strengths. Re-verified
-  against the live posting once already (per its own header, 17 Aug 2026) — re-verify against the
+  against the live posting twice already (per its own header, 17 Aug 2026 and 26 Aug 2026 — still
+  live, still open, every requirement and the salary range unchanged) — re-verify against the
   current live posting before reuse, since job postings and TJ's own gap profile both change.
 - **`architecture.html`** (598 lines) — a **static, hand-verified snapshot** of the pipeline
   diagram, distinct from `index.html`'s own interactive `#arch` diagram (§8). The README already
   flags this distinction explicitly ("A verified snapshot, not a live render"). The diagram's own
   *drawing* still has no automated check tying it to `index.html`'s `#arch` diagram — if the
   pipeline architecture changes again, update both by hand. Its **prose counts** (20 KPIs, 28
-  guards, 64 SQL checks, 17 actions) are a different story: `stress.cjs`'s `E.1. architecture.html
+  guards, 65 SQL checks, 17 actions) are a different story: `stress.cjs`'s `E.1. architecture.html
   sync` section now reads this file's own source the same way it already read `otak.html`'s, and
   asserts those counts against `index.html`'s live arrays — added 2026-08-21 after a live, 3rd
-  stale "twenty-seven" instance was found in this file's own `aria-label` (§18 gap #3/#9).
+  stale "twenty-seven" instance was found in this file's own `aria-label` (§18 gap #3/#9), and
+  extended 2026-08-26 to also assert `P.tabs.length===13` and `P.escalation.length===12` — closing
+  the exact gap class that let this file's tab/escalation counts drift undetected between rounds.
+- **`worker/`** (Cloudflare Worker backend for the Executive Command tab's Ask AI feature, §10) —
+  companion-*code*, not a companion *page*: no HTML, never served to a browser directly. Not
+  deployed; `ASK_AI_WORKER_URL` in `index.html` is still the `REPLACE-ME` placeholder.
 
 ---
 
@@ -504,6 +614,7 @@ python3 -m http.server 8000        # or just open index.html directly — both w
 
 node stress.cjs                    # full interaction test suite
 node verify.cjs                    # independent EVM tie-out
+node worker/smoketest.js           # Ask AI backend request-handling logic (§10/§11)
 
 python3 -m venv .venv && .venv/bin/pip install duckdb
 .venv/bin/python3 pipeline/run_pipeline.py   # SQL/JS parity proof
@@ -577,12 +688,12 @@ Named explicitly, not silently dropped — from the most recent engagement/inter
 5. **The eleven-input ledger card is new this round** (2026-08-20) and only covers the Overview
    tab's own `PKGS` provenance — it does not touch or resolve gap #2 above (the risk register still
    has no independent drill-down drawer of its own).
-6. **"Top-level JS functions: 176" in §2 was not re-audited this round** (2026-08-21) — a fresh
-   `grep -nE "^\s*function [a-zA-Z_]" index.html | wc -l` returns 204, but that count wasn't
-   reconciled against whatever narrower methodology produced 176 (§4 separately states 169, a
-   pre-existing mismatch this round didn't introduce or investigate). One real function,
-   `renderFamiliesGrid()`, was added this round. Left un-reconciled rather than guessed at — a
-   wrong "fixed" number would be worse than a flagged stale one.
+6. ~~**"Top-level JS functions: 176" in §2 was not re-audited this round**~~ — **Resolved
+   2026-08-26**: rather than continuing to guess at which of 176/204/169's narrower, undocumented
+   methodologies to trust, §2/§4 now both cite one fresh, single, stated methodology
+   (`grep -nE "^\s*function [a-zA-Z_]" index.html | wc -l` = 375) and drop the three-way
+   disagreement instead of patching one of the old numbers. The prior mismatch was never actually
+   investigated or reconciled — it's superseded, not solved.
 7. ~~**The Data Strategy tab's tile grid, live ingestion panel, recovery table, and parity card
    were verified via DOM-content extraction... not via a scrolled screenshot**~~ — **Resolved
    2026-08-21** (`/stress-test` full-dashboard visual pass): two independent reviewers (this
@@ -642,6 +753,12 @@ Named explicitly, not silently dropped — from the most recent engagement/inter
     Forensic Thread" / "Data Integrity & Governance") already exist among `TOUR_BEATS`' real 10
     entries, or need new narrated tour content authored for gaps, is unverified. Needs a dedicated
     grounding pass against `TOUR_BEATS`' actual content before it can be honestly sized.
+13. **`var TABS=[...]` (`index.html:11342`) no longer matches its own comment** — found while
+    rebuilding §7 for this doc's 2026-08-26 comprehensive resync: the comment above it claims the
+    array's order "matches the tab rail's own visual/DOM order," but the real DOM order (`.tabs`
+    markup, `index.html:901-916`) puts `exec` (Executive Command) second, while the JS array lists
+    it last. Surfaced, not silently fixed — this is a code comment/possible-latent-bug question,
+    out of scope for a documentation pass (coding-discipline.md).
 
 ---
 
@@ -1457,6 +1574,30 @@ carried over from memory or an earlier pass:
   pass. **Known gap, stated not hidden:** those 9 rounds' own dedicated prose changelog entries were
   never individually backfilled into this section — their content lives in `git log` commit
   messages, not here; a future pass could write them up if that level of detail is ever needed.
+- **2026-08-26 comprehensive resync** (requested directly by TJ: "generate a comprehensive full
+  complete dashboard specifications"): this document had drifted furthest behind of the project's
+  three doc surfaces — even `README.md` already knew about Ask AI and Executive Command before
+  this file did. Every count in §2/§5/§7/§9/§11/§12/§13 was pulled fresh this pass, not carried
+  over: `grep -nE "^\s*function [a-zA-Z_]" index.html | wc -l` (375), `wc -l` on `index.html`
+  (12,249), `otak.html` (449), `architecture.html` (598, confirmed unchanged), `git log --oneline
+  | wc -l` (178), `node stress.cjs` (**3,330 passed, 0 failed**, fresh this pass), a fresh
+  `python3 pipeline/run_pipeline.py` run in a throwaway venv (**65 PASS, 0 FAIL**, fresh this
+  pass — not assumed from the prior 64-check citation), `node worker/smoketest.js` (25 passed, 0
+  failed), and `window.__PCC__` for `GLOSS.length` (61) and `ESCALATION.length` (12). The tab
+  rail's real DOM order/grouping (`index.html:901-916`) was read directly rather than trusted from
+  any prior doc, which is what surfaced §18 gap #13 (the `TABS` array's own comment no longer
+  matching its own array). Content gaps closed, not just numbers: §3 gained the entire `worker/`
+  directory (previously zero mentions anywhere in this 126KB file — confirmed via
+  `grep -n "worker/\|Ask AI\|ASK_AI" docs/HANDOFF.md` returning nothing before this pass); §5
+  gained the `ESCALATION` row; §7 was rebuilt from 11 rows to the real 13, with the altitude-group
+  table added; §8 gained entries for the multivariate anomaly score, forecaster comparison, sticky
+  nav, and Ask AI; §10 was renamed and expanded from narrative-only to cover both AI features; §11
+  gained `worker/smoketest.js` as a documented 3rd test harness. `README.md` was found to have its
+  own, independently-stale figures (still says "11 tabs," and cited a 4th different stale
+  stress.cjs count, "2,974 assertions," distinct from both this file's stale 2,260 and the real
+  3,330) — flagged here rather than silently left, fixed separately in that file, not folded into
+  this document's own count trail. This pass touched only `docs/HANDOFF.md`; it did not re-verify
+  or re-derive any KPI/EVM computation, so `verify.cjs`'s tie-out is unchanged from §2 above.
 
 Generated 2026-08-20, against the tip of the eleven-input-ledger-card engagement round; extended
 2026-08-21 for the six-KPI-families card round, again 2026-08-21 for the Data Strategy tab UI/UX
@@ -1479,4 +1620,9 @@ for the Gate 5 solvency what-if sandbox round (see git log for exact commits —
 update was written before its own round's commit lands, per the project's "verify, then document"
 ordering; the 9 brainstorm-mode rounds shipped 2026-08-23 between those two dates are reflected in
 this document's headline counts and in `README.md`'s per-tab feature list, but do not each have
-their own dedicated prose entry here — see the gap noted in the entry just above).
+their own dedicated prose entry here — see the gap noted in the entry just above); again 2026-08-26
+for the comprehensive resync round (see the entry immediately above this paragraph) covering
+everything shipped between 2026-08-24 and 2026-08-26 — the Gate 5 solvency sandbox `/stress-test`
+fixes, the Enterprise Command Center blueprint harvest (temporal-fence guardrail + DCMA glossary
+entry), the multivariate anomaly score, the forecaster comparison, Executive Command + Attention &
+Triage (2 new tabs), the Ask AI feature, and the sticky nav fix.

@@ -7,7 +7,7 @@ multi-package capital transit program, plus a requirement-coverage fit brief.
 
 **Live:** https://tjaiyen.github.io/project-controls-command-center/
 
-**20 KPIs · 11 tabs · 2,260 tests passing · 64 independent SQL parity checks · zero dependencies**
+**20 KPIs · 13 tabs · 3,330 tests passing · 65 independent SQL parity checks · zero dependencies**
 — every number below is computed live from one 11-input ledger, never typed, and provably identical
 whether re-derived in the browser's own JavaScript or an independent DuckDB/SQL pipeline.
 
@@ -29,7 +29,7 @@ because it's actually computing the condition instead of asserting a status.*
 
 ## What's on each tab
 
-11 tabs grouped into 5 altitudes on the rail — **Executive · Program Performance · Field &
+13 tabs grouped into 5 altitudes on the rail — **Executive · Program Performance · Field &
 Assurance · Governance & Execution · Reference**. Global chrome: a live "Gate 5 blocked" status
 pill, a hover/focus-preview mini-drawer on every tab button (core question, real leading prose, a
 live-computed system-of-record), a global 1&ndash;9 tab-jump with a "?" shortcuts overlay
@@ -51,6 +51,10 @@ Schedule, and a "return to origin tab" breadcrumb after any cross-tab jump.
   together for the first time —
   EAC velocity, float erosion rate, milestone slip, crew CPH EWMA gap, Non-Critical Progress
   Inflation — each pill jumping to its own tab.
+- **Executive Command** — the board-level "what does this actually mean" reading of the same real
+  data: plain-English Gate 5 status, a proactive-problem-solving sandbox, context callouts, and the
+  opt-in, guardrailed **Ask AI** free-text Q&A (dormant by default — zero network calls until a
+  reader enables it; not yet deployed live — see [`worker/`](worker/) further down this file).
 - **Portfolio** — agency-level rollup across 4 lines of business, one read live off this program's
   own totals, three summary-only; a click-through line-of-business drill-down, a funding-gap bar
   card, and a stress-test what-if sandbox recomputing the simulated funding gap live off real
@@ -102,7 +106,10 @@ Schedule, and a "return to origin tab" breadcrumb after any cross-tab jump.
 - **Actions** — a RAID/CAPA register with proactive staleness detection and owner accountability
   rollup, a Kanban board view of the same filtered list, and a branching status drawer explaining
   exactly which `actionStatus()` rule fired for that item.
-- **Glossary** — 55 terms with live worked examples, a click-driven inline "i" help icon next to
+- **Attention & Triage** — a cross-cutting "what needs a human right now" view: every firing
+  escalation-matrix rule, stale RAID item, near-term deadline, and pre-breach condition, pulled
+  live from the same registers every other tab reads — nothing duplicated.
+- **Glossary** — 61 terms with live worked examples, a click-driven inline "i" help icon next to
   jargon anywhere on the page, a 5-category domain filter (Cost & EVM, Schedule & CPM,
   Risk/Commercial & Governance, Field Telemetry & Quality, Data Strategy & Architecture — every
   term individually categorized, every count live-derived from the real array), a real "See it
@@ -126,9 +133,9 @@ Schedule, and a "return to origin tab" breadcrumb after any cross-tab jump.
 |---|---|
 | [`architecture.html`](architecture.html) | A drawing-schedule-style map of the dashboard's own upstream→downstream data flow — six source systems through the ledger, KPI board, integrity gate, governance, to the three published outputs. A verified snapshot, not a live render |
 | [`otak.html`](otak.html) | Fit brief: requirement-by-requirement coverage against a Project Controls Manager posting, gaps included. Re-verified against live req #3775557 on 17 Aug 2026 |
-| [`pipeline/`](pipeline/) | The data layer made executable — `run_pipeline.py` synthesizes raw monthly claims deterministically, builds the ledger through `models/fct_control_account.sql` in DuckDB, enforces every guardrail declared in `models/schema.yml`, and proves the SQL output identical to the browser's JavaScript derivation (64 checks). The raw claim rows are synthesized to sum back to the dashboard's own real PV/EV/AC totals, so the proof covers the SQL aggregation/formula layer, not an independently-entered dataset. Requires `pip install duckdb` — no other dependencies |
+| [`pipeline/`](pipeline/) | The data layer made executable — `run_pipeline.py` synthesizes raw monthly claims deterministically, builds the ledger through `models/fct_control_account.sql` in DuckDB, enforces every guardrail declared in `models/schema.yml`, and proves the SQL output identical to the browser's JavaScript derivation (65 checks). The raw claim rows are synthesized to sum back to the dashboard's own real PV/EV/AC totals, so the proof covers the SQL aggregation/formula layer, not an independently-entered dataset. Requires `pip install duckdb` — no other dependencies |
 | [`verify.cjs`](verify.cjs) | Tie-out harness — stubs the DOM, executes the dashboard's script, and independently re-derives every portfolio total (`node verify.cjs`) |
-| [`stress.cjs`](stress.cjs) | Adversarial stress harness — 2,974 assertions across structure, runtime, simulated interactions (tabs, phases, filters, drawer, drill-down, what-if, scenarios, Monte Carlo, the risk-driver toggle, print brief, narrative generation, story walkthrough, glossary category filter + search (combined as AND) + "See it live" cross-tab jump, inline help popover, KPI root-cause drill-down, working-backward/inversion component, the Data Strategy tab, nav-rail keyboard navigation, tab-rail hover-preview drawers, the 1-9/"?" keyboard-shortcuts overlay, the altitude-grouped rail + Gate 5 pill, the in-tab anchor rail, the return breadcrumb, the D-04 FS/SS resequencing toggle, the CPLI status-band strip, the Gate 5 solvency what-if sandbox, the Executive Command tab, the Ask AI guardrail logic), module reconciliations (baseline bridge, change pricing, delay/float tie-out, WBS/contract/portfolio/forecast tie-outs), narrative-vs-data consistency, content-correctness checks (not just counts — e.g. a firing escalation must carry its own rule text, not a neighbor's), and the fabrication/sanitization sweeps (`node stress.cjs`) |
+| [`stress.cjs`](stress.cjs) | Adversarial stress harness — 3,330 assertions across structure, runtime, simulated interactions (tabs, phases, filters, drawer, drill-down, what-if, scenarios, Monte Carlo, the risk-driver toggle, print brief, narrative generation, story walkthrough, glossary category filter + search (combined as AND) + "See it live" cross-tab jump, inline help popover, KPI root-cause drill-down, working-backward/inversion component, the Data Strategy tab, nav-rail keyboard navigation, tab-rail hover-preview drawers, the 1-9/"?" keyboard-shortcuts overlay, the altitude-grouped rail + Gate 5 pill, the in-tab anchor rail, the return breadcrumb, the D-04 FS/SS resequencing toggle, the CPLI status-band strip, the Gate 5 solvency what-if sandbox, the Executive Command tab, the Ask AI guardrail logic), module reconciliations (baseline bridge, change pricing, delay/float tie-out, WBS/contract/portfolio/forecast tie-outs), narrative-vs-data consistency, content-correctness checks (not just counts — e.g. a firing escalation must carry its own rule text, not a neighbor's), and the fabrication/sanitization sweeps (`node stress.cjs`) |
 | [`worker/`](worker/) | Ask AI — the Executive Command tab's opt-in, free-text Q&A feature. A small Cloudflare Worker (`index.js`) holds the real Anthropic API key (this page is static and public — the key can never live in the repo), backed by pure, unit-tested guardrail logic (`lib.js`: closed tool-use over the real live data, mechanical fact-check that strips any claim not backed by an actual tool result, rate limit, daily spend cap). `node worker/smoketest.js` exercises the real Worker request handling end-to-end with a scripted fake Anthropic response — no network or key needed. Off by default; see [`docs/ASK_AI_SETUP.md`](docs/ASK_AI_SETUP.md) to deploy it |
 
 ## Synthetic data
