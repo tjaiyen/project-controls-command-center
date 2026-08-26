@@ -8330,5 +8330,52 @@ console.log("== I. Sticky tab bar / anchor rail below 1050px (UX fix, 2026-08-26
     "no stray early call to syncStickyNavOffsets() sits right after its own function definition (the original, buggy placement)");
 }
 
+console.log("== J. EXEC_TRANSLATE completeness -- closing the generic-fallback gap (2026-08-26) ==");
+{
+  // Found live on the deployed page: execTopActions() falls back to a generic, mechanical
+  // ask/why/consequence (ask:title, why:metric, consequence:"Owner: "+owner+" -- "+escRule) for
+  // any firing escalation without a hand-crafted EXEC_TRANSLATE entry. Only 3 of the real 12
+  // ESC_PAT keys had one -- confirmed live that esc-vacContingency was the 3rd of 3 "Decisions
+  // needed from you" cards, visibly weaker than its 2 hand-crafted neighbors. Pre-registered
+  // expectation: every real ESC_PAT key now resolves to a real EXEC_TRANSLATE entry, derived from
+  // the live key set (P.escPat), not a hardcoded duplicate list that could itself drift.
+  const escKeys = Object.keys(P.escPat);
+  ok(escKeys.length === 12, "12 real ESC_PAT keys exist (unchanged by this round)", String(escKeys.length));
+  const missing = escKeys.filter((k) => typeof P.execTranslate["esc-" + k] !== "function");
+  ok(missing.length === 0, "every real escalation key has a hand-crafted EXEC_TRANSLATE entry -- none fall through to the generic fallback", JSON.stringify(missing));
+
+  // Groundedness -- each of the 9 new entries' "why" text cites a real, live-computed value this
+  // round pulled from T/PROGRAM/eacDriftVelocity(), not an invented number. Independently
+  // recomputed here, not read back from the app's own formatting call, per this file's own
+  // "never verify against the app's own answer" doctrine.
+  const w = P.execTranslate["esc-cpi"]();
+  ok(w.why.includes(idx(T.cpi)), "esc-cpi's why cites the real, independently-recomputed CPI");
+  const g = P.execTranslate["esc-tcpiGap"]();
+  ok(g.why.includes(idx(T.tcpi)) && g.why.includes(idx(T.cpi)) && g.why.includes(idx(T.tcpi - T.cpi)), "esc-tcpiGap's why cites the real TCPI, CPI, and gap, independently recomputed");
+  const b = P.execTranslate["esc-tcpiBac"]();
+  ok(b.why.includes(idx(T.tcpi)), "esc-tcpiBac's why cites the real TCPI(BAC)");
+  const v = P.execTranslate["esc-vacContingency"]();
+  ok(v.why.includes(m(Math.abs(T.vac))) && v.why.includes(m(T.contRemaining)), "esc-vacContingency's why cites the real |VAC| and real remaining contingency -- the exact entry confirmed weak/generic live before this fix");
+  const co = P.execTranslate["esc-coAging"]();
+  ok(co.why.includes(String(P.program.coCycleDays)) && co.why.includes(String(P.program.coCycleTarget)), "esc-coAging's why cites the real change-order cycle days and target");
+  const rfi = P.execTranslate["esc-rfiAging"]();
+  ok(rfi.why.includes(String(P.program.rfiOver30)) && rfi.why.includes(String(P.program.rfiTarget)) && rfi.why.includes(String(P.program.rfiAvgAge)), "esc-rfiAging's why cites the real RFI over-30 count, target, and average age");
+  const tr = P.execTranslate["esc-trir"]();
+  ok(tr.why.includes(P.program.trir.toFixed(2)) && tr.why.includes(P.program.trirBenchmark.toFixed(2)), "esc-trir's why cites the real TRIR and benchmark");
+  const ed = P.execTranslate["esc-eacDrift"]();
+  ok(ed.why.includes(sgn(P.eacDriftVelocity())), "esc-eacDrift's why cites the real, independently-recomputed EAC drift velocity");
+  const pi = P.execTranslate["esc-progInflation"]();
+  ok(pi.why.includes(idx(T.spi)) && pi.why.includes(idx(T.cpli)), "esc-progInflation's why cites the real SPI and CPLI");
+
+  // Behavioral proof, not just source-level completeness: for whichever escalation rules are
+  // ACTUALLY firing on the real ledger right now, execTopActions()'s generic fallback fingerprint
+  // ("consequence" starting with "Owner: ") must never appear for an esc-* item -- only
+  // stale-*/duesoon-*/blocked-*/cph-narrowing items (which have no ESC_PAT entry at all, and were
+  // never in scope for this fix) may still legitimately use it.
+  const topActionsReal = P.execTopActions();
+  const escFallbacks = topActionsReal.filter((a) => a.item.id.startsWith("esc-") && a.consequence.startsWith("Owner: "));
+  ok(escFallbacks.length === 0, "no currently-firing, currently-surfaced escalation item still shows the generic fallback text", JSON.stringify(escFallbacks.map((a) => a.item.id)));
+}
+
 console.log("\n" + pass + " passed, " + fail + " failed");
 process.exit(fail ? 1 : 0);

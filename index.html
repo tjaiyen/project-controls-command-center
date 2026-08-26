@@ -6328,6 +6328,60 @@ var EXEC_TRANSLATE={
     return {ask:"Approve a recovery cadence for the negative-float package(s)",
       why:T.negFloat.map(function(r){ return r.id+" ("+r.float+"d)"; }).join(", ")+" carrying zero or negative float.",
       consequence:"Per the escalation matrix, a named owner and weekly cadence are required once a package crosses zero float."};
+  },
+  // The 9 entries below close a real gap a /stress-test-style pass found live on the deployed
+  // page (2026-08-26): any firing escalation without a hand-crafted entry here fell through to
+  // execTopActions()'s generic fallback (ask:title, why:metric, consequence:owner+escRule) --
+  // structurally correct but reading as a raw data dump next to these curated ones. Confirmed
+  // live: esc-vacContingency was the 3rd of 3 "Decisions needed from you" cards on the real page,
+  // visibly weaker than the 2 hand-crafted cards beside it. Every claim below traces to a real
+  // ESCALATION row and a real PROGRAM/T field -- same discipline as the 3 originals, nothing
+  // invented.
+  "esc-cpi":function(){
+    var w=rows.reduce(function(a,b){ return b.cpi<a.cpi?b:a; },rows[0]);
+    return {ask:"Commission a root-cause analysis on "+w.id+" before the next weekly",
+      why:"Program CPI is "+idx(T.cpi)+" against a 0.95 floor, and CPI is the most stable EVM index — once it settles this low past roughly 20% complete it rarely recovers on its own without a deliberate intervention.",
+      consequence:"Left unexamined, the same erosion keeps compounding into next month's EAC without anyone having named why."};
+  },
+  "esc-tcpiGap":function(){
+    return {ask:"Declare cost recovery unachievable and open a formal re-baseline",
+      why:"The remaining work would need to run at "+idx(T.tcpi)+" efficiency to still land on budget, against a demonstrated "+idx(T.cpi)+" — a "+idx(T.tcpi-T.cpi)+" gap, past the 0.10 line this program treats as unrecoverable in practice.",
+      consequence:"Continuing to forecast the original BAC past this point is how programs lose credibility with their own sponsor — the honest move is re-baselining before someone else has to ask why the number never moved."};
+  },
+  "esc-tcpiBac":function(){
+    return {ask:"Open an immediate cost-mitigation review at the program-director level",
+      why:"TCPI to the original budget is "+idx(T.tcpi)+" — the remaining work would need to run at an efficiency this program has never demonstrated, on any package, at any point.",
+      consequence:"Below this line, continuing to hold the original BAC as the reporting figure is no longer a forecast, it's a promise nobody can keep."};
+  },
+  "esc-vacContingency":function(){
+    return {ask:"File the formal overrun report to the sponsor this reporting cycle",
+      why:"The projected overrun ("+m(Math.abs(T.vac))+") now exceeds the contingency remaining to cover it ("+m(T.contRemaining)+") — the escalation matrix treats this as a reporting obligation, not a discretionary management conversation.",
+      consequence:"This is the one escalation rule with no discretion built in: the matrix's own rule requires disclosure the same cycle it's found, not the next one."};
+  },
+  "esc-coAging":function(){
+    return {ask:"Force a change-board decision — resolve or reject with stated reasons",
+      why:"The change-order cycle is averaging "+PROGRAM.coCycleDays+" days against a "+PROGRAM.coCycleTarget+"-day target — every day past that target is cost and schedule risk sitting unpriced in the ledger.",
+      consequence:"An open change order isn't neutral — it's either budget the program hasn't formally claimed yet or cost it hasn't formally accepted yet, and neither is knowable until the board actually decides."};
+  },
+  "esc-rfiAging":function(){
+    return {ask:"Move the aged critical-path RFIs to daily escalation with the design manager",
+      why:PROGRAM.rfiOver30+" RFIs are open past 30 days against a "+PROGRAM.rfiTarget+"-day target (avg age "+PROGRAM.rfiAvgAge+"d) — on the critical path, an unanswered RFI isn't a paperwork delay, it's schedule float being spent with nothing to show for it.",
+      consequence:"Every day an RFI sits unanswered on the driving path is a day CPLI can't recover, regardless of what the field crew does."};
+  },
+  "esc-trir":function(){
+    return {ask:"Commission an incident-pattern review, checked specifically against the negative-float packages",
+      why:"TRIR is "+PROGRAM.trir.toFixed(2)+" against a "+PROGRAM.trirBenchmark.toFixed(2)+" benchmark — the one metric that can stop the job independent of cost or schedule, so it's watched for clustering, not just the rate.",
+      consequence:"A rate reading fine in aggregate can still be hiding a real pattern concentrated on the packages already under schedule pressure — the review exists to check that specific correlation, not just re-confirm the headline number."};
+  },
+  "esc-eacDrift":function(){
+    return {ask:"Open a 10-day mitigation review to determine whether the EAC drift is systemic or a discrete cause",
+      why:"EAC is moving "+sgn(eacDriftVelocity())+" per month against a $1.0M/month threshold — the velocity of the drift matters as much as the current number, because it's the leading signal for whether next month's forecast keeps getting worse.",
+      consequence:"Treated as noise instead of signal, a real systemic driver keeps compounding into every future EAC update until someone finally asks why."};
+  },
+  "esc-progInflation":function(){
+    return {ask:"Commission an independent critical-path review within 72 hours",
+      why:"Dollar SPI reads "+idx(T.spi)+" — healthy — while CPLI on the driving path is "+idx(T.cpli)+", well below the 0.90 line. Non-critical work is earning value fast enough to mask that the path actually driving the finish date is behind.",
+      consequence:"Reporting SPI alone here would tell the board the program is on track while the one path that actually decides the opening date keeps slipping underneath it."};
   }
 };
 function execTopActions(){
@@ -12175,7 +12229,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   escalation:ESCALATION,kpiEscalation:KPI_ESCALATION,actionsForKpi:actionsForKpi,jumpToAction:jumpToAction,
   firingEscalations:firingEscalations,actDays:actDays,
   generateTriageQueue:generateTriageQueue,renderTriage:renderTriage,triageEscMeta:TRIAGE_ESC_META,triageClockTier:TRIAGE_CLOCK_TIER,
-  renderExec:renderExec,execCp201Share:execCp201Share,execFundingGap:execFundingGap,execTopActions:execTopActions,
+  renderExec:renderExec,execCp201Share:execCp201Share,execFundingGap:execFundingGap,execTopActions:execTopActions,execTranslate:EXEC_TRANSLATE,
   execDrawerContent:execDrawerContent,execFaq:EXEC_FAQ,
   buildAskAiSnapshot:buildAskAiSnapshot,renderAskAiGate:renderAskAiGate,renderAskAiPanel:renderAskAiPanel,
   submitAskAi:submitAskAi,escHtml:escHtml,askAiConfigured:askAiConfigured,
