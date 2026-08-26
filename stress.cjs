@@ -6939,12 +6939,27 @@ console.log("== D50. Ask AI -- free-text Q&A over the real ledger, guardrailed (
   // narrative widening (brainstorm-mode round, 2026-08-26) -- get_action used to carry only
   // id/title/owner/status/dates, the same real gap the AI System Card's own "not per-package"
   // honesty already modeled but never named for this: it could say an action existed, never why.
-  ok(a09Tool.root === a09Real.root && a09Tool.corrective === a09Real.corrective && a09Tool.preventive === a09Real.preventive,
-    "get_action('A-09') now also returns the real root/corrective/preventive narrative, not just id/status metadata");
+  // /stress-test finding (2026-08-26, independent reviewer + direct probing): the FIRST version
+  // of this test picked A-09 as its positive proof, but A-09 is one of 11 of 17 real ACTIONS
+  // entries that never had root/corrective/preventive captured in the first place -- so
+  // a09Real.root/corrective/preventive are all `undefined`, and this assertion was really
+  // asserting `undefined === undefined`, passing regardless of whether the widening worked.
+  // A-01 (below) is one of the 6 real entries that DOES carry the full narrative -- a genuine
+  // positive proof. A-09's own real gap gets its own explicit, honest assertion right after,
+  // instead of silently passing through a vacuous comparison.
+  const a01Real = P.actions.find(a => a.id === "A-01");
+  const a01Tool = askAiLib.callTool("get_action", {id: "A-01"}, snap);
+  ok(!!a01Real.root && !!a01Real.corrective && !!a01Real.preventive, "pre-registered: A-01 is a real ACTIONS entry that DOES carry root/corrective/preventive text today -- a genuine positive-proof subject, not another vacuous undefined===undefined case");
+  ok(a01Tool.root === a01Real.root && a01Tool.corrective === a01Real.corrective && a01Tool.preventive === a01Real.preventive,
+    "get_action('A-01') now also returns the real root/corrective/preventive narrative, not just id/status metadata");
+  // A-09's own honest gap, asserted explicitly: the widening must not fabricate a root cause for
+  // a record that never had one -- undefined all the way through the tool, not a placeholder string.
+  ok(a09Real.root === undefined && a09Tool.root === undefined,
+    "pre-registered: A-09 genuinely has no root-cause text captured -- get_action('A-09') honestly returns undefined for it, not a manufactured placeholder");
   // the same widening reaches the 2 quality NCRs, which live in this SAME tracked-actions array,
   // not a separate register -- confirmed by direct grep before building anything, not assumed.
   const ncrReal = P.actions.find(a => a.id === "NCR-2026-014");
-  ok(!!ncrReal, "pre-registered: NCR-2026-014 is a real member of the ACTIONS array today");
+  ok(!!ncrReal && !!ncrReal.root, "pre-registered: NCR-2026-014 is a real member of the ACTIONS array today AND genuinely carries root-cause text (not another vacuous case)");
   const ncrTool = askAiLib.callTool("get_action", {id: "NCR-2026-014"}, snap);
   ok(ncrTool.root === ncrReal.root && ncrTool.title === ncrReal.title,
     "get_action reaches a quality NCR by its real id through the SAME tool as any other action -- no separate get_ncr tool needed or built");
@@ -6982,6 +6997,12 @@ console.log("== D50. Ask AI -- free-text Q&A over the real ledger, guardrailed (
   const ncrClaims = askAiLib.extractNumericClaims("NCR-2026-014 is tied to R-01, opened 8 Jul 2026.");
   ok(!ncrClaims.some(c => c.includes("014") || c === "-014" || c === "-14"), "extractNumericClaims does NOT extract a spurious numeric claim out of a two-hyphen NCR id", JSON.stringify(ncrClaims));
   ok(ncrClaims.includes("8 Jul 2026"), "...but a real date right after the NCR id still extracts correctly", JSON.stringify(ncrClaims));
+  // /stress-test finding (2026-08-26, independent reviewer): the commit message that shipped the
+  // ID_RE fix claimed a real negative-dollar claim ("-$14.5M") was manually re-verified to still
+  // extract correctly after the two-hyphen change -- true, but never persisted as a regression
+  // test, so nothing would catch it breaking on a future edit to either regex. Made permanent here.
+  const negDollarClaims = askAiLib.extractNumericClaims("VAC on CP-201 is -$14.5M against the funding line this period.");
+  ok(negDollarClaims.includes("-$14.5M"), "a real negative-dollar claim adjacent to a real single-hyphen id (CP-201) still extracts correctly after the two-hyphen ID_RE fix -- the exact scenario the fix's own commit message claimed but never persisted as a test", JSON.stringify(negDollarClaims));
 
   const gtNumbers = askAiLib.buildGroundTruthNumbers([{name: "get_totals", result: {contCoverage: 0.588, contRemaining: 52.6}}]);
   const gtText = askAiLib.buildGroundTruthText([{name: "get_totals", result: {contCoverage: 0.588, contRemaining: 52.6}}]);
@@ -7782,6 +7803,12 @@ console.log("== D58. /stress-test round fixes -- SM-2 timezone bug, mastery-badg
   ok(indexSrc.includes("program-wide totals, all 20 KPI values, the risk register,\n            tracked actions, Gate 5's status, and the Monte Carlo forecast") ||
      (indexSrc.includes("program-wide totals") && indexSrc.includes("all 20 KPI values") && indexSrc.includes("the risk register") && indexSrc.includes("Gate 5's status") && indexSrc.includes("the Monte Carlo forecast")),
     "'What it can access' names the REAL fields buildAskAiSnapshot() returns, not a vague claim");
+  // /stress-test finding (2026-08-26, independent reviewer): the FIRST version of this card
+  // claimed "every tracked action and quality NCR ... now carries its real narrative too" -- true
+  // for only 6 of 17 real ACTIONS entries (the other 11 have no root/corrective/preventive
+  // captured at all). Fixed to disclose the real split instead of overstating universal coverage.
+  ok(!/now carries its real narrative too/.test(indexSrc), "the old, overstated 'every action carries its real narrative' claim (false for 11 of 17 real entries) is gone");
+  ok(indexSrc.includes("only some of them") && indexSrc.includes("a formally documented root cause") && indexSrc.includes("not manufacture why"), "the AI System Card now honestly discloses that root-cause/corrective/preventive narrative exists for only SOME tracked actions, not manufactured for the rest");
 
   // Finding #2 -- SM-2/pickQuizTerm no longer use the UTC-slicing toISOString() pattern for
   // calendar-day math; localDateStr() (local Y/M/D components) is used instead.
@@ -7861,28 +7888,60 @@ console.log("== D59. Deep-research ML round -- multivariate anomaly score, forec
     const variance = vals.reduce((s, v) => s + (v - mean) * (v - mean), 0) / vals.length;
     stats[k] = { mean, sd: Math.sqrt(variance) };
   });
-  const expected = {};
+  const expected = {}, expectedSigned = {}, expectedDir = {};
   rows.forEach(r => {
-    let sumSq = 0;
-    METRICS.forEach(k => { const z = (r[k] - stats[k].mean) / stats[k].sd; sumSq += z * z; });
+    let sumSq = 0, sumSigned = 0;
+    METRICS.forEach(k => { const z = (r[k] - stats[k].mean) / stats[k].sd; sumSq += z * z; sumSigned += z; });
     expected[r.id] = Math.sqrt(sumSq);
+    expectedSigned[r.id] = sumSigned;
+    expectedDir[r.id] = sumSigned <= -1.0 ? "bad" : sumSigned >= 1.0 ? "good" : "mixed";
   });
   const scores = P.multiAnomalyScores();
   ok(scores.length === 8, "multiAnomalyScores() returns exactly 8 real control accounts, not a placeholder count", String(scores.length));
   scores.forEach(s => ok(Math.abs(s.composite - expected[s.id]) < 1e-9, s.id + "'s composite score matches an independent recomputation", s.id + " app=" + s.composite + " expected=" + expected[s.id]));
-  // pre-registered: CP-201 (BAC 305.0, EV 178.4, AC 205.1, float -40) is the worst-float, worst-CPI
-  // account on the board today (established earlier in this file, D26/D33) -- expect it to rank
-  // highest on the composite score too, since its individual metrics ARE genuinely the most
-  // extreme, not a case the "jointly unusual, individually invisible" framing describes.
-  const topId = scores.slice().sort((a, b) => b.composite - a.composite)[0].id;
-  ok(topId === "CP-201", "pre-registered: CP-201 ranks highest on the composite score today, the SAME account already known worst on float/CPI, not a surprising or fabricated result", topId);
+  // /stress-test finding (2026-08-26, independent reviewer): the first version colored every bar
+  // identically regardless of composite score, silently conflating "unusually GOOD on every
+  // metric" with "unusually BAD on every metric" -- CP-501 (2nd-highest composite, 3.07) ranks
+  // there purely by outperforming across the board, not because anything is wrong. dir/sumSigned
+  // fixes this; independently re-derived here, not trusted against the app's own computation.
+  scores.forEach(s => ok(Math.abs(s.sumSigned - expectedSigned[s.id]) < 1e-9 && s.dir === expectedDir[s.id],
+    s.id + "'s signed sum and direction (bad/mixed/good) match an independent recomputation", s.id + " app=" + s.sumSigned + "/" + s.dir + " expected=" + expectedSigned[s.id] + "/" + expectedDir[s.id]));
+  const cp501 = scores.find(s => s.id === "CP-501");
+  ok(cp501.dir === "good" && cp501.composite > 3.0, "pre-registered: CP-501 ranks near the top of the composite chart (>3.0) purely by OUTPERFORMING on every metric (dir='good') -- the exact good/bad conflation this round's fix closes, proven against real data, not a synthetic case", JSON.stringify(cp501.per));
+  // pre-registered: CP-201 (BAC 305.0, EV 178.4, AC 205.1, float -40) is the worst-float account
+  // on the board today (established earlier in this file, D26/D33) -- expect it to rank highest
+  // on the composite score too, since it runs negative on ALL 5 metrics simultaneously (breadth,
+  // not primacy on any one). /stress-test finding (2026-08-26): a first-draft version of this
+  // comment claimed CP-201 is ALSO "worst-CPI" -- false, independently recomputed: CP-601's real
+  // CPI (0.865) and CPLI (0.878) are both slightly worse than CP-201's (0.870/0.905). CP-201 wins
+  // the composite on the breadth of its own negative deviation, not because it is #1-worst on
+  // every individual metric -- corrected here rather than left standing.
+  const topScore = scores.slice().sort((a, b) => b.composite - a.composite)[0];
+  ok(topScore.id === "CP-201", "pre-registered: CP-201 ranks highest on the composite score today, the SAME account already known worst on float, not a surprising or fabricated result", topScore.id);
+  ok(topScore.dir === "bad", "pre-registered: CP-201's real story is uniformly negative across all 5 metrics (dir='bad'), independently re-derived, not a coincidence of the ranking alone", JSON.stringify(topScore.per));
+
+  // /stress-test finding (2026-08-26, independent reviewer): the section's own headline scenario
+  // -- "jointly unusual, individually invisible to a single-metric threshold" -- is never
+  // exercised by real data (CP-201, today's top account, is individually extreme on every metric,
+  // so only the OPPOSITE branch of renderMultiAnomaly()'s topInvisible check is proven live).
+  // Tests the underlying LOGIC directly against a hand-built synthetic profile instead of
+  // reaching into global state to fake a package -- the same boolean condition
+  // renderMultiAnomaly() itself evaluates (MULTI_ANOMALY_METRICS.every(|z|<1.0)), re-derived here,
+  // not copy-pasted from the source.
+  const invisibleProfile = { cpi: 0.9, spi: -0.9, pf: 0.9, float: -0.9, cpli: 0.9 }; // every |z| < 1.0
+  const visibleProfile = { cpi: 1.5, spi: 0.2, pf: 0.1, float: -0.1, cpli: 0.1 }; // one |z| >= 1.0
+  const METRICS2 = ["cpi", "spi", "pf", "float", "cpli"];
+  ok(METRICS2.every(k => Math.abs(invisibleProfile[k]) < 1.0), "pre-registered: a synthetic profile with every |z| under 1.0 correctly evaluates as the 'individually invisible' case the section's own headline scenario describes");
+  ok(!METRICS2.every(k => Math.abs(visibleProfile[k]) < 1.0), "...and a profile with one |z| at or above 1.0 correctly does NOT -- the boolean condition discriminates both ways, not just the direction real data happens to exercise today");
+  const invisibleComposite = Math.sqrt(METRICS2.reduce((s, k) => s + invisibleProfile[k] * invisibleProfile[k], 0));
+  ok(invisibleComposite > 2.0, "pre-registered: the synthetic 'invisible' profile still produces a real, meaningfully high composite (>2.0) despite no single metric crossing 1.0 -- proving the headline scenario is mathematically reachable, not just theoretically possible", invisibleComposite.toFixed(2));
 
   fire(G["t-ai"], "click");
   P.renderMultiAnomaly();
   has("aiMultiAnomaly", "CP-201", "the multivariate anomaly card names the real top-ranked account, not a placeholder");
   has("aiMultiAnomaly", "Composite = root-sum-of-squares", "the card discloses its own real method, not a black box");
   P.renderMultiAnomalyMath();
-  ok(G.multiAnomalyMathBody._html.includes(topId), "the math explainer works the SAME top account's own real numbers, not a generic example");
+  ok(G.multiAnomalyMathBody._html.includes(topScore.id), "the math explainer works the SAME top account's own real numbers, not a generic example");
 
   // Item 2 -- forecaster comparison. Independently re-derived least-squares fit against the SAME
   // acHistorySeries(), never by calling linRegForecastAccuracy() and trusting it.
@@ -7916,6 +7975,14 @@ console.log("== D59. Deep-research ML round -- multivariate anomaly score, forec
   has("fcastTable", "Regression 1-mo-ahead", "the forecast-accuracy table now shows both methods side by side, not just the naive one");
   ok(G.fcastMethodNote._html.includes("backtested months") && G.fcastMethodNote._html.includes("literature"),
     "the method-comparison note states which method actually won on today's real numbers AND the honest small-N caveat, not just a bare verdict");
+  // /stress-test finding (2026-08-26): a 2-point least-squares fit stepped one month ahead is the
+  // SAME arithmetic as the naive method's own "prev + (prev-prev2)" -- the two methods are
+  // mathematically guaranteed to agree on the FIRST backtested row. Pre-registered against real
+  // AC_HISTORY (Feb 610.0, Mar 655.0 -> Apr forecast = 2*655-610 = 700.0 both ways) and confirmed
+  // the disclosure only renders because it's checked live, not hardcoded.
+  const acS = P.acHistorySeries();
+  ok(Math.abs(2 * acS[1].ac - acS[0].ac - 700.0) < 1e-9, "pre-registered: the real Feb/Mar AC history algebraically forces the April forecast to 700.0 under BOTH methods", String(2 * acS[1].ac - acS[0].ac));
+  ok(G.fcastMethodNote._html.includes("identical forecasts for both methods"), "the method-comparison note now discloses the mathematically-guaranteed first-row tie instead of leaving it as an unexplained coincidence a sharp reader would have to puzzle out");
 
   // Item 3 -- get_action's narrative widening + the ID_RE two-hyphen fix are already asserted
   // inline in D50 above (the same section that already covers get_action/extractNumericClaims),

@@ -1844,8 +1844,10 @@ join dim_control_account b using (package_id)</pre></div>
             tracked actions, Gate 5's status, and the Monte Carlo forecast &mdash; never the model's own outside
             training knowledge, and never a live web search. If the snapshot doesn't have it, the model doesn't
             either. Every tracked action and quality NCR (they share one register &mdash; a Quality NCR is just
-            an action with a different id prefix) now carries its real narrative too, not just an id and
-            status: what happened, the root cause, and the corrective/preventive response.</p></div>
+            an action with a different id prefix) now carries its real description too, not just an id and
+            status. <b style="color:rgb(var(--c-ink))">Named honestly, not glossed over:</b> only some of them
+            also have a formally documented root cause and corrective/preventive response &mdash; where that
+            deeper write-up was never done, Ask AI can say the action happened, not manufacture why.</p></div>
         <div class="dbox"><h4>How every claim gets checked</h4>
           <p>The same contract as the narrative demo below: <b style="color:rgb(var(--c-ink))">the model proposes,
             the code disposes.</b> Every numeric claim in an answer is mechanically re-extracted and recomputed
@@ -5036,7 +5038,17 @@ function renderFcastTable(){
     '</tbody><tfoot><tr style="cursor:default"><td>Average absolute error</td><td></td><td></td><td></td>'+
     '<td class="tab-num">'+pct(naiveAvg)+'</td><td class="tab-num">'+pct(lrAvg)+'</td></tr></tfoot>';
   var winner = naiveAvg<lrAvg?"the naive run-rate method":lrAvg<naiveAvg?"the regression method":"neither method";
+  // /stress-test finding (2026-08-26): the first backtested row is fit on exactly 2 prior points,
+  // and a line through 2 points evaluated one step ahead reduces to the SAME arithmetic as the
+  // naive method's own "prev + (prev-prev2)" -- both methods are mathematically guaranteed to
+  // agree on that one row, not a coincidence a sharp reader would otherwise have to puzzle out.
+  // Checked live rather than asserted, so this sentence only ever appears when it's literally true.
+  var firstRowSame = rows2.length && Math.abs(rows2[0].forecast-rowsLr[0].forecast)<1e-6;
   document.getElementById("fcastMethodNote").innerHTML=
+    (firstRowSame ? '<p style="margin-top:8px;font-size:12px;color:rgb(var(--c-mut))">The first row ('+rows2[0].m+
+      ') shows identical forecasts for both methods &mdash; not a bug. A line fit through exactly 2 points and '+
+      'stepped one month ahead is the same arithmetic as the naive method\'s own "last change, repeated," so '+
+      'that row carries zero information about which method is actually better; only the later rows do.</p>' : '')+
     '<p style="margin-top:8px;font-size:12px;color:rgb(var(--c-mut))">Over these '+rows2.length+
     ' backtested months, <b style="color:rgb(var(--c-ink))">'+winner+'</b> comes out ahead on average error ('+
     pct(naiveAvg)+' vs. '+pct(lrAvg)+'). At only '+rows2.length+' data points that is nowhere near enough '+
@@ -9466,8 +9478,18 @@ function renderEwmaMath(){
    only 8 points is itself the overfitting risk this round's other additions (see
    linRegForecastAccuracy() above) are careful to name, not hide. A composite of 5 independent
    per-metric z-scores is a real, honest multivariate distance measure at this sample size --
-   just not the sharpest one a larger dataset would earn. */
+   just not the sharpest one a larger dataset would earn.
+   /stress-test finding (2026-08-26, independent reviewer): the FIRST version colored every bar
+   the same neutral accent regardless of composite score, silently treating "unusually GOOD on
+   every metric" (a package outperforming across the board) identically to "unusually BAD on
+   every metric" -- breaking this file's own established r/a/g direction convention that every
+   adjacent chart (including the z-score check this section sits right next to) already follows.
+   dir/sumSigned added: the SIGNED sum of the 5 z-scores (not the squared composite, which is
+   direction-blind by construction) decides whether a package's real story is "worth investigating
+   because something's wrong" or "worth noting because it's outperforming" -- both are real,
+   neither should render or read the same as the other. */
 var MULTI_ANOMALY_METRICS=["cpi","spi","pf","float","cpli"];
+var MULTI_ANOMALY_DIR_THRESH=1.0; // disclosed in the rendered copy below, not a hidden constant
 function multiAnomalyScores(){
   var stats={};
   MULTI_ANOMALY_METRICS.forEach(function(k){
@@ -9477,14 +9499,18 @@ function multiAnomalyScores(){
     stats[k]={mean:mean,sd:Math.sqrt(variance)};
   });
   return rows.map(function(r){
-    var per={},sumSq=0,maxAbsZ=0,maxKey=MULTI_ANOMALY_METRICS[0];
+    var per={},sumSq=0,sumSigned=0,maxAbsZ=0,maxKey=MULTI_ANOMALY_METRICS[0];
     MULTI_ANOMALY_METRICS.forEach(function(k){
       var s=stats[k], z=s.sd>0?(r[k]-s.mean)/s.sd:0;
-      per[k]=z; sumSq+=z*z;
+      per[k]=z; sumSq+=z*z; sumSigned+=z;
       if(Math.abs(z)>maxAbsZ){ maxAbsZ=Math.abs(z); maxKey=k; }
     });
-    return {id:r.id,n:r.n,per:per,composite:Math.sqrt(sumSq),maxAbsZ:maxAbsZ,maxKey:maxKey};
+    var dir = sumSigned<=-MULTI_ANOMALY_DIR_THRESH?"bad" : sumSigned>=MULTI_ANOMALY_DIR_THRESH?"good" : "mixed";
+    return {id:r.id,n:r.n,per:per,composite:Math.sqrt(sumSq),sumSigned:sumSigned,dir:dir,maxAbsZ:maxAbsZ,maxKey:maxKey};
   });
+}
+function multiAnomalyDirLabel(dir){
+  return dir==="bad"?"underperforming across the board":dir==="good"?"outperforming across the board":"a mixed picture, not one-directional";
 }
 function renderMultiAnomaly(){
   var scores=multiAnomalyScores().slice().sort(function(a,b){ return b.composite-a.composite; });
@@ -9497,15 +9523,21 @@ function renderMultiAnomaly(){
        "its 5 individual metrics stays under |z|=1.0 &mdash; exactly the case a single-metric threshold can't see."
      : top.id+" ranks highest on the combined score (composite "+top.composite.toFixed(2)+"), driven mainly by its "+
        top.maxKey.toUpperCase()+" (z="+top.per[top.maxKey].toFixed(2)+") &mdash; in this case a single-metric check "+
-       "would likely have already caught it too."))+
+       "would likely have already caught it too.")+
+     " Its real story is <b style=\"color:rgb(var(--c-ink))\">"+multiAnomalyDirLabel(top.dir)+"</b> &mdash; a high "+
+     "composite score means statistically unusual, not automatically a problem.")+
    '<div id="multiAnomalyBars" style="margin-top:6px"></div>'+
    '<p style="margin:11px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">Composite = root-sum-of-squares of each '+
    'package\'s CPI/SPI/PF/float/CPLI z-scores against the portfolio\'s own mean and standard deviation across all '+
-   '8 packages. Ranked, not thresholded.</p>';
-  bars("multiAnomalyBars",scores.map(function(s){ return {id:s.id,v:s.composite,c:"var(--c-accent)"}; }),
+   '8 packages &mdash; ranked, not thresholded, and direction-blind by construction (squaring erases sign). Bar '+
+   'color instead comes from the SIGNED sum of the same 5 z-scores: red at &le;'+(-MULTI_ANOMALY_DIR_THRESH)+
+   ', green at &ge;'+MULTI_ANOMALY_DIR_THRESH+', amber between &mdash; a package can rank high on this chart '+
+   'because it is quietly doing very well, not only because something is wrong.</p>';
+  bars("multiAnomalyBars",scores.map(function(s){
+    return {id:s.id,v:s.composite,c:s.dir==="bad"?"var(--c-pill-r)":s.dir==="good"?"var(--c-pill-g)":"var(--c-pill-a)"}; }),
     function(v){ return v.toFixed(2); },
     function(o,i){ var s=scores[i];
-      return "<b>"+s.id+"</b>"+s.n.replace(/&amp;/g,"&")+"<br>Composite "+s.composite.toFixed(2)+
+      return "<b>"+s.id+"</b>"+s.n.replace(/&amp;/g,"&")+"<br>Composite "+s.composite.toFixed(2)+" &middot; "+multiAnomalyDirLabel(s.dir)+
         "<br>CPI z="+s.per.cpi.toFixed(2)+" &middot; SPI z="+s.per.spi.toFixed(2)+" &middot; PF z="+s.per.pf.toFixed(2)+
         "<br>Float z="+s.per.float.toFixed(2)+" &middot; CPLI z="+s.per.cpli.toFixed(2); });
 }
@@ -9524,7 +9556,13 @@ function renderMultiAnomalyMath(){
    top.id+"</b>: z-scores of "+top.per.cpi.toFixed(2)+" (CPI), "+top.per.spi.toFixed(2)+" (SPI), "+
    top.per.pf.toFixed(2)+" (PF), "+top.per.float.toFixed(2)+" (float), "+top.per.cpli.toFixed(2)+
    " (CPLI) square-sum to a composite of <b style='color:rgb(var(--c-ink))'>"+top.composite.toFixed(2)+"</b>, "+
-   "matching the bar chart above &mdash; because this IS that number, not a separate one that happens to agree.</p>";
+   "matching the bar chart above &mdash; because this IS that number, not a separate one that happens to agree.</p>"+
+   "<p style='margin-top:8px'>Squaring erases sign, so the composite alone can't say which direction that "+
+   "distance runs. The bar's color comes from a second, simpler number: the plain (unsquared) sum of the same "+
+   "5 z-scores, <b style='color:rgb(var(--c-ink))'>"+top.sumSigned.toFixed(2)+"</b> for "+top.id+" today &mdash; "+
+   "at or below "+(-MULTI_ANOMALY_DIR_THRESH)+" colors red (underperforming across the board), at or above "+
+   MULTI_ANOMALY_DIR_THRESH+" colors green (outperforming across the board), and the band between colors amber "+
+   "(a mixed picture, not one-directional).</p>";
 }
 function renderIngestGuards(targetId){
   var res=INGEST_GUARDS.map(function(g){ var r=g.run(); return {n:g.n,pass:r[0],detail:r[1]}; });
@@ -9941,9 +9979,9 @@ var GLOSS=[
   e:function(){ var series=CPH_CELLS[0].weeks.map(function(w){return w.actual;}), e2=deriveEwma(series), flags=e2.points.filter(function(p2){return p2.flag;}).length;
     return "Run against the tunnel crew's own 6-week $/hr series: "+flags+" of "+e2.points.length+" weeks currently breach the dynamic control limit ("+
       (flags?"a real, live flag":"a genuine null result — the honest answer, not a manufactured anomaly")+"). &lambda;="+e2.lambda+", L="+e2.L+" are standard SPC parameter choices, not derived from this program's own history."; }},
- {k:"multianomaly", cat:"field", jT:"ai", jE:"aiMultiAnomaly", t:"Multivariate anomaly score", p:"The z-score and EWMA checks above are univariate and longitudinal — one series (CP-201's crew cost-per-hour), over time. This is multivariate and cross-sectional instead: it standardizes 5 real per-package fields (CPI, SPI, PF, float, CPLI) against the portfolio's own mean and standard deviation across all 8 packages, then combines them into one composite distance per package — catching a package that looks unremarkable on every single metric but is jointly unusual across all of them, something no single-metric threshold can see by construction. Deliberately not a full Mahalanobis distance — a covariance matrix estimated from only 8 points would be an overfitting risk, not a real refinement — and ranked, not thresholded, since a hard pass/fail line would be arbitrary at this sample size.",
+ {k:"multianomaly", cat:"field", jT:"ai", jE:"aiMultiAnomaly", t:"Multivariate anomaly score", p:"The z-score and EWMA checks above are univariate and longitudinal — one series (CP-201's crew cost-per-hour), over time. This is multivariate and cross-sectional instead: it standardizes 5 real per-package fields (CPI, SPI, PF, float, CPLI) against the portfolio's own mean and standard deviation across all 8 packages, then combines them into one composite distance per package — catching a package that looks unremarkable on every single metric but is jointly unusual across all of them, something no single-metric threshold can see by construction. Deliberately not a full Mahalanobis distance — a covariance matrix estimated from only 8 points would be an overfitting risk, not a real refinement — and ranked, not thresholded, since a hard pass/fail line would be arbitrary at this sample size. The composite itself is direction-blind (squaring erases sign), so a package can rank high purely because it's outperforming, not just underperforming — the bar's own color (red/amber/green, from the signed sum of the same 5 z-scores) is what actually says which one, not the ranking alone.",
   e:function(){ var s2=multiAnomalyScores().slice().sort(function(a,b){return b.composite-a.composite;})[0];
-    return s2.id+" ranks highest today at a composite score of "+s2.composite.toFixed(2)+", driven mainly by its "+s2.maxKey.toUpperCase()+" (z = "+s2.per[s2.maxKey].toFixed(2)+")."; }},
+    return s2.id+" ranks highest today at a composite score of "+s2.composite.toFixed(2)+" ("+multiAnomalyDirLabel(s2.dir)+"), driven mainly by its "+s2.maxKey.toUpperCase()+" (z = "+s2.per[s2.maxKey].toFixed(2)+")."; }},
  {k:"gbm", cat:"risk", jT:"cost", jE:"costGbm", t:"Geometric Brownian Motion & Maximum Likelihood Estimation", p:"A way to fit a drift (average rate of change) and a volatility (how much it wobbles around that drift) directly to a program's own cost history, using Maximum Likelihood Estimation on the log-returns between consecutive periods — the same math finance uses to model a stock price's random walk, applied here to actual cost instead.",
   e:function(){ var g=deriveGbmParams(acHistorySeries().map(function(p2){return p2.ac;}));
     return "Fit to this program's own "+g.n+" real log-returns: drift "+pct(g.muHatMle,2)+"/period, volatility "+pct(g.sigmaHatMle,2)+
