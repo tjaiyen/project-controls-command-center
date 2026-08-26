@@ -1117,9 +1117,10 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
       </nav>
     </details>
     <div class="sec">
-      <div class="sec-h"><h2>Earned value over time</h2><span class="tag">cost + schedule</span></div>
+      <div class="sec-h"><h2>Earned value over time<button type="button" class="help-ic" data-help="cost" aria-label="Why this chart exists" aria-expanded="false">i</button></h2><span class="tag">cost + schedule</span></div>
       <p class="lede">Planned value is the baseline. Earned value is what the completed work is worth.
         Actual cost is what it took. The gaps &mdash; not any single line &mdash; are the story.</p>
+      <div id="scurveOpQ"></div>
       <div class="card" style="margin-top:15px"><div class="chart" id="scurve"></div>
         <div class="legend" id="scurveLegend"></div>
         <div style="display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap">
@@ -1392,13 +1393,14 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
       </nav>
     </details>
     <div class="sec">
-      <div class="sec-h"><h2>Tracking Gantt &mdash; remaining schedule runway</h2><span class="tag">baseline vs. forecast</span></div>
+      <div class="sec-h"><h2>Tracking Gantt &mdash; remaining schedule runway<button type="button" class="help-ic" data-help="schedule" aria-label="Why this chart exists" aria-expanded="false">i</button></h2><span class="tag">baseline vs. forecast</span></div>
       <p class="lede">The ledger has no calendar start dates per account &mdash; only remaining duration and
         total float, both real, both already driving CPLI above. Rather than invent a start date this data
         doesn&rsquo;t have, every bar below runs forward from today&rsquo;s data date only: a ghosted bar to
         where the baseline implies the account should finish, a solid bar to where it&rsquo;s actually
         forecast to finish. The gap between them <em>is</em> the float number, just drawn on a calendar
         instead of stated as a day count.</p>
+      <div id="ganttOpQ"></div>
       <div class="card" style="margin-top:15px"><div class="chart" id="gantt"></div>
         <p class="lede" style="font-size:11.5px;margin-top:8px;color:rgb(var(--c-mut))">Solid bar: red = behind schedule, green = on/ahead &mdash; same sign as the day count beside it.</p></div>
       <details class="dbox" style="margin-top:14px">
@@ -1506,9 +1508,10 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
       <p class="lede">A risk register that is not priced is a list. Exposure is probability-weighted cost,
         which is the only form comparable to contingency.</p>
       <div class="grid g3">
-        <div class="card"><h3>Sensitivity &mdash; what actually moves the number</h3>
+        <div class="card"><h3>Sensitivity &mdash; what actually moves the number<button type="button" class="help-ic" data-help="risk" aria-label="Why this chart exists" aria-expanded="false">i</button></h3>
           <p class="lede" style="font-size:12.5px;margin-top:5px">Ranked by exposure. Concentration, not
             count, is what a program director needs to see.</p>
+          <div id="tornadoOpQ"></div>
           <div class="chart" id="tornado"></div>
           <p style="margin:6px 0 0;font-size:11px;color:rgb(var(--c-mut))">Bar color: red above $8.0M exposure, amber $4.0M&ndash;$8.0M, green below $4.0M.</p></div>
         <div class="card"><h3>Probability &times; impact</h3>
@@ -1588,10 +1591,11 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         is spent. These are the leading ones: they move weeks earlier and they are the levers a controls
         manager can actually pull.</p>
       <div class="grid">
-        <div class="card"><h3>Productivity factor by package</h3>
+        <div class="card"><h3>Productivity factor by package<button type="button" class="help-ic" data-help="delivery" aria-label="Why this chart exists" aria-expanded="false">i</button></h3>
           <p class="lede" style="font-size:12.5px;margin-top:5px">Earned hours &divide; actual hours. Below
             1.00 means the crews are burning more hours than the estimate carried &mdash; visible weeks
             before it reaches CPI.</p>
+          <div id="pfArcOpQ"></div>
           <div id="pfArc"></div>
           <div id="prod"></div></div>
         <div class="card"><h3>Document control aging</h3>
@@ -3954,6 +3958,9 @@ function renderScurve(){
     "tab already runs, drawn here as a range instead of a single line: "+pct(MC.pOver,0)+
     " of simulated completions land above the "+m(T.bac)+" budget, spanning "+m(MC.p10)+" (P10) to "+
     m(MC.p80)+" (P80).";
+  document.getElementById("scurveOpQ").innerHTML = opQuestionHtml("Cost",
+    "EAC projects "+m(T.eac)+" against a "+m(T.bac)+" budget &mdash; a "+m(Math.abs(T.vac))+
+    (T.vac<0?" overrun":" underrun")+" if the current CPI of "+idx(T.cpi)+" holds.");
   // tooltips — bound to both mousemove (desktop hover) and click (tap, mobile upgrade
   // 2026-08-19: mousemove never fires on touch, so a phone user got the chart shape with no
   // way to read a value; same handler, tapping a bar now shows it, tapping elsewhere clears it)
@@ -6699,6 +6706,11 @@ function renderGantt(){
   host.addEventListener("mousemove",ganttTip);
   host.addEventListener("click",ganttTip);
   host.addEventListener("mouseleave",function(){ tip.classList.remove("on"); });
+  var worst=ends.reduce(function(w,e){ return e.r.float<w.r.float?e:w; },ends[0]).r;
+  document.getElementById("ganttOpQ").innerHTML = opQuestionHtml("Schedule",
+    worst.id+" is setting the pace with "+days(worst.float)+" float"+
+    (worst.float<0?" &mdash; the account actually driving the program's finish date late.":
+      " &mdash; the tightest account on the board, and every account is still holding positive float."));
   renderGanttMath(ends);
 }
 function renderGanttMath(ends){
@@ -7048,6 +7060,9 @@ function renderRisk(){
       '<text x="'+(PL-8)+'" y="'+(y+h/2+3.5).toFixed(1)+'" text-anchor="end" font-size="10.5" font-family="ui-monospace,monospace" fill="'+C("mut")+'">'+k.id+'</text>'+
       '<text x="'+(PL+w+7).toFixed(1)+'" y="'+(y+h/2+3.5).toFixed(1)+'" font-size="10.5" font-family="ui-monospace,monospace" fill="'+C("ink")+'">'+m(k.exp)+'</text>';
   }).join(""),"Risk exposure ranked by probability-weighted cost.");
+  document.getElementById("tornadoOpQ").innerHTML = opQuestionHtml("Risk",
+    ranked[0].id+" alone carries "+m(ranked[0].exp)+" of exposure against "+m(T.contRemaining)+
+    " of remaining contingency &mdash; "+pct(ranked[0].exp/T.contRemaining,0)+" of the cushion, in one risk.");
   // hover/tap — same shared #tip element the S-curve and variance bridge already use, bound to
   // click too (mobile upgrade, see the scurve tooltip for why)
   var tornHost=document.getElementById("tornado"), tornTip=document.getElementById("tip");
@@ -7457,6 +7472,10 @@ function renderPfArc(){
   var sel=state.pfPkg, r=sel?rows.filter(function(x){return x.id===sel;})[0]:null;
   var pf=r?r.pf:T.pf, ern=r?r.ernH:T.ernH, act=r?r.actH:T.actH;
   var label=r?r.id:"Program", band=pfBand(pf);
+  document.getElementById("pfArcOpQ").innerHTML = opQuestionHtml("Delivery",
+    label+" is running at "+idx(pf)+" ("+band.label+") &mdash; "+
+    (pf<1 ? "burning more hours than earned, a signal that tends to show up in CPI later, not yet."
+          : "earning at or above the hours the estimate carried, a healthy leading signal."));
   var lo=0.80, hi=1.15;
   var W=420,H=196,cx=210,cy=172,Rin=112,Rout=140,Rneedle=134;
   function pt(R,frac){ var a=(180*(1-frac))*Math.PI/180; return [cx+R*Math.cos(a),cy-R*Math.sin(a)]; }
@@ -10023,6 +10042,19 @@ function tabDrawerContent(tabId){
       note:fams.map(function(f){return f.why;}).join(" "), sys:tabDrawerSysOfRecord(d.fam)};
   }
   return {label:d.label, q:d.q, note:d.note, sys:null};
+}
+/* Operational-question callout for each of the 4 headline visuals (brainstorm-mode round,
+   2026-08-25) -- reads the family's own governing question straight off KPI_FAMILIES (same
+   source the Overview family cards and the tab drawer already read, never a second copy of the
+   text), plus one "Right now" line computed from this render's own real numbers, not a canned
+   example. Purpose: the chart's reason for existing is legible before the reader has to infer it
+   from the shape alone. */
+function opQuestionHtml(famKey, exampleHtml){
+  var f=KPI_FAMILIES.filter(function(x){ return x.key===famKey; })[0];
+  return '<div class="dbox" style="margin-bottom:14px">'+
+    '<h4>Operational question this answers</h4>'+
+    '<p>&ldquo;'+f.q+'&rdquo;</p>'+
+    '<p style="margin-top:8px"><b style="color:rgb(var(--c-ink))">Right now:</b> '+exampleHtml+'</p></div>';
 }
 var tabDrawerTimer=null;
 function openTabDrawer(tabId, anchorEl){

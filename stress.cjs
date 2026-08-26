@@ -7277,6 +7277,50 @@ console.log("== D52. Two real items harvested from a pasted 'Enterprise Command 
   ok(dcma.jT === "sched" && dcma.jE === "schedTriad", "the entry cross-links to the real, existing schedule triad rather than a new, invented anchor");
 }
 
+console.log("== D53. Operational-question callouts on the 4 headline visuals (brainstorm-mode round, 2026-08-25) ==");
+{
+  // Tier 1 — each of the 4 headline-visual cards gets a callout naming the operational question it
+  // answers (read live off KPI_FAMILIES, the SAME source the Overview family cards and tab drawer
+  // already read — no second copy of the text) plus a "Right now" example computed from this
+  // render's own real numbers, not a canned string.
+  const costQ = P.kpiFamilies.find(f => f.key === "Cost").q;
+  const schedQ = P.kpiFamilies.find(f => f.key === "Schedule").q;
+  const riskQ = P.kpiFamilies.find(f => f.key === "Risk").q;
+  const delQ = P.kpiFamilies.find(f => f.key === "Delivery").q;
+
+  ok(G.scurveOpQ._html.includes("Operational question this answers") && G.scurveOpQ._html.includes(costQ),
+    "S-curve callout quotes the REAL Cost family question, not a paraphrase");
+  ok(G.scurveOpQ._html.includes(m(T.eac)) && G.scurveOpQ._html.includes(m(T.bac)),
+    "S-curve's 'Right now' example cites the real, live EAC and BAC");
+
+  ok(G.ganttOpQ._html.includes("Operational question this answers") && G.ganttOpQ._html.includes(schedQ),
+    "Gantt callout quotes the REAL Schedule family question");
+  const worstPkg = P.pkgs.slice().sort((a, b) => a.float - b.float)[0];
+  ok(G.ganttOpQ._html.includes(worstPkg.id), "Gantt's 'Right now' example names the REAL worst-float account, not a fixed id");
+
+  P.state.riskDrill = null; P.renderRisk(); // reset before checking, matching this file's own convention above
+  ok(G.tornadoOpQ._html.includes("Operational question this answers") && G.tornadoOpQ._html.includes(riskQ),
+    "Tornado callout quotes the REAL Risk family question");
+  const rankedTop = P.risks.map(k => Object.assign({}, k, { exp: P.pBand[k.p] * k.cost })).sort((a, b) => b.exp - a.exp)[0];
+  ok(G.tornadoOpQ._html.includes(rankedTop.id) && G.tornadoOpQ._html.includes(m(rankedTop.exp)),
+    "Tornado's 'Right now' example names the REAL top-exposure risk and its real dollar exposure, not a fixed id");
+
+  P.state.pfPkg = null; P.renderPfArc();
+  ok(G.pfArcOpQ._html.includes("Operational question this answers") && G.pfArcOpQ._html.includes(delQ),
+    "PF gauge callout quotes the REAL Delivery family question");
+  ok(G.pfArcOpQ._html.includes("Program") && G.pfArcOpQ._html.includes(idx(T.pf)),
+    "PF gauge's 'Right now' example cites the real, live program PF when no package is selected");
+
+  // Tier 2 — reuse the 6 EXISTING family GLOSS entries (already built for the Overview family
+  // cards) rather than inventing 4 new ones; just add a discovery path to them from each chart.
+  ["cost", "schedule", "risk", "delivery"].forEach(k =>
+    ok(!!P.gloss.find(g => g.k === k), "glossary entry '" + k + "' exists and is reused, not duplicated"));
+  ok(indexSrc.includes('data-help="cost" aria-label="Why this chart exists"'), "S-curve heading carries a 'why this chart exists' help icon");
+  ok(indexSrc.includes('data-help="schedule" aria-label="Why this chart exists"'), "Gantt heading carries a 'why this chart exists' help icon");
+  ok(indexSrc.includes('data-help="risk" aria-label="Why this chart exists"'), "Tornado heading carries a 'why this chart exists' help icon");
+  ok(indexSrc.includes('data-help="delivery" aria-label="Why this chart exists"'), "PF gauge heading carries a 'why this chart exists' help icon");
+}
+
 /* =========================================================================
    E. otak.html — runtime + internal consistency
    ========================================================================= */
