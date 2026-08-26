@@ -6448,8 +6448,11 @@ console.log("== D46. Attention & Triage tab -- external spec, fact-checked befor
   const cphFlags0 = eCph0.points.filter(p => p.flag).length;
   const cphGapFirst = eCph0.points[0].ucl - eCph0.points[0].ewma, cphGapLast = eCph0.points[eCph0.points.length - 1].ucl - eCph0.points[eCph0.points.length - 1].ewma;
   const cphNarrowingExpected = cphFlags0 === 0 && cphGapLast < cphGapFirst;
-  const expectedCount = escCount + staleActions.length + dueSoonNotStale.length + blockedNotClaimed.length + (cphNarrowingExpected ? 1 : 0);
-  ok(queue.length === expectedCount, "the queue's real item count matches an independent recount from the same 4 real sources, deduped by the same stale>due-soon>blocked priority", queue.length + " vs expected " + expectedCount);
+  // OWNER_DECISIONS (brainstorm-mode round, 2026-08-26) -- a 5th, fully independent real source;
+  // it's its own register (no ACTIONS overlap possible, so no dedup logic needed against it).
+  const ownerDecisionCount = P.ownerDecisions.length;
+  const expectedCount = escCount + staleActions.length + dueSoonNotStale.length + blockedNotClaimed.length + (cphNarrowingExpected ? 1 : 0) + ownerDecisionCount;
+  ok(queue.length === expectedCount, "the queue's real item count matches an independent recount from the same 5 real sources, deduped by the same stale>due-soon>blocked priority", queue.length + " vs expected " + expectedCount);
 
   // General invariant, not tied to today's specific overlap: no real action id should ever
   // produce more than one per-action card (stale-/duesoon-/blocked- ids all carry the same
@@ -8375,6 +8378,50 @@ console.log("== J. EXEC_TRANSLATE completeness -- closing the generic-fallback g
   const topActionsReal = P.execTopActions();
   const escFallbacks = topActionsReal.filter((a) => a.item.id.startsWith("esc-") && a.consequence.startsWith("Owner: "));
   ok(escFallbacks.length === 0, "no currently-firing, currently-surfaced escalation item still shows the generic fallback text", JSON.stringify(escFallbacks.map((a) => a.item.id)));
+}
+
+console.log("== K. Pending owner/agency decisions register (brainstorm-mode round, 2026-08-26) ==");
+{
+  // Direct, sourced answer to a real researched finding (11_STRATEGIC_CHALLENGES_AND_SOLUTIONS.md
+  // #18, FTA workforce cuts / aging transit workforce). Pre-registered expectation: 3 real items,
+  // every one traceable to a condition already tracked elsewhere (Gate 5 funding gap, R-01/R-02's
+  // own real mitigation text), not invented in isolation.
+  const od = P.ownerDecisions;
+  ok(od.length === 3, "3 real pending owner/agency decisions exist", String(od.length));
+  const r01 = P.risks.find((r) => r.id === "R-01"), r02 = P.risks.find((r) => r.id === "R-02");
+  ok(od.some((o) => o.ref.includes(r01.mit)), "OD-02 cites R-01's real mitigation text verbatim, not a paraphrase");
+  ok(od.some((o) => o.ref.includes(r02.mit)), "OD-03 cites R-02's real mitigation text verbatim, not a paraphrase");
+  // odDaysOverdue/odTier -- independently recomputed here, not read back from the app's own answer.
+  od.forEach((o) => {
+    const expectDays = Math.round((Date.UTC(2026, 6, 31) - Date.parse(o.neededBy + "T00:00:00Z")) / 86400000);
+    ok(P.odDaysOverdue(o) === expectDays, o.id + "'s odDaysOverdue matches an independent date-math recomputation", String(P.odDaysOverdue(o)));
+    const expectTier = expectDays >= 7 ? 1 : expectDays >= 0 ? 2 : 3;
+    ok(P.odTier(o) === expectTier, o.id + "'s odTier matches an independent recomputation of the same threshold logic", String(P.odTier(o)));
+  });
+  // Live-registered fact (this run, 2026-08-26): all 3 are currently overdue -- pre-registered
+  // before checking, not adjusted after seeing the result.
+  ok(od.every((o) => P.odDaysOverdue(o) >= 0), "pre-registered: all 3 owner-decision items are currently overdue against the ledger's own 2026-07-31 as-of date");
+
+  // Rendered table -- real content, not just data-layer correctness. renderFramework() already
+  // ran once during the initial page load this shared R/G harness performed, same as escTable
+  // above needs no explicit re-render call either.
+  const tblHtml = G.ownerDecTable._html;
+  od.forEach((o) => {
+    ok(tblHtml.includes(o.ask) && tblHtml.includes(o.agency) && tblHtml.includes(o.blocks), o.id + "'s ask/agency/blocks all render in the real table");
+  });
+  ok(tblHtml.includes(od.length + " pending"), "the table caption states the real pending count, not a hardcoded number");
+
+  // Triage-queue integration -- every owner-decision item surfaces with the id shape "owner-"+id,
+  // the real tier from odTier(), and the real clock text, not a generic fallback.
+  const queue = P.generateTriageQueue();
+  od.forEach((o) => {
+    const item = queue.find((it) => it.id === "owner-" + o.id);
+    ok(!!item, o.id + " appears in the real triage queue");
+    if (item) {
+      ok(item.tier === P.odTier(o), o.id + "'s triage tier matches odTier(), not a hardcoded value");
+      ok(item.title === o.ask, o.id + "'s triage title is the real ask text");
+    }
+  });
 }
 
 console.log("\n" + pass + " passed, " + fail + " failed");

@@ -1978,6 +1978,14 @@ join dim_control_account b using (package_id)</pre></div>
         and a clock. <button type="button" class="btn" data-jump-tab="act" data-jump-el="actFilters">See who owes what, today, on the Actions tab &rarr;</button></p>
       <div class="tw"><table id="escTable" style="min-width:720px"></table></div>
 
+      <div class="sec-h" style="margin-top:34px"><h3>Pending owner/agency decisions</h3></div>
+      <p class="lede">A named ask, an owner-side agency, and a clock — same discipline as the
+        escalation matrix above, applied to decisions this program is waiting <i>on</i>, not
+        decisions this program owes. Real, current owner-side capacity pressure across the transit
+        sector (FTA workforce restructuring, an aging agency workforce) makes this latency a real,
+        trackable risk, not an informal frustration.</p>
+      <div class="tw"><table id="ownerDecTable" style="min-width:720px"></table></div>
+
       <div class="sec-h" style="margin-top:34px"><h3>Working backward from Gate 5 &mdash; a worked example</h3></div>
       <p class="lede">A short problem-solving method applied to this program's real numbers: define the end
         state, find the condition that has to hold immediately before it, trace that back to the raw inputs,
@@ -2072,11 +2080,12 @@ join dim_control_account b using (package_id)</pre></div>
     <div class="sec">
       <div class="eyebrow">Urgency &amp; attention command</div>
       <h2>Out of everything on this dashboard, what actually needs a human right now</h2>
-      <p class="lede">Every firing escalation rule, stale RAID item, near-term deadline, and pre-breach
-        control-chart signal, compiled live into 4 urgency tiers &mdash; nothing hardcoded, nothing
-        decorative. Every item here traces back to the same escalation matrix, ledger, and Actions
-        register the rest of the dashboard already computes; this tab is a different lens on the same
-        real data, not a second system of record.</p>
+      <p class="lede">Every firing escalation rule, stale RAID item, near-term deadline, pending
+        owner/agency decision, and pre-breach control-chart signal, compiled live into 4 urgency
+        tiers &mdash; nothing hardcoded, nothing decorative. Every item here traces back to the same
+        escalation matrix, ledger, Actions register, and pending-decisions register the rest of the
+        dashboard already computes; this tab is a different lens on the same real data, not a second
+        system of record.</p>
       <details class="dbox" style="margin-top:14px">
         <summary>How the 4 tiers are decided</summary>
         <div id="triageExplainer"></div>
@@ -6115,6 +6124,18 @@ function generateTriageQueue(){
       clock:row[3], tabLink: meta?{tab:meta.tab,anchor:meta.anchor}:null, actionId:null
     });
   });
+  // Pending owner/agency decisions (brainstorm-mode round, 2026-08-26) — a real, distinct axis
+  // from everything above: ESCALATION fires on OUR ledger's own thresholds; OWNER_DECISIONS tracks
+  // what's stalled on THEIR side, using its own real clock (odTier()), not a borrowed one.
+  OWNER_DECISIONS.forEach(function(o){
+    items.push({
+      id:"owner-"+o.id, tier:odTier(o), title:o.ask,
+      metric:o.blocks, owner:o.agency,
+      escRule:"Pending owner/agency decision — submitted "+odDaysOpen(o)+"d ago; "+o.ref,
+      clock: odDaysOverdue(o)>=0?(odDaysOverdue(o)+"d overdue"):((-odDaysOverdue(o))+"d remaining"),
+      tabLink:o.tabLink, actionId:null
+    });
+  });
   // Tier 2/3/4 — RAID/action staleness, due-soon, and blocked are 3 INDEPENDENT real axes
   // (isStale() by last-touch date, actionStatus()==="due-soon" by due date, ==="blocked" by the
   // a.blocked flag) -- nothing about one implies or excludes another, so the SAME action can
@@ -6191,9 +6212,9 @@ var TIER_BAR_COLOR={1:"rgb(var(--c-bad))",2:"rgb(var(--c-bad) / .55)",3:"rgb(var
 // isStale()/actionStatus() branches generateTriageQueue() actually runs, not a simplified retelling
 // that could drift from the real code.
 var TIER_DESC={
-  1:"Fires when a real escalation rule's own clock reads “Immediate” or “72 hours” — a board-level hard stop or a 3-day formal-recovery-analysis window.",
-  2:"Fires when a RAID/Actions item has gone 10+ real days without a touch, or an escalation rule's clock reads “Daily,” “Same week,” or “Same reporting cycle.”",
-  3:"Fires when a real action is due within 7 days, or an escalation rule's clock reads “Weekly review,” “Next weekly,” “10 days,” or “Next monthly.”",
+  1:"Fires when a real escalation rule's own clock reads “Immediate” or “72 hours” — a board-level hard stop or a 3-day formal-recovery-analysis window — or a pending owner/agency decision is 7+ real days past its own needed-by date.",
+  2:"Fires when a RAID/Actions item has gone 10+ real days without a touch, an escalation rule's clock reads “Daily,” “Same week,” or “Same reporting cycle,” or a pending owner/agency decision is past its needed-by date but under 7 days overdue.",
+  3:"Fires when a real action is due within 7 days, an escalation rule's clock reads “Weekly review,” “Next weekly,” “10 days,” or “Next monthly,” or a pending owner/agency decision hasn't reached its needed-by date yet.",
   4:"A pre-breach watchlist — actions genuinely blocked but not yet due, plus control-chart trend signals (like the crew CPH EWMA buffer) that haven't crossed a real threshold yet."
 };
 function renderTriageExplainer(items){
@@ -6201,8 +6222,9 @@ function renderTriageExplainer(items){
   items.forEach(function(it){ byTier[it.tier].push(it); });
   document.getElementById("triageExplainer").innerHTML=
     '<p style="margin:10px 0 0;font-size:12.5px">Every item above is tiered from the SAME real clock '+
-    'text this dashboard&rsquo;s own 12-rule escalation matrix, RAID staleness rule, and Actions '+
-    'register already carry &mdash; not a separate judgment call layered on top.</p>'+
+    'text this dashboard&rsquo;s own 12-rule escalation matrix, RAID staleness rule, Actions '+
+    'register, and pending owner/agency decisions register already carry &mdash; not a separate '+
+    'judgment call layered on top.</p>'+
     [1,2,3,4].map(function(t){
       var tm=TIER_META[t], ex=byTier[t][0];
       return '<p style="margin:10px 0 0;font-size:12.5px"><b style="color:rgb(var(--c-ink))">'+tm.label+
@@ -8315,6 +8337,41 @@ var ESC_STATUS_ICON={
  firing:{cls:"r", svg:'<svg viewBox="0 0 16 16"><path d="M8 2.3c-2 0-3.3 1.5-3.3 3.5v2.3c0 .8-.3 1.5-.9 2.1l-.6.6h9.6l-.6-.6c-.6-.6-.9-1.3-.9-2.1V5.8c0-2-1.3-3.5-3.3-3.5Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6.3 12.2a1.8 1.8 0 0 0 3.4 0" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><circle cx="12" cy="3.6" r="1.5" fill="currentColor"/></svg>'},
  dormant:{cls:"g", svg:'<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.3"/><polyline points="5,8.2 7.1,10.3 11,6.1" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></svg>'}
 };
+/* Pending owner/agency decisions -- a genuinely new register (brainstorm-mode round, 2026-08-26),
+   not a restated view of ACTIONS or ESCALATION. Direct, sourced answer to a real industry finding:
+   FTA workforce restructuring cut roughly a third of staff (~700->470 FTE), and 37.9% of the
+   transit workforce was 55+ as of 2023 -- both real, documented owner-side capacity constraints
+   sitting entirely outside a consultant's control (see the vault's own 11_STRATEGIC_CHALLENGES_
+   AND_SOLUTIONS.md #18). The proactive move isn't fixing the owner's staffing -- it's treating
+   THEIR decision latency as OUR tracked, escalating risk, the same discipline ESCALATION already
+   applies to every internal trigger. Every item below traces to a condition ALREADY tracked
+   elsewhere on this dashboard (the Gate 5 funding gap, R-01's own mitigation text, R-02's own
+   mitigation text) -- nothing invented in isolation, same discipline as ACTIONS' own real-data
+   grounding. Aging reuses actDays()/ACT_ASOF -- ONE clock, not a second one. */
+function odRiskRef(id){ var r=RISKS.filter(function(x){ return x.id===id; })[0]; return r?(id+"'s own real mitigation: “"+r.mit+"”"):id; }
+var OWNER_DECISIONS=[
+ {id:"OD-01", ask:"Approve the contingency top-up needed to clear Gate 5",
+  agency:"Program sponsor", submitted:"2026-07-08", neededBy:"2026-07-22",
+  blocks:"Gate 5 — next-phase construction awards", tabLink:{tab:"fw",anchor:"gate5Card"},
+  ref:"Same funding gap Gate 5's own live check (execFundingGap()) reports"},
+ {id:"OD-02", ask:"Sign off on the supplemental geotechnical program scope for CP-201",
+  agency:"Owner's engineer", submitted:"2026-07-15", neededBy:"2026-07-29",
+  blocks:"R-01's own mitigation — staged contingency release is tied to the face-mapping evidence this program produces",
+  tabLink:{tab:"risk",anchor:null}, ref:odRiskRef("R-01")},
+ {id:"OD-03", ask:"Grant the two longest-lead third-party utility easements",
+  agency:"Third-party utility owners, via the program sponsor", submitted:"2026-06-30", neededBy:"2026-07-21",
+  blocks:"CP-601's driving schedule path — R-02's own utility-approval risk",
+  tabLink:{tab:"risk",anchor:null}, ref:odRiskRef("R-02")}
+];
+// Positive = days past the neededBy date (overdue); negative = days remaining. Same arithmetic
+// direction as actionStatus()'s own d=actDays(a.due) — one sign convention across both registers.
+function odDaysOverdue(o){ return actDays(o.neededBy); }
+function odDaysOpen(o){ return actDays(o.submitted); }
+// Tiering mirrors TRIAGE_CLOCK_TIER's spirit (severity by how close/over the clock is) but this
+// register has its own real clock (neededBy), not a fixed SLA string like ESCALATION's, so it's
+// a distinct function rather than a shared lookup table.
+function odTier(o){ var d=odDaysOverdue(o); return d>=7?1:d>=0?2:3; }
+
 var CADENCE=[
  {t:"Daily",w:"Critical-path exceptions only. Aged RFIs on the driving path, safety incidents, any package that went negative float overnight.",a:"Package managers"},
  {t:"Weekly",w:"Recovery cadence on negative-float packages, change-order aging, three-week look-ahead against plan.",a:"Controls manager + package managers"},
@@ -8619,6 +8676,16 @@ function renderFramework(){
       return '<tr style="cursor:default"><td><span class="ticon '+esi.cls+'" aria-hidden="true">'+esi.svg+'</span><span class="pill '+(firing?"r":"g")+'">'+(firing?"Firing now":"Dormant")+'</span></td>'+
       '<td class="mono" style="font-size:12px">'+r[0]+
       '</td><td>'+r[1]+'</td><td style="white-space:normal;max-width:200px">'+r[2]+'</td><td>'+r[3]+'</td></tr>'; }).join("")+'</tbody>';
+  document.getElementById("ownerDecTable").innerHTML=
+    '<caption class="tw-caption">'+OWNER_DECISIONS.length+' pending, '+OWNER_DECISIONS.filter(function(o){return odDaysOverdue(o)>=0;}).length+' overdue right now.</caption>'+
+    '<thead><tr><th scope="col">Status</th><th scope="col">Ask</th><th scope="col">Agency</th><th scope="col">Blocks</th><th scope="col">Clock</th></tr></thead><tbody>'+
+    OWNER_DECISIONS.slice().sort(function(a,b){return odTier(a)-odTier(b);}).map(function(o){
+      var d=odDaysOverdue(o), tier=odTier(o);
+      var cls=tier===1?"r":tier===2?"a":"g";
+      var clock=d>=0?(d+"d overdue"):((-d)+"d remaining");
+      return '<tr style="cursor:default"><td><span class="pill '+cls+'">'+(d>=0?"Overdue":"Open")+'</span></td>'+
+      '<td>'+o.ask+'</td><td>'+o.agency+'</td>'+
+      '<td style="white-space:normal;max-width:220px">'+o.blocks+'</td><td>'+clock+'</td></tr>'; }).join("")+'</tbody>';
   document.getElementById("cadence").innerHTML=CADENCE.map(function(c){
     return '<div class="card"><div class="eyebrow">'+c.t+'</div><p style="margin:0;font-size:13px;color:rgb(var(--c-mut))">'+
       c.w+'</p><p style="margin:9px 0 0;font-size:12px"><b>Audience:</b> <span style="color:rgb(var(--c-mut))">'+c.a+'</span></p></div>';
@@ -12229,6 +12296,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   escalation:ESCALATION,kpiEscalation:KPI_ESCALATION,actionsForKpi:actionsForKpi,jumpToAction:jumpToAction,
   firingEscalations:firingEscalations,actDays:actDays,
   generateTriageQueue:generateTriageQueue,renderTriage:renderTriage,triageEscMeta:TRIAGE_ESC_META,triageClockTier:TRIAGE_CLOCK_TIER,
+  ownerDecisions:OWNER_DECISIONS,odTier:odTier,odDaysOverdue:odDaysOverdue,odDaysOpen:odDaysOpen,
   renderExec:renderExec,execCp201Share:execCp201Share,execFundingGap:execFundingGap,execTopActions:execTopActions,execTranslate:EXEC_TRANSLATE,
   execDrawerContent:execDrawerContent,execFaq:EXEC_FAQ,
   buildAskAiSnapshot:buildAskAiSnapshot,renderAskAiGate:renderAskAiGate,renderAskAiPanel:renderAskAiPanel,
