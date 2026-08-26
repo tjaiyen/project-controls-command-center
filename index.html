@@ -1025,7 +1025,13 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         was checked against a real question before it earned a spot here: who's the decision-maker, what's
         the action when it breaches, and how fast — a metric that fails that test doesn't belong on a
         primary screen. The audience filter below shows that discipline directly: fewer people need more
-        numbers, and the working set only grows as the audience does.</p>
+        numbers, and the working set only grows as the audience does.
+        <span style="color:rgb(var(--c-mut));font-size:12.5px">A KPI tells you <em>that</em> something moved
+        &mdash; it's a compressed, single-number symptom. Most of the charts elsewhere on this dashboard exist
+        to tell you <em>why</em>. 12 of these 20 cards now carry a &ldquo;Where this number actually comes
+        from&rdquo; link straight to the chart that decomposes them, and Total Float already had its own
+        dedicated drill-down before this round &mdash; 13 of 20 in total. The remaining 7 don't have a
+        matching decomposition chart yet; left alone rather than forcing a weak link.</span></p>
       <div class="kfilters" id="audienceFilters"></div>
       <div class="kfilters" id="kfilters"></div>
       <div class="kboard" id="kboard"></div>
@@ -3736,6 +3742,7 @@ function renderDetail(){
     '</div>'+
     spiTCompanionDbox(k)+
     floatCompanionDbox(k)+
+    kpiChartLinkDbox(k)+
     renderRootCause(k,rag)+
     '<p style="margin:14px 0 0;font-size:12.3px;color:rgb(var(--c-mut))">'+
       '<b style="color:rgb(var(--c-ink))">Meaningful in:</b> '+phNames+
@@ -3804,6 +3811,69 @@ function floatCompanionDbox(k){
       'See the idle/rework/baseline split &rarr;</button>'
       : ' No crew-level cost-per-hour cell is currently tracked for this account.')+
     '</p></div>';
+}
+/* Symptom -> root-cause chart link (brainstorm-mode round, 2026-08-26 -- TJ's direct framing: "a
+   KPI tells you THAT, a chart tells you WHY"). A KPI is a compressed, single-number symptom; most
+   of the 26 operational-question-tagged charts elsewhere on this page exist specifically to
+   decompose one. Before this round, exactly ONE KPI (float, via floatCompanionDbox above) had a
+   real jump-link from its drawer to a decomposition chart -- the other 19 had either a generic
+   ledger-table link or nothing clickable at all. This wires the other 12 where a genuine,
+   honestly-matched chart already exists among the 26; the remaining 7 (TCPI, CDI, BEI, COR, PCE,
+   RFI, TRIR) are left alone rather than forcing a weak link to a chart that doesn't actually
+   decompose them -- same discipline the 7-pair chart cross-link round applied. Every blurb below
+   is computed live off real state, matching floatCompanionDbox's own standard, not generic
+   boilerplate repeated across all 12. */
+function kpiChartLinkDbox(k){
+  var worstVac=rows.slice().sort(function(a,b){return a.vac-b.vac;})[0];
+  var worstCpli=rows.slice().sort(function(a,b){return a.cpli-b.cpli;})[0];
+  var driftSeries=revSvcDriftSeries();
+  var netDrift=driftSeries[driftSeries.length-1].slip-driftSeries[0].slip;
+  var topRisk=RISKS.map(function(r){ return Object.assign({},r,{exp:P_BAND[r.p]*r.cost}); })
+    .sort(function(a,b){ return b.exp-a.exp; })[0];
+  var worstPf=rows.slice().sort(function(a,b){return a.pf-b.pf;})[0];
+  var portRows=portfolioRows(), portBac=portRows.reduce(function(s,r){return s+r.bac;},0),
+      portEac=portRows.reduce(function(s,r){return s+r.eac;},0);
+  var MAP={
+    cpi:{tab:"cost",el:"scurve",label:"See it on the S-curve",
+      html:"CPI is one number; the S-curve shows the two lines it's built from over time. Actual cost is running "+
+        m(Math.abs(T.cv))+" "+(T.cv<0?"above":"below")+" earned value right now, and whether that gap is widening is the real story CPI alone can't tell."},
+    cv:{tab:"cost",el:"scurve",label:"See it on the S-curve",
+      html:"CV is one number; the S-curve shows the two lines it's built from over time. Actual cost is running "+
+        m(Math.abs(T.cv))+" "+(T.cv<0?"above":"below")+" earned value right now, and whether that gap is widening is the real story CV alone can't tell."},
+    eac:{tab:"cost",el:"waterfall",label:"See the Waterfall",
+      html:"EAC is a sum across 8 control accounts; the Waterfall shows which one is actually driving it. Right now "+
+        worstVac.id+" alone carries "+sgn(worstVac.vac)+" VAC &mdash; "+pct(Math.abs(worstVac.vac)/T.grossOver,0)+" of the entire gross overrun."},
+    vac:{tab:"cost",el:"waterfall",label:"See the Waterfall",
+      html:"VAC is a sum across 8 control accounts; the Waterfall shows which one is actually driving it. Right now "+
+        worstVac.id+" alone carries "+sgn(worstVac.vac)+" VAC &mdash; "+pct(Math.abs(worstVac.vac)/T.grossOver,0)+" of the entire gross overrun."},
+    fund:{tab:"port",el:"fundingGapBar",label:"See the funding gap, in dollars",
+      html:"FDI asks whether authorized funding is keeping pace with this program's own spend rate, as a ratio. The Portfolio tab's funding gap bar answers the related, broader question in real dollars &mdash; "+
+        m(portEac)+" forecast against "+m(portBac)+" authorized, across all four program lines, not just this one."},
+    spi:{tab:"sched",el:"gantt",label:"See the Tracking Gantt",
+      html:"SPI is measured in dollars, program-wide. The Tracking Gantt shows which specific account is actually setting the completion date &mdash; right now "+
+        worstCpli.id+" carries the lowest CPLI on the board at "+idx(worstCpli.cpli)+"."},
+    sv:{tab:"sched",el:"gantt",label:"See the Tracking Gantt",
+      html:"SV is measured in dollars, program-wide. The Tracking Gantt shows which specific account is actually setting the completion date &mdash; right now "+
+        worstCpli.id+" carries the lowest CPLI on the board at "+idx(worstCpli.cpli)+"."},
+    cpli:{tab:"sched",el:"cpli",label:"See the CPLI bars",
+      html:"Program CPLI is reported as the driving path's own value, "+idx(T.cpli)+" &mdash; the CPLI bars show all 8 accounts side by side, so you can see how far the next-worst is behind it, not just the one number."},
+    msv:{tab:"sched",el:"schedDriftCard",label:"See Forecast Drift",
+      html:"A milestone slip reading is a snapshot; Forecast Drift shows whether the projected date has been trending worse each reporting period &mdash; net "+
+        sgn(netDrift)+" over the last "+(driftSeries.length-1)+" periods."},
+    expo:{tab:"risk",el:"tornado",label:"See the Risk Tornado",
+      html:"Risk Exposure is one summed number across the whole register; the Tornado ranks it apart by individual risk &mdash; right now "+
+        topRisk.id+" alone carries "+m(topRisk.exp)+" of it."},
+    ccr:{tab:"cost",el:"contChart",label:"See Contingency vs. Progress",
+      html:"Contingency Coverage is a ratio; the Contingency vs. Progress chart shows the two real trend lines it's actually built from &mdash; "+
+        pct(T.contDrawn)+" drawn against "+pct(T.pct)+" complete."},
+    pf:{tab:"del",el:"pfArc",label:"See the PF Gauge",
+      html:"PF is shown here as one program-wide number, "+idx(T.pf)+"; the PF Gauge lets you drill into any single package's own factor &mdash; right now "+
+        worstPf.id+" is the lowest on the board at "+idx(worstPf.pf)+"."}
+  };
+  var m2=MAP[k.id]; if(!m2) return "";
+  return '<div class="dbox" style="margin-top:13px"><h4>Where this number actually comes from</h4>'+
+    '<p>'+m2.html+' <button type="button" class="btn" style="min-height:auto;padding:1px 8px;font-size:12.5px;margin-left:2px" '+
+    'data-jump-tab="'+m2.tab+'" data-jump-el="'+m2.el+'">'+m2.label+' &rarr;</button></p></div>';
 }
 /* The actual ask this section answers: not just "why is this number bad" (the dbox above already
    says that in general terms) but "which real, currently-open item is tracking it, who owns that

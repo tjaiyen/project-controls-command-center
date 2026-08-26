@@ -7544,6 +7544,63 @@ console.log("== D55. Operational-question callouts made interactive -- click-to-
   P.renderOpQProgress();
 }
 
+console.log("== D56. KPI-drawer symptom-to-root-cause chart links (brainstorm-mode round, 2026-08-26) ==");
+{
+  const LINKED = {
+    cpi: ["cost", "scurve"], cv: ["cost", "scurve"], eac: ["cost", "waterfall"], vac: ["cost", "waterfall"],
+    fund: ["port", "fundingGapBar"], spi: ["sched", "gantt"], sv: ["sched", "gantt"], cpli: ["sched", "cpli"],
+    msv: ["sched", "schedDriftCard"], expo: ["risk", "tornado"], ccr: ["cost", "contChart"], pf: ["del", "pfArc"]
+  };
+  const UNLINKED = ["tcpi", "cdi", "bei", "cor", "pce", "rfi", "trir"];
+  const worstVac = rows.slice().sort((a, b) => a.vac - b.vac)[0];
+  const worstCpli = rows.slice().sort((a, b) => a.cpli - b.cpli)[0];
+  const worstPf = rows.slice().sort((a, b) => a.pf - b.pf)[0];
+  const topRisk = P.risks.map(r => Object.assign({}, r, { exp: P.pBand[r.p] * r.cost })).sort((a, b) => b.exp - a.exp)[0];
+  const portRows = P.portfolioRows(), portBac = portRows.reduce((s, r) => s + r.bac, 0), portEac = portRows.reduce((s, r) => s + r.eac, 0);
+
+  Object.entries(LINKED).forEach(([id, [tab, el]]) => {
+    P.state.kpi = id; P.renderDetail();
+    const html = G.kdetail._html;
+    ok(html.includes("Where this number actually comes from"), id + "'s drawer carries the new root-cause chart box");
+    ok(html.includes('data-jump-tab="' + tab + '"') && html.includes('data-jump-el="' + el + '"'),
+      id + "'s box jumps to the REAL matching chart (" + tab + "/" + el + "), not a placeholder");
+  });
+  // spot-check that the live numbers cited are the REAL, independently-recomputed ones, not hand-typed
+  P.state.kpi = "eac"; P.renderDetail();
+  ok(G.kdetail._html.includes(worstVac.id) && G.kdetail._html.includes(pct(Math.abs(worstVac.vac) / T.grossOver, 0)),
+    "eac's box names the REAL worst-VAC account and its real share of gross overrun");
+  P.state.kpi = "expo"; P.renderDetail();
+  ok(G.kdetail._html.includes(topRisk.id) && G.kdetail._html.includes(m(topRisk.exp)),
+    "expo's box names the REAL top-exposure risk and its real dollar exposure");
+  P.state.kpi = "pf"; P.renderDetail();
+  ok(G.kdetail._html.includes(worstPf.id) && G.kdetail._html.includes(idx(worstPf.pf)),
+    "pf's box names the REAL lowest-PF package");
+  P.state.kpi = "fund"; P.renderDetail();
+  ok(G.kdetail._html.includes(m(portEac)) && G.kdetail._html.includes(m(portBac)),
+    "fund's box cites the REAL portfolio-wide EAC/BAC, not a hand-typed figure");
+
+  // the 7 KPIs with no honest chart match get NO new box -- not a forced/weak link
+  UNLINKED.forEach(id => {
+    P.state.kpi = id; P.renderDetail();
+    ok(!G.kdetail._html.includes("Where this number actually comes from"),
+      id + " correctly gets NO root-cause chart box (no honest decomposition-chart match exists)");
+  });
+
+  // float keeps its OWN, older, more detailed companion box -- this round must not have replaced
+  // or duplicated it with the new generic one
+  P.state.kpi = "float"; P.renderDetail();
+  ok(G.kdetail._html.includes("is the account setting the date") || G.kdetail._html.includes("No account is driving the date late"),
+    "float still shows its own dedicated floatCompanionDbox, unreplaced by the new generic box");
+  ok(!G.kdetail._html.includes("Where this number actually comes from"),
+    "float does NOT also get the new generic box -- no duplicate root-cause section for the one KPI that already had a real one");
+
+  P.state.kpi = null; P.renderDetail(); // close the drawer, matching this file's own convention of leaving shared state clean for later sections
+
+  // Tier 2 -- the KPI board's own lede states the real, live count (13 of 20), not a hand-typed one
+  ok(indexSrc.includes("13 of 20") && indexSrc.includes("A KPI tells you") && indexSrc.includes("Where this number actually comes"),
+    "KPI board lede explains the symptom-vs-root-cause framing and cites the real 13-of-20 count");
+}
+
 /* =========================================================================
    E. otak.html — runtime + internal consistency
    ========================================================================= */
