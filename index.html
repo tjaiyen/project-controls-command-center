@@ -1810,6 +1810,33 @@ join dim_control_account b using (package_id)</pre></div>
         skipping it.</p>
       <div class="card" style="margin-top:12px" id="aiIngestGuards"></div>
 
+      <div class="sec-h" style="margin-top:30px" id="aiSystemCard"><h3>AI System Card <span class="pill i" style="margin-left:4px;font-size:10.5px;vertical-align:middle">Ask AI's own disclosure</span></h3></div>
+      <p class="lede">Every AI feature on this dashboard (Ask AI on the Executive Command tab, and the
+        narrative drafting below) is governed by the same contract, disclosed here in one place instead
+        of scattered across tabs &mdash; the same reason real AI products publish a <b style="color:rgb(var(--c-ink))">system card</b>:
+        one page stating intended use, what the model can access, how its claims get checked, and its known
+        limits, rather than leaving a user to piece that together from a chat box alone.
+        <button type="button" class="help-ic" data-help="aisystemcard" aria-label="What does this term mean?" aria-expanded="false">i</button></p>
+      <div class="grid g2" style="margin-top:10px">
+        <div class="dbox"><h4>Intended use</h4>
+          <p>Answering plain-language questions about <em>this program's own real ledger</em> &mdash; the same
+            cost, schedule, risk, delivery and compliance figures already on this dashboard. Not a general-purpose
+            assistant, not a source of outside facts, not investment, legal or safety advice.</p></div>
+        <div class="dbox"><h4>What it can access</h4>
+          <p>Only a real, live-computed snapshot of this dashboard's own numbers at the moment you ask &mdash; never
+            the model's own outside training knowledge, and never a live web search. If the ledger doesn't have it,
+            the model doesn't either.</p></div>
+        <div class="dbox"><h4>How every claim gets checked</h4>
+          <p>The same contract as the narrative demo below: <b style="color:rgb(var(--c-ink))">the model proposes,
+            the code disposes.</b> Every numeric claim in an answer is mechanically re-extracted and recomputed
+            from the live ledger by an independent path before it renders; anything unverifiable is stripped, or
+            the whole answer is refused rather than shown half-checked.</p></div>
+        <div class="dbox"><h4>Known limits</h4>
+          <p>Calls an outside AI service and costs real money per question &mdash; off by default, opted into
+            per session, never assumed. Can refuse to answer rather than guess when it isn't confident. Covers
+            the 20 KPIs and 26 charts on this dashboard; it has no more insight into Change or Compliance's
+            root cause than the dashboard itself does (see the KPI board's own note on that gap).</p></div>
+      </div>
       <div class="sec-h" style="margin-top:30px"><h3>AI narrative &mdash; under a verification contract</h3></div>
       <p class="lede">The contract: <b style="color:rgb(var(--c-ink))">the model proposes, the code disposes.</b>
         An LLM drafting the monthly narrative receives computed figures and writes only prose; before
@@ -2054,7 +2081,7 @@ join dim_control_account b using (package_id)</pre></div>
         live ledger before it renders; anything it states that isn&rsquo;t backed by a real field is
         stripped or the answer is refused outright. This calls an outside AI service and costs real
         money per question, so it&rsquo;s off by default &mdash; turning it on is your call, each
-        session.</p>
+        session. <button type="button" class="btn" style="min-height:auto;padding:1px 8px;font-size:12.5px" data-jump-tab="ai" data-jump-el="aiSystemCard">Full AI System Card &rarr;</button></p>
       <div id="askAiGate" style="margin-top:10px"></div>
       <div id="askAiPanel" hidden style="margin-top:12px"></div>
       <div class="sec-h" style="margin-top:30px"><h3>Board briefing</h3></div>
@@ -2074,10 +2101,19 @@ join dim_control_account b using (package_id)</pre></div>
         Every term below is explained in plain words first, then worked through with this program&rsquo;s
         actual numbers so you can check the math yourself. Everything here is computed live from the
         same ledger as the rest of the dashboard.</p>
+      <details class="dbox" style="margin-bottom:14px" id="domainMapBox">
+        <summary>How this maps to the real credentialing world</summary>
+        <div id="domainMapBody"></div>
+      </details>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+        <button type="button" class="btn" id="quizToggleBtn" aria-pressed="false">Quiz me &rarr;</button>
+        <span id="masteryBadge" class="pill i" style="font-size:11.5px"></span>
+      </div>
       <input class="gsearch" id="glossQ" type="search" autocomplete="off"
         placeholder="Filter terms&hellip; try &ldquo;float&rdquo; or &ldquo;contingency&rdquo; (or press /)"
         aria-label="Filter glossary terms">
       <div id="glossCatBar" role="group" aria-label="Filter by category" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px"></div>
+      <div id="quizPanel" hidden></div>
       <div class="grid g2" id="glossList" style="margin-top:14px"></div>
       <p class="lede" id="glossCount" style="margin-top:13px;font-size:12.3px"></p>
     </div>
@@ -3190,7 +3226,7 @@ var state = {phase:"con", fam:"All", audience:"pcm", kpi:null, pkg:2, actFilter:
                  // lives in a plain module var (dsAutoPlayTimer), not state, matching the same
                  // "timer identity isn't meaningful app state" convention as
                  // wireAskAiPlaceholderRotation()'s own setInterval.
-  opQOpen:{}, opQSeen:{}}; // Operational-question callouts, UX upgrade round (brainstorm-mode,
+  opQOpen:{}, opQSeen:{}, // Operational-question callouts, UX upgrade round (brainstorm-mode,
                  // 2026-08-26) — opQOpen is a key->bool map of which callouts are currently
                  // expanded, read on every render so a callout inside a frequently-redrawn chart
                  // (the PF gauge, DRB slider, PERT playground, Monte Carlo, GBM explorer) doesn't
@@ -3198,6 +3234,14 @@ var state = {phase:"con", fam:"All", audience:"pcm", kpi:null, pkg:2, actFilter:
                  // is a key->true map, set once a callout is ever opened and never cleared, purely
                  // for the "questions explored" progress badge — collapsing a callout again must
                  // not un-count it.
+  quizMode:false, quizKey:null, quizRevealed:false}; // Glossary retrieval-practice quiz (learning-
+                 // layer round, 2026-08-26) — quizMode toggles the Glossary tab between normal
+                 // browsing and quiz mode; quizKey is the GLOSS term currently being quizzed (null
+                 // = pick one fresh); quizRevealed gates whether the worked-example answer is shown
+                 // yet, so the retrieval-practice attempt (recall before being told) actually
+                 // happens before the reveal, not alongside it. Per-term mastery/SM-2 scheduling
+                 // state lives in localStorage (quizProgress()/quizSave()), not here — it has to
+                 // survive a page reload to mean anything as spaced repetition.
 
 /* Ledger card (Overview-tab upgrade, 2026-08-20) — the 11 raw inputs, a per-package inspector, and
    a live "change one input, watch the KPIs move" demo. The demo deliberately reads a LOCAL copy of
@@ -9734,6 +9778,8 @@ var GLOSS=[
   e:function(){ return "The Data Strategy tab's four cards — Work in Progress, Shared, Published, Archived — are exactly these four states, each with the real gate that moves information from one to the next."; }},
  {k:"ids", cat:"data", jT:"data", jE:"cdeFlow", t:"IDS — Information Delivery Specification", p:"An XML-based, machine-readable standard from buildingSMART defining exactly what information a submittal must carry before it can pass a gate. Pairs an applicability rule (which records this governs) with a requirement (what those records must have) — a failed submittal gets rejected with a specific, itemized reason, not a vague quality flag.",
   e:function(){ return "This dashboard's own "+GUARDS.length+"-check integrity gate is a small-scale version of the same pattern — each check names exactly what it's verifying, not just pass or fail."; }},
+ {k:"aisystemcard", cat:"data", jT:"ai", jE:"aiSystemCard", t:"AI System Card", p:"A single page disclosing what an AI feature is for, what it can access, how its claims get checked, and its known limits — the pattern real AI labs use instead of leaving a user to infer all of that from a chat box alone. Modeled on Mitchell et al. (2019), \"Model Cards for Model Reporting,\" and the system-card disclosures major AI labs publish per model release.",
+  e:function(){ return "You've asked "+state.askAiCount+" question"+(state.askAiCount===1?"":"s")+" this session — each one mechanically re-checked against the live ledger before it rendered, the exact 'model proposes, code disposes' contract the card above states."; }},
  {k:"wbs", cat:"data", jT:"fw", jE:"wbsTable", t:"WBS — Work Breakdown Structure", p:"How a contractor organizes project scope for controls — around contractual work packages and spatial boundaries. The Asset Breakdown Structure (ABS) an owner uses for operations is organized around functional system topology instead — a structural mismatch, not a data-entry error, and a documented cause of data loss at handover.",
   e:function(){ return "This program's own WBS maps 100% of its "+m(T.bac)+" budget to a named scope element and owner — see the Operating Framework tab's control-account mapping."; }},
  {k:"abs", cat:"data", jT:"data", jE:"cdeFlow", t:"ABS — Asset Breakdown Structure", p:"How an owner organizes an asset for operations and maintenance — by functional system, not by the contractor's work packages. Reconciling a WBS-built program into an ABS-run facility is exactly where handover data tends to get lost.",
@@ -9786,9 +9832,21 @@ var GLOSS=[
    for "Field" or amber for "Risk" would read as a false pass/fail cue next to a card that's simply
    about that domain, not failing anything. Category identity comes from the pill filter's own
    active-state styling (same .btn/.on pattern as mcFilter/riskFilter) and the label text alone. */
+/* Domain-map annotation, learning-layer round, 2026-08-26 -- ext cites the REAL external
+   credentialing domain each category maps to, researched and sourced before writing (AACE
+   International, "Skills & Knowledge of Cost Engineering" -- the Certified Cost Professional
+   body of knowledge's six real domains: cost estimating, cost control, planning and scheduling,
+   project management fundamentals, risk and contracting, written communication). Named honestly:
+   field and data have NO real mapping to a named PM credential body of knowledge -- said plainly
+   rather than forced, the same discipline the DCMA-14 glossary entry already applies to its own
+   12 unimplemented checks. This is a map to help orient a learner, not a claim of certification
+   equivalence -- stated as "maps to," never "prepares you for" or "covers."  */
 var CATS={
- cost:{label:"Cost & EVM"}, sched:{label:"Schedule & CPM"}, risk:{label:"Risk, Commercial & Governance"},
- field:{label:"Field Telemetry & Quality"}, data:{label:"Data Strategy & Architecture"}
+ cost:{label:"Cost & EVM", ext:"Maps to AACE CCP's Cost Estimating and Cost Control domains."},
+ sched:{label:"Schedule & CPM", ext:"Maps to AACE CCP's Planning & Scheduling domain."},
+ risk:{label:"Risk, Commercial & Governance", ext:"Maps to AACE CCP's Risk & Contracting domain."},
+ field:{label:"Field Telemetry & Quality", ext:"This dashboard's own domain — not part of a named PM credential body of knowledge."},
+ data:{label:"Data Strategy & Architecture", ext:"This dashboard's own domain — not part of a named PM credential body of knowledge."}
 };
 /* Data Strategy tab — not about this program's data, about the real problem a synthetic single-
    ledger dashboard can't demonstrate: connecting scattered, unclean, multi-system data. Static
@@ -10474,6 +10532,148 @@ function renderGlossary(q){
     list.length===GLOSS.length ? GLOSS.length+" terms — every figure above is computed live from the ledger."
                                : list.length+" of "+GLOSS.length+" terms match";
 }
+
+/* Domain-map panel -- renders CATS' real external-framework annotations (see CATS' own comment
+   for the citation and the honesty rule about the 2 categories with no real mapping). */
+function renderDomainMap(){
+  var el=document.getElementById("domainMapBody"); if(!el) return;
+  el.innerHTML='<p style="font-size:12.5px;color:rgb(var(--c-mut))">This dashboard\'s own 5 categories,' +
+    ' mapped against real project-controls credentialing bodies where a genuine match exists ' +
+    '(AACE International\'s Certified Cost Professional body of knowledge) — a map to help you orient ' +
+    'what you\'re actually building competence in, not a claim this dashboard prepares you for a ' +
+    'certification exam.</p>'+
+    Object.keys(CATS).map(function(k){
+      return '<div style="margin-top:9px"><b style="color:rgb(var(--c-ink));font-size:12.8px">'+CATS[k].label+
+        '</b><div style="font-size:12px;color:rgb(var(--c-mut));margin-top:2px">'+CATS[k].ext+'</div></div>';
+    }).join("");
+}
+
+/* ---------- Glossary retrieval-practice quiz (learning-layer round, 2026-08-26) ----------
+   Grounded in real cognitive-science research, not an invented mechanic: Roediger & Karpicke
+   (2006), "Test-Enhanced Learning," Psychological Science 17(3) -- attempting recall before being
+   told the answer beats passive re-study for LONG-TERM retention (their subjects: 61% recall a
+   week later after one read + a practice test, vs. 40% after four re-reads; re-readers felt MORE
+   confident despite retaining less -- a real, documented metacognitive illusion, which is exactly
+   why a reveal-after-attempt UI beats just reading the glossary card straight through).
+   Every question and answer already existed -- this is a new interaction wrapper around GLOSS's
+   own g.t/g.p/g.e(), not new content to author or fact-check. */
+
+/* SM-2 (SuperMemo-2, Woźniak 1987) -- the real, standard spaced-repetition algorithm behind Anki
+   and most production flashcard tools; ~20 lines, four numbers per item, no backend required.
+   quality: 4 = "got it" (self-graded), 1 = "missed it" -- a deliberately simplified 2-button input
+   over SM-2's usual 0-5 scale (this dashboard doesn't need Anki's finer gradations to be a real,
+   correct implementation of the underlying scheduling math). */
+function sm2Update(item,quality){
+  item=item||{reps:0,interval:0,ease:2.5};
+  if(quality<3){ item.reps=0; item.interval=1; }
+  else {
+    if(item.reps===0) item.interval=1;
+    else if(item.reps===1) item.interval=6;
+    else item.interval=Math.round(item.interval*item.ease);
+    item.reps+=1;
+  }
+  item.ease=Math.max(1.3, item.ease+(0.1-(5-quality)*(0.08+(5-quality)*0.02)));
+  var due=new Date(); due.setDate(due.getDate()+item.interval);
+  item.due=due.toISOString().slice(0,10);
+  item.lastResult=quality>=3?"got it":"missed";
+  item.seenCount=(item.seenCount||0)+1;
+  item.correctCount=(item.correctCount||0)+(quality>=3?1:0);
+  return item;
+}
+/* localStorage-backed, try/catch-guarded exactly like fvVisited/pccTextSize above -- absent
+   localStorage (the stress.cjs DOM stub, a locked-down/private-browsing context) degrades to an
+   in-memory-only session, never a crash. Real limitation, stated in the UI itself, not hidden:
+   spaced repetition is inherently a multi-session pattern -- it only has value if the same browser
+   /device returns; a single visit gets none of its benefit. That's a property of the real SM-2
+   algorithm, not a shortcut taken here. */
+function quizProgress(){
+  try{
+    var raw=window.localStorage&&window.localStorage.getItem("pccQuizProgress");
+    return raw?JSON.parse(raw):{};
+  }catch(e){ return {}; }
+}
+function quizSave(prog){
+  try{ if(window.localStorage) window.localStorage.setItem("pccQuizProgress",JSON.stringify(prog)); }catch(e){}
+}
+function quizPoolTerms(){
+  return GLOSS.filter(function(g){ return state.glossCat==="All"||g.cat===state.glossCat; });
+}
+/* Selection order: due-for-review first (earliest due date wins), then never-seen, else null
+   (caught up). Reusing the existing category filter to scope the quiz is deliberate, not
+   incidental -- a learner studying "Cost & EVM" via the filter bar gets quizzed on exactly that
+   set, no separate quiz-scope control to build or explain. */
+function pickQuizTerm(){
+  var prog=quizProgress(), pool=quizPoolTerms(), today=new Date().toISOString().slice(0,10);
+  var due=pool.filter(function(g){ return prog[g.k]&&prog[g.k].due&&prog[g.k].due<=today; })
+    .sort(function(a,b){ return prog[a.k].due<prog[b.k].due?-1:1; });
+  if(due.length) return due[0].k;
+  var unseen=pool.filter(function(g){ return !prog[g.k]; });
+  if(unseen.length) return unseen[0].k;
+  return null;
+}
+function soonestDue(){
+  var prog=quizProgress(), pool=quizPoolTerms();
+  var dues=pool.map(function(g){ return prog[g.k]&&prog[g.k].due; }).filter(Boolean).sort();
+  return dues[0]||null;
+}
+function renderMasteryBadge(){
+  var el=document.getElementById("masteryBadge"); if(!el) return;
+  var prog=quizProgress();
+  var mastered=GLOSS.filter(function(g){ return prog[g.k]&&prog[g.k].correctCount>0; }).length;
+  el.textContent="Mastery: "+mastered+" / "+GLOSS.length+" terms";
+}
+function toggleQuizMode(){
+  state.quizMode=!state.quizMode;
+  document.getElementById("quizToggleBtn").setAttribute("aria-pressed",String(state.quizMode));
+  document.getElementById("quizToggleBtn").textContent=state.quizMode?"Exit quiz":"Quiz me →";
+  document.getElementById("glossCatBar").style.display=state.quizMode?"none":"";
+  document.getElementById("glossList").hidden=state.quizMode;
+  document.getElementById("glossCount").hidden=state.quizMode;
+  document.getElementById("quizPanel").hidden=!state.quizMode;
+  document.getElementById("glossQ").hidden=state.quizMode;
+  if(state.quizMode){ state.quizKey=pickQuizTerm(); state.quizRevealed=false; }
+  renderQuiz();
+}
+function renderQuiz(){
+  var el=document.getElementById("quizPanel"); if(!el||!state.quizMode) return;
+  var key=state.quizKey;
+  if(!key){
+    var due=soonestDue();
+    el.innerHTML='<div class="card"><p class="lede">You\'re caught up on this set — nothing due for review right now.'+
+      (due?' Next term comes due '+due+'.':' Quiz a different category, or come back later.')+'</p></div>';
+    return;
+  }
+  var g=GLOSS.filter(function(x){ return x.k===key; })[0];
+  if(!g){ el.innerHTML=""; return; }
+  var prog=quizProgress()[key];
+  el.innerHTML='<div class="card">'+
+    '<div class="eyebrow">'+CATS[g.cat].label+(prog?' · seen '+prog.seenCount+'x':' · new')+'</div>'+
+    '<h3 style="margin:6px 0 0">'+g.t+'</h3>'+
+    '<p class="lede" style="margin-top:8px">Recall it before you reveal — what does this mean, and what is it '+
+    'actually worth in this program right now?</p>'+
+    (state.quizRevealed?
+      '<p class="gp">'+g.p+'</p>'+
+      '<div class="gex"><b>Right now:</b> '+g.e()+'</div>'+
+      '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">'+
+        '<button type="button" class="btn" data-quiz-grade="1">I missed it</button>'+
+        '<button type="button" class="btn" data-quiz-grade="4">Got it right</button>'+
+        '<button type="button" class="btn" style="min-height:auto;padding:1px 8px;font-size:12.5px" '+
+        'data-jump-tab="'+g.jT+'" data-jump-el="'+g.jE+'">See it live &rarr;</button>'+
+      '</div>'
+      :'<button type="button" class="btn" id="quizRevealBtn" style="margin-top:8px">Reveal the answer</button>')+
+    '</div>';
+}
+document.getElementById("quizToggleBtn").addEventListener("click",toggleQuizMode);
+document.getElementById("quizPanel").addEventListener("click",function(e){
+  if(e.target.id==="quizRevealBtn"){ state.quizRevealed=true; renderQuiz(); return; }
+  var g=e.target.closest("[data-quiz-grade]"); if(!g) return;
+  var quality=+g.dataset.quizGrade, prog=quizProgress();
+  prog[state.quizKey]=sm2Update(prog[state.quizKey],quality);
+  quizSave(prog);
+  renderMasteryBadge();
+  state.quizKey=pickQuizTerm(); state.quizRevealed=false;
+  renderQuiz();
+});
 
 /* ---------- presentation mode ---------- */
 var presentPopup=null;
@@ -11665,6 +11865,8 @@ syncMcView(); renderMcMath(); renderPertPlay(); renderGaltonStatic(); renderScen
 renderArch(); renderGuards(); renderStatControl(); renderZscoreMath(); renderEwmaControl(); renderEwmaMath(); renderIngestGuards();
 renderGlossCatBar();
 renderGlossary("");
+renderDomainMap();
+renderMasteryBadge();
 document.getElementById("sCpi").value=T.cpi;
 document.getElementById("sSpi").value=T.spi;
 document.getElementById("sCont").value=PROGRAM.contingency;
@@ -11743,7 +11945,10 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   renderSchedule:renderSchedule,renderMcRiskFilter:renderMcRiskFilter,
   renderGbmLogReturns:renderGbmLogReturns,renderGbmMathUnlocked:renderGbmMathUnlocked,renderGbmVsEvm:renderGbmVsEvm,
   cats:CATS,renderGlossCatBar:renderGlossCatBar,renderGlossary:renderGlossary,
-  renderOpQProgress:renderOpQProgress,opqTotal:OPQ_TOTAL,opQuestionBox:opQuestionBox};
+  renderOpQProgress:renderOpQProgress,opqTotal:OPQ_TOTAL,opQuestionBox:opQuestionBox,
+  renderDomainMap:renderDomainMap,sm2Update:sm2Update,quizProgress:quizProgress,quizSave:quizSave,
+  pickQuizTerm:pickQuizTerm,toggleQuizMode:toggleQuizMode,renderQuiz:renderQuiz,
+  renderMasteryBadge:renderMasteryBadge};
 })();
 </script>
 </body>

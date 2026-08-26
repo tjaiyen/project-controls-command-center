@@ -3761,7 +3761,7 @@ console.log("== D10. inline term help ==");
 // 57 as of the same round's follow-up: a real "pband" entry, same reasoning as impactscore -- the
 // probability scale had no glossary entry either, and TJ's own follow-up question ("why P4, no
 // parameters given") is exactly what it closes.
-ok(P.gloss.length === 59, "GLOSS grew to 59 entries (58 prior + dcma14, 2026-08-26)", String(P.gloss.length));
+ok(P.gloss.length === 60, "GLOSS grew to 60 entries (59 prior + aisystemcard, learning-layer round 2026-08-26)", String(P.gloss.length));
 // title independently re-typed per term (/stress-test finding, 2026-08-21: the prior version only
 // checked g.p/g.e() were non-empty, which passes even for a totally wrong or swapped-in entry) —
 // guards that findGloss(k) actually resolves to the RIGHT term, not just SOME term.
@@ -3906,11 +3906,11 @@ ok(/\.finished\.then\(/.test(indexSrc) && !/\.onfinish=/.test(indexSrc),
   // first run of this exact check)
   const markupOnly = indexSrc.slice(0, indexSrc.indexOf("<script>"));
   const detailsCount = (markupOnly.match(/<details class="dbox"/g) || []).length;
-  // 14 as of the Attention & Triage UX upgrade round (2026-08-24), up from 13 — 1 new panel added
-  // (the "How the 4 tiers are decided" explainer). Updated here, not just to make the count pass,
-  // since a stale expectation is exactly the kind of thing this check exists to catch on the NEXT
-  // panel added after this one.
-  ok(detailsCount === 14, "exactly 14 details.dbox panels exist for this to wire", String(detailsCount));
+  // 15 as of the learning-layer round (2026-08-26), up from 14 — 1 new panel added (the Glossary
+  // tab's "How this maps to the real credentialing world" domain-map box). Updated here, not just
+  // to make the count pass, since a stale expectation is exactly the kind of thing this check
+  // exists to catch on the NEXT panel added after this one.
+  ok(detailsCount === 15, "exactly 15 details.dbox panels exist for this to wire", String(detailsCount));
 }
 
 // Extended growup/draw-in (2026-08-19) — source-level only, same stub limitation as above;
@@ -4746,10 +4746,11 @@ console.log("== D22. GBM/MLE brainstorm round, items 1-4 (2026-08-21) ==");
 
 console.log("== D23. Glossary upgrade round, items 1-3 (2026-08-21) ==");
 {
-  // Item 3 — every one of the 56 real GLOSS entries carries a real cat, and every cat resolves
+  // Item 3 — every one of the real GLOSS entries carries a real cat, and every cat resolves
   // to a known category. Independently re-derived from the raw array, not read back from the
-  // rendered pill counts and trusted against itself. (56 as of 2026-08-24's impactscore addition.)
-  ok(P.gloss.length === 59, "sanity: still 59 real glossary terms");
+  // rendered pill counts and trusted against itself. (60 as of the learning-layer round's
+  // aisystemcard addition, 2026-08-26.)
+  ok(P.gloss.length === 60, "sanity: still 60 real glossary terms");
   const validCats = Object.keys(P.cats);
   P.gloss.forEach(g => ok(validCats.indexOf(g.cat) >= 0, "term '" + g.k + "' carries a real category (" + g.cat + ")", g.cat));
 
@@ -7599,6 +7600,107 @@ console.log("== D56. KPI-drawer symptom-to-root-cause chart links (brainstorm-mo
   // Tier 2 -- the KPI board's own lede states the real, live count (13 of 20), not a hand-typed one
   ok(indexSrc.includes("13 of 20") && indexSrc.includes("A KPI tells you") && indexSrc.includes("Where this number actually comes"),
     "KPI board lede explains the symptom-vs-root-cause framing and cites the real 13-of-20 count");
+}
+
+console.log("== D57. Learning layer -- Glossary retrieval-practice quiz, domain map, AI System Card (brainstorm-mode round, 2026-08-26) ==");
+{
+  // Tier 1.2 -- domain map: real AACE citation on the 3 genuine matches, honest "no mapping" on
+  // the other 2 -- never a forced/fabricated credential-equivalence claim. Scoped to each
+  // category's OWN rendered block (not "does this substring appear anywhere on the whole page") --
+  // an earlier draft checked the whole dmHtml blob for both strings, which stayed green even when
+  // a specific category's own honesty claim was broken, because a DIFFERENT category's block still
+  // carried the phrase. Extracting the real per-category substring is what makes this a genuine
+  // check instead of a tautology (probe-verified: the whole-blob version did not catch a broken
+  // "field" entry falsely claiming an AACE CCP mapping).
+  P.renderDomainMap();
+  const dmHtml = G.domainMapBody._html;
+  function domainMapBlock(label){
+    var start = dmHtml.indexOf(">"+label+"<");
+    if(start < 0) return "";
+    var next = dmHtml.indexOf('style="margin-top:9px"', start);
+    return dmHtml.slice(start, next < 0 ? dmHtml.length : next);
+  }
+  ["Cost & EVM", "Schedule & CPM", "Risk, Commercial & Governance"].forEach(label => {
+    const block = domainMapBlock(label);
+    ok(block.includes("AACE CCP"), label + " domain-map entry cites the real AACE CCP framework", block);
+  });
+  ["Field Telemetry & Quality", "Data Strategy & Architecture"].forEach(label => {
+    const block = domainMapBlock(label);
+    ok(block.includes("not part of a named PM credential body of knowledge"),
+      label + " honestly states it has no real credential mapping, rather than forcing one", block);
+  });
+
+  // Tier 1.1 -- SM-2 (SuperMemo-2) correctness, tested directly against the real algorithm's known
+  // shape: first success -> interval 1, second success -> interval 6, third -> interval*ease
+  // (rounded); any "missed it" resets reps/interval to 0/1 regardless of prior history.
+  let item = P.sm2Update(undefined, 4); // first "got it"
+  ok(item.reps === 1 && item.interval === 1, "SM-2: first success -> reps=1, interval=1 (the real algorithm's fixed first step)", JSON.stringify(item));
+  item = P.sm2Update(item, 4); // second "got it"
+  ok(item.reps === 2 && item.interval === 6, "SM-2: second success -> reps=2, interval=6 (the real algorithm's fixed second step)", JSON.stringify(item));
+  const easeAfter2 = item.ease;
+  item = P.sm2Update(item, 4); // third "got it"
+  ok(item.reps === 3 && item.interval === Math.round(6 * easeAfter2),
+    "SM-2: third success -> interval = round(prior interval * ease), not another fixed step", JSON.stringify(item));
+  const missed = P.sm2Update(item, 1); // "missed it" after 3 successes
+  ok(missed.reps === 0 && missed.interval === 1, "SM-2: a miss resets reps/interval to 0/1 regardless of prior streak", JSON.stringify(missed));
+  ok(missed.correctCount === 3 && missed.seenCount === 4, "SM-2 item tracks real seen/correct counts across all 4 attempts, not just the latest");
+
+  // Tier 1.1 -- quiz term selection is scoped by the SAME category filter the normal Glossary
+  // browsing already uses -- not a separate, second filter control to build or explain.
+  P.state.glossCat = "cost";
+  const costKey = P.pickQuizTerm();
+  ok(!!costKey, "pickQuizTerm() returns a real term when the cost category has unseen terms");
+  const costTerm = P.gloss.find(g => g.k === costKey);
+  ok(costTerm && costTerm.cat === "cost", "picked term actually belongs to the active category filter (cost), not a random one");
+  P.state.glossCat = "All";
+
+  // Tier 1.3 -- mastery badge reflects the REAL persisted count, not a static string
+  P.renderMasteryBadge();
+  const badgeText0 = G.masteryBadge.textContent;
+  ok(badgeText0 === "Mastery: 0 / " + P.gloss.length + " terms", "mastery badge starts at 0 with no prior progress on the main harness (no localStorage)", badgeText0);
+
+  // Tier 1.1 -- toggling quiz mode actually swaps the visible UI, not just a state flag
+  P.toggleQuizMode();
+  ok(document.getElementById("glossList").hidden === true && document.getElementById("quizPanel").hidden === false,
+    "entering quiz mode hides the normal browsing list and shows the quiz panel");
+  ok(G.quizPanel._html.includes("Recall it before you reveal") || G.quizPanel._html.includes("caught up"),
+    "quiz panel renders either a real question or the real 'caught up' state, never blank");
+  P.toggleQuizMode(); // toggle back off, leave shared state clean for later sections
+  ok(document.getElementById("glossList").hidden === false, "exiting quiz mode restores normal browsing");
+
+  // Tier 2 -- AI System Card: real sections, real cross-links, reuses the SAME verification
+  // contract language as the existing narrative demo rather than inventing new/conflicting prose.
+  ok(indexSrc.includes("AI System Card") && indexSrc.includes("Intended use") && indexSrc.includes("What it can access") &&
+     indexSrc.includes("How every claim gets checked") && indexSrc.includes("Known limits"),
+    "AI System Card renders all 4 real disclosure sections");
+  ok(indexSrc.includes("the model proposes, the code disposes"), "AI System Card reuses the SAME verification-contract wording as the existing narrative demo, not a second, divergent claim");
+  ok(indexSrc.includes('data-jump-tab="ai" data-jump-el="aiSystemCard"'), "Ask AI's own intro on Executive Command links to the real System Card section");
+  const aiCardGloss = P.gloss.find(g => g.k === "aisystemcard");
+  ok(!!aiCardGloss && aiCardGloss.jT === "ai" && aiCardGloss.jE === "aiSystemCard", "aisystemcard glossary entry cross-links to the real, existing section, not an invented anchor");
+  P.state.askAiCount = 3;
+  ok(aiCardGloss.e().includes("3 questions"), "aisystemcard's live example cites the REAL session askAiCount, not a hand-typed number", aiCardGloss.e());
+  P.state.askAiCount = 0;
+}
+
+{
+  // Tier 1.1 -- full localStorage round-trip, on a FRESH page instance (the main harness above has
+  // NO localStorage at all by design -- see fvVisited's own tests earlier in this file). Sequenced
+  // LAST in this section deliberately, matching this file's own established convention (the G/H
+  // localStorage-persistence sections at the very end of the file): runPage() reassigns the global
+  // document/localStorage stubs, so nothing after this block may rely on the ORIGINAL page's bare
+  // `document`/`G` again -- an earlier draft of this test placed this block in the MIDDLE of D57
+  // and it silently corrupted every subsequent bare-`document` check to query the wrong page.
+  const R8 = runPage(indexSrc, {});
+  ok(!R8.err, "fresh instance for quiz-persistence test ran without runtime errors", R8.err && R8.err.message);
+  const P8 = R8.win.__PCC__;
+  const beforeSave = P8.quizProgress();
+  ok(Object.keys(beforeSave).length === 0, "quizProgress() starts empty on a fresh instance with no prior localStorage");
+  const key = P8.pickQuizTerm();
+  let prog = beforeSave;
+  prog[key] = P8.sm2Update(prog[key], 4);
+  P8.quizSave(prog);
+  const afterSave = P8.quizProgress();
+  ok(afterSave[key] && afterSave[key].reps === 1, "a graded answer actually persists to localStorage and reads back correctly", JSON.stringify(afterSave[key]));
 }
 
 /* =========================================================================
