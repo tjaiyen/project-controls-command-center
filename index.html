@@ -1984,6 +1984,10 @@ join dim_control_account b using (package_id)</pre></div>
       <p class="lede">Thresholds are worthless without a named consequence. Every breach below has an owner
         and a clock. <button type="button" class="btn" data-jump-tab="act" data-jump-el="actFilters">See who owes what, today, on the Actions tab &rarr;</button></p>
       <div class="tw"><table id="escTable" style="min-width:720px"></table></div>
+      <details class="dbox" style="margin-top:10px">
+        <summary>Why each threshold is set here — for a new team member</summary>
+        <div id="escWhy"></div>
+      </details>
 
       <div class="sec-h" style="margin-top:34px"><h3>Pending owner/agency decisions</h3></div>
       <p class="lede">A named ask, an owner-side agency, and a clock — same discipline as the
@@ -8333,19 +8337,38 @@ var PLAYBOOK=[
   watch:"Milestone slip to revenue service, retention release, open claims, final safety closeout.",
   dec:"Substantial completion, and what the next program inherits from this one."}
 ];
+/* Rule 5 ("why", brainstorm-mode round, 2026-08-26) -- a genuine knowledge-transfer/mentoring
+   artifact (11_STRATEGIC_CHALLENGES_AND_SOLUTIONS.md #20): every rule already had a trigger,
+   owner, action, and clock; none said WHY the threshold sits where it does. Purely additive --
+   every existing r[0..3] positional read elsewhere in this file is unaffected. Grounded in the
+   same DCMA/EVMS conventions and reasoning already stated elsewhere on this dashboard (the
+   Schedule tab's DCMA citation box, the KPI drawers' own "why" text) -- consolidated here, not
+   invented fresh. */
 var ESCALATION=[
- ["CPI &lt; 0.95","Control account manager","Root-cause analysis at the next weekly","Same week"],
- ["CPLI &lt; 0.95 on the driving path","Program scheduler","Formal recovery analysis on that path only","72 hours"],
- ["TCPI − CPI &gt; 0.10","Controls manager","Declare recovery unachievable; open re-baseline","Next monthly"],
- ["TCPI(BAC) &gt; 1.10","Program director","Efficiency required on remaining work exceeds any achievable rate — immediate cost-mitigation review","Immediate"],
- ["Contingency coverage &lt; 1.00","Program director","Funding conversation with the sponsor","Immediate"],
- ["VAC exceeds remaining contingency","Program director + sponsor","Formal reporting obligation, not a discussion","Same reporting cycle"],
- ["Any package at ≤ 0 float","Package manager","Weekly recovery cadence with named owner","Next weekly"],
- ["Change order aging &gt; 30d","Change board chair","Escalate to resolution or reject with reasons","Weekly review"],
- ["RFI aged &gt; 30d on the critical path","Design manager","Daily escalation until closed","Daily"],
- ["TRIR above benchmark","Safety manager","Incident-pattern review; check clustering against negative-float packages","Same week"],
- ["EAC Drift Velocity &gt; $1.0M/month","Program Risk Manager","10-day mitigation review — determine whether the driver is systemic or a discrete cause","10 days"],
- ["Non-Critical Progress Inflation: SPI &ge; 1.00 with CPLI &lt; 0.90","Controls manager","Independent critical-path review — dollar SPI reading healthy while the driving path is not; do not rely on SPI alone to clear this KPI","72 hours"]
+ ["CPI &lt; 0.95","Control account manager","Root-cause analysis at the next weekly","Same week",
+  "DCMA/EVMS convention: once CPI drops below 0.95 past roughly 20% complete, it rarely self-corrects on its own — early root-cause review, not a wait-and-see period."],
+ ["CPLI &lt; 0.95 on the driving path","Program scheduler","Formal recovery analysis on that path only","72 hours",
+  "The same DCMA &lt;0.95 convention CPI and BEI use, applied to Critical Path Length Index specifically — one threshold vocabulary across all three, not three separate standards."],
+ ["TCPI − CPI &gt; 0.10","Controls manager","Declare recovery unachievable; open re-baseline","Next monthly",
+  "A gap this size means the remaining work would need efficiency this program has never demonstrated — the line between recoverable-with-effort and needs-a-different-plan, not an arbitrary round number."],
+ ["TCPI(BAC) &gt; 1.10","Program director","Efficiency required on remaining work exceeds any achievable rate — immediate cost-mitigation review","Immediate",
+  "Above 1.10, no realistic productivity improvement closes the gap — waiting past this point only delays an unavoidable re-baseline, at the cost of the program's own credibility with its sponsor."],
+ ["Contingency coverage &lt; 1.00","Program director","Funding conversation with the sponsor","Immediate",
+  "Coverage below 1.00 means the money set aside for known unknowns can no longer actually cover them — a funding conversation, not a management one, because the tool built to absorb this exact scenario has run out."],
+ ["VAC exceeds remaining contingency","Program director + sponsor","Formal reporting obligation, not a discussion","Same reporting cycle",
+  "Once the forecast overrun exceeds the contingency that exists to absorb it, disclosure isn't discretionary — it's what a funding agency is owed, the same reporting cycle it's found, not the next one."],
+ ["Any package at ≤ 0 float","Package manager","Weekly recovery cadence with named owner","Next weekly",
+  "Zero float means the next slip becomes a finish-date slip with no absorption left — a named owner and a weekly cadence, because a monthly check-in would already be too slow to matter."],
+ ["Change order aging &gt; 30d","Change board chair","Escalate to resolution or reject with reasons","Weekly review",
+  "An open change order older than 30 days is unpriced risk sitting on the ledger — neither the program nor the contractor knows their real cost position on it until the board actually decides."],
+ ["RFI aged &gt; 30d on the critical path","Design manager","Daily escalation until closed","Daily",
+  "On the driving path specifically, an unanswered RFI is schedule float being spent with nothing built to show for it — daily, not weekly, because the clock underneath it doesn't pause for a review cycle."],
+ ["TRIR above benchmark","Safety manager","Incident-pattern review; check clustering against negative-float packages","Same week",
+  "The one metric that can stop the job independent of cost or schedule — watched for clustering against the negative-float packages specifically, because schedule pressure and incident rate are known to correlate, not just for the aggregate rate."],
+ ["EAC Drift Velocity &gt; $1.0M/month","Program Risk Manager","10-day mitigation review — determine whether the driver is systemic or a discrete cause","10 days",
+  "The velocity of the drift matters as much as the current number — it's the leading signal for whether next month's forecast keeps getting worse, before the EAC itself has moved far enough to be undeniable."],
+ ["Non-Critical Progress Inflation: SPI &ge; 1.00 with CPLI &lt; 0.90","Controls manager","Independent critical-path review — dollar SPI reading healthy while the driving path is not; do not rely on SPI alone to clear this KPI","72 hours",
+  "Dollar-based SPI can read healthy while the path that actually decides the finish date is behind it — this rule exists specifically so SPI alone is never allowed to clear a real schedule concern."]
 ];
 /* ESCALATION rows have no stable key field (unlike GATE5_CHECKS) — look them up by anchored
    trigger text, not a raw index. renderInversion() already did this for one row (below); a
@@ -8728,8 +8751,16 @@ function renderFramework(){
     ESCALATION.map(function(r){ var firing=escFiring.indexOf(r)!==-1;
       var esi=ESC_STATUS_ICON[firing?"firing":"dormant"];
       return '<tr style="cursor:default"><td><span class="ticon '+esi.cls+'" aria-hidden="true">'+esi.svg+'</span><span class="pill '+(firing?"r":"g")+'">'+(firing?"Firing now":"Dormant")+'</span></td>'+
-      '<td class="mono" style="font-size:12px">'+r[0]+
+      '<td class="mono" style="font-size:12px" title="'+r[4].replace(/&/g,"&amp;").replace(/"/g,"&quot;")+'">'+r[0]+
       '</td><td>'+r[1]+'</td><td style="white-space:normal;max-width:200px">'+r[2]+'</td><td>'+r[3]+'</td></tr>'; }).join("")+'</tbody>';
+  // Rule 5 accordion (brainstorm-mode round, 2026-08-26) -- the same 12 real r[4] rationale
+  // strings the table's own hover tooltip carries, laid out for reading rather than hovering one
+  // row at a time. A genuine mentoring artifact: a new team member reads WHY each threshold sits
+  // where it does, not just that it exists.
+  var whyEl=document.getElementById("escWhy");
+  if(whyEl) whyEl.innerHTML=ESCALATION.map(function(r){
+    return '<p style="margin:10px 0 0;font-size:12.5px"><b style="color:rgb(var(--c-ink))" class="mono">'+r[0]+'</b><br>'+
+      '<span style="color:rgb(var(--c-mut))">'+r[4]+'</span></p>'; }).join("");
   document.getElementById("ownerDecTable").innerHTML=
     '<caption class="tw-caption">'+OWNER_DECISIONS.length+' pending, '+OWNER_DECISIONS.filter(function(o){return odDaysOverdue(o)>=0;}).length+' overdue right now.</caption>'+
     '<thead><tr><th scope="col">Status</th><th scope="col">Ask</th><th scope="col">Agency</th><th scope="col">Blocks</th><th scope="col">Clock</th></tr></thead><tbody>'+

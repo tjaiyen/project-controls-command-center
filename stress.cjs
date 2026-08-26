@@ -3933,7 +3933,9 @@ ok(/\.finished\.then\(/.test(indexSrc) && !/\.onfinish=/.test(indexSrc),
   // exists to catch on the NEXT panel added after this one.
   // 16 as of the brainstorm-mode ML round (2026-08-26) -- 1 new panel added (the multivariate
   // anomaly section's own "How this is actually computed" math explainer).
-  ok(detailsCount === 16, "exactly 16 details.dbox panels exist for this to wire", String(detailsCount));
+  // 17 as of the dashboard-upgrade round (2026-08-26) -- 1 new panel added (the Operating
+  // Framework tab's "Why each threshold is set here" escalation-rationale accordion).
+  ok(detailsCount === 17, "exactly 17 details.dbox panels exist for this to wire", String(detailsCount));
 }
 
 // Extended growup/draw-in (2026-08-19) — source-level only, same stub limitation as above;
@@ -8468,6 +8470,28 @@ console.log("== L. Subcontractor financial-health watch (brainstorm-mode round, 
     const item = queue.find((it) => it.id === "subhealth-" + s.contractId);
     ok(!!item === shouldFire, s.contractId + "'s triage presence matches the pre-registered fire/dormant expectation", String(shouldFire));
   });
+}
+
+console.log("== M. Escalation rationale ('why') -- item #20, knowledge-transfer artifact (2026-08-26) ==");
+{
+  // Direct answer to 11_STRATEGIC_CHALLENGES_AND_SOLUTIONS.md #20: every ESCALATION rule now
+  // carries a 5th element (r[4]) naming why its threshold sits where it does. Purely additive --
+  // pre-registered expectation: every r[0..3] positional read elsewhere is unaffected (the
+  // existing escTable/firingEscalations/ESC_PAT tests above already exercise that; this section
+  // only tests the new field).
+  ok(P.escalation.every((r) => r.length === 5 && typeof r[4] === "string" && r[4].length > 20), "every one of the 12 real escalation rules carries a real (non-trivial) r[4] rationale string");
+  const escHtml2 = G.escTable._html;
+  P.escalation.forEach((r) => {
+    ok(escHtml2.includes(r[4].replace(/&/g, "&amp;").replace(/"/g, "&quot;")), "the trigger cell's title tooltip carries this rule's own real rationale text, not a generic label");
+  });
+  const whyHtml = G.escWhy._html;
+  P.escalation.forEach((r) => {
+    ok(whyHtml.includes(r[0]) && whyHtml.includes(r[4]), "the rationale accordion states both this rule's real trigger text and its real why-text");
+  });
+  // No two rules share an identical rationale -- each is genuinely specific to its own rule, not
+  // a copy-pasted generic sentence repeated 12 times.
+  const whys = P.escalation.map((r) => r[4]);
+  ok(new Set(whys).size === whys.length, "all 12 rationale strings are genuinely distinct, not a repeated generic sentence");
 }
 
 console.log("\n" + pass + " passed, " + fail + " failed");
