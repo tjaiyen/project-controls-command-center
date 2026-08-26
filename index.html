@@ -6790,8 +6790,9 @@ function renderGantt(){
   var worst=ends.reduce(function(w,e){ return e.r.float<w.r.float?e:w; },ends[0]).r;
   document.getElementById("ganttOpQ").innerHTML = opQuestionHtml("Schedule",
     worst.id+" is setting the pace with "+days(worst.float)+" float"+
-    (worst.float<0?" &mdash; the account actually driving the program's finish date late.":
-      " &mdash; the tightest account on the board, and every account is still holding positive float.")+
+    (worst.float<0?" &mdash; the account actually driving the program's finish date late."
+      :worst.float===0?" &mdash; the tightest account on the board, at exactly zero float."
+      :" &mdash; the tightest account on the board, and every account is still holding positive float.")+
     opQJumpLink("sched","floatErosionCard","Is that cushion shrinking further each period?"));
   renderGanttMath(ends);
 }
@@ -7204,7 +7205,7 @@ function renderRisk(){
   var heatHighCount=RISKS.filter(function(k){ return k.p*k.i>=15; }).length;
   document.getElementById("heatOpQ").innerHTML = opQuestionBox("heat",
     "Where does risk actually concentrate — by likelihood and severity, not just dollars?",
-    heatHighCount+" of "+RISKS.length+" risk"+(RISKS.length===1?"":"s")+" sit"+(RISKS.length===1?"s":"")+
+    heatHighCount+" of "+RISKS.length+" risk"+(RISKS.length===1?"":"s")+" sit"+(heatHighCount===1?"s":"")+
     " in a high-severity cell (probability &times; impact &ge; 15) &mdash; concentration matters as much as the register's raw count."+
     opQJumpLink("risk","tornado","Which risk carries the most dollar exposure?"));
   document.getElementById("heat").innerHTML=html;
@@ -10063,6 +10064,18 @@ function wireAccountHighlight(){
 function wireDetailsAnimation(){
   var mq=window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)");
   document.querySelectorAll("details.dbox").forEach(function(det){
+    // Idempotency guard (/stress-test finding, 2026-08-26) -- this used to run exactly once, at
+    // page init. Every operational-question callout inside a chart that redrawCharts() rebuilds
+    // via a fresh innerHTML= (the S-curve, waterfall, tornado, PF gauge, etc. -- roughly 15 of the
+    // 26 real callouts) got a BRAND NEW <details> node the instant a visitor switched to any other
+    // tab and back -- even the FIRST visit to a non-Overview tab, since Cost isn't the default --
+    // and that new node was never in this querySelectorAll's original pass, so it silently lost
+    // the open/close slide animation (native instant toggle still worked; only the polish did not).
+    // Re-called from redrawCharts() below now; this guard is what makes a second, later call safe
+    // against an ALREADY-wired node (skip it) instead of double-wrapping its content and attaching
+    // a second click listener, which would have doubled the animation on every click.
+    if(det.dataset.animWired) return;
+    det.dataset.animWired="1";
     var summary=det.querySelector("summary");
     if(!summary) return;
     var wrap=document.createElement("div");
@@ -10256,10 +10269,13 @@ document.addEventListener("toggle",function(e){
   if(d.open && !state.opQSeen[key]){ state.opQSeen[key]=true; renderOpQProgress(); }
 },true);
 /* "Questions explored" progress badge (Tier 2, UX upgrade round, 2026-08-26) -- OPQ_TOTAL is
-   26 chart-specific keys + 6 family keys (one per KPI_FAMILIES entry, via opQuestionHtml above)
-   = 32; kept as a named constant with its derivation stated here rather than a bare "32" so the
-   count is auditable against the real key list, not just asserted. */
-var OPQ_TOTAL = 26 + KPI_FAMILIES.length;
+   22 chart-specific keys + 4 family keys (/stress-test finding, 2026-08-26: only Cost, Schedule,
+   Risk and Delivery get an opQuestionHtml() call above -- Change and Compliance never render one,
+   so KPI_FAMILIES.length (6) overcounted by 2 on top of an already-wrong "26" base; the badge
+   could never have reached 100%) = 26. stress.cjs's own D55 check on this constant is now an
+   INDEPENDENT count of real rendered data-opq-key values, not a repeat of this formula -- the
+   exact gate-hole class the prior version of this comment's "32" slipped through. */
+var OPQ_TOTAL = 22 + 4;
 function renderOpQProgress(){
   var el=document.getElementById("opQProgress"); if(!el) return;
   var n=Object.keys(state.opQSeen).length;
@@ -11525,7 +11541,8 @@ window.addEventListener("scroll",function(){ document.getElementById("tip").clas
    pre-existing pattern) silently reset the scrubber's cursor to hidden while the slider value and
    HUD text stayed on whatever month was last scrubbed — the display and the control disagreeing
    with each other, silently, on the single most ordinary action in the app. */
-function redrawCharts(){ renderScurve(); renderWaterfall(); renderBaseline(); renderVeSandbox(); renderCont(); renderRisk(); syncMcView(); renderPertPlay(); renderGaltonStatic(); renderGantt(); renderScurveScrub(); renderGateLine(); renderCdeFlow(); renderGbmLogReturns(); renderDelivery(); renderTriage(); renderExec(); }
+function redrawCharts(){ renderScurve(); renderWaterfall(); renderBaseline(); renderVeSandbox(); renderCont(); renderRisk(); syncMcView(); renderPertPlay(); renderGaltonStatic(); renderGantt(); renderScurveScrub(); renderGateLine(); renderCdeFlow(); renderGbmLogReturns(); renderDelivery(); renderTriage(); renderExec();
+  wireDetailsAnimation(); } // re-wire any freshly-rebuilt details.dbox (see its own idempotency-guard comment)
 document.getElementById("mcViewHist").addEventListener("click",function(){ state.mcView="hist"; syncMcView(); });
 document.getElementById("mcViewCdf").addEventListener("click",function(){ state.mcView="cdf"; syncMcView(); });
 /* Draw-shape toggle (triangular <-> PERT) — mirrors mcView's own set-state -> recompute -> re-

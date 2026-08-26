@@ -7461,8 +7461,14 @@ console.log("== D54. Operational-question callouts on the remaining 22 charts (b
 console.log("== D55. Operational-question callouts made interactive -- click-to-reveal, flash-on-change, cross-links, progress badge (UX upgrade round, 2026-08-26) ==");
 {
   // Tier 1.1 -- every callout is now a real <details>, question as the clickable summary,
-  // collapsed by default (no bare "open" attribute) unless state.opQOpen says otherwise.
-  ["waterfallOpQ", "contOpQ", "heatOpQ", "gateLineOpQ", "archOpQ", "cdeFlowOpQ", "prodOpQ"].forEach(id => {
+  // collapsed by default (no bare "open" attribute) unless state.opQOpen says otherwise. All 22
+  // chart-specific registry ids (/stress-test finding, 2026-08-26: the original list here only
+  // covered 7 of the 22 -- an unstated coverage gap, not a false positive, but a real gap all
+  // the same).
+  ["waterfallOpQ", "baseBridge", "contOpQ", "gbmLogReturns", "eacTrendOpQ", "mcOpQ", "galtonOpQ",
+   "pertPlayOpQ", "floatsOpQ", "cpliOpQ", "schedDriftCard", "floatErosionCard", "heatOpQ", "drbOpQ",
+   "prodOpQ", "cphCard", "gateLineOpQ", "archOpQ", "aiStatControl", "aiEwmaControl", "cdeFlowOpQ",
+   "fundingGapBar"].forEach(id => {
     ok(G[id]._html.includes("<details class=\"dbox opq\"") && G[id]._html.includes("<summary>"),
       id + " renders as a real <details>/<summary>, not a static always-open div");
     ok(!/<details class="dbox opq" open/.test(G[id]._html), id + " starts collapsed by default (no stray 'open')");
@@ -7510,7 +7516,22 @@ console.log("== D55. Operational-question callouts made interactive -- click-to-
   // Tier 2.1 -- "questions explored" progress badge: OPQ_TOTAL is a named, derived constant
   // (26 chart-specific + 6 family keys), not a bare hand-typed number, and the badge reflects
   // state.opQSeen's real size live.
-  ok(P.opqTotal === 26 + P.kpiFamilies.length, "OPQ_TOTAL is derived (26 + KPI_FAMILIES.length), not a hand-typed 32 that could silently drift");
+  // /stress-test finding, 2026-08-26: the original version of this check was
+  // `P.opqTotal === 26 + P.kpiFamilies.length` -- literally the same formula the (wrong) source
+  // constant was computed from, so it could never catch either the wrong "26" base or the wrong
+  // "KPI_FAMILIES.length" multiplier (Change/Compliance never render a callout, so only 4 of the
+  // 6 families really do). Replaced with an INDEPENDENT count: walk every element the harness ever
+  // rendered and count the real, distinct data-opq-key values actually present, with no reference
+  // to OPQ_TOTAL's own formula at all.
+  const realOpqKeys = new Set();
+  Object.keys(G).forEach(id => {
+    const html = G[id] && G[id]._html;
+    if (!html) return;
+    [...html.matchAll(/data-opq-key="([a-zA-Z0-9-]+)"/g)].forEach(m => realOpqKeys.add(m[1]));
+  });
+  ok(realOpqKeys.size === P.opqTotal,
+    "OPQ_TOTAL (" + P.opqTotal + ") matches the REAL count of distinct data-opq-key values actually rendered (" + realOpqKeys.size + "), independently counted -- not re-derived from the same formula the source uses",
+    [...realOpqKeys].sort().join(","));
   const seenBefore = Object.keys(P.state.opQSeen).length;
   P.renderOpQProgress();
   ok(G.opQProgress.textContent === "Questions explored: " + seenBefore + " / " + P.opqTotal,
