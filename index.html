@@ -1149,6 +1149,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         below the axis are packages forecasting an overrun; bars above are the underruns offsetting them.
         <span style="color:rgb(var(--c-mut));font-size:12.5px">Y-axis is zoomed to where the bridge
         actually moves, not zero &mdash; see the break mark on the axis and the read-out below.</span></p>
+      <div id="waterfallOpQ"></div>
       <div class="card" style="margin-top:15px"><div class="chart" id="waterfall"></div>
         <p class="lede" id="waterfallRead" style="margin-top:11px;font-size:12.8px"></p>
         <details class="dbox" style="margin-top:16px">
@@ -1181,6 +1182,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
           <p class="lede" style="font-size:12.5px;margin-top:5px">Drawdown should trail earned progress. When
             the drawdown line crosses above the progress line, the program is consuming reserve faster than
             it is producing value &mdash; the earliest reliable signal of a reset.</p>
+          <div id="contOpQ"></div>
           <div class="chart" id="contChart"></div>
         </div>
       </div>
@@ -1195,6 +1197,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
           <p class="lede" style="font-size:12.5px;margin-top:5px">A forecast that oscillates is noisy but
             healthy. A forecast that moves the same direction every single period is not stabilizing &mdash;
             it is <em>diverging</em>, and the trend line is the only way to see that before it is obvious.</p>
+          <div id="eacTrendOpQ"></div>
           <div id="eacTrend"></div>
           <div class="outbox" id="eacDriftOut" style="margin-top:10px"></div></div>
         <div class="card"><h3>1-month-ahead forecast accuracy</h3>
@@ -1285,6 +1288,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
           </div>
           <p class="lede" style="font-size:11.8px;margin-top:6px" id="mcRiskRead"></p>
         </div>
+        <div id="mcOpQ" style="margin-top:10px"></div>
         <div class="chart" id="mcChart" style="margin-top:10px"></div>
         <div class="legend" id="mcLegend" style="margin-top:8px"></div>
         <div style="display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap">
@@ -1318,6 +1322,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         sample spaced evenly across the sorted real outcomes, not a random subset &mdash; and every
         bucket snaps to its true, full count the instant the drop finishes.</p>
       <div class="card" style="margin-top:15px">
+        <div id="galtonOpQ"></div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between">
           <button class="btn" id="galtonRun" type="button"><span id="galtonRunLabel"></span></button>
           <div role="group" aria-label="Playback speed" style="display:flex;gap:6px;flex-wrap:wrap">
@@ -1339,6 +1344,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         above uses &mdash; never an analytic curve fitted on top.</p>
       <div class="card" style="margin-top:15px">
         <div class="eyebrow" id="pertPlayName"></div>
+        <div id="pertPlayOpQ"></div>
         <div class="chart" id="pertPlayChart" style="margin-top:6px;touch-action:none"></div>
         <div class="outbox" id="pertPlayStats" style="margin-top:10px"></div>
         <p class="lede" id="pertPlayRead" style="margin-top:8px;font-size:12.5px"></p>
@@ -1414,11 +1420,13 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         else does not move it.</p>
       <div class="grid g2">
         <div class="card"><h3>Total float by package <span style="font-weight:400;color:rgb(var(--c-mut))">(working days)</span><button type="button" class="help-ic" data-help="float" aria-label="What does this term mean?" aria-expanded="false">i</button></h3>
+          <div id="floatsOpQ"></div>
           <div id="floats"></div></div>
         <div class="card"><h3>Critical Path Length Index<button type="button" class="help-ic" data-help="cpli" aria-label="What does this term mean?" aria-expanded="false">i</button></h3>
           <p class="lede" style="font-size:12.5px;margin-top:5px">CPLI = (remaining duration + total float) &divide;
             remaining duration. Below 1.00 the path cannot absorb any more slip; DCMA flags below 0.95.</p>
           <div id="cpliStatus" style="margin:8px 0 2px"></div>
+          <div id="cpliOpQ"></div>
           <div id="cpli"></div></div>
       </div>
       <details class="dbox" style="margin-top:14px">
@@ -1517,6 +1525,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         <div class="card"><h3>Probability &times; impact</h3>
           <p style="margin:5px 0 0;font-size:12px;color:rgb(var(--c-mut))">Impact 1&ndash;5 across,
             probability 1&ndash;5 down. Cells show risk count.</p>
+          <div id="heatOpQ"></div>
           <div class="heat" id="heat"></div>
           <div class="legend" id="heatLegend" style="margin-top:8px"></div>
           <div class="outbox" id="contCover" style="margin-top:14px"></div></div>
@@ -1569,6 +1578,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
           dragging these never changes DRB_ASSUMPTIONS itself, the same structural separation the delta
           above is computed from. Watch Option B (escalate) against Option A (settle) across the full
           range: B never dips below A, at any win probability or legal cost.</p>
+        <div id="drbOpQ"></div>
         <div class="chart" id="drbChart"></div>
       </div>
     </div>
@@ -1597,6 +1607,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
             before it reaches CPI.</p>
           <div id="pfArcOpQ"></div>
           <div id="pfArc"></div>
+          <div id="prodOpQ" style="margin-top:14px"></div>
           <div id="prod"></div></div>
         <div class="card"><h3>Document control aging</h3>
           <p class="lede" style="font-size:12.5px;margin-top:5px">RFI and submittal turnaround are the
@@ -1668,7 +1679,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         a number.</p>
 
       <div class="sec-h" style="margin-top:30px"><h3>Pipeline architecture</h3></div>
-      <div class="card" style="margin-top:12px"><div class="chart" id="arch"></div>
+      <div class="card" style="margin-top:12px"><div id="archOpQ"></div><div class="chart" id="arch"></div>
         <p class="lede" style="font-size:12.5px;margin-top:10px">This is not a drawing of a hypothetical.
           The same model runs in this repository: <code>pipeline/run_pipeline.py</code> synthesizes the raw
           monthly claims deterministically, builds the ledger through <code>fct_control_account.sql</code>
@@ -1829,7 +1840,7 @@ join dim_control_account b using (package_id)</pre></div>
         why it's colored the way it is. Nothing here is a second copy of the data; every caption reads
         off the same <span class="mono" style="font-size:11.5px">PHASES</span>/<span class="mono" style="font-size:11.5px">GATES</span>/<span class="mono" style="font-size:11.5px">GATE5_CHECKS</span>
         the tables use.</p>
-      <div class="card"><div class="chart" id="gateLine"></div>
+      <div class="card"><div id="gateLineOpQ"></div><div class="chart" id="gateLine"></div>
         <div class="legend" id="glLegend" style="margin-top:10px"></div></div>
       <div id="glDetail" aria-live="polite"></div>
       <div class="card" style="margin-top:14px" id="glStoryCard">
@@ -2117,7 +2128,7 @@ join dim_control_account b using (package_id)</pre></div>
         with the discrepancy-resolution loop from "When systems disagree" (further down this tab)
         folded in at the point it actually happens &mdash; the verification gate into Shared.
         <button type="button" class="btn" style="min-height:auto;padding:1px 8px;font-size:12.5px" data-jump-tab="ai" data-jump-el="archSqlCard">See the real SQL that builds the Published mart &rarr;</button></p>
-      <div class="card"><div class="chart" id="cdeFlow"></div></div>
+      <div class="card"><div id="cdeFlowOpQ"></div><div class="chart" id="cdeFlow"></div></div>
       <div id="dsDetail" aria-live="polite"></div>
       <div class="card" style="margin-top:14px" id="dsStoryCard">
         <div class="eyebrow">Follow one record through the pipeline</div>
@@ -3524,6 +3535,10 @@ function renderFundingGapBar(lines,bacSum,vacSum){
                     : bacPct<12 ? "left:0%;transform:none"
                     : "left:"+bacPct.toFixed(1)+"%;transform:translateX(-50%)";
   el.innerHTML=
+   opQuestionBox("Is authorized funding enough to cover the forecast, or is there a gap to close?",
+     (gap<0 ? "Forecast ("+m(eacSum)+") already exceeds authorized funding ("+m(bacSum)+") by "+m(Math.abs(gap))+
+       " &mdash; "+pctOfBudget.toFixed(1)+"% of authorized, a gap that needs to be closed."
+     : "Forecast ("+m(eacSum)+") stays within authorized funding ("+m(bacSum)+"), with "+m(gap)+" of headroom remaining."))+
    '<div style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px">'+
      '<div><div class="k" style="font:600 9.5px/1.3 ui-monospace,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgb(var(--c-mut))">Total authorized (BAC)</div>'+
      '<div class="v mono" style="margin-top:5px;font:600 1.1rem/1.2 inherit">'+m(bacSum)+'</div></div>'+
@@ -4170,6 +4185,10 @@ function renderWaterfall(){
   document.getElementById("waterfall").innerHTML=svg(W,H,g+body,
     "Variance bridge from budget at completion to forecast at completion, decomposed by control account. "+
     "Y-axis zoomed to "+m(zoomMin)+"–"+m(zoomMax)+", not zero — see the break mark on the axis and the note below.");
+  document.getElementById("waterfallOpQ").innerHTML = opQuestionBox(
+    "Which control account is actually driving the budget away from BAC?",
+    sorted[0].id+" is the single biggest driver, at "+sgn(sorted[0].vac)+" VAC &mdash; "+
+    pct(Math.abs(sorted[0].vac)/T.grossOver,0)+" of the entire gross overrun.");
   // hover/tap — same shared #tip element the S-curve uses, bound to click too (mobile upgrade,
   // see the scurve tooltip above for why)
   var host=document.getElementById("waterfall"), tip=document.getElementById("tip");
@@ -4310,7 +4329,12 @@ function renderBaseline(){
     : state.baseStep===steps.length-1
     ? ' <button type="button" class="btn" style="min-height:auto;padding:1px 8px;font-size:11.5px" data-jump-tab="fw" data-jump-el="gate5Card">See Gate 5 &rarr;</button>'
     : "";
+  var biggestCut=steps.filter(function(s){ return s.type==="cut"; })
+    .reduce(function(w,s){ return Math.abs(s.v)>Math.abs(w.v)?s:w; });
   document.getElementById("baseBridge").innerHTML=
+    opQuestionBox("Where did the money already move between the original estimate and today's approved baseline?",
+      biggestCut.l+" moved the estimate by "+sgn(biggestCut.v)+" &mdash; the single largest step between "+
+      m(steps[0].v)+" at award and "+m(steps[steps.length-1].v)+" as the controlled baseline today.")+
     '<div class="chart" id="baseBridgeChart">'+svg(W,H,g+body,
       "Bridge from the Engineer's estimate at award to the controlled baseline budget, walked through value engineering, bid climate and buyout. "+
       "Y-axis zoomed to "+m(zoomMin)+"–"+m(zoomMax)+", not zero — see the break mark on the axis.")+'</div>'+
@@ -4475,6 +4499,11 @@ function renderCont(){
     g+='<line x1="'+PL+'" x2="'+(W-PR)+'" y1="'+Y(gv).toFixed(1)+'" y2="'+Y(gv).toFixed(1)+'" stroke="var(--c-grid)"/>'+
        '<text x="'+(PL-8)+'" y="'+(Y(gv)+3.5).toFixed(1)+'" text-anchor="end" font-size="10" font-family="ui-monospace,monospace" fill="'+C("mut")+'">'+(gv*100).toFixed(0)+'%</text>'; }
   function p(a){ return a.map(function(v,i){ return (i?"L":"M")+X(i).toFixed(1)+" "+Y(v).toFixed(1); }).join(" "); }
+  document.getElementById("contOpQ").innerHTML = opQuestionBox(
+    "Is contingency burning faster than the work itself is completing?",
+    pct(T.contDrawn)+" of contingency is drawn against "+pct(T.pct)+" complete &mdash; "+
+    (T.contDrawn>T.pct ? "already crossed above progress, the earliest reliable signal of an impending reset."
+                        : "still trailing progress, which is the healthy side of this line."));
   document.getElementById("contChart").innerHTML=svg(W,H,g+
     '<path d="'+p(prog)+'" fill="none" stroke="'+C("ok")+'" stroke-width="2.4"/>'+
     '<path d="'+p(draw)+'" fill="none" stroke="'+C("warn")+'" stroke-width="2.4"/>',
@@ -4502,6 +4531,12 @@ function renderEacTrend(){
   var s=eacTrendSeries(), deltas=[], i;
   for(i=1;i<s.length;i++) deltas.push({m:s[i].m,delta:s[i].eac-s[i-1].eac});
   var allUp=deltas.every(function(d){ return d.delta>0; });
+  document.getElementById("eacTrendOpQ").innerHTML = opQuestionBox(
+    "Is the forecast itself getting worse each reporting period, not just the current number?",
+    allUp ? "EAC has moved the same direction &mdash; up &mdash; every one of the last "+deltas.length+" periods, net "+
+      sgn(s[s.length-1].eac-s[0].eac)+". That's not noise; a healthy forecast oscillates."
+    : "EAC has moved in both directions over the last "+deltas.length+" periods, net "+
+      sgn(s[s.length-1].eac-s[0].eac)+" &mdash; normal variation, not a systemic drift.");
   bars("eacTrend",deltas.map(function(d){ return {id:d.m,v:d.delta,c:d.delta>0?"var(--c-pill-r)":"var(--c-pill-g)"}; }),sgn,
     function(o,i){ return "<b>"+o.id+"</b>EAC moved "+m(s[i].eac)+" &rarr; "+m(s[i+1].eac)+"<br>"+sgn(o.v)+" this period"; });
   document.getElementById("eacTrend").insertAdjacentHTML("beforeend",
@@ -4661,7 +4696,13 @@ function renderGbmLogReturns(){
     gbmInspectMarkerSvg(geom)+
     '<text x="'+PL+'" y="'+(H-8)+'" font-size="9.5" font-family="ui-monospace,monospace" fill="'+C("mut")+'">'+pct(lo,1)+'</text>'+
     '<text x="'+(W-PR)+'" y="'+(H-8)+'" text-anchor="end" font-size="9.5" font-family="ui-monospace,monospace" fill="'+C("mut")+'">'+pct(hi,1)+'</text>';
+  var gbmMaxDev=pairs.reduce(function(w,p){ return Math.abs(p.v-g.rbar)>Math.abs(w.v-g.rbar)?p:w; },pairs[0]);
+  var gbmMaxDevIn2Sig=Math.abs(gbmMaxDev.v-g.rbar)<=2*sigmaForCurve;
   document.getElementById("gbmLogReturns").innerHTML=
+    opQuestionBox("Is monthly cost volatility behaving normally, or has something changed?",
+      "The widest month-to-month swing ("+gbmMaxDev.from+" &rarr; "+gbmMaxDev.to+", "+pct(gbmMaxDev.v,2)+") sits "+
+      (gbmMaxDevIn2Sig?"inside":"outside")+" the &plusmn;2&sigma; band &mdash; "+
+      (gbmMaxDevIn2Sig?"volatility is behaving the way the fitted model expects.":"a real outlier the model doesn't expect."))+
     // Simplified always-visible caption (brainstorm-mode round, 2026-08-24) -- the rbar-vs-muHatMle
     // technical distinction this used to state inline moved to renderGbmMathUnlocked() below, where
     // that level of precision belongs; this caption now says only what a reader needs to read the
@@ -5134,6 +5175,11 @@ function renderPertPlay(){
   var cs=samples.map(function(s){return s.c;}).sort(function(a,b){return a-b;});
   var contribs=samples.map(function(s){return s.contrib;}).sort(function(a,b){return a-b;});
   document.getElementById("pertPlayName").textContent=r.n.replace(/&amp;/g,"&")+" ("+r.id+") — future efficiency";
+  document.getElementById("pertPlayOpQ").innerHTML = opQuestionBox(
+    "How wrong would our own efficiency assumptions need to be before the forecast changes materially?",
+    "With today's min/mode/max pins, "+r.id+"'s implied contribution to completion cost ranges "+
+    m(contribs[Math.floor(contribs.length*0.1)])+"&ndash;"+m(contribs[Math.floor(contribs.length*0.9)])+
+    " (10th&ndash;90th percentile of 2,000 draws) &mdash; drag a pin to see how much that range moves.");
 
   // PB widened 40->48 (TJ's direct finding, live screenshot, 2026-08-24): each pin's value label
   // (handleY+21) sat at y=191 on a 190px-tall SVG -- 1px past the viewBox's own bottom edge, so the
@@ -5396,6 +5442,10 @@ function galtonUpdateRunLabel(){
 function renderGaltonStatic(){
   galtonReset();
   var bc=mcBinCounts();
+  document.getElementById("galtonOpQ").innerHTML = opQuestionBox(
+    "What does 'a range of outcomes' actually look like, one simulated result at a time?",
+    "The same "+num(activeMc.n)+" real runs behind the Monte Carlo chart above, replayed as individual beads "+
+    "so each simulated completion lands one at a time instead of only ever appearing as a pre-summed bar.");
   document.getElementById("galtonNReal").textContent=num(activeMc.n)+" real runs";
   document.getElementById("galtonNSample").textContent=num(Math.min(GALTON_SAMPLE_N,activeMc.n));
   galtonUpdateRunLabel();
@@ -5512,6 +5562,11 @@ function syncMcView(){
   document.getElementById("mcViewCdf").setAttribute("aria-pressed", String(state.mcView==="cdf"));
   if(state.mcView==="cdf") renderMcCdf(); else renderMc();
   renderMcRcf();
+  document.getElementById("mcOpQ").innerHTML = opQuestionBox(
+    "What's the realistic range of the final number — not just one point estimate?",
+    "The "+activeMc.n+"-run simulation puts P10&ndash;P80 at "+m(activeMc.p10)+"&ndash;"+m(activeMc.p80)+
+    ", with "+pct(activeMc.pOver,0)+" of runs landing over budget and "+pct(activeMc.pBust,0)+
+    " busting through budget plus remaining contingency.");
 }
 
 /* Live comparison sentence for the reference-class marker on the chart above — computed
@@ -6736,6 +6791,11 @@ function renderGanttMath(ends){
     "of remaining schedule risk, not a reconstructed full project history.</p>";
 }
 function renderSchedule(){
+  document.getElementById("floatsOpQ").innerHTML = opQuestionBox(
+    "Which packages have already run out of schedule cushion?",
+    T.negFloat.length+" of "+rows.length+" package"+(T.negFloat.length===1?"":"s")+" ("+
+    T.negFloat.map(function(r){return r.id;}).join(", ")+") sit at or below zero float — those, and only "+
+    "those, are what set the program completion date.");
   bars("floats",rows.map(function(r){ return {id:r.id,v:r.float,center:true,
     c:r.float<0?"var(--c-pill-r)":r.float<10?"var(--c-pill-a)":"var(--c-pill-g)"}; }),days,
     function(o){ var r=rows.filter(function(x){return x.id===o.id;})[0];
@@ -6745,6 +6805,11 @@ function renderSchedule(){
     '<p style="margin:12px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">'+T.negFloat.length+
     ' package'+(T.negFloat.length===1?"":"s")+' ('+T.negFloat.map(function(r){return r.id;}).join(", ")+
     ') sit at or below zero float. They, and only they, set the program completion date.</p>');
+  var worstCpli=rows.slice().sort(function(a,b){return a.cpli-b.cpli;})[0];
+  document.getElementById("cpliOpQ").innerHTML = opQuestionBox(
+    "Which package's own critical path is eroding fastest?",
+    worstCpli.id+" carries the lowest CPLI on the board at "+idx(worstCpli.cpli)+
+    (worstCpli.cpli<0.95?" — already below the DCMA 0.95 flag." : worstCpli.cpli<1?" — below 1.00, no more slip to absorb." : ", still healthy."));
   bars("cpli",rows.slice().sort(function(a,b){return a.cpli-b.cpli;}).map(function(r){
     return {id:r.id,v:r.cpli,c:r.cpli<0.95?"var(--c-pill-r)":r.cpli<1?"var(--c-pill-a)":"var(--c-pill-g)"}; }),idx,
     function(o){ var r=rows.filter(function(x){return x.id===o.id;})[0];
@@ -6885,6 +6950,11 @@ function renderSchedDrift(){
   for(i=1;i<s.length;i++) deltas.push({m:s[i].m,delta:s[i].slip-s[i-1].slip});
   var allUp=deltas.every(function(d){ return d.delta>0; });
   document.getElementById("schedDriftCard").innerHTML=
+   opQuestionBox("Is the revenue-service date estimate getting worse each time we report it?",
+     (allUp? "The projected slip has grown in every one of the last "+deltas.length+" reporting periods, net "+
+       days(s[s.length-1].slip-s[0].slip)+" &mdash; still finding its true finish, not holding a recovered date."
+     : "The projected slip has moved both directions across the last "+deltas.length+" periods, net "+
+       days(s[s.length-1].slip-s[0].slip)+" &mdash; consistent with a schedule that has stabilized."))+
    '<div style="display:flex;gap:22px;flex-wrap:wrap;margin-bottom:14px">'+
    [["First measured slip",days(s[0].slip)],
     ["Current forecast slip",days(s[s.length-1].slip)],
@@ -6909,6 +6979,10 @@ function renderFloatErosion(){
   var allDown=deltas.every(function(d){ return d.delta<0; });
   var ratePerMonth=(s[s.length-1].float-s[0].float)/deltas.length;
   document.getElementById("floatErosionCard").innerHTML=
+   opQuestionBox("Is the critical path's cushion shrinking faster than planned?",
+     (allDown? "CP-201's float has eroded in every one of the last "+deltas.length+" reporting periods, at "+
+       days(ratePerMonth)+"/mo &mdash; the driving path is consuming margin steadily, not holding at a recovered position."
+     : "CP-201's float has moved both directions across the last "+deltas.length+" periods &mdash; consistent with a driving path that has stabilized."))+
    '<div style="display:flex;gap:22px;flex-wrap:wrap;margin-bottom:14px">'+
    [["First measured float",days(s[0].float)],
     ["Current float",days(s[s.length-1].float)],
@@ -7098,6 +7172,11 @@ function renderRisk(){
       // 2026-08-2x, replacing the native title= as the primary UX) naming which specific risks
       // fall in this cell — aria-label/title stay as the accessibility fallback, not removed.
       html+='<div class="hc hot" role="img" aria-label="'+lab+'" title="'+lab+'" data-p="'+p+'" data-i="'+im+'" style="background:'+bg+';border:'+bd+';opacity:'+(n?1:.34)+'">'+n+'</div>'; } }
+  var heatHighCount=RISKS.filter(function(k){ return k.p*k.i>=15; }).length;
+  document.getElementById("heatOpQ").innerHTML = opQuestionBox(
+    "Where does risk actually concentrate — by likelihood and severity, not just dollars?",
+    heatHighCount+" of "+RISKS.length+" risk"+(RISKS.length===1?"":"s")+" sit"+(RISKS.length===1?"s":"")+
+    " in a high-severity cell (probability &times; impact &ge; 15) &mdash; concentration matters as much as the register's raw count.");
   document.getElementById("heat").innerHTML=html;
   // Legend (brainstorm-mode upgrade, 2026-08-24) — same alpha-over-semantic-token mechanism
   // .pill.g/.a/.r already establishes (rgb(var(--c-X) / alpha)), just at a higher alpha since a
@@ -7355,6 +7434,11 @@ function renderDrbSlider(){
     "Option A is a flat line at "+m(e.settleTotal)+" regardless of win probability or legal cost. "+
     "Option B runs from "+m(bAtP0)+" at 0% owner-win probability down to "+m(bAtP1)+" at 100%, but never "+
     "crosses below Option A. The marker shows the current slider position at "+m(e.drbTotal)+".");
+  document.getElementById("drbOpQ").innerHTML = opQuestionBox(
+    "Is it financially better to settle this claim now, or escalate it?",
+    "At today's "+pct(p,0)+" assumed owner-win probability, escalating (Option B, "+m(e.drbTotal)+
+    ") costs "+sgn(e.delta)+" more than settling now (Option A, "+m(e.settleTotal)+") &mdash; and Option B "+
+    "never beats Option A anywhere on this slider's range.");
 }
 
 /* The math explainer — exposure = P_BAND[p] x cost, where P_BAND maps the register's 1-5
@@ -7406,6 +7490,11 @@ function renderRiskMath(ranked){
 /* ---------- delivery tab ---------- */
 function renderDelivery(){
   renderPfArc();
+  var worstPf=rows.slice().sort(function(a,b){return a.pf-b.pf;})[0];
+  document.getElementById("prodOpQ").innerHTML = opQuestionBox(
+    "Which packages are burning hours fastest relative to what they've earned?",
+    worstPf.id+" is the lowest on the board at "+idx(worstPf.pf)+" &mdash; "+
+    num(Math.round(worstPf.actH))+" actual hours against "+num(Math.round(worstPf.ernH))+" earned.");
   bars("prod",rows.slice().sort(function(a,b){return a.pf-b.pf;}).map(function(r){
     return {id:r.id,v:r.pf,c:r.pf<0.95?"var(--c-pill-r)":r.pf<1?"var(--c-pill-a)":"var(--c-pill-g)"}; }),idx,
     function(o){ var r=rows.filter(function(x){return x.id===o.id;})[0];
@@ -7647,6 +7736,10 @@ function renderCph(){
   var cells=CPH_CELLS.map(deriveCph);
   var c=cells[0], last=c.weeks[c.weeks.length-1], prev=c.weeks[c.weeks.length-2];
   document.getElementById("cphCard").innerHTML=
+    opQuestionBox("Is this crew's cost per hour trending away from standard?",
+      last.w+" ran "+sgnUsd(last.varPerHr)+"/hr over the "+usd(c.baseline)+"/hr standard, with "+
+      pct(last.idlePct)+" of crew time idle &mdash; over the last 6 weeks that's added up to "+
+      usd(c.totalOverrun)+" of overrun.")+
     '<div class="eyebrow">'+c.name+' &middot; '+c.pkg+' &middot; '+c.crewSize+' crew &middot; '+c.hrsPerWeek+' hrs/week</div>'+
     '<div style="display:flex;gap:22px;flex-wrap:wrap;margin:8px 0 14px">'+
     ['<div><div class="k" style="font:600 9.5px/1.3 ui-monospace,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgb(var(--c-mut))">Standard CPH</div><div class="v" style="margin-top:5px;font:600 .98rem/1.2 inherit">'+usd(c.baseline)+'/hr</div></div>',
@@ -8173,6 +8266,13 @@ function renderGateLine(){
   document.getElementById("gateLine").innerHTML=svg(W,H,parts,
     "Seven-phase lifecycle with six Board gates between them; Gate "+GATES.filter(function(g){return g.gate===5;})[0].gate+
     " currently "+(GATE5_CHECKS.every(function(c){return c.run()[0];})?"clears":"blocks")+" advancement out of the program's current phase.");
+  var curGlNode=GL_NODES.filter(function(n){ return n.type==="phase" && glNodeState(n)==="cur"; })[0];
+  var blockedGlNode=GL_NODES.filter(function(n){ return n.type==="gate" && glNodeState(n)==="bad"; })[0];
+  document.getElementById("gateLineOpQ").innerHTML = opQuestionBox(
+    "Where does the program sit in its lifecycle, and what's blocking the next gate?",
+    "Currently in "+(curGlNode?PHASES[curGlNode.i].n.replace(/&[a-z]+;/g,""):"an unlabeled phase")+
+    (blockedGlNode? ", with Gate "+GATES[blockedGlNode.i].gate+" ("+GATES[blockedGlNode.i].name.replace(/&[a-z]+;/g,"")+") blocked ahead of it."
+                   : ", with no gate currently blocked."));
   // Legend (brainstorm-mode upgrade, 2026-08-24) — the lede above used to be the only clarity
   // mechanism ("click any phase or gate... to see why it's colored"), meaning color meaning was
   // only discoverable one node at a time. Vocabulary reused verbatim from the aria-label text this
@@ -8753,6 +8853,10 @@ function renderArch(){
   a+=arrow(760,120,800,56)+arrow(760,120,800,126)+arrow(760,120,800,196);
   document.getElementById("arch").innerHTML=svg(W,H,s+a,
     "Pipeline: six source systems feed dbt staging, the control-account mart, an integrity gate, and three outputs — dashboard, printed brief, and AI narrative draft.");
+  document.getElementById("archOpQ").innerHTML = opQuestionBox(
+    "Where does any number on this dashboard actually come from, system to system?",
+    srcs.length+" source systems feed one integrity gate &mdash; "+GUARDS.length+" live checks, run against "+
+    "the real ledger on every load &mdash; before any number reaches this dashboard, the printed brief, or the AI narrative.");
   selectArch(archIdx);
 }
 
@@ -8940,6 +9044,9 @@ function renderStatControl(){
   var flags=z.points.filter(function(p){ return p.flag; }).length;
   var maxAbsZ=z.points.reduce(function(m2,p){ return Math.max(m2,Math.abs(p.z)); },0);
   document.getElementById("aiStatControl").innerHTML=
+   opQuestionBox("Is this week's number a real signal, or normal noise?",
+     (flags? flags+" of "+z.points.length+" weeks cross the &plusmn;"+z.threshold+"&sigma; threshold &mdash; a real statistical outlier, not routine week-to-week variation."
+            : "All "+z.points.length+" weeks stay inside the &plusmn;"+z.threshold+"&sigma; threshold (max |z| "+maxAbsZ.toFixed(2)+") &mdash; this week's number is normal noise, not a signal."))+
    '<div class="gate"><b>Statistical control &middot; '+z.points.length+' weeks scored, &plusmn;'+z.threshold+'&sigma; threshold</b>'+
    '<span class="pill '+(flags?"r":"g")+'">'+(flags? flags+" FLAGGED":"GREEN — 0 anomalies, max |z| "+maxAbsZ.toFixed(2))+'</span></div>'+
    '<div id="aiStatBars" style="margin-top:6px"></div>'+
@@ -9048,6 +9155,11 @@ function renderEwmaControl(){
   var first=e.points[0], last=e.points[e.points.length-1];
   var gapFirst=first.ucl-first.ewma, gapLast=last.ucl-last.ewma;
   document.getElementById("aiEwmaControl").innerHTML=
+   opQuestionBox("Has cost quietly drifted outside its normal range, once weekly noise is smoothed out?",
+     (flags? flags+" of "+e.points.length+" weeks breach their dynamic control limit &mdash; a real, smoothed drift, not one noisy week."
+            : "No week breaches its control limit, but the gap to the upper limit narrowed from "+usd(gapFirst)+
+              "/hr at week 1 to "+usd(gapLast)+"/hr by week "+e.points.length+
+              " &mdash; a persistent-drift signal a single week's z-score alone wouldn't surface."))+
    '<div class="gate"><b>EWMA control chart &middot; '+e.points.length+' weeks scored, &lambda;='+e.lambda+' L='+e.L+'</b>'+
    '<span class="pill '+(flags?"r":"g")+'">'+(flags? flags+" BREACHED":"GREEN — 0 breaches")+'</span></div>'+
    '<div class="chart" id="ewmaSvgChart" style="margin-top:8px"></div>'+
@@ -9751,6 +9863,14 @@ function renderCdeFlow(){
     "with the discrepancy-resolution loop branching off the Shared verification gate: a known "+
     "pattern auto-resolves, a novel one escalates to a named owner and gets promoted into a new "+
     "auto-resolve rule for next time.");
+  var dsMainCount=DS_NODES.filter(function(n){ return n.lane==="main"; }).length;
+  var dsGateCount=DS_NODES.filter(function(n){ return n.lane==="gate"; }).length;
+  var dsBranchCount=DS_NODES.filter(function(n){ return n.lane==="branch"; }).length;
+  document.getElementById("cdeFlowOpQ").innerHTML = opQuestionBox(
+    "Where does a piece of data sit right now, and what has to happen before it's trusted?",
+    "Every piece of data moves through "+dsMainCount+" real states (Work in Progress &rarr; Shared &rarr; "+
+    "Published &rarr; Archived), gated by "+dsGateCount+" verification checkpoints, with a "+dsBranchCount+
+    "-step discrepancy-resolution path for anything that doesn't verify clean &mdash; click any node above to see which state it's in.");
   selectDS(dsIdx);
 }
 
@@ -10043,18 +10163,24 @@ function tabDrawerContent(tabId){
   }
   return {label:d.label, q:d.q, note:d.note, sys:null};
 }
-/* Operational-question callout for each of the 4 headline visuals (brainstorm-mode round,
-   2026-08-25) -- reads the family's own governing question straight off KPI_FAMILIES (same
-   source the Overview family cards and the tab drawer already read, never a second copy of the
-   text), plus one "Right now" line computed from this render's own real numbers, not a canned
-   example. Purpose: the chart's reason for existing is legible before the reader has to infer it
-   from the shape alone. */
-function opQuestionHtml(famKey, exampleHtml){
-  var f=KPI_FAMILIES.filter(function(x){ return x.key===famKey; })[0];
+/* Operational-question callout, shared box-builder (brainstorm-mode round, 2026-08-25) -- states
+   the specific question a chart exists to answer, plus one "Right now" line computed from that
+   render's own real numbers, not a canned example. Purpose: the chart's reason for existing is
+   legible before the reader has to infer it from the shape alone. */
+function opQuestionBox(questionText, exampleHtml){
   return '<div class="dbox" style="margin-bottom:14px">'+
     '<h4>Operational question this answers</h4>'+
-    '<p>&ldquo;'+f.q+'&rdquo;</p>'+
+    '<p>&ldquo;'+questionText+'&rdquo;</p>'+
     '<p style="margin-top:8px"><b style="color:rgb(var(--c-ink))">Right now:</b> '+exampleHtml+'</p></div>';
+}
+/* The 4 headline visuals read their question straight off KPI_FAMILIES (same source the
+   Overview family cards and the tab drawer already read, never a second copy of the text). Every
+   other, more specific chart (brainstorm-mode round 2, 2026-08-25) passes its own literal
+   question text to opQuestionBox() directly instead -- reusing the family text there would just
+   repeat what the tab's headline chart already says. */
+function opQuestionHtml(famKey, exampleHtml){
+  var f=KPI_FAMILIES.filter(function(x){ return x.key===famKey; })[0];
+  return opQuestionBox(f.q, exampleHtml);
 }
 var tabDrawerTimer=null;
 function openTabDrawer(tabId, anchorEl){

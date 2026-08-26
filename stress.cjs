@@ -7321,6 +7321,143 @@ console.log("== D53. Operational-question callouts on the 4 headline visuals (br
   ok(indexSrc.includes('data-help="delivery" aria-label="Why this chart exists"'), "PF gauge heading carries a 'why this chart exists' help icon");
 }
 
+console.log("== D54. Operational-question callouts on the remaining 22 charts (brainstorm-mode round 2, 2026-08-25) ==");
+{
+  const OPQ = "Operational question this answers";
+  function usd(v) { return (v < 0 ? "−" : "") + "$" + Math.round(Math.abs(v)).toLocaleString("en-US"); }
+
+  // Cost tab (8)
+  const worstVac = rows.slice().sort((a, b) => a.vac - b.vac)[0];
+  ok(G.waterfallOpQ._html.includes(OPQ) && G.waterfallOpQ._html.includes("Which control account is actually driving the budget away from BAC?"),
+    "Waterfall carries its own specific question, not the Cost family's");
+  ok(G.waterfallOpQ._html.includes(worstVac.id) && G.waterfallOpQ._html.includes(m(Math.abs(worstVac.vac))),
+    "Waterfall's example names the REAL worst-VAC account and its real dollar VAC");
+
+  ok(G.baseBridge._html.includes(OPQ) && G.baseBridge._html.includes("Where did the money already move between the original estimate and today's approved baseline?"),
+    "Baseline Bridge carries its own specific question");
+  ok(/&mdash; the single largest step between \$[\d,.]+M at award and \$[\d,.]+M as the controlled baseline today/.test(G.baseBridge._html),
+    "Baseline Bridge's example cites the real award and baseline dollar figures");
+
+  ok(G.contOpQ._html.includes(OPQ) && G.contOpQ._html.includes("Is contingency burning faster than the work itself is completing?"),
+    "Contingency chart carries its own specific question");
+  ok(G.contOpQ._html.includes(pct(T.contDrawn)) && G.contOpQ._html.includes(pct(T.pct)),
+    "Contingency chart's example cites the real, live drawn% and complete%");
+
+  ok(G.gbmLogReturns._html.includes(OPQ) && G.gbmLogReturns._html.includes("Is monthly cost volatility behaving normally, or has something changed?"),
+    "GBM log-returns carries its own specific question");
+  ok(/&sigma; band &mdash; (volatility is behaving|a real outlier)/.test(G.gbmLogReturns._html),
+    "GBM log-returns' example states a real in/out-of-band verdict, not a canned line");
+
+  ok(G.eacTrendOpQ._html.includes(OPQ) && G.eacTrendOpQ._html.includes("Is the forecast itself getting worse each reporting period, not just the current number?"),
+    "EAC Trend carries its own specific question");
+  const eacS = P.eacTrendSeries();
+  ok(G.eacTrendOpQ._html.includes(sgn(eacS[eacS.length - 1].eac - eacS[0].eac)),
+    "EAC Trend's example cites the real net movement over the real series");
+
+  ok(G.mcOpQ._html.includes(OPQ) && G.mcOpQ._html.includes("What's the realistic range of the final number — not just one point estimate?"),
+    "Monte Carlo carries its own specific question");
+  const activeMc = P.getActiveMc();
+  ok(G.mcOpQ._html.includes(m(activeMc.p10)) && G.mcOpQ._html.includes(m(activeMc.p80)) && G.mcOpQ._html.includes(pct(activeMc.pOver, 0)),
+    "Monte Carlo's example cites the real, live P10/P80/P(overrun)");
+
+  ok(G.galtonOpQ._html.includes(OPQ) && G.galtonOpQ._html.includes("What does 'a range of outcomes' actually look like, one simulated result at a time?"),
+    "Galton board carries its own specific question");
+  ok(G.galtonOpQ._html.includes(num(activeMc.n)), "Galton board's example cites the real run count, matching the Monte Carlo chart it replays");
+
+  ok(G.pertPlayOpQ._html.includes(OPQ) && G.pertPlayOpQ._html.includes("How wrong would our own efficiency assumptions need to be before the forecast changes materially?"),
+    "PERT Playground carries its own specific question");
+  const pertRow = P.pertPlayRow();
+  ok(G.pertPlayOpQ._html.includes(pertRow.id), "PERT Playground's example names the real control account currently loaded");
+
+  // Schedule tab (4)
+  ok(G.floatsOpQ._html.includes(OPQ) && G.floatsOpQ._html.includes("Which packages have already run out of schedule cushion?"),
+    "Float bars carry their own specific question");
+  ok(G.floatsOpQ._html.includes(String(T.negFloat.length)) && T.negFloat.every(r => G.floatsOpQ._html.includes(r.id)),
+    "Float bars' example names every REAL zero-or-negative-float account, not a fixed list");
+
+  ok(G.cpliOpQ._html.includes(OPQ) && G.cpliOpQ._html.includes("Which package's own critical path is eroding fastest?"),
+    "CPLI bars carry their own specific question");
+  const worstCpliCk = rows.slice().sort((a, b) => a.cpli - b.cpli)[0];
+  ok(G.cpliOpQ._html.includes(worstCpliCk.id) && G.cpliOpQ._html.includes(idx(worstCpliCk.cpli)),
+    "CPLI bars' example names the REAL lowest-CPLI package and its real value");
+
+  ok(G.schedDriftCard._html.includes(OPQ) && G.schedDriftCard._html.includes("Is the revenue-service date estimate getting worse each time we report it?"),
+    "Forecast Drift carries its own specific question");
+  const drift = P.revSvcDriftSeries();
+  ok(G.schedDriftCard._html.includes(days(drift[drift.length - 1].slip - drift[0].slip)),
+    "Forecast Drift's example cites the real net drift over the real series");
+
+  ok(G.floatErosionCard._html.includes(OPQ) && G.floatErosionCard._html.includes("Is the critical path's cushion shrinking faster than planned?"),
+    "Float Erosion carries its own specific question");
+  const erosion = P.floatErosionSeries();
+  ok(G.floatErosionCard._html.includes("CP-201") && /\d/.test(G.floatErosionCard._html.match(/critical path's cushion[\s\S]*?<\/div>/)?.[0] || G.floatErosionCard._html),
+    "Float Erosion's example is grounded in CP-201, the real driving path");
+
+  // Risk & Change tab (2)
+  ok(G.heatOpQ._html.includes(OPQ) && G.heatOpQ._html.includes("Where does risk actually concentrate — by likelihood and severity, not just dollars?"),
+    "Heat map carries its own specific question");
+  const heatHigh = P.risks.filter(k => k.p * k.i >= 15).length;
+  ok(G.heatOpQ._html.includes(heatHigh + " of " + P.risks.length), "Heat map's example cites the REAL high-severity risk count, not a hand-typed number");
+
+  ok(G.drbOpQ._html.includes(OPQ) && G.drbOpQ._html.includes("Is it financially better to settle this claim now, or escalate it?"),
+    "DRB chart carries its own specific question");
+  const drbE = P.deriveDrbEmv(P.program.coPendingValue, P.program.coProposedPending, P.drbAssumptions.pOwnerWins, P.drbAssumptions.legalCost);
+  ok(G.drbOpQ._html.includes(sgn(drbE.delta)), "DRB chart's example cites the real, live delta between settle and escalate");
+
+  // Framework tab (1)
+  ok(G.gateLineOpQ._html.includes(OPQ) && G.gateLineOpQ._html.includes("Where does the program sit in its lifecycle, and what's blocking the next gate?"),
+    "Gate line carries its own specific question");
+  const curNode = P.glNodes.filter(n => n.type === "phase" && P.glNodeState(n) === "cur")[0];
+  ok(!curNode || G.gateLineOpQ._html.includes(P.phases[curNode.i].n.replace(/&[a-z]+;/g, "")),
+    "Gate line's example names the REAL current phase");
+
+  // AI & Data tab (3)
+  ok(G.archOpQ._html.includes(OPQ) && G.archOpQ._html.includes("Where does any number on this dashboard actually come from, system to system?"),
+    "Architecture diagram carries its own specific question");
+  ok(G.archOpQ._html.includes(String(P.guards.length)), "Architecture diagram's example cites the REAL live GUARDS.length, not the suspect hardcoded '64 checks' figure used elsewhere on this tab");
+
+  ok(G.aiStatControl._html.includes(OPQ) && G.aiStatControl._html.includes("Is this week's number a real signal, or normal noise?"),
+    "Z-score control bars carry their own specific question");
+  const zSeries = P.cphCells[0].weeks.map(w => w.actual), z = P.deriveZScores(zSeries);
+  const zFlags = z.points.filter(p => p.flag).length;
+  ok(zFlags ? G.aiStatControl._html.includes(zFlags + " of " + z.points.length) : G.aiStatControl._html.includes("normal noise"),
+    "Z-score control bars' example matches the real flag count");
+
+  ok(G.aiEwmaControl._html.includes(OPQ) && G.aiEwmaControl._html.includes("Has cost quietly drifted outside its normal range, once weekly noise is smoothed out?"),
+    "EWMA chart carries its own specific question");
+  const ewma = P.deriveEwma(zSeries);
+  const ewmaFlags = ewma.points.filter(p => p.flag).length;
+  ok(ewmaFlags ? G.aiEwmaControl._html.includes(ewmaFlags + " of " + ewma.points.length) : /narrowed from \$[\d,.]+\/hr/.test(G.aiEwmaControl._html),
+    "EWMA chart's example matches the real breach count or the real narrowing gap");
+
+  // Data Strategy tab (1)
+  ok(G.cdeFlowOpQ._html.includes(OPQ) && G.cdeFlowOpQ._html.includes("Where does a piece of data sit right now, and what has to happen before it's trusted?"),
+    "CDE flow carries its own specific question");
+  const dsMain = P.dsNodes.filter(n => n.lane === "main").length, dsGate = P.dsNodes.filter(n => n.lane === "gate").length;
+  ok(G.cdeFlowOpQ._html.includes(String(dsMain)) && G.cdeFlowOpQ._html.includes(String(dsGate)),
+    "CDE flow's example cites the REAL state/gate counts from DS_NODES, not hand-typed ones");
+
+  // Delivery tab (2)
+  ok(G.prodOpQ._html.includes(OPQ) && G.prodOpQ._html.includes("Which packages are burning hours fastest relative to what they've earned?"),
+    "Productivity bars carry their own specific question");
+  const worstPfCk = rows.slice().sort((a, b) => a.pf - b.pf)[0];
+  ok(G.prodOpQ._html.includes(worstPfCk.id) && G.prodOpQ._html.includes(idx(worstPfCk.pf)),
+    "Productivity bars' example names the REAL lowest-PF package and its real value");
+
+  ok(G.cphCard._html.includes(OPQ) && G.cphCard._html.includes("Is this crew's cost per hour trending away from standard?"),
+    "CPH bars carry their own specific question");
+  const cphC = P.deriveCph(P.cphCells[0]), cphLast = cphC.weeks[cphC.weeks.length - 1];
+  ok(G.cphCard._html.includes(usd(cphC.baseline)) || G.cphCard._html.includes(usd(cphLast.actual)),
+    "CPH bars' example cites the real standard or actual $/hr");
+
+  // Portfolio tab (1)
+  ok(G.fundingGapBar._html.includes(OPQ) && G.fundingGapBar._html.includes("Is authorized funding enough to cover the forecast, or is there a gap to close?"),
+    "Funding gap bar carries its own specific question");
+  const portBac = P.portfolioRows().reduce((s, r) => s + r.bac, 0);
+  ok(G.fundingGapBar._html.includes(m(portBac)) || G.fundingGapBar._html.includes("headroom") || G.fundingGapBar._html.includes("needs to be closed"),
+    "Funding gap bar's example cites the real portfolio BAC or a real gap/headroom verdict");
+}
+
 /* =========================================================================
    E. otak.html — runtime + internal consistency
    ========================================================================= */
