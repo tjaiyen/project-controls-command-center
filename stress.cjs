@@ -8044,22 +8044,35 @@ console.log("== E.1. architecture.html sync ==");
 ok(archSrc.includes("20 metrics, 6 families") && archSrc.includes("20 metrics across cost, schedule, risk, change, delivery, and compliance."),
   "architecture.html's '20 metrics' prose is present in both the diagram box and the legend table");
 ok(P.kpis.length === 20, "index.html's live KPIS array actually has 20 entries, matching architecture.html's claim", String(P.kpis.length));
-ok(archSrc.includes("28 live checks (browser)") && archSrc.includes("28 browser checks plus a separate 64-check SQL pipeline"),
+ok(archSrc.includes("28 live checks (browser)") && archSrc.includes("28 browser checks plus a separate 65-check SQL pipeline"),
   "architecture.html's '28 checks' prose is present in both the diagram box and the legend table");
 ok(P.guards.length === 28, "index.html's live GUARDS array actually has 28 entries, matching architecture.html's claim", String(P.guards.length));
-ok(archSrc.includes("+ 64-check SQL pipeline"),
-  // pipeline count grew 54->64 in the same /stress-test round that added this check (2026-08-21):
-  // schema.yml declared 10 guardrail tests run_pipeline.py documented but never ran; all 10 are
-  // now real, confirmed live (`python3 pipeline/run_pipeline.py`, 64 PASS / 0 FAIL) — see HANDOFF §12.
-  "architecture.html still cites the 64-check SQL pipeline figure (static — pipeline/run_pipeline.py isn't executed from this harness, so this stays a text-presence check, not a live recomputation)");
+// 64 -> 65 (docs-currency /stress-test round, 2026-08-26): the temporal-fence guardrail added to
+// pipeline/run_pipeline.py in commit 2e52f5f (Aug 25 -- a real, live pipeline check, not just a
+// prose count) bumped the total check() count by one. Confirmed by ACTUALLY installing duckdb
+// into a throwaway venv and running the real pipeline (`python3 pipeline/run_pipeline.py`, 65
+// PASS / 0 FAIL) -- not assumed from the prior "64" figure's own history.
+ok(archSrc.includes("+ 65-check SQL pipeline"),
+  "architecture.html now cites the real 65-check SQL pipeline figure (static — pipeline/run_pipeline.py isn't executed from THIS harness, so this stays a text-presence check backed by a separate live venv run, not a live recomputation inside stress.cjs)");
 ok(archSrc.includes("17 tracked items"), "architecture.html's '17 tracked items' prose is present");
 ok(P.actions.length === 17, "index.html's live ACTIONS array actually has 17 entries, matching architecture.html's claim", String(P.actions.length));
 // regression guard for the specific live bug this round caught and fixed: the #archSvg
 // aria-label's own integrity-gate count (independent of the diagram-box/legend-table copies
 // checked above — a 3rd, easily-missed location) must say twenty-eight, never twenty-seven again.
 ok(!archSrc.includes("twenty-seven"), "architecture.html no longer says 'twenty-seven' anywhere (the stale #archSvg aria-label instance this round found and fixed)");
-ok(archSrc.includes("twenty-eight plus sixty-four check integrity gate"),
-  "the #archSvg aria-label states the integrity gate count correctly (twenty-eight/sixty-four), matching every other count in the file");
+ok(archSrc.includes("twenty-eight plus sixty-five check integrity gate"),
+  "the #archSvg aria-label states the integrity gate count correctly (twenty-eight/sixty-five), matching every other count in the file");
+
+// /stress-test finding (2026-08-26, docs-currency sweep requested by TJ): architecture.html and
+// otak.html hadn't been touched since 2026-08-21, but index.html gained 2 tabs (Attention & Triage,
+// Executive Command) and a 2nd escalation rule pair in the 5 days since -- 2 real, live, previously
+// UNCHECKED drift instances (no prior test tied either to a live index.html count). Fixed and
+// pinned here, closing the same class of gap this file's own history already fixed once for KPIs/
+// checks/actions above.
+ok(archSrc.includes("13 tabs, phase-gated"), "architecture.html's '13 tabs' prose is present (was stale at '11 tabs' -- 2 tabs added since the file's last touch)");
+ok(P.tabs.length === 13, "index.html's live TABS array actually has 13 entries, matching architecture.html's claim", String(P.tabs.length));
+ok(archSrc.includes("12 threshold rules"), "architecture.html's '12 threshold rules' prose is present (was stale at '10 threshold rules')");
+ok(P.escalation.length === 12, "index.html's live ESCALATION array actually has 12 entries, matching architecture.html's claim", String(P.escalation.length));
 
 /* =========================================================================
    F. COMPLIANCE SWEEPS
