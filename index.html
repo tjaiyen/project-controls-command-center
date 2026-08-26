@@ -1223,7 +1223,8 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
             program: what a simple run-rate projection said last month's actual cost would be, versus what it
             actually was. This is expected to be wrong sometimes &mdash; a scorecard that is never wrong is
             not measuring anything.</p>
-          <div class="tw" style="min-width:0"><table id="fcastTable"></table></div></div>
+          <div class="tw" style="min-width:0"><table id="fcastTable"></table></div>
+          <div id="fcastMethodNote"></div></div>
         <div class="card"><h3>Cost diffusion &mdash; drift &amp; volatility<button type="button" class="help-ic" data-help="gbm" aria-label="What does this term mean?" aria-expanded="false">i</button></h3>
           <div id="costGbm"></div>
           <div class="chart" id="gbmLogReturns" style="margin-top:14px"></div>
@@ -1684,6 +1685,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         <a href="#aiGuards">Integrity Gate</a>
         <a href="#aiStatControl">Statistical Control</a>
         <a href="#aiEwmaControl">EWMA Chart</a>
+        <a href="#aiMultiAnomaly">Multivariate Anomaly</a>
         <a href="#aiIngestGuards">Ingestion Validation</a>
         <a href="#aiNarr">AI Narrative</a>
       </nav>
@@ -1798,6 +1800,21 @@ join dim_control_account b using (package_id)</pre></div>
         <div id="ewmaMathBody"></div>
       </details>
 
+      <div class="sec-h" style="margin-top:30px"><h3>Multivariate anomaly score &mdash; jointly unusual, even when nothing individually breaks<button type="button" class="help-ic" data-help="multianomaly" aria-label="What does this term mean?" aria-expanded="false">i</button></h3></div>
+      <p class="lede">The two checks above are univariate and longitudinal (one series, over time). This is
+        multivariate and cross-sectional instead: standardize CPI, SPI, PF, float, and CPLI for each of the 8
+        real control accounts against the portfolio's own mean and standard deviation across all 8, then
+        combine the 5 per-metric z-scores into one composite distance &mdash; a package that looks
+        unremarkable on every single metric but jointly unusual across all of them is exactly what a
+        single-metric threshold, like every g/a/r pill elsewhere on this page, cannot see by construction.
+        Ranked, not thresholded &mdash; at n=8 a hard pass/fail line would be arbitrary; the ranking itself
+        is the honest output.</p>
+      <div class="card" style="margin-top:12px" id="aiMultiAnomaly"></div>
+      <details class="dbox" style="margin-top:14px">
+        <summary>How this is actually computed</summary>
+        <div id="multiAnomalyMathBody"></div>
+      </details>
+
       <div class="sec-h" style="margin-top:30px"><h3>Ingestion validation &mdash; not the same thing as the gate above</h3></div>
       <p class="lede">The integrity gate above re-derives already-accepted totals and compares them &mdash;
         reconciliation, not validation. This checks something earlier: whether a raw record should have been
@@ -1826,7 +1843,9 @@ join dim_control_account b using (package_id)</pre></div>
           <p>A real, live-computed snapshot &mdash; program-wide totals, all 20 KPI values, the risk register,
             tracked actions, Gate 5's status, and the Monte Carlo forecast &mdash; never the model's own outside
             training knowledge, and never a live web search. If the snapshot doesn't have it, the model doesn't
-            either.</p></div>
+            either. Every tracked action and quality NCR (they share one register &mdash; a Quality NCR is just
+            an action with a different id prefix) now carries its real narrative too, not just an id and
+            status: what happened, the root cause, and the corrective/preventive response.</p></div>
         <div class="dbox"><h4>How every claim gets checked</h4>
           <p>The same contract as the narrative demo below: <b style="color:rgb(var(--c-ink))">the model proposes,
             the code disposes.</b> Every numeric claim in an answer is mechanically re-extracted and recomputed
@@ -2446,6 +2465,30 @@ function forecastAccuracy(){
   for(i=2;i<s.length;i++){
     var prev1=s[i-1].ac, prev2=s[i-2].ac, actual=s[i].ac;
     var forecast=prev1+(prev1-prev2);
+    out.push({m:s[i].m,forecast:forecast,actual:actual,err:actual-forecast,errPct:(actual-forecast)/actual});
+  }
+  return out;
+}
+/* Least-squares regression forecaster (brainstorm-mode ML round, 2026-08-26) -- deep research
+   found the field's own literature is explicit that real ML forecasting is validated against
+   dozens-to-hundreds of COMPLETED PROJECTS, never a single program's own thin monthly time
+   series (this one has 6 real points). Rather than fabricate a "trained model" claim this data
+   can't honestly support, this adds one genuinely different, still-classical method next to the
+   existing naive drift baseline and backtests BOTH the same way -- an expanding window that only
+   ever fits on points strictly before the one being predicted, exactly matching
+   forecastAccuracy()'s own no-peeking discipline, so the two are a fair, apples-to-apples
+   comparison. The point isn't to claim regression wins; it's to let the comparison itself show,
+   live, on this program's own real numbers, whether added sophistication earns its keep at N=6 --
+   which is itself the research finding, made checkable instead of just asserted. */
+function linRegForecastAccuracy(){
+  var s=acHistorySeries(), out=[], i;
+  for(i=2;i<s.length;i++){
+    var n=i, sumX=0,sumY=0,sumXY=0,sumXX=0,j;
+    for(j=0;j<n;j++){ sumX+=j; sumY+=s[j].ac; sumXY+=j*s[j].ac; sumXX+=j*j; }
+    var denom=n*sumXX-sumX*sumX;
+    var slope=denom!==0?(n*sumXY-sumX*sumY)/denom:0;
+    var intercept=(sumY-slope*sumX)/n;
+    var actual=s[i].ac, forecast=intercept+slope*i;
     out.push({m:s[i].m,forecast:forecast,actual:actual,err:actual-forecast,errPct:(actual-forecast)/actual});
   }
   return out;
@@ -4978,15 +5021,30 @@ function renderGbmVsEvm(){
     'Stochastic TCPI figure elsewhere in this build.</p>';
 }
 function renderFcastTable(){
-  var rows2=forecastAccuracy();
+  var rows2=forecastAccuracy(), rowsLr=linRegForecastAccuracy();
+  var naiveAvg=rows2.reduce(function(s,r){return s+Math.abs(r.errPct);},0)/rows2.length;
+  var lrAvg=rowsLr.reduce(function(s,r){return s+Math.abs(r.errPct);},0)/rowsLr.length;
   document.getElementById("fcastTable").innerHTML=
-    '<thead><tr><th scope="col">Month</th><th scope="col">1-mo-ahead forecast</th>'+
-    '<th scope="col">Actual</th><th scope="col">Error</th></tr></thead><tbody>'+
-    rows2.map(function(r){ return '<tr style="cursor:default"><td>'+r.m+'</td>'+
-      '<td class="tab-num">'+m(r.forecast)+'</td><td class="tab-num">'+m(r.actual)+'</td>'+
-      '<td class="tab-num '+(Math.abs(r.errPct)>0.03?"ba":"ok")+'">'+sgn(r.err)+' ('+pct(Math.abs(r.errPct))+')</td></tr>'; }).join("")+
-    '</tbody><tfoot><tr style="cursor:default"><td>Average absolute error</td><td></td><td></td>'+
-    '<td class="tab-num">'+pct(rows2.reduce(function(s,r){return s+Math.abs(r.errPct);},0)/rows2.length)+'</td></tr></tfoot>';
+    '<thead><tr><th scope="col">Month</th><th scope="col">Naive 1-mo-ahead</th>'+
+    '<th scope="col">Regression 1-mo-ahead</th><th scope="col">Actual</th>'+
+    '<th scope="col">Naive error</th><th scope="col">Regression error</th></tr></thead><tbody>'+
+    rows2.map(function(r,i2){ var rl=rowsLr[i2]; return '<tr style="cursor:default"><td>'+r.m+'</td>'+
+      '<td class="tab-num">'+m(r.forecast)+'</td><td class="tab-num">'+m(rl.forecast)+'</td>'+
+      '<td class="tab-num">'+m(r.actual)+'</td>'+
+      '<td class="tab-num '+(Math.abs(r.errPct)>0.03?"ba":"ok")+'">'+sgn(r.err)+' ('+pct(Math.abs(r.errPct))+')</td>'+
+      '<td class="tab-num '+(Math.abs(rl.errPct)>0.03?"ba":"ok")+'">'+sgn(rl.err)+' ('+pct(Math.abs(rl.errPct))+')</td></tr>'; }).join("")+
+    '</tbody><tfoot><tr style="cursor:default"><td>Average absolute error</td><td></td><td></td><td></td>'+
+    '<td class="tab-num">'+pct(naiveAvg)+'</td><td class="tab-num">'+pct(lrAvg)+'</td></tr></tfoot>';
+  var winner = naiveAvg<lrAvg?"the naive run-rate method":lrAvg<naiveAvg?"the regression method":"neither method";
+  document.getElementById("fcastMethodNote").innerHTML=
+    '<p style="margin-top:8px;font-size:12px;color:rgb(var(--c-mut))">Over these '+rows2.length+
+    ' backtested months, <b style="color:rgb(var(--c-ink))">'+winner+'</b> comes out ahead on average error ('+
+    pct(naiveAvg)+' vs. '+pct(lrAvg)+'). At only '+rows2.length+' data points that is nowhere near enough '+
+    'evidence to conclude either method is genuinely better &mdash; it is a live illustration of a real '+
+    'finding from the machine-learning-in-project-controls literature: added model sophistication needs real '+
+    'data volume to earn its keep (published studies validate this kind of forecasting against dozens to '+
+    'hundreds of completed projects, not one program\'s own thin monthly history), and this program\'s own '+
+    'numbers are the honest demonstration of why, not an argument for switching methods.</p>';
 }
 function renderCashflow(){
   var n=Math.min(6,ME), months=[], i;
@@ -6423,8 +6481,14 @@ function buildAskAiSnapshot(){
     kpis:KPIS.map(function(k){ return {id:k.id,fam:k.fam,name:k.name,val:k.val(),raw:k.raw(),rag:k.rag(),formula:k.f}; }),
     risks:RISKS.map(function(r){ return {id:r.id,name:r.n,probBand:P_BAND_NAME[r.p],impact:r.i,
       cost:r.cost,exposure:P_BAND[r.p]*r.cost,owner:r.own,mitigation:r.mit}; }),
+    // desc/root/corrective/preventive added (brainstorm-mode round, 2026-08-26) -- brings
+    // get_action to the same standard get_risk already holds for its own narrative field
+    // (mitigation): ACTIONS already carries this text for every real record, including the 2
+    // quality NCRs (NCR-2026-014/021) that live in this same array, not a separate one -- Ask AI
+    // could already name an action/NCR and its status, but couldn't say why it happened or what's
+    // being done about it. Real text, not new fields invented for this.
     actions:ACTIONS.map(function(a){ return {id:a.id,title:a.title,owner:a.owner,status:actionStatus(a),
-      opened:a.opened,due:a.due}; }),
+      opened:a.opened,due:a.due,desc:a.desc,root:a.root,corrective:a.corrective,preventive:a.preventive}; }),
     mc:{n:MC.n,p10:MC.p10,p50:MC.p50,p80:MC.p80,p95:MC.p95,pOver:MC.pOver,pBust:MC.pBust}
   };
 }
@@ -9397,6 +9461,71 @@ function renderEwmaMath(){
    usd(last.ucl-e.mean)+" = <b style='color:rgb(var(--c-ink))'>"+usd(last.ucl)+"/hr</b> &mdash; also matching the row "+
    "above, because this IS that number, not a separate one that happens to agree.</p>";
 }
+/* Multivariate anomaly score (brainstorm-mode ML round, 2026-08-26) -- deliberately NOT a full
+   Mahalanobis distance: that needs a covariance-matrix estimate, and a covariance matrix from
+   only 8 points is itself the overfitting risk this round's other additions (see
+   linRegForecastAccuracy() above) are careful to name, not hide. A composite of 5 independent
+   per-metric z-scores is a real, honest multivariate distance measure at this sample size --
+   just not the sharpest one a larger dataset would earn. */
+var MULTI_ANOMALY_METRICS=["cpi","spi","pf","float","cpli"];
+function multiAnomalyScores(){
+  var stats={};
+  MULTI_ANOMALY_METRICS.forEach(function(k){
+    var vals=rows.map(function(r){ return r[k]; });
+    var mean=vals.reduce(function(s,v){return s+v;},0)/vals.length;
+    var variance=vals.reduce(function(s,v){return s+(v-mean)*(v-mean);},0)/vals.length;
+    stats[k]={mean:mean,sd:Math.sqrt(variance)};
+  });
+  return rows.map(function(r){
+    var per={},sumSq=0,maxAbsZ=0,maxKey=MULTI_ANOMALY_METRICS[0];
+    MULTI_ANOMALY_METRICS.forEach(function(k){
+      var s=stats[k], z=s.sd>0?(r[k]-s.mean)/s.sd:0;
+      per[k]=z; sumSq+=z*z;
+      if(Math.abs(z)>maxAbsZ){ maxAbsZ=Math.abs(z); maxKey=k; }
+    });
+    return {id:r.id,n:r.n,per:per,composite:Math.sqrt(sumSq),maxAbsZ:maxAbsZ,maxKey:maxKey};
+  });
+}
+function renderMultiAnomaly(){
+  var scores=multiAnomalyScores().slice().sort(function(a,b){ return b.composite-a.composite; });
+  var top=scores[0];
+  var topInvisible=MULTI_ANOMALY_METRICS.every(function(k){ return Math.abs(top.per[k])<1.0; });
+  document.getElementById("aiMultiAnomaly").innerHTML=
+   opQuestionBox("multianomaly","Is any package jointly unusual, even if every one of its own metrics looks fine?",
+     (topInvisible?
+       top.id+" ranks highest on the combined score (composite "+top.composite.toFixed(2)+") even though every one of "+
+       "its 5 individual metrics stays under |z|=1.0 &mdash; exactly the case a single-metric threshold can't see."
+     : top.id+" ranks highest on the combined score (composite "+top.composite.toFixed(2)+"), driven mainly by its "+
+       top.maxKey.toUpperCase()+" (z="+top.per[top.maxKey].toFixed(2)+") &mdash; in this case a single-metric check "+
+       "would likely have already caught it too."))+
+   '<div id="multiAnomalyBars" style="margin-top:6px"></div>'+
+   '<p style="margin:11px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">Composite = root-sum-of-squares of each '+
+   'package\'s CPI/SPI/PF/float/CPLI z-scores against the portfolio\'s own mean and standard deviation across all '+
+   '8 packages. Ranked, not thresholded.</p>';
+  bars("multiAnomalyBars",scores.map(function(s){ return {id:s.id,v:s.composite,c:"var(--c-accent)"}; }),
+    function(v){ return v.toFixed(2); },
+    function(o,i){ var s=scores[i];
+      return "<b>"+s.id+"</b>"+s.n.replace(/&amp;/g,"&")+"<br>Composite "+s.composite.toFixed(2)+
+        "<br>CPI z="+s.per.cpi.toFixed(2)+" &middot; SPI z="+s.per.spi.toFixed(2)+" &middot; PF z="+s.per.pf.toFixed(2)+
+        "<br>Float z="+s.per.float.toFixed(2)+" &middot; CPLI z="+s.per.cpli.toFixed(2); });
+}
+function renderMultiAnomalyMath(){
+  var scores=multiAnomalyScores().slice().sort(function(a,b){ return b.composite-a.composite; });
+  var top=scores[0];
+  document.getElementById("multiAnomalyMathBody").innerHTML=
+   "<p>For each metric k in {CPI, SPI, PF, float, CPLI}: <code>z<sub>k</sub> = (value<sub>k</sub> &minus; "+
+   "mean<sub>k</sub>) &divide; sd<sub>k</sub></code>, where mean/sd are computed across all 8 real control "+
+   "accounts' own values for that metric &mdash; a population standard deviation, not a sample one, since all 8 "+
+   "packages ARE the whole portfolio, not a sample drawn from a larger one. Composite = "+
+   "<code>&radic;(z<sub>cpi</sub><sup>2</sup> + z<sub>spi</sub><sup>2</sup> + z<sub>pf</sub><sup>2</sup> + "+
+   "z<sub>float</sub><sup>2</sup> + z<sub>cpli</sub><sup>2</sup>)</code>, the Euclidean length of the 5-metric "+
+   "z-score vector.</p>"+
+   "<p style='margin-top:8px'>Worked against today's highest-ranked account, <b style='color:rgb(var(--c-ink))'>"+
+   top.id+"</b>: z-scores of "+top.per.cpi.toFixed(2)+" (CPI), "+top.per.spi.toFixed(2)+" (SPI), "+
+   top.per.pf.toFixed(2)+" (PF), "+top.per.float.toFixed(2)+" (float), "+top.per.cpli.toFixed(2)+
+   " (CPLI) square-sum to a composite of <b style='color:rgb(var(--c-ink))'>"+top.composite.toFixed(2)+"</b>, "+
+   "matching the bar chart above &mdash; because this IS that number, not a separate one that happens to agree.</p>";
+}
 function renderIngestGuards(targetId){
   var res=INGEST_GUARDS.map(function(g){ var r=g.run(); return {n:g.n,pass:r[0],detail:r[1]}; });
   var fails=res.filter(function(r){return !r.pass;}).length;
@@ -9812,6 +9941,9 @@ var GLOSS=[
   e:function(){ var series=CPH_CELLS[0].weeks.map(function(w){return w.actual;}), e2=deriveEwma(series), flags=e2.points.filter(function(p2){return p2.flag;}).length;
     return "Run against the tunnel crew's own 6-week $/hr series: "+flags+" of "+e2.points.length+" weeks currently breach the dynamic control limit ("+
       (flags?"a real, live flag":"a genuine null result — the honest answer, not a manufactured anomaly")+"). &lambda;="+e2.lambda+", L="+e2.L+" are standard SPC parameter choices, not derived from this program's own history."; }},
+ {k:"multianomaly", cat:"field", jT:"ai", jE:"aiMultiAnomaly", t:"Multivariate anomaly score", p:"The z-score and EWMA checks above are univariate and longitudinal — one series (CP-201's crew cost-per-hour), over time. This is multivariate and cross-sectional instead: it standardizes 5 real per-package fields (CPI, SPI, PF, float, CPLI) against the portfolio's own mean and standard deviation across all 8 packages, then combines them into one composite distance per package — catching a package that looks unremarkable on every single metric but is jointly unusual across all of them, something no single-metric threshold can see by construction. Deliberately not a full Mahalanobis distance — a covariance matrix estimated from only 8 points would be an overfitting risk, not a real refinement — and ranked, not thresholded, since a hard pass/fail line would be arbitrary at this sample size.",
+  e:function(){ var s2=multiAnomalyScores().slice().sort(function(a,b){return b.composite-a.composite;})[0];
+    return s2.id+" ranks highest today at a composite score of "+s2.composite.toFixed(2)+", driven mainly by its "+s2.maxKey.toUpperCase()+" (z = "+s2.per[s2.maxKey].toFixed(2)+")."; }},
  {k:"gbm", cat:"risk", jT:"cost", jE:"costGbm", t:"Geometric Brownian Motion & Maximum Likelihood Estimation", p:"A way to fit a drift (average rate of change) and a volatility (how much it wobbles around that drift) directly to a program's own cost history, using Maximum Likelihood Estimation on the log-returns between consecutive periods — the same math finance uses to model a stock price's random walk, applied here to actual cost instead.",
   e:function(){ var g=deriveGbmParams(acHistorySeries().map(function(p2){return p2.ac;}));
     return "Fit to this program's own "+g.n+" real log-returns: drift "+pct(g.muHatMle,2)+"/period, volatility "+pct(g.sigmaHatMle,2)+
@@ -10422,8 +10554,11 @@ document.addEventListener("toggle",function(e){
    so KPI_FAMILIES.length (6) overcounted by 2 on top of an already-wrong "26" base; the badge
    could never have reached 100%) = 26. stress.cjs's own D55 check on this constant is now an
    INDEPENDENT count of real rendered data-opq-key values, not a repeat of this formula -- the
-   exact gate-hole class the prior version of this comment's "32" slipped through. */
-var OPQ_TOTAL = 22 + 4;
+   exact gate-hole class the prior version of this comment's "32" slipped through.
+   26 -> 27 (brainstorm-mode ML round, 2026-08-26): the new multivariate-anomaly section's own
+   opQuestionBox("multianomaly", ...) is a 23rd chart-specific key -- same class as the 22
+   already counted, not a family key, so the +4 term is untouched. */
+var OPQ_TOTAL = 23 + 4;
 function renderOpQProgress(){
   var el=document.getElementById("opQProgress"); if(!el) return;
   var n=Object.keys(state.opQSeen).length;
@@ -11923,7 +12058,7 @@ renderMcRiskFilter();
 document.getElementById("mcDistTri").setAttribute("aria-pressed", String(state.mcDist==="triangular"));
 document.getElementById("mcDistPert").setAttribute("aria-pressed", String(state.mcDist==="pert"));
 syncMcView(); renderMcMath(); renderPertPlay(); renderGaltonStatic(); renderScen(); renderPrint();
-renderArch(); renderGuards(); renderStatControl(); renderZscoreMath(); renderEwmaControl(); renderEwmaMath(); renderIngestGuards();
+renderArch(); renderGuards(); renderStatControl(); renderZscoreMath(); renderEwmaControl(); renderEwmaMath(); renderMultiAnomaly(); renderMultiAnomalyMath(); renderIngestGuards();
 renderGlossCatBar();
 renderGlossary("");
 renderDomainMap();
@@ -11967,6 +12102,8 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   renderRisk:renderRisk,riskLinkedActions:riskLinkedActions,renderRiskDrill:renderRiskDrill,
   renderContracts:renderContracts,renderCoMixWhatIf:renderCoMixWhatIf,
   eacTrendSeries:eacTrendSeries,eacDriftVelocity:eacDriftVelocity,acHistorySeries:acHistorySeries,forecastAccuracy:forecastAccuracy,
+  linRegForecastAccuracy:linRegForecastAccuracy,renderFcastTable:renderFcastTable,
+  multiAnomalyScores:multiAnomalyScores,renderMultiAnomaly:renderMultiAnomaly,renderMultiAnomalyMath:renderMultiAnomalyMath,
   revSvcDriftSeries:revSvcDriftSeries,floatErosionSeries:floatErosionSeries,pvA:pvA,acA:acA,evA:evA,pvB:pvB,milesLast:MILES[MILES.length-1],
   presentBeatsFull:PRESENT_BEATS_FULL,presentBeatsQuick:PRESENT_BEATS_QUICK,tourBeats:TOUR_BEATS,state:state,
   tourTracks:TOUR_TRACKS,activeTourBeats:activeTourBeats,enterTour:enterTour,exitTour:exitTour,

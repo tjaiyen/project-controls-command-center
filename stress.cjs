@@ -3774,7 +3774,7 @@ console.log("== D10. inline term help ==");
 // 57 as of the same round's follow-up: a real "pband" entry, same reasoning as impactscore -- the
 // probability scale had no glossary entry either, and TJ's own follow-up question ("why P4, no
 // parameters given") is exactly what it closes.
-ok(P.gloss.length === 60, "GLOSS grew to 60 entries (59 prior + aisystemcard, learning-layer round 2026-08-26)", String(P.gloss.length));
+ok(P.gloss.length === 61, "GLOSS grew to 61 entries (60 prior + multianomaly, brainstorm-mode ML round 2026-08-26)", String(P.gloss.length));
 // title independently re-typed per term (/stress-test finding, 2026-08-21: the prior version only
 // checked g.p/g.e() were non-empty, which passes even for a totally wrong or swapped-in entry) —
 // guards that findGloss(k) actually resolves to the RIGHT term, not just SOME term.
@@ -3923,7 +3923,9 @@ ok(/\.finished\.then\(/.test(indexSrc) && !/\.onfinish=/.test(indexSrc),
   // tab's "How this maps to the real credentialing world" domain-map box). Updated here, not just
   // to make the count pass, since a stale expectation is exactly the kind of thing this check
   // exists to catch on the NEXT panel added after this one.
-  ok(detailsCount === 15, "exactly 15 details.dbox panels exist for this to wire", String(detailsCount));
+  // 16 as of the brainstorm-mode ML round (2026-08-26) -- 1 new panel added (the multivariate
+  // anomaly section's own "How this is actually computed" math explainer).
+  ok(detailsCount === 16, "exactly 16 details.dbox panels exist for this to wire", String(detailsCount));
 }
 
 // Extended growup/draw-in (2026-08-19) — source-level only, same stub limitation as above;
@@ -4761,9 +4763,9 @@ console.log("== D23. Glossary upgrade round, items 1-3 (2026-08-21) ==");
 {
   // Item 3 — every one of the real GLOSS entries carries a real cat, and every cat resolves
   // to a known category. Independently re-derived from the raw array, not read back from the
-  // rendered pill counts and trusted against itself. (60 as of the learning-layer round's
-  // aisystemcard addition, 2026-08-26.)
-  ok(P.gloss.length === 60, "sanity: still 60 real glossary terms");
+  // rendered pill counts and trusted against itself. (61 as of the brainstorm-mode ML round's
+  // multianomaly addition, 2026-08-26.)
+  ok(P.gloss.length === 61, "sanity: still 61 real glossary terms");
   const validCats = Object.keys(P.cats);
   P.gloss.forEach(g => ok(validCats.indexOf(g.cat) >= 0, "term '" + g.k + "' carries a real category (" + g.cat + ")", g.cat));
 
@@ -6932,7 +6934,20 @@ console.log("== D50. Ask AI -- free-text Q&A over the real ledger, guardrailed (
   ok(r01Tool.owner === r01Real.own && r01Tool.mitigation === r01Real.mit, "get_risk('R-01') returns R-01's real, independently-verified owner and mitigation text");
   ok(Math.abs(r01Tool.exposure - P.pBand[r01Real.p] * r01Real.cost) < 1e-9, "get_risk exposure is the real, independently-recomputed probability x cost, not a hand-typed number");
   const a09Real = P.actions.find(a => a.id === "A-09");
-  ok(askAiLib.callTool("get_action", {id: "A-09"}, snap).owner === a09Real.owner, "get_action('A-09') returns the real, independently-verified owner");
+  const a09Tool = askAiLib.callTool("get_action", {id: "A-09"}, snap);
+  ok(a09Tool.owner === a09Real.owner, "get_action('A-09') returns the real, independently-verified owner");
+  // narrative widening (brainstorm-mode round, 2026-08-26) -- get_action used to carry only
+  // id/title/owner/status/dates, the same real gap the AI System Card's own "not per-package"
+  // honesty already modeled but never named for this: it could say an action existed, never why.
+  ok(a09Tool.root === a09Real.root && a09Tool.corrective === a09Real.corrective && a09Tool.preventive === a09Real.preventive,
+    "get_action('A-09') now also returns the real root/corrective/preventive narrative, not just id/status metadata");
+  // the same widening reaches the 2 quality NCRs, which live in this SAME tracked-actions array,
+  // not a separate register -- confirmed by direct grep before building anything, not assumed.
+  const ncrReal = P.actions.find(a => a.id === "NCR-2026-014");
+  ok(!!ncrReal, "pre-registered: NCR-2026-014 is a real member of the ACTIONS array today");
+  const ncrTool = askAiLib.callTool("get_action", {id: "NCR-2026-014"}, snap);
+  ok(ncrTool.root === ncrReal.root && ncrTool.title === ncrReal.title,
+    "get_action reaches a quality NCR by its real id through the SAME tool as any other action -- no separate get_ncr tool needed or built");
   const gate5PassReal = P.gate5Checks.every(c => c.run()[0]);
   ok(askAiLib.callTool("get_gate5_status", {}, snap).pass === gate5PassReal, "get_gate5_status matches an independent recomputation of the real GATE5_CHECKS");
   ok(askAiLib.callTool("get_mc_stats", {}, snap).pBust === P.mc.pBust && askAiLib.callTool("get_mc_stats", {}, snap).n === P.mc.n, "get_mc_stats returns the real, canonical MC.pBust/MC.n");
@@ -6958,6 +6973,15 @@ console.log("== D50. Ask AI -- free-text Q&A over the real ledger, guardrailed (
   ok(claims.includes("24 Apr 2028"), "extractNumericClaims still catches real dates");
   ok(claims.includes("40"), "extractNumericClaims catches a bare day-count integer");
   ok(!claims.some(c => c.includes("01") || c.includes("09")), "extractNumericClaims does NOT extract the digits embedded in R-01/A-09 as numeric claims -- an ID reference must never get mangled by the fact-check", JSON.stringify(claims));
+
+  // Two-hyphen id regression (brainstorm-mode round, 2026-08-26, real bug found empirically while
+  // widening get_action's narrative reach to the 2 quality NCRs): a quoted NCR id like
+  // "NCR-2026-014" has TWO hyphens, and the ORIGINAL single-hyphen ID_RE only stripped the
+  // "NCR-2026" prefix, leaving a spurious "-014" behind that NUMBER_RE picked up as a fabricated
+  // "-14" numeric claim -- reproduced live before fixing (see worker/lib.js's own ID_RE comment).
+  const ncrClaims = askAiLib.extractNumericClaims("NCR-2026-014 is tied to R-01, opened 8 Jul 2026.");
+  ok(!ncrClaims.some(c => c.includes("014") || c === "-014" || c === "-14"), "extractNumericClaims does NOT extract a spurious numeric claim out of a two-hyphen NCR id", JSON.stringify(ncrClaims));
+  ok(ncrClaims.includes("8 Jul 2026"), "...but a real date right after the NCR id still extracts correctly", JSON.stringify(ncrClaims));
 
   const gtNumbers = askAiLib.buildGroundTruthNumbers([{name: "get_totals", result: {contCoverage: 0.588, contRemaining: 52.6}}]);
   const gtText = askAiLib.buildGroundTruthText([{name: "get_totals", result: {contCoverage: 0.588, contRemaining: 52.6}}]);
@@ -7823,6 +7847,79 @@ console.log("== D58. /stress-test round fixes -- SM-2 timezone bug, mastery-badg
   P9.state.quizMode = false;
   fire(R9.win, "keydown", { key: "/", target: { tagName: "BODY" }, preventDefault(){} });
   ok(P9.state.tab === "gloss", "...but still works normally once the quiz is exited -- the fix is a guard, not a removal");
+}
+
+console.log("== D59. Deep-research ML round -- multivariate anomaly score, forecaster comparison, get_action narrative widening (brainstorm-mode round, 2026-08-26) ==");
+{
+  // Item 1 -- multivariate anomaly score. Independently re-derived from PKGS/rows, never by
+  // calling the app's own multiAnomalyScores() and trusting it.
+  const METRICS = ["cpi", "spi", "pf", "float", "cpli"];
+  const stats = {};
+  METRICS.forEach(k => {
+    const vals = rows.map(r => r[k]);
+    const mean = vals.reduce((s, v) => s + v, 0) / vals.length;
+    const variance = vals.reduce((s, v) => s + (v - mean) * (v - mean), 0) / vals.length;
+    stats[k] = { mean, sd: Math.sqrt(variance) };
+  });
+  const expected = {};
+  rows.forEach(r => {
+    let sumSq = 0;
+    METRICS.forEach(k => { const z = (r[k] - stats[k].mean) / stats[k].sd; sumSq += z * z; });
+    expected[r.id] = Math.sqrt(sumSq);
+  });
+  const scores = P.multiAnomalyScores();
+  ok(scores.length === 8, "multiAnomalyScores() returns exactly 8 real control accounts, not a placeholder count", String(scores.length));
+  scores.forEach(s => ok(Math.abs(s.composite - expected[s.id]) < 1e-9, s.id + "'s composite score matches an independent recomputation", s.id + " app=" + s.composite + " expected=" + expected[s.id]));
+  // pre-registered: CP-201 (BAC 305.0, EV 178.4, AC 205.1, float -40) is the worst-float, worst-CPI
+  // account on the board today (established earlier in this file, D26/D33) -- expect it to rank
+  // highest on the composite score too, since its individual metrics ARE genuinely the most
+  // extreme, not a case the "jointly unusual, individually invisible" framing describes.
+  const topId = scores.slice().sort((a, b) => b.composite - a.composite)[0].id;
+  ok(topId === "CP-201", "pre-registered: CP-201 ranks highest on the composite score today, the SAME account already known worst on float/CPI, not a surprising or fabricated result", topId);
+
+  fire(G["t-ai"], "click");
+  P.renderMultiAnomaly();
+  has("aiMultiAnomaly", "CP-201", "the multivariate anomaly card names the real top-ranked account, not a placeholder");
+  has("aiMultiAnomaly", "Composite = root-sum-of-squares", "the card discloses its own real method, not a black box");
+  P.renderMultiAnomalyMath();
+  ok(G.multiAnomalyMathBody._html.includes(topId), "the math explainer works the SAME top account's own real numbers, not a generic example");
+
+  // Item 2 -- forecaster comparison. Independently re-derived least-squares fit against the SAME
+  // acHistorySeries(), never by calling linRegForecastAccuracy() and trusting it.
+  const s2 = P.acHistorySeries();
+  const lrExpected = [];
+  for (let i = 2; i < s2.length; i++) {
+    const n = i; let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+    for (let j = 0; j < n; j++) { sumX += j; sumY += s2[j].ac; sumXY += j * s2[j].ac; sumXX += j * j; }
+    const denom = n * sumXX - sumX * sumX;
+    const slope = denom !== 0 ? (n * sumXY - sumX * sumY) / denom : 0;
+    const intercept = (sumY - slope * sumX) / n;
+    lrExpected.push(intercept + slope * i);
+  }
+  const lrActual = P.linRegForecastAccuracy();
+  ok(lrActual.length === lrExpected.length && lrActual.length === P.forecastAccuracy().length,
+    "linRegForecastAccuracy() returns the SAME number of backtested rows as the existing naive forecastAccuracy(), a fair apples-to-apples comparison", String(lrActual.length));
+  lrActual.forEach((r, i) => ok(Math.abs(r.forecast - lrExpected[i]) < 1e-6, "row " + i + "'s regression forecast matches an independent least-squares recomputation", r.forecast + " vs " + lrExpected[i]));
+  // no-peeking discipline: the regression forecast for point i must be computable from points
+  // [0..i-1] ALONE -- verified by confirming a forecast changes if and only if an earlier point
+  // changes, never the point it is itself predicting.
+  const s3 = P.acHistorySeries();
+  const beforeLastForecast = P.linRegForecastAccuracy()[P.linRegForecastAccuracy().length - 1].forecast;
+  const savedAc = s3[s3.length - 1].ac;
+  s3[s3.length - 1].ac = savedAc + 999; // mutate the point being predicted, not an earlier one
+  ok(P.linRegForecastAccuracy()[P.linRegForecastAccuracy().length - 1].forecast === beforeLastForecast,
+    "pre-registered: mutating the ACTUAL value of the point being predicted does not change its own forecast -- proves the fit never peeks at the answer it's predicting");
+  s3[s3.length - 1].ac = savedAc; // restore
+
+  fire(G["t-cost"], "click");
+  P.renderFcastTable();
+  has("fcastTable", "Regression 1-mo-ahead", "the forecast-accuracy table now shows both methods side by side, not just the naive one");
+  ok(G.fcastMethodNote._html.includes("backtested months") && G.fcastMethodNote._html.includes("literature"),
+    "the method-comparison note states which method actually won on today's real numbers AND the honest small-N caveat, not just a bare verdict");
+
+  // Item 3 -- get_action's narrative widening + the ID_RE two-hyphen fix are already asserted
+  // inline in D50 above (the same section that already covers get_action/extractNumericClaims),
+  // not duplicated here.
 }
 
 /* =========================================================================

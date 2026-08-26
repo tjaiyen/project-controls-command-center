@@ -36,7 +36,7 @@ var TOOLS = [
     input_schema: {type: "object", properties: {id: {type: "string"}}, required: ["id"]}},
   {name: "list_risks", description: "List every risk's id and name.",
     input_schema: {type: "object", properties: {}}},
-  {name: "get_action", description: "Get one tracked action's real title, owner, status, and dates by id (e.g. 'A-09').",
+  {name: "get_action", description: "Get one tracked action's real title, owner, status, dates, and narrative (what happened, root cause, corrective/preventive action) by id (e.g. 'A-09', or a quality NCR id like 'NCR-2026-014' -- NCRs live in the same tracked-actions register, not a separate one).",
     input_schema: {type: "object", properties: {id: {type: "string"}}, required: ["id"]}},
   {name: "list_actions", description: "List every tracked action's id, title, owner, and status.",
     input_schema: {type: "object", properties: {}}},
@@ -67,6 +67,10 @@ function callTool(name, args, snapshot) {
     case "list_kpis": return (snapshot.kpis || []).map(function (k) { return {id: k.id, fam: k.fam, name: k.name, rag: k.rag}; });
     case "get_risk": return (snapshot.risks || []).find(function (r) { return r.id === args.id; }) || {error: "unknown risk id: " + args.id};
     case "list_risks": return (snapshot.risks || []).map(function (r) { return {id: r.id, name: r.name}; });
+    // get_action carries the full narrative (desc/root/corrective/preventive) -- get_risk's own
+    // shape already includes its one narrative field (mitigation); this brings actions/NCRs to
+    // the same standard. list_actions stays lightweight (id/title/owner/status only), matching
+    // list_risks' own summary-only shape -- detail lives behind the single-id lookup, not the list.
     case "get_action": return (snapshot.actions || []).find(function (a) { return a.id === args.id; }) || {error: "unknown action id: " + args.id};
     case "list_actions": return (snapshot.actions || []).map(function (a) { return {id: a.id, title: a.title, owner: a.owner, status: a.status}; });
     case "get_gate5_status": return snapshot.gate5 || {error: "no gate5 status in snapshot"};
@@ -82,7 +86,15 @@ function callTool(name, args, snapshot) {
 // out before number-extraction so their embedded digits are never treated as numeric claims, and
 // everything else is extracted broadly by digit shape and verified by NUMERIC VALUE, below.
 var DATE_RE = /\b\d{1,2}\s(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s\d{4}\b/g;
-var ID_RE = /\b[A-Z]{1,4}-\d+\b/g;
+// (?:-\d+)* added (brainstorm-mode round, 2026-08-26, get_action's narrative widening below) --
+// this dashboard's own quality-NCR ids have TWO hyphens (NCR-2026-014, an id that lives in the
+// SAME tracked-actions register as R-01/A-09/CP-201), and the original single-hyphen pattern only
+// stripped the "NCR-2026" prefix, leaving "-014" behind to be picked up by NUMBER_RE below as a
+// spurious "-14" numeric claim -- verified live: it does, and since nothing in the ground-truth
+// numbers is -14, that claim would always fail verification and get an NCR-quoting answer
+// wrongly stripped or refused. Empirically re-verified real single-hyphen ids (R-01/A-09/CP-201)
+// and real negative-dollar claims ("-$14.5M") still extract exactly as before.
+var ID_RE = /\b[A-Z]{1,4}-\d+(?:-\d+)*\b/g;
 var NUMBER_RE = /-?\$?\d{1,3}(?:,\d{3})+(?:\.\d+)?[%M]?\b|-?\$?\d*\.\d+[%M]?\b|-?\$?\d+[%M]?\b/g;
 
 function extractNumericClaims(text) {
