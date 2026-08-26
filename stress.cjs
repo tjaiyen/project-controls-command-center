@@ -2399,14 +2399,22 @@ ok(/\.kpi\.dim\{background:rgb\(var\(--c-card\) \/ \.45\)/.test(indexSrc),
 ok(!indexSrc.includes("position:sticky") || !indexSrc.includes(".tw table th"),
   "sticky table headers are gone from .tw table th — reverted, not just source-text absent by coincidence",
   indexSrc.includes(".tw table th") ? indexSrc.match(/\.tw table th\{[^}]*\}/)[0] : "(.tw table th rule not found)");
-// checks the actual consuming/producing forms, not "the string --header-h/ResizeObserver appears
-// nowhere" — the revert's own explanatory comments (both here and in index.html) legitimately
-// mention both names, and a bare .includes("ResizeObserver") false-failed against its own comment
-// two lines above this one the first time this was written (the same self-own class of bug the
-// #whatIfOut debounce fix's own test caught earlier this round — checking for a live construct,
-// not a word, is the actual fix each time).
-ok(!indexSrc.includes("var(--header-h") && !indexSrc.includes('"--header-h"') && !indexSrc.includes("new ResizeObserver("),
-  "no live code still reads --header-h via var(), writes it via setProperty, or runs the ResizeObserver that used to feed it");
+// checks the actual consuming/producing forms, not "the string --header-h appears nowhere" — the
+// revert's own explanatory comments (both here and in index.html) legitimately mention the name,
+// and a bare .includes() against a comment two lines above this one false-failed the first time
+// this was written (the same self-own class of bug the #whatIfOut debounce fix's own test caught
+// earlier this round — checking for a live construct, not a word, is the actual fix each time).
+ok(!indexSrc.includes("var(--header-h") && !indexSrc.includes('"--header-h"'),
+  "no live code still reads --header-h via var() or writes it via setProperty — the specific variable name the reverted .tw table th sticky-header feature used");
+// /brainstorm-mode UX round, 2026-08-26/: ResizeObserver itself is legitimately back — a DIFFERENT
+// feature (sticky .tabs/.anchor-rail below 1050px, driven by --bar-height/--tabs-height, never
+// --header-h) that observes .bar/#tabs directly, never a .tw-classed table. The blanket "no
+// ResizeObserver anywhere" ban above this line is gone; this narrower check takes its place —
+// confirming the ONE thing that actually mattered (nothing resurrects a sticky <th> inside a .tw
+// scroll container) rather than banning the whole API because one past use of it was buggy.
+ok(!/\.tw[^{]*\{[^}]*overflow[^}]*\}[\s\S]{0,400}position:sticky/.test(indexSrc) &&
+   !indexSrc.includes(".tw table th") && !/observe\(\s*document\.querySelector\(["']\.tw/.test(indexSrc),
+  "no ResizeObserver observes a .tw-classed element, and no .tw table th sticky rule exists — the specific reverted pattern stays gone even though ResizeObserver itself is legitimately in use elsewhere now");
 
 // 4. scope="row" on the ledger, actions register, and contract table's identifying column
 has("pkgBody", '<th scope="row">', "control-account ledger rows use a real row header, not just a first td");
@@ -8275,6 +8283,51 @@ const CW_FIELDS_ORDER = P.changeWatchFields.map(f => f.k);
   ok(!/NaN/.test(cardHtml7) && !/undefined/.test(cardHtml7), "a snapshot missing tracked fields never renders NaN/undefined for the missing ones", cardHtml7.slice(0, 200));
   ok(cardHtml7.includes("No change since your last visit"), "missing keys are excluded from the diff, not fabricated as changes -- bac (the one real overlapping key, 1240===1240) correctly shows no change", cardHtml7.slice(0, 200));
   ok(R7.registry.changeWatchBadge.textContent === "No change since last visit", "badge also correctly reads 'No change,' not a crash or a fabricated count");
+}
+
+console.log("== I. Sticky tab bar / anchor rail below 1050px (UX fix, 2026-08-26 -- TJ's own reported friction) ==");
+{
+  // The CSS mechanism itself
+  ok(/@media\(max-width:1049px\)\{\s*\.tabs\{position:sticky;top:var\(--bar-height,64px\)/.test(indexSrc),
+    "the horizontal .tabs bar is sticky below 1050px, offset by the live-measured --bar-height (falling back to 64px, never a bare position:sticky with no offset)");
+  ok(/@media\(min-width:600px\) and \(max-width:1049px\)\{\s*\.anchor-rail\{position:sticky;top:calc\(var\(--bar-height,64px\) \+ var\(--tabs-height,48px\)\)/.test(indexSrc),
+    "the in-tab anchor rail is sticky in the 600-1049px range (where it's already open/expanded), docked below the now-sticky tab bar, not overlapping it");
+  ok(indexSrc.includes("function syncStickyNavOffsets(){"), "a dedicated sync function drives the two CSS custom properties, matching this file's own syncTabsOrientation()/syncAnchorRails() idiom");
+
+  // Stub-compatibility guard: the Node DOM stub's elements have no getBoundingClientRect at all
+  // (no layout engine) -- the function must no-op cleanly against that, not throw, exactly the
+  // same class of guard every other DOM-measuring function in this file already needs. The whole
+  // suite already reaching this point without crashing (index.html's own IIFE executes, asserted
+  // at the very top of this file) is itself proof syncStickyNavOffsets() didn't throw against the
+  // stub; this checks the guard didn't just avoid a crash but genuinely skipped measuring too.
+  const barHeightSet = document.documentElement.style.getPropertyValue("--bar-height");
+  ok(barHeightSet === "" || barHeightSet === undefined,
+    "pre-registered: --bar-height was never set against the DOM stub (no getBoundingClientRect to measure with) -- the guard actually guards, not just 'ran without throwing'", JSON.stringify(barHeightSet));
+
+  // /stress-test finding (2026-08-26, live-browser): a first version called syncStickyNavOffsets()
+  // right where it's DEFINED, near syncTabsOrientation() -- well BEFORE the render cascade that
+  // populates .bar's own badges/counts (#cntGate5, #cntAct, etc.). The synchronous initial
+  // measure() this function relies on to avoid a wrong-position flash therefore captured the
+  // header in an under-populated, sometimes-narrower state -- reproduced live: 104px measured vs.
+  // 146px real at 900-1040px widths, a wrong value with nothing to correct it in a
+  // ResizeObserver-suspended context (and in ANY context, until the observer's own first async
+  // callback happens to fire). Fixed by moving the CALL to the end of the render cascade, right
+  // before the __PCC__ export -- pinned here so the call site can never silently drift back
+  // upstream of the render calls it depends on.
+  const defIdx = indexSrc.indexOf("function syncStickyNavOffsets(){");
+  const lateCallIdx = indexSrc.indexOf("syncStickyNavOffsets();", defIdx + 1);
+  const lastRenderIdx = indexSrc.indexOf("renderScurveScrub();", defIdx);
+  const exportIdx = indexSrc.indexOf("window.__PCC__={");
+  ok(defIdx > 0 && lateCallIdx > 0 && lastRenderIdx > 0 && exportIdx > 0,
+    "pre-registered: all 4 real anchor points (definition, the real call site, the last render call, the __PCC__ export) exist in the source");
+  ok(lateCallIdx > lastRenderIdx && lateCallIdx < exportIdx,
+    "syncStickyNavOffsets() is called AFTER the full render cascade and BEFORE the __PCC__ export -- not near its own definition, closing the real under-measurement bug this round found live");
+  // an EARLY call (the original, buggy placement) must NOT still exist anywhere in the source --
+  // a stray leftover call right after the function definition would silently re-measure too soon
+  // a second time, reintroducing the exact race this fix closes.
+  const immediatelyAfterDef = indexSrc.slice(defIdx, defIdx + 700);
+  ok(!/\n\}\s*\nsyncStickyNavOffsets\(\);/.test(immediatelyAfterDef),
+    "no stray early call to syncStickyNavOffsets() sits right after its own function definition (the original, buggy placement)");
 }
 
 console.log("\n" + pass + " passed, " + fail + " failed");

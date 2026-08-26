@@ -151,6 +151,24 @@ a{color:rgb(var(--c-accent))}
 .btn[aria-pressed="true"],.btn.on{background:rgb(var(--c-accent) / .16);border-color:rgb(var(--c-accent))}
 
 /* tabs */
+/* Sticky tab bar + in-tab jump section below 1050px (brainstorm-mode UX fix, 2026-08-26 — TJ's
+   own reported friction: "having to scroll all the way up to change tab"). The >=1050px vertical
+   rail layout (.tabs's own Tier-3 rule further down) is ALREADY sticky; this closes the same gap
+   for the horizontal-bar layout below that width, which had no sticky behavior at all. Can't reuse
+   --nav-height here the way the >=1050px rules do: a prior /stress-test finding (the jump-
+   breadcrumb fix, 2026-08-21, see its own CSS comment) already established --nav-height:64px is
+   ONLY accurate at >=1050px, because .bar-in's own flex-wrap grows the header to multiple rows
+   below that width -- the exact range this fix targets. --bar-height/--tabs-height are set live by
+   syncStickyNavOffsets() via ResizeObserver, so the offset always matches the header's/tab bar's
+   real current rendered height at any width, through any wrap state, never a guessed constant. */
+@media(max-width:1049px){
+  .tabs{position:sticky;top:var(--bar-height,64px);z-index:20;
+    background:rgb(var(--c-bg) / .96);backdrop-filter:blur(6px)}
+}
+@media(min-width:600px) and (max-width:1049px){
+  .anchor-rail{position:sticky;top:calc(var(--bar-height,64px) + var(--tabs-height,48px));z-index:15;
+    padding-top:8px;background:rgb(var(--c-bg) / .96);backdrop-filter:blur(6px)}
+}
 .tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--c-line);
   margin:0 -20px;padding:0 20px;scrollbar-width:none}
 .tabs::-webkit-scrollbar{display:none}
@@ -11359,6 +11377,45 @@ TABS.forEach(function(id){
   btn.addEventListener("focus",function(){ scheduleTabDrawer(id, btn, 0); });
   btn.addEventListener("blur",cancelTabDrawer);
 });
+// Sticky tab bar / anchor rail below 1050px (brainstorm-mode UX fix, 2026-08-26) — drives the
+// --bar-height/--tabs-height custom properties the CSS above positions against. ResizeObserver,
+// not a fixed constant or a matchMedia breakpoint check: the header's real height varies
+// continuously with width (its own flex-wrap) and with the tab bar's font-size (the text-size
+// control), so only a live measurement stays correct through every combination, the same
+// reasoning --nav-height's own known 1050px-only-accurate limit already established.
+function syncStickyNavOffsets(){
+  var bar=document.querySelector(".bar"), tabs=document.getElementById("tabs");
+  // bar.getBoundingClientRect existing is the real stub-compatibility guard (stress.cjs's DOM
+  // stub elements have no layout engine, so they carry no such method at all) — checked directly,
+  // not inferred from typeof ResizeObserver, so the two capabilities can never silently drift
+  // apart from each other again the way an earlier draft of this function let them.
+  if(!bar||!tabs||typeof bar.getBoundingClientRect!=="function") return;
+  var root=document.documentElement;
+  var measure=function(){
+    root.style.setProperty("--bar-height", bar.getBoundingClientRect().height+"px");
+    root.style.setProperty("--tabs-height", tabs.getBoundingClientRect().height+"px");
+  };
+  // Set once, synchronously, right now — a real header that's already wrapped to multiple rows
+  // on load (e.g. a narrow window from a fresh page load, not a resize) would otherwise sit
+  // behind the CSS var()'s 64px fallback (only accurate at >=1050px) until ResizeObserver's own
+  // first async callback fires, a real if brief wrong-position window this closes outright rather
+  // than trusting the timing of. The observer below is what keeps it correct on every later resize
+  // /wrap-state/text-size change; this line is what makes it correct on the very first paint too.
+  measure();
+  if(typeof ResizeObserver==="undefined") return; // graceful no-op from here; the sync measure() above still ran
+  var ro=new ResizeObserver(measure);
+  ro.observe(bar);
+  ro.observe(tabs);
+}
+// Called at the END of the script (see the call site right before "expose for verification"),
+// deliberately NOT here where the function is defined -- real bug, found live-browser: called
+// this early, .bar's badges/counts (#cntGate5, #cntAct, etc.) haven't been populated by the
+// render cascade below yet, so the synchronous initial measure() captured the header's height
+// in an under-populated, sometimes-narrower state (measured live: 104px vs the real, fully-
+// rendered 146px at 900-1040px widths) -- exactly the "wrong value with nothing to correct it"
+// risk the synchronous call exists to close, reintroduced by calling it too early in the load
+// sequence instead. The ResizeObserver above still self-corrects any LATER change (a badge
+// appearing/disappearing after load, a live resize); this only fixes the very first measurement.
 // the rail is horizontal below 1050px and a vertical column at/above it (Tier 3) — keep
 // aria-orientation in sync with the CSS breakpoint that actually drives the visible layout
 function syncTabsOrientation(){
@@ -12109,6 +12166,7 @@ wireDetailsAnimation();
 wireAskAiPlaceholderRotation();
 wireAccountHighlight();
 renderScurveScrub(); // after renderGantt() above, so the Gantt reference marker is correct on first paint too
+syncStickyNavOffsets(); // after every render call above, not where the function is defined -- see its own comment for why
 
 /* expose for verification */
 window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM,eacs:EACS,mc:MC,renderDetail:renderDetail,
