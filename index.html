@@ -6963,7 +6963,15 @@ function renderSchedule(){
   document.getElementById("cpli").insertAdjacentHTML("beforeend",
     '<p style="margin:12px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">Program CPLI is reported as the '+
     '<b style="color:rgb(var(--c-ink))">driving path’s</b>, not an average — averaging would let '+
-    'float-rich packages mask the one path that actually sets the date.</p>');
+    'float-rich packages mask the one path that actually sets the date.</p>'+
+    // Root-cause jump (brainstorm-mode UX round, 2026-08-25) — mirrors the Cost tab's own EAC
+    // "See root cause" jump (renderEacDrift, 2026-08-21): the CPLI bars had no way back to the
+    // Overview KPI board's own formula/threshold/escalation-rule drawer for this exact KPI, the
+    // same real gap that round found and fixed for EAC. data-jump-openkpi opens the cpli KPI's
+    // own drawer on arrival, same "open on jump" idiom as the EAC link.
+    '<div style="padding:12px 0 0"><button type="button" class="btn" '+
+    'style="min-height:auto;padding:1px 8px;font-size:12.5px" data-jump-tab="over" data-jump-el="kboard" '+
+    'data-jump-openkpi="cpli">See the formula &rarr;</button></div>');
   renderCpliMath();
   document.getElementById("miles").innerHTML='<div style="display:grid;gap:2px">'+MILES.map(function(k){
     var late=k.d>0, c=late?(k.d>30?"var(--c-pill-r)":"var(--c-pill-a)"):"var(--c-pill-g)";
@@ -7754,7 +7762,15 @@ function renderPfArc(){
     '<p style="margin:14px 0 0;font-size:12px;color:rgb(var(--c-mut))"><b style="color:rgb(var(--c-ink))">Leading-indicator '+
     'principle:</b> labor productivity typically moves weeks before cost indices reflect the same variance &mdash; a '+
     'general project-controls pattern, not a lag specifically measured on this ledger. By the time CPI drops, the '+
-    'money is already spent; PF is a lever a controls manager can still pull in the field.</p>';
+    'money is already spent; PF is a lever a controls manager can still pull in the field.</p>'+
+    // Root-cause jump (brainstorm-mode UX round, 2026-08-25) — mirrors the Cost tab's own EAC
+    // "See root cause" jump and the Schedule tab's matching CPLI jump added the same round: the
+    // PF gauge had no way back to the Overview KPI board's own formula/threshold/escalation-rule
+    // drawer for this KPI. data-jump-openkpi opens the pf KPI's own drawer on arrival — the
+    // program-level formula/threshold, regardless of which package the gauge is currently scoped to.
+    '<div style="text-align:center;padding:12px 0 0"><button type="button" class="btn" '+
+    'style="min-height:auto;padding:1px 8px;font-size:12.5px" data-jump-tab="over" data-jump-el="kboard" '+
+    'data-jump-openkpi="pf">See the formula &rarr;</button></div>';
   var host=document.getElementById("pfArc");
   if(!host.dataset.wired){
     host.dataset.wired="1";

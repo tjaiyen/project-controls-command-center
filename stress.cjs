@@ -2842,6 +2842,19 @@ console.log("== D5.3. forecast model (actual vs plan) ==");
   ok(P.state.cphDrill === false, "reset: crew-idle drill collapsed again before later sections run");
 }
 
+// CPLI card -> KPI drawer jump (brainstorm-mode UX round, 2026-08-25) -- the same real gap the
+// Cost tab's EAC drift card already closed (2026-08-21): the CPLI bars had no way back to the
+// cpli KPI's own formula/threshold drawer.
+{
+  ok(G.cpli._html.includes('data-jump-tab="over" data-jump-el="kboard" data-jump-openkpi="cpli"'),
+    "the Schedule tab's CPLI card carries a real jump button straight into the cpli KPI's own drawer");
+  fire(R.win, "click", { target: { closest: (sel) => (sel === "[data-jump-tab]" ? { dataset: { jumpTab: "over", jumpEl: "kboard", jumpOpenkpi: "cpli" } } : null) } });
+  ok(P.state.kpi === "cpli", "firing the real click handler on the CPLI card's jump button opens the cpli KPI drawer, the same 'open on jump' idiom as the EAC jump");
+  ok(G["p-over"].hidden === false, "the jump button also switches to the Overview tab");
+  fire(G.kboard, "click", { target: { closest: (sel) => (sel === "[data-kpi]" ? { dataset: { kpi: "cpli" } } : null) } }); // close, reset for later tests
+  fire(G["t-sched"], "click"); // back to the Schedule tab for later tests in this section
+}
+
 // Missing float glossary icon (brainstorm-mode round, 2026-08-21) — the "Total float by package"
 // card heading on the Schedule tab now carries the same help-ic + data-help pattern already
 // proven on its neighbor, the CPLI card heading right beside it. Source-checked (static markup,
@@ -5063,6 +5076,17 @@ console.log("== D27. Delivery-tab upgrade -- PF gauge, field-to-boardroom cascad
   ok(R.registry.pfArc._html.includes("CP-201 &middot; Bleed"),
     "the gauge readout switches to CP-201's own band (Bleed, since 0.889 < 0.95)");
   P.state.pfPkg = null; P.renderPfArc();
+
+  // PF gauge -> KPI drawer jump (brainstorm-mode UX round, 2026-08-25) -- the same real gap the
+  // Cost tab's EAC drift card and the Schedule tab's CPLI card already closed: the gauge had no
+  // way back to the pf KPI's own formula/threshold drawer.
+  ok(R.registry.pfArc._html.includes('data-jump-tab="over" data-jump-el="kboard" data-jump-openkpi="pf"'),
+    "the PF gauge carries a real jump button straight into the pf KPI's own drawer");
+  fire(R.win, "click", { target: { closest: (sel) => (sel === "[data-jump-tab]" ? { dataset: { jumpTab: "over", jumpEl: "kboard", jumpOpenkpi: "pf" } } : null) } });
+  ok(P.state.kpi === "pf", "firing the real click handler on the PF gauge's jump button opens the pf KPI drawer, the same 'open on jump' idiom as the EAC/CPLI jumps");
+  ok(G["p-over"].hidden === false, "the jump button also switches to the Overview tab");
+  fire(G.kboard, "click", { target: { closest: (sel) => (sel === "[data-kpi]" ? { dataset: { kpi: "pf" } } : null) } }); // close, reset for later tests
+  fire(G["t-del"], "click"); // back to the Delivery tab for later tests in this section
 
   // cascade: every step's numbers trace to the real records used in the earlier fact-check
   const r01 = P.risks.find(r => r.id === "R-01");
