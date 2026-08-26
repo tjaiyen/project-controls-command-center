@@ -7288,25 +7288,25 @@ console.log("== D53. Operational-question callouts on the 4 headline visuals (br
   const riskQ = P.kpiFamilies.find(f => f.key === "Risk").q;
   const delQ = P.kpiFamilies.find(f => f.key === "Delivery").q;
 
-  ok(G.scurveOpQ._html.includes("Operational question this answers") && G.scurveOpQ._html.includes(costQ),
+  ok(G.scurveOpQ._html.includes("Operational question: ") && G.scurveOpQ._html.includes(costQ),
     "S-curve callout quotes the REAL Cost family question, not a paraphrase");
   ok(G.scurveOpQ._html.includes(m(T.eac)) && G.scurveOpQ._html.includes(m(T.bac)),
     "S-curve's 'Right now' example cites the real, live EAC and BAC");
 
-  ok(G.ganttOpQ._html.includes("Operational question this answers") && G.ganttOpQ._html.includes(schedQ),
+  ok(G.ganttOpQ._html.includes("Operational question: ") && G.ganttOpQ._html.includes(schedQ),
     "Gantt callout quotes the REAL Schedule family question");
   const worstPkg = P.pkgs.slice().sort((a, b) => a.float - b.float)[0];
   ok(G.ganttOpQ._html.includes(worstPkg.id), "Gantt's 'Right now' example names the REAL worst-float account, not a fixed id");
 
   P.state.riskDrill = null; P.renderRisk(); // reset before checking, matching this file's own convention above
-  ok(G.tornadoOpQ._html.includes("Operational question this answers") && G.tornadoOpQ._html.includes(riskQ),
+  ok(G.tornadoOpQ._html.includes("Operational question: ") && G.tornadoOpQ._html.includes(riskQ),
     "Tornado callout quotes the REAL Risk family question");
   const rankedTop = P.risks.map(k => Object.assign({}, k, { exp: P.pBand[k.p] * k.cost })).sort((a, b) => b.exp - a.exp)[0];
   ok(G.tornadoOpQ._html.includes(rankedTop.id) && G.tornadoOpQ._html.includes(m(rankedTop.exp)),
     "Tornado's 'Right now' example names the REAL top-exposure risk and its real dollar exposure, not a fixed id");
 
   P.state.pfPkg = null; P.renderPfArc();
-  ok(G.pfArcOpQ._html.includes("Operational question this answers") && G.pfArcOpQ._html.includes(delQ),
+  ok(G.pfArcOpQ._html.includes("Operational question: ") && G.pfArcOpQ._html.includes(delQ),
     "PF gauge callout quotes the REAL Delivery family question");
   ok(G.pfArcOpQ._html.includes("Program") && G.pfArcOpQ._html.includes(idx(T.pf)),
     "PF gauge's 'Right now' example cites the real, live program PF when no package is selected");
@@ -7323,7 +7323,7 @@ console.log("== D53. Operational-question callouts on the 4 headline visuals (br
 
 console.log("== D54. Operational-question callouts on the remaining 22 charts (brainstorm-mode round 2, 2026-08-25) ==");
 {
-  const OPQ = "Operational question this answers";
+  const OPQ = "Operational question: ";
   function usd(v) { return (v < 0 ? "−" : "") + "$" + Math.round(Math.abs(v)).toLocaleString("en-US"); }
 
   // Cost tab (8)
@@ -7456,6 +7456,71 @@ console.log("== D54. Operational-question callouts on the remaining 22 charts (b
   const portBac = P.portfolioRows().reduce((s, r) => s + r.bac, 0);
   ok(G.fundingGapBar._html.includes(m(portBac)) || G.fundingGapBar._html.includes("headroom") || G.fundingGapBar._html.includes("needs to be closed"),
     "Funding gap bar's example cites the real portfolio BAC or a real gap/headroom verdict");
+}
+
+console.log("== D55. Operational-question callouts made interactive -- click-to-reveal, flash-on-change, cross-links, progress badge (UX upgrade round, 2026-08-26) ==");
+{
+  // Tier 1.1 -- every callout is now a real <details>, question as the clickable summary,
+  // collapsed by default (no bare "open" attribute) unless state.opQOpen says otherwise.
+  ["waterfallOpQ", "contOpQ", "heatOpQ", "gateLineOpQ", "archOpQ", "cdeFlowOpQ", "prodOpQ"].forEach(id => {
+    ok(G[id]._html.includes("<details class=\"dbox opq\"") && G[id]._html.includes("<summary>"),
+      id + " renders as a real <details>/<summary>, not a static always-open div");
+    ok(!/<details class="dbox opq" open/.test(G[id]._html), id + " starts collapsed by default (no stray 'open')");
+  });
+
+  // Tier 1.1 (persistence) -- opening a callout survives ITS OWN chart's re-render, the exact
+  // failure mode a naive innerHTML-rebuilt <details> would have (verified against renderRisk(),
+  // one of the charts whose callout re-renders on every interaction with the tornado/heat map).
+  P.state.opQOpen.heat = true;
+  P.state.riskDrill = null; P.renderRisk();
+  ok(/<details class="dbox opq" open data-opq-key="heat"/.test(G.heatOpQ._html),
+    "heat map's callout renders OPEN because state.opQOpen says so, surviving renderRisk() rebuilding it from scratch");
+  P.state.opQOpen.heat = false;
+  P.renderRisk();
+  ok(!/<details class="dbox opq" open data-opq-key="heat"/.test(G.heatOpQ._html),
+    "...and renders collapsed again once state.opQOpen is cleared -- proves the attribute is READ live, not baked in once");
+
+  // Tier 1.2 -- the "Right now" answer flashes (.wi-flash) only when it actually changed from the
+  // previous render, never on an unchanged re-render (verified against renderPfArc(), a chart
+  // whose callout re-renders on every package-chip click).
+  P.state.pfPkg = "CP-101"; P.renderPfArc();
+  P.state.pfPkg = "CP-201"; P.renderPfArc(); // different package -> genuinely different answer
+  ok(G.pfArcOpQ._html.includes("wi-flash"), "PF gauge's answer flashes when switching packages actually changes the real answer");
+  P.state.pfPkg = "CP-201"; P.renderPfArc(); // same package again -> identical answer
+  ok(!G.pfArcOpQ._html.includes("wi-flash"), "...but does NOT flash on a re-render whose answer didn't change (no false-positive flicker)");
+  P.state.pfPkg = null; P.renderPfArc(); // reset to program-wide, matching every other section's expectation
+
+  // Tier 1.3 -- the 7 curated cross-link pairs exist, reusing the EXISTING data-jump-tab/
+  // data-jump-el mechanism (not a new one), and are genuinely reciprocal (A links to B, B links
+  // back to A) rather than a one-way reference.
+  const CROSS_LINKS = [
+    ["scurveOpQ", "cost", "eacTrend"], ["eacTrendOpQ", "cost", "scurve"],
+    ["waterfallOpQ", "cost", "baseBridgeChart"], ["baseBridge", "cost", "waterfall"],
+    ["tornadoOpQ", "risk", "heat"], ["heatOpQ", "risk", "tornado"],
+    ["pfArcOpQ", "del", "prod"], ["prodOpQ", "del", "pfArc"],
+    ["mcOpQ", "cost", "galtonCanvas"], ["galtonOpQ", "cost", "mcChart"],
+    ["aiStatControl", "ai", "ewmaSvgChart"], ["aiEwmaControl", "ai", "aiStatControl"],
+    ["ganttOpQ", "sched", "floatErosionCard"], ["floatErosionCard", "sched", "gantt"]
+  ];
+  CROSS_LINKS.forEach(([id, tab, el]) => {
+    ok(G[id]._html.includes('data-jump-tab="' + tab + '"') && G[id]._html.includes('data-jump-el="' + el + '"'),
+      id + " carries a real cross-link to #" + el + " on the " + tab + " tab, using the existing jump mechanism");
+  });
+
+  // Tier 2.1 -- "questions explored" progress badge: OPQ_TOTAL is a named, derived constant
+  // (26 chart-specific + 6 family keys), not a bare hand-typed number, and the badge reflects
+  // state.opQSeen's real size live.
+  ok(P.opqTotal === 26 + P.kpiFamilies.length, "OPQ_TOTAL is derived (26 + KPI_FAMILIES.length), not a hand-typed 32 that could silently drift");
+  const seenBefore = Object.keys(P.state.opQSeen).length;
+  P.renderOpQProgress();
+  ok(G.opQProgress.textContent === "Questions explored: " + seenBefore + " / " + P.opqTotal,
+    "progress badge reflects the REAL live count of state.opQSeen, not a static string", G.opQProgress.textContent);
+  P.state.opQSeen.__stresstest_probe = true;
+  P.renderOpQProgress();
+  ok(G.opQProgress.textContent === "Questions explored: " + (seenBefore + 1) + " / " + P.opqTotal,
+    "progress badge increments the instant a new key is marked seen");
+  delete P.state.opQSeen.__stresstest_probe; // clean up the synthetic key so later sections' own counts aren't polluted
+  P.renderOpQProgress();
 }
 
 /* =========================================================================
