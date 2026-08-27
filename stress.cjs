@@ -8505,13 +8505,51 @@ console.log("== L. Subcontractor financial-health watch (brainstorm-mode round, 
   const watched = sh.map((s) => s.contractId).slice().sort();
   ok(JSON.stringify(watched) === JSON.stringify(topByExposure.slice().sort()), "the 3 watched contracts are genuinely the 3 highest-exposure real contracts (approvedCO+pendingTrends), independently re-sorted, not an arbitrary pick", JSON.stringify(watched) + " vs " + JSON.stringify(topByExposure));
 
-  // subHealthOverdue/subHealthTier -- independently recomputed, not read back from the app.
+  // subHealthOverdue -- independently recomputed, not read back from the app.
   sh.forEach((s) => {
     const expectDays = Math.round((Date.UTC(2026, 6, 31) - Date.parse(s.lastCheck + "T00:00:00Z")) / 86400000) - 90;
     ok(P.subHealthOverdue(s) === expectDays, s.contractId + "'s subHealthOverdue matches an independent 90-day-cycle recomputation", String(P.subHealthOverdue(s)));
-    const expectTier = (s.status === "red" || expectDays >= 14) ? 1 : (s.status === "amber" || expectDays >= 0) ? 2 : 4;
-    ok(P.subHealthTier(s) === expectTier, s.contractId + "'s subHealthTier matches an independent recomputation");
   });
+  // subHealthTier -- PROPERTY checks, not a reimplementation of the app's own ternary
+  // (/stress-test finding, independent reviewer, 2026-08-27: the prior version of this test
+  // copy-pasted the exact same 3-way conditional as its "expected" value, including the old dead
+  // ":4" branch -- it could never catch a real bug in the formula because it WAS the formula.
+  // reconcile.md's own "a green test proves nothing" warning, reproduced here almost verbatim).
+  sh.forEach((s) => {
+    const t = P.subHealthTier(s);
+    ok(t === 1 || t === 2 || t === 3, s.contractId + "'s subHealthTier is a real, reachable tier (1-3), never the old dead ':4' fallback", String(t));
+    if (s.status === "red") ok(t === 1, "a RED status always forces tier 1, regardless of day count (checked on " + s.contractId + ")");
+  });
+  // Monotonicity: for a FIXED status, more overdue days must never produce a LESS urgent
+  // (higher-numbered) tier -- calls the REAL P.subHealthTier() at each offset via an
+  // independently-constructed lastCheck date, not a reimplementation of its formula. A property
+  // that holds regardless of exactly where the thresholds sit, so it survives a future threshold
+  // edit without needing to hardcode 30/7 here.
+  const asOfMs = Date.UTC(2026, 6, 31);
+  function lastCheckForOffset(d) { return new Date(asOfMs - (90 + d) * 86400000).toISOString().slice(0, 10); }
+  ["red", "amber", "green"].forEach((status) => {
+    const offsets = [-5, 0, 6, 7, 15, 29, 30, 45];
+    const tiers = offsets.map((d) => P.subHealthTier({ status, lastCheck: lastCheckForOffset(d) }));
+    let monotone = true;
+    for (let i = 1; i < tiers.length; i++) if (tiers[i] > tiers[i - 1]) monotone = false;
+    ok(monotone, "for status='" + status + "', the REAL subHealthTier() never gets LESS urgent (higher tier number) as days-overdue increases (checked -5..45d)", JSON.stringify(offsets.map((d, i) => [d, tiers[i]])));
+  });
+  // The dead branch is now genuinely reachable: a green-status item 0-6 days past its cycle (not
+  // yet 7) must land on the NEW tier 3, proving this isn't still dead code under a new name.
+  const freshGreenOverdue = { status: "green", overdueForTest: 3 };
+  // Call the real function via a minimal stand-in object shaped like subHealthOverdue expects
+  // (lastCheck a date landing exactly 3 days past the 90-day cycle from the app's own 2026-07-31
+  // as-of date) -- independently computed target date, not copied from the app.
+  const asOf = Date.UTC(2026, 6, 31);
+  const targetLastCheck = new Date(asOf - (90 + 3) * 86400000).toISOString().slice(0, 10);
+  const reachedTier3 = P.subHealthTier({ status: "green", lastCheck: targetLastCheck });
+  ok(reachedTier3 === 3, "a synthetic green item 3 days past cycle reaches the new tier 3 -- the fixed branch is genuinely reachable, not dead code under a new number", String(reachedTier3));
+  // Regression pin: today's 2 real triaged items keep the SAME displayed tier after the fix as
+  // before it (stated as today's real facts, not reimplementing the formula) -- the fix changes
+  // behavior only for data this dashboard doesn't currently carry.
+  const bb01 = sh.find((s) => s.contractId === "CTE-BB-01"), ut06 = sh.find((s) => s.contractId === "CTE-UT-06");
+  ok(bb01 && P.subHealthTier(bb01) === 2, "pre-registered: BB-01 (amber, 12d overdue) is still tier 2 after the fix, unchanged");
+  ok(ut06 && P.subHealthTier(ut06) === 1, "pre-registered: UT-06 (red) is still tier 1 after the fix, unchanged");
   // Pre-registered, live-checked fact (this run): exactly one is red, one amber, one clean green
   // and not yet due -- the 3-state spread this feature is built to demonstrate.
   ok(sh.filter((s) => s.status === "red").length === 1 && sh.filter((s) => s.status === "amber").length === 1 && sh.filter((s) => s.status === "green" && P.subHealthOverdue(s) < 0).length === 1,

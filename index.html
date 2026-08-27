@@ -925,7 +925,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
     <div class="gsearch-wrap" id="globalSearchWrap">
       <input type="search" id="globalSearch" class="gsearch topsearch" autocomplete="off"
         placeholder="Search KPIs, risks, actions, glossary&hellip;" aria-label="Search this dashboard">
-      <div id="globalSearchResults" class="gsearch-results" hidden></div>
+      <div id="globalSearchResults" class="gsearch-results" role="region" aria-label="Search results" aria-live="polite" hidden></div>
     </div>
     <div class="right">
       <span class="pill i" id="ddBadge">data date &mdash;</span>
@@ -8726,7 +8726,19 @@ var SUB_HEALTH=[
  {contractId:"CTE-UT-06", lastCheck:"2026-03-10", status:"red", note:"Check is past due — last confirmed capacity predates this quarter's award growth"}
 ];
 function subHealthOverdue(s){ return actDays(s.lastCheck)-SUB_HEALTH_CYCLE_DAYS; } // positive = days past the 90-day cycle
-function subHealthTier(s){ var d=subHealthOverdue(s); return (s.status==="red"||d>=14)?1:(s.status==="amber"||d>=0)?2:4; }
+// Fixed 2026-08-27 (/stress-test finding, independent reviewer): the caller below (the triage
+// queue builder) already filters out every status==="green" && d<0 item BEFORE this function ever
+// runs on it -- which meant the old ":4" branch (green, d<0) was unreachable dead code from the
+// only call site that exists, and every item that ever reached this function collapsed into just
+// 2 tiers (1 or 2), not the 3-tier gradient odTier() (below) already establishes for
+// OWNER_DECISIONS. A subcontractor 1 day past its 90-day cycle with an otherwise-clean green
+// status got the identical Tier-2 severity as one 13 days past cycle -- no distinction. New
+// thresholds (30d/7d, vs. the old single 14d cutoff) give a genuine 3rd band for a just-crossed
+// green item; confirmed this does NOT change either of today's 2 real triaged items' displayed
+// tier (BB-01: amber, 12d overdue -> tier 2 under both old and new; UT-06: red -> tier 1 under
+// both) -- the new middle threshold only becomes observable on data this dashboard doesn't
+// currently carry, so nothing on the live page changes today.
+function subHealthTier(s){ var d=subHealthOverdue(s); return (s.status==="red"||d>=30)?1:(s.status==="amber"||d>=7)?2:3; }
 
 // Positive = days past the neededBy date (overdue); negative = days remaining. Same arithmetic
 // direction as actionStatus()'s own d=actDays(a.due) — one sign convention across both registers.
@@ -12788,10 +12800,24 @@ document.getElementById("globalSearch").addEventListener("input",function(){ ren
 document.getElementById("globalSearch").addEventListener("keydown",function(e){
   if(e.key==="Escape"){ this.value=""; renderGlobalSearch(""); this.blur(); }
 });
-// Close on blur, but deferred -- a bare blur fires before the results button's own click event
-// gets a chance to register, which would hide the dropdown out from under the click.
-document.getElementById("globalSearch").addEventListener("blur",function(){
-  setTimeout(function(){ renderGlobalSearch(""); document.getElementById("globalSearch").value=""; },160);
+// Close when focus leaves the WHOLE search+results group, not on a bare blur of the input alone
+// (/stress-test finding, independent reviewer, 2026-08-27 -- a real, confirmed HIGH-severity
+// accessibility bug: the original handler lived on #globalSearch's own "blur" and closed
+// unconditionally after a delay, regardless of where focus went next. Tabbing from the input into
+// a real result button still fires that blur, so the dropdown vanished under a keyboard-only user
+// before they could ever activate a result -- reproduced by invoking the scheduled callback
+// directly). "focusout" (the bubbling variant of "blur") on the wrapper that contains BOTH the
+// input and the results div lets one deferred check ask "is focus still somewhere inside this
+// group?" instead of "did the input specifically just lose focus?" -- the same deferred-check
+// idiom as before (letting a click complete first), checking the right condition this time.
+document.getElementById("globalSearchWrap").addEventListener("focusout",function(){
+  var wrap=this;
+  setTimeout(function(){
+    if(!wrap.contains(document.activeElement)){
+      renderGlobalSearch("");
+      document.getElementById("globalSearch").value="";
+    }
+  },160);
 });
 window.addEventListener("scroll",function(){ document.getElementById("tip").classList.remove("on"); },{passive:true});
 
