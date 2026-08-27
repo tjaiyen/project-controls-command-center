@@ -9607,7 +9607,17 @@ var GUARDS=[
    return [Math.abs(actualSum-span)<1e-6, m(actualSum)+" = "+m(span)];}},
  {n:"Float-erosion series' current point reads live off CP-201's own float, never duplicated", run:function(){
    var s=floatErosionSeries(), live=rows.filter(function(r){ return r.id==="CP-201"; })[0].float;
-   return [s[s.length-1].float===live, days(s[s.length-1].float)];}}
+   return [s[s.length-1].float===live, days(s[s.length-1].float)];}},
+ // QA/QC-to-critical-path closure gate (brainstorm-mode round, 2026-08-26) -- item #3. A formal
+ // rule, not just a dashboard that happens to correlate quality and schedule after the fact: a
+ // Quality NCR may not be marked closed (done:true) without a logged root cause. Currently
+ // passes trivially (neither real NCR is closed yet) -- a real, structural invariant this ledger
+ // doesn't violate today, same class as the EV<=PV check above, not a decorative check dressed
+ // up to look meaningful.
+ {n:"No closed Quality NCR lacks a logged root cause", run:function(){
+   var ncrs=ACTIONS.filter(function(a){ return a.src&&a.src.indexOf("Quality NCR")>=0; });
+   var bad=ncrs.filter(function(a){ return a.done&&(!a.root||!a.root.trim()); });
+   return [bad.length===0, bad.length+" of "+ncrs.length+" closed without a root cause"];}}
 ];
 function renderGuards(){
   var res=GUARDS.map(function(g){ var r=g.run(); return {n:g.n,pass:r[0],detail:r[1]}; });
@@ -10849,7 +10859,7 @@ var TAB_DRAWER={
   risk:{label:"Risk & Change", fam:["Risk","Change"]},
   del:{label:"Delivery", fam:["Delivery","Compliance"]},
   ai:{label:"AI & Data", q:"Can the numbers on every other tab be trusted?",
-      note:"Pipeline architecture, the SQL model, a live 28-check integrity gate, and control charts on the one series with genuine variance."},
+      note:"Pipeline architecture, the SQL model, a live 29-check integrity gate, and control charts on the one series with genuine variance."},
   fw:{label:"Operating Framework", q:"What governance does this program actually run on?",
       note:"Phase playbook, WBS/CBS/OBS/ABS mapping, phase-gate governance with a live Gate 5 hard stop, and the full KPI reference library."},
   act:{label:"Actions", q:"What's open, who owns it, and what's gone stale?",

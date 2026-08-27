@@ -1704,7 +1704,9 @@ const guardFails = (G.aiGuards._html.match(/>FAIL</g) || []).length;
 // 27->28 (megaproject-controls-doc upgrade, 2026-08-21): one new GUARDS tie-out row added
 // alongside the new floatErosionSeries() — see item C's own assertions further down for the
 // independent re-derivation of that specific row.
-ok(guardPasses === 28 && guardFails === 0, "integrity gate: 28 PASS, 0 FAIL",
+// 28->29 (brainstorm-mode round, 2026-08-26): the QA/QC-to-critical-path closure gate (item #3)
+// added one new real check.
+ok(guardPasses === 29 && guardFails === 0, "integrity gate: 29 PASS, 0 FAIL",
    guardPasses + " pass / " + guardFails + " fail");
 has("aiGuards", "GREEN", "gate shows GREEN");
 // the header's own stated count must equal what actually rendered — a stray trailing comma in
@@ -4259,7 +4261,7 @@ console.log("== D16. tab-rail hover-preview mini-drawer (brainstorm-mode nav rou
     port: { q: "How is this program doing against the rest of the agency's portfolio?",
       note: "Agency-level rollup across 4 lines of business — one line read live off this program's own totals, three shown as summaries only." },
     ai: { q: "Can the numbers on every other tab be trusted?",
-      note: "Pipeline architecture, the SQL model, a live 28-check integrity gate, and control charts on the one series with genuine variance." },
+      note: "Pipeline architecture, the SQL model, a live 29-check integrity gate, and control charts on the one series with genuine variance." },
     fw: { q: "What governance does this program actually run on?",
       note: "Phase playbook, WBS/CBS/OBS/ABS mapping, phase-gate governance with a live Gate 5 hard stop, and the full KPI reference library." },
     act: { q: "What's open, who owns it, and what's gone stale?",
@@ -6161,8 +6163,8 @@ console.log("== D42. Integrity-gate failure demo -- 'Try it' toggle shows a real
   // click/keydown, not a checkbox's own change event)
   P.state.guardsDemo = true; P.renderGuards();
   const html = G.aiGuards._html;
-  ok((html.match(/>FAIL</g) || []).length === 1, "exactly 1 of the 28 checks now genuinely fails, not a fabricated count");
-  ok((html.match(/>PASS</g) || []).length === 27, "the other 27 checks are untouched and still genuinely pass");
+  ok((html.match(/>FAIL</g) || []).length === 1, "exactly 1 of the 29 checks now genuinely fails, not a fabricated count");
+  ok((html.match(/>PASS</g) || []).length === 28, "the other 28 checks are untouched and still genuinely pass");
   ok(html.includes("1 FAILING"), "gate header pill flips to '1 FAILING', reusing the same real pass/fail count logic as the always-green case");
   ok(!html.includes("GREEN"), "gate header no longer claims GREEN once a real check disagrees");
   // the simulated detail value is what actually disagreed -- computed here from the real T.bac,
@@ -6174,8 +6176,8 @@ console.log("== D42. Integrity-gate failure demo -- 'Try it' toggle shows a real
   // and-restore, not a one-way mutation of GUARDS/PKGS/T
   P.state.guardsDemo = false; P.renderGuards();
   const restored = G.aiGuards._html;
-  ok((restored.match(/>FAIL</g) || []).length === 0 && (restored.match(/>PASS</g) || []).length === 28,
-    "toggling off restores all 28 PASS, 0 FAIL -- the underlying PKGS/T.bac were never actually touched");
+  ok((restored.match(/>FAIL</g) || []).length === 0 && (restored.match(/>PASS</g) || []).length === 29,
+    "toggling off restores all 29 PASS, 0 FAIL -- the underlying PKGS/T.bac were never actually touched");
   has("aiGuards", "GREEN", "gate reads GREEN again after toggling the demo back off");
 }
 
@@ -8078,9 +8080,9 @@ console.log("== E.1. architecture.html sync ==");
 ok(archSrc.includes("20 metrics, 6 families") && archSrc.includes("20 metrics across cost, schedule, risk, change, delivery, and compliance."),
   "architecture.html's '20 metrics' prose is present in both the diagram box and the legend table");
 ok(P.kpis.length === 20, "index.html's live KPIS array actually has 20 entries, matching architecture.html's claim", String(P.kpis.length));
-ok(archSrc.includes("28 live checks (browser)") && archSrc.includes("28 browser checks plus a separate 65-check SQL pipeline"),
-  "architecture.html's '28 checks' prose is present in both the diagram box and the legend table");
-ok(P.guards.length === 28, "index.html's live GUARDS array actually has 28 entries, matching architecture.html's claim", String(P.guards.length));
+ok(archSrc.includes("29 live checks (browser)") && archSrc.includes("29 browser checks plus a separate 65-check SQL pipeline"),
+  "architecture.html's '29 checks' prose is present in both the diagram box and the legend table -- 28->29, brainstorm-mode round, 2026-08-26 (item #3's QA/QC closure gate)");
+ok(P.guards.length === 29, "index.html's live GUARDS array actually has 29 entries, matching architecture.html's claim", String(P.guards.length));
 // 64 -> 65 (docs-currency /stress-test round, 2026-08-26): the temporal-fence guardrail added to
 // pipeline/run_pipeline.py in commit 2e52f5f (Aug 25 -- a real, live pipeline check, not just a
 // prose count) bumped the total check() count by one. Confirmed by ACTUALLY installing duckdb
@@ -8093,9 +8095,9 @@ ok(P.actions.length === 17, "index.html's live ACTIONS array actually has 17 ent
 // regression guard for the specific live bug this round caught and fixed: the #archSvg
 // aria-label's own integrity-gate count (independent of the diagram-box/legend-table copies
 // checked above — a 3rd, easily-missed location) must say twenty-eight, never twenty-seven again.
-ok(!archSrc.includes("twenty-seven"), "architecture.html no longer says 'twenty-seven' anywhere (the stale #archSvg aria-label instance this round found and fixed)");
-ok(archSrc.includes("twenty-eight plus sixty-five check integrity gate"),
-  "the #archSvg aria-label states the integrity gate count correctly (twenty-eight/sixty-five), matching every other count in the file");
+ok(!archSrc.includes("twenty-seven") && !archSrc.includes("twenty-eight plus sixty-five"), "architecture.html no longer says 'twenty-seven' or the pre-item-#3 'twenty-eight' anywhere");
+ok(archSrc.includes("twenty-nine plus sixty-five check integrity gate"),
+  "the #archSvg aria-label states the integrity gate count correctly (twenty-nine/sixty-five, 28->29 for item #3's QA/QC gate), matching every other count in the file");
 
 // /stress-test finding (2026-08-26, docs-currency sweep requested by TJ): architecture.html and
 // otak.html hadn't been touched since 2026-08-21, but index.html gained 2 tabs (Attention & Triage,
@@ -8618,6 +8620,33 @@ console.log("== P. Material-price exposure trigger (brainstorm-mode round, 2026-
   ok(cardHtml.includes("22.5%") && cardHtml.includes("40.5%") && cardHtml.includes("3.5%"), "the card states the real steel/aluminum index figures and the assumed baseline");
   ok(cardHtml.includes("stated assumption") && cardHtml.includes("Illustrative, not a forecast"), "the card explicitly labels the baseline as a stated assumption and the dollar figure as illustrative, not a verified real forecast -- this is the discipline that keeps the number honest");
   ok(cardHtml.includes(m(r04.cost)), "the card cites R-04's real, independently-checked priced exposure, not an invented figure");
+}
+
+console.log("== Q. QA/QC-to-critical-path closure gate (brainstorm-mode round, 2026-08-26) ==");
+{
+  // Direct answer to 11_STRATEGIC_CHALLENGES_AND_SOLUTIONS.md #3: a formal rule, not just a
+  // dashboard that happens to correlate quality/schedule after the fact. Pre-registered: the
+  // check passes today because neither real NCR is closed (done:true) yet -- a real, structural
+  // invariant, not a decorative check dressed up to look meaningful.
+  const ncrGuard = P.guards.find((g) => g.n === "No closed Quality NCR lacks a logged root cause");
+  ok(!!ncrGuard, "the QA/QC closure-gate check exists in GUARDS by its real name");
+  const realNcrs = P.actions.filter((a) => a.src && a.src.indexOf("Quality NCR") >= 0);
+  ok(realNcrs.length === 2, "2 real Quality NCRs exist (NCR-2026-014, NCR-2026-021)", String(realNcrs.length));
+  ok(realNcrs.every((a) => !a.done), "pre-registered: neither real NCR is closed today, so the guard passes trivially -- a real invariant this ledger doesn't violate, not proof the rule never fires");
+  const [passReal, detailReal] = ncrGuard.run();
+  ok(passReal === true && detailReal === "0 of 2 closed without a root cause", "the guard's own run() independently confirms 0/2 closed-without-root-cause, matching the pre-registered state", detailReal);
+
+  // Behavioral proof the rule ACTUALLY fires, not just that it structurally could: synthetically
+  // mark one real NCR done with no root cause and confirm the guard flips to FAIL -- same
+  // "prove the mechanism, don't just assert coverage" discipline as the guardsDemo toggle above.
+  const ncr014 = P.actions.find((a) => a.id === "NCR-2026-014");
+  const savedDone = ncr014.done, savedRoot = ncr014.root;
+  ncr014.done = true; ncr014.root = "";
+  const [passBroken, detailBroken] = ncrGuard.run();
+  ok(passBroken === false && detailBroken === "1 of 2 closed without a root cause", "closing a real NCR with no root cause genuinely flips the guard to FAIL, not a rule that can never fire", detailBroken);
+  ncr014.done = savedDone; ncr014.root = savedRoot;
+  const [passRestored] = ncrGuard.run();
+  ok(passRestored === true, "restoring the real NCR's original state restores the guard to PASS -- proves this is a real read of live state, not a cached result");
 }
 
 console.log("\n" + pass + " passed, " + fail + " failed");
