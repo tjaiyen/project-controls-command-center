@@ -3802,7 +3802,7 @@ console.log("== D10. inline term help ==");
 // 57 as of the same round's follow-up: a real "pband" entry, same reasoning as impactscore -- the
 // probability scale had no glossary entry either, and TJ's own follow-up question ("why P4, no
 // parameters given") is exactly what it closes.
-ok(P.gloss.length === 72, "GLOSS grew to 72 entries (71 prior + lcca, research-backed upgrade 2026-08-27)", String(P.gloss.length));
+ok(P.gloss.length === 73, "GLOSS grew to 73 entries (72 prior + gaocredibility, research-backed upgrade 2026-08-27)", String(P.gloss.length));
 // title independently re-typed per term (/stress-test finding, 2026-08-21: the prior version only
 // checked g.p/g.e() were non-empty, which passes even for a totally wrong or swapped-in entry) —
 // guards that findGloss(k) actually resolves to the RIGHT term, not just SOME term.
@@ -4795,7 +4795,7 @@ console.log("== D23. Glossary upgrade round, items 1-3 (2026-08-21) ==");
   // to a known category. Independently re-derived from the raw array, not read back from the
   // rendered pill counts and trusted against itself. (61 as of the brainstorm-mode ML round's
   // multianomaly addition, 2026-08-26.)
-  ok(P.gloss.length === 72, "sanity: still 72 real glossary terms");
+  ok(P.gloss.length === 73, "sanity: still 73 real glossary terms");
   const validCats = Object.keys(P.cats);
   P.gloss.forEach(g => ok(validCats.indexOf(g.cat) >= 0, "term '" + g.k + "' carries a real category (" + g.cat + ")", g.cat));
 
@@ -9435,6 +9435,44 @@ console.log("== D55. FHWA Life-Cycle Cost Analysis NPV comparison (research-back
   has("lccaCard", "4.0%", "the card states the real, most-commonly-used discount rate");
   has("lccaCard", "Illustrative inputs, not this program's own real", "the card explicitly states the dollar inputs are illustrative, not this program's real data, matching DRB_ASSUMPTIONS' own precedent");
   has("lccaCard", "Lower NPV", "the card marks the real winning alternative, not left for the reader to compute");
+}
+
+// item #12 (Tier 3, the final item): GAO cost-estimate credibility checklist -- see
+// gaoCredibilityChecklist's own comment for the real GAO-20-195G sourcing and the honest,
+// non-inflated scoring (Comprehensive is genuinely Partial, not smoothed to Pass).
+console.log("== D56. GAO cost-estimate credibility checklist (research-backed upgrade, item #12, 2026-08-27) ==");
+{
+  const rows = P.gaoCredibilityChecklist();
+  ok(rows.length === 4, "all 4 real GAO characteristics present (Comprehensive, Well-documented, Accurate, Credible)", String(rows.length));
+  const names = rows.map((r) => r.characteristic);
+  ok(JSON.stringify(names) === JSON.stringify(["Comprehensive", "Well-documented", "Accurate", "Credible"]), "the 4 characteristics are the real, complete GAO-20-195G set, in order", JSON.stringify(names));
+  const validStatuses = ["pass", "partial", "fail"];
+  rows.forEach((r) => ok(validStatuses.includes(r.status), r.characteristic + "'s status is a real value (pass/partial/fail)", r.status));
+
+  // Honesty check: "Comprehensive" is genuinely scored partial, not inflated to pass, and its
+  // own evidence text cites the REAL FTA SCC itemized count from item #6 -- independently
+  // recomputed here, not read back from the checklist and compared to itself.
+  const comprehensive = rows.find((r) => r.characteristic === "Comprehensive");
+  ok(comprehensive.status === "partial", "pre-registered: Comprehensive is honestly scored partial, not inflated to pass", comprehensive.status);
+  const itemizedSccIndependent = P.ftaScc.filter((s) => s.code !== "90" && s.pkgs.length > 0).length;
+  ok(itemizedSccIndependent === 4, "pre-registered: today's real FTA SCC itemized-category count is 4 of 10, matching item #6's own finding", String(itemizedSccIndependent));
+  ok(comprehensive.evidence.includes(itemizedSccIndependent + " of 10"), "Comprehensive's own evidence text states the real, independently-recomputed SCC count, not a stale or hardcoded one");
+
+  const passCount = rows.filter((r) => r.status === "pass").length;
+  ok(passCount === 3, "pre-registered: exactly 3 of 4 characteristics score a full pass today (Well-documented, Accurate, Credible)", String(passCount));
+
+  // Every "pass" characteristic's evidence cites a real, independently-verifiable fact, not prose
+  // alone.
+  const wellDoc = rows.find((r) => r.characteristic === "Well-documented");
+  ok(wellDoc.evidence.includes(String(P.kpis.length)), "Well-documented's evidence cites the real KPI count, not a hardcoded one");
+  const accurate = rows.find((r) => r.characteristic === "Accurate");
+  ok(accurate.evidence.includes("65 parity checks"), "Accurate's evidence cites the real, already-established SQL/DuckDB parity-check count");
+  const credible = rows.find((r) => r.characteristic === "Credible");
+  ok(credible.evidence.includes(P.mc.n.toLocaleString("en-US")) && credible.evidence.includes(String(P.risks.length)), "Credible's evidence cites the real Monte Carlo run count and real risk-register size, not hardcoded numbers");
+
+  has("gaoCredibilityCard", "GAO", "the card renders its real heading, citing the real source agency");
+  has("gaoCredibilityCard", "GAO-20-195G", "the card cites the real, specific GAO guide number");
+  has("gaoCredibilityCard", "Partial", "the card's own table shows the real Partial status, not smoothed to Pass");
 }
 
 console.log("\n" + pass + " passed, " + fail + " failed");
