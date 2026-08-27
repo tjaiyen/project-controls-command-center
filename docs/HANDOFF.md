@@ -30,8 +30,8 @@ anywhere in this repository. The method is the content, not the numbers.
 
 | | |
 |---|---|
-| Primary file | `index.html` — 12,691 lines, one file, no build step |
-| Top-level JS functions | 392 (fresh `grep -cE "^\s*function [a-zA-Z_]" index.html`, this pass) |
+| Primary file | `index.html` — 12,936 lines, one file, no build step |
+| Top-level JS functions | 396 (fresh `grep -cE "^\s*function [a-zA-Z_]" index.html`, this pass) |
 | Tabs | 13, grouped into 5 altitudes on the tab rail (Executive · Program Performance · Field & Assurance · Governance & Execution · Reference) |
 | KPIs (with formula/threshold/phase/source/play each) | 20 |
 | KPI families (`KPI_FAMILIES` — Cost/Schedule/Risk/Change/Delivery/Compliance) | 6, each with its own operational question + why-it-matters card on Overview |
@@ -46,7 +46,7 @@ anywhere in this repository. The method is the content, not the numbers.
 | Risks | 7 (added R-07, extreme-weather exposure, 2026-08-26) |
 | Delay events | 4 |
 | Other 2026-08-26 proactive-mechanism additions (§8) | `OWNER_DECISIONS` (3), `SUB_HEALTH` (3), `LABOR_MOBILIZATION` (3), `CARBON_DISCLOSURE` (3), `AUDIT_LOG` (session-only, unbounded fact — see §8) |
-| `stress.cjs` test assertions | 3,469, all passing |
+| `stress.cjs` test assertions | 3,536, all passing |
 | `worker/smoketest.js` assertions (Ask AI backend, §10) | 25, all passing — a 3rd, independent test harness, Node-only, no real network/Cloudflare runtime |
 | Companion pages | `otak.html` (fit brief, 449 lines), `architecture.html` (static pipeline map, 598 lines) |
 | Companion backend (never deployed — see §10) | `worker/` — a Cloudflare Worker for the Ask AI feature; `ASK_AI_WORKER_URL` in `index.html` is still the `REPLACE-ME` placeholder |
@@ -242,7 +242,7 @@ pass found is no longer true — flagged, not fixed here, since it's a code comm
 
 | # | Tab (id) | What's on it |
 |---|---|---|
-| 1 | **Overview** (`over`) | A "Six lenses, not one blended score" card explaining what each of the 6 KPI families (Cost/Schedule/Risk/Change/Delivery/Compliance) actually asks and why it can't be folded into the others, a "Three layers, not one number" card naming this dashboard's own leading-telemetry / confirming-EVM / independent-assurance architecture for the first time (each layer real, already built, just never named as one system), directly above the 20-KPI board with drill-down detail (formula/threshold/source/play per card, plus a "computed from the ledger" / "not from the ledger" provenance box, honestly stated per KPI), a live root-cause-to-owner trace, the eleven-input ledger card (all 11 raw fields, a per-package inspector, and a live "change one input, watch the KPIs move" demo — reads a local snapshot, never mutates the real ledger), a 10-stop guided Tour with tab-jumping evidence links, an executive summary. |
+| 1 | **Overview** (`over`) | A "Six lenses, not one blended score" card explaining what each of the 6 KPI families (Cost/Schedule/Risk/Change/Delivery/Compliance) actually asks and why it can't be folded into the others, a "Three layers, not one number" card naming this dashboard's own leading-telemetry / confirming-EVM / independent-assurance architecture for the first time (each layer real, already built, just never named as one system), directly above the 20-KPI board with drill-down detail (formula/threshold/source/play per card, plus a "computed from the ledger" / "not from the ledger" provenance box, honestly stated per KPI), a live root-cause-to-owner trace, the eleven-input ledger card (all 11 raw fields, a per-package inspector, and a live "change one input, watch the KPIs move" demo — reads a local snapshot, never mutates the real ledger), an 11-stop guided Tour with tab-jumping evidence links, an executive summary. |
 | 2 | **Executive Command** (`exec`) | Plain-English Gate 5 status, a proactive-problem-solving sandbox, context callouts — the board-level "what does this actually mean" reading of the same real data, distinct from Overview's KPI-board detail view. Also hosts the **Ask AI** free-text Q&A (§10) — dormant by default (opt-in per session, zero network calls until enabled) and not yet deployed live (`ASK_AI_WORKER_URL` is still the `REPLACE-ME` placeholder). |
 | 3 | **Portfolio** (`port`) | Agency-level rollup across 4 lines of business — one reads live off this program's own totals (never duplicated, `GUARDS`-checked), three are summary-only illustrative peers. |
 | 4 | **Cost** (`cost`) | EVM S-curve + variance bridge, an estimate-to-budget baseline bridge reconciled to the ledger, four-method EAC, a forecast-reliability section (EAC trend, a naive-drift-vs-linear-regression forecaster comparison with a disclosed identical-first-value caveat, monthly cash flow), what-if forecasting with 3 live sliders + scenario comparison, Monte Carlo completion distribution (10,000 runs, seeded/reproducible, a Triangular/PERT draw-shape toggle, an opt-in AACE 57R-09 risk-driver layer), the cost-diffusion (GBM) card — with a log-return strip plot + fitted-curve overlay, a "Math unlocked" plain-language drawer, and an EVM-vs-GBM methodology comparison (what each method assumes, never a forward-projected figure), a sticky in-tab section-anchor rail. |
@@ -257,7 +257,7 @@ pass found is no longer true — flagged, not fixed here, since it's a code comm
 | 13 | **Glossary** (`gloss`) | 61 terms, each with a live-computed worked example, a real category (5 domains — Cost & EVM, Schedule & CPM, Risk/Commercial & Governance, Field Telemetry & Quality, Data Strategy & Architecture — with a live pill filter), and a real "See it live" cross-tab jump button — the same content the inline "i" help icons pull from site-wide. Filterable by search AND category together, and reachable from anywhere via a bare `/` keypress. |
 
 Plus, outside the tab body: **Presentation Mode** (a scripted 2-set walkthrough with presenter
-notes), a **10-stop guided Tour**, a **printable executive brief**, light/dark **Theme** toggle,
+notes), an **11-stop guided Tour**, a **printable executive brief**, light/dark **Theme** toggle,
 a text-size control (`A-`/`Normal`/`A+`, persisted to `localStorage`), and — below 1050px — a
 **sticky tab bar + anchor rail** so switching sections or jumping to an in-tab anchor no longer
 requires scrolling back to the top (`--bar-height`/`--tabs-height` custom properties, kept accurate
@@ -396,7 +396,7 @@ Everything below is a real DOM interaction, independently covered by `stress.cjs
   CPLI driving-path arithmetic, risk exposure, Monte Carlo per-run formula, crew cost-per-hour
   weekly overrun, z-score arithmetic, EWMA recursive update, the WBS "100% Rule" as literal
   addition, `actionStatus()`'s branch order, the per-package ledger inspector).
-- **10-stop guided Tour**, **2-set Presentation Mode** with a presenter-notes popup, **printable
+- **11-stop guided Tour**, **2-set Presentation Mode** with a presenter-notes popup, **printable
   executive brief** — all reuse the live data, never a separately-authored summary.
 - **Cross-account hover-highlight** on the S-curve/waterfall/Gantt.
 - Keyboard support throughout: every clickable node also responds to Tab + Enter/Space, and
@@ -488,7 +488,7 @@ key — `index.html` is fully static/public and can never hold it. Guardrails, m
 
 ## 11. Testing & verification
 
-**`stress.cjs`** (3,469 assertions, all passing) — stubs the DOM, loads `index.html`'s script
+**`stress.cjs`** (3,536 assertions, all passing) — stubs the DOM, loads `index.html`'s script
 verbatim into that stub, and exercises it exactly like a user would: every tab switch, every
 filter, every drawer, every slider drag, every keyboard interaction. 92 labeled sections (fresh
 `grep -c 'console.log("=='` count, this pass):
@@ -726,7 +726,7 @@ Named explicitly, not silently dropped — from the most recent engagement/inter
    asking for.
 8. ~~**`README.md`/`docs/HANDOFF.md` both called the Overview tab's guided narrative a
    "five-chapter guided story walkthrough"**~~ — **Resolved 2026-08-21**: no 5-chapter array ever
-   existed in the code; the real feature is the 10-stop `TOUR_BEATS`. Caught in passing during the
+   existed in the code; the real feature is the 11-stop `TOUR_BEATS`. Caught in passing during the
    "96→100" brainstorm round's exploration, not part of any requested item — surfaced and fixed
    rather than smuggled in silently (coding-discipline.md).
 9. ~~**No automated check tying `architecture.html`'s prose counts to `index.html`'s live
@@ -827,7 +827,7 @@ carried over from memory or an earlier pass:
   (`1352 passed, 0 failed`) and `node verify.cjs` re-confirmed the tie-out is unchanged (this
   round's edits touch zero `PKGS` values).
 - **2026-08-21 `/stress-test` full-dashboard visual pass**: all 11 tabs, both companion pages
-  (`architecture.html`, `otak.html`), and the cross-tab overlays (10-stop Tour, Presentation Mode,
+  (`architecture.html`, `otak.html`), and the cross-tab overlays (11-stop Tour, Presentation Mode,
   light/dark Theme toggle) reviewed by two independent parties — this session directly, plus a
   fresh-context subagent — split by scope for coverage, each checking structural overflow,
   zero-size/garbled content, and console errors at both desktop (1280px) and narrow (480px) width.
@@ -1639,6 +1639,36 @@ carried over from memory or an earlier pass:
   left for a future one. This pass touched no `PKGS`/`derive()` logic itself; `node verify.cjs`
   tie-out is unchanged from the last real ledger-affecting change (R-07's own commit, already
   independently verified there).
+- **2026-08-26, still later the same day — consolidated resync after the 10-item UX/UI upgrade
+  round.** A separate brainstorm-mode request ("propose adding 10 more ux and UI features and
+  upgrades"), distinct from the proactive-prevention round above; TJ chose "All 10" over the
+  cheaper recommended subset. One consolidated pass again, not 10 separate ones: `index.html`
+  12,691→12,936 lines, top-level functions 392→396 (same fresh `grep -cE "^\s*function
+  [a-zA-Z_]"` count), git 190→200 commits, `stress.cjs` 3,469→3,536 passed (fresh `node
+  stress.cjs` run this pass). `GUARDS` (29) and `RISKS` (7) both unchanged — this round was pure
+  UX/navigation/presentation, no new ledger or register content. Ten items, each independently
+  B27-gate-hole-proofed (temporarily broken, confirmed the new assertion caught it, restored,
+  reconfirmed green) and live-browser-verified: (1) stagger-in animation + (2) 3-state severity
+  icons on the 3 registers the prior round added; (3) a back-to-top button with a scroll-progress
+  ring, (9) the tab-badge policy documented explicitly; (5) "changed since you last looked"
+  extended to 4 new derived-count fields; (10) a light-theme QA sweep that found and fixed one
+  real bug — `#backToTop` used `background:rgb(var(--c-elev))`, but `--c-elev` is a complete
+  box-shadow value, not an RGB triplet, so the background silently resolved transparent; fixed to
+  `rgb(var(--c-card))`; (7) the printable executive brief, found 10 features stale (it silently
+  omitted every mechanism the prior round shipped), now carries a "Proactive watch" section
+  reusing `changeWatchSnapshot()`/`materialUnabsorbedExposure()`; (8) the Guided Tour gained one
+  new stop ("Catching it before it's a variance," index 5), re-indexing the 3 curated tour tracks
+  around it; (4) all 10 sections on the AI & Data tab (the longest run, ~10 sections) are now
+  collapsible via native `<details>`/`<summary>`, not hand-rolled JS; (6) a real, always-visible
+  global search box in the top bar — deliberately not a hidden Cmd/Ctrl+K palette, which every
+  major browser already reserves for its own address-bar search — indexing KPIS/RISKS/ACTIONS/
+  GLOSS via each register's own existing jump mechanism. Two independently-verified diligence
+  corrections landed mid-round, both from TJ's own standing instruction to verify unfamiliar
+  claims/documents before using them: Washington's RCW 39.116 (Buy Clean Act) is disclosure-only,
+  not a numeric threshold (corrected before the carbon-disclosure feature shipped, in the prior
+  round); AGC's real 2025 statistic is "92% of firms **that are hiring**," not "92% of firms"
+  (corrected before shipping). This pass touched no `PKGS`/`derive()` logic; `node verify.cjs`
+  tie-out is unchanged from the last real ledger-affecting change (R-07's commit).
 
 Generated 2026-08-20, against the tip of the eleven-input-ledger-card engagement round; extended
 2026-08-21 for the six-KPI-families card round, again 2026-08-21 for the Data Strategy tab UI/UX
