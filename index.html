@@ -1819,6 +1819,13 @@ join dim_control_account b using (package_id)</pre></div>
         or get adopted voluntarily, so reporting is never reconstructed from scratch at closeout.</p>
       <div class="card" id="carbonDisclosureCard" style="margin-top:8px"></div>
 
+      <div class="sec-h" style="margin-top:30px"><h3>Session activity log</h3></div>
+      <p class="lede">Construction-industry ransomware attacks rose 44% year-over-year in Q1
+        2026 — data-governance discipline doubles as a security control. A real, working
+        per-session log of meaningful interactions on this page, not a claim of enterprise
+        multi-user access logging this static, single-session architecture can't provide.</p>
+      <div class="card" id="auditLogTable" style="margin-top:8px"></div>
+
       <div class="sec-h" style="margin-top:30px"><h3>Statistical control &mdash; retrospective anomaly check<button type="button" class="help-ic" data-help="zscore" aria-label="What does this term mean?" aria-expanded="false">i</button></h3></div>
       <p class="lede">The guards above are deterministic tie-outs &mdash; recompute and compare, pass or fail.
         This is a different kind of check: a statistical control run over a real historical series already on
@@ -6738,7 +6745,8 @@ function renderAskAiGate(){
   document.getElementById("askAiGate").innerHTML = state.askAiEnabled ? "" :
     '<button type="button" class="btn" id="askAiEnableBtn" style="min-height:auto;padding:5px 12px;font-size:12.5px">Enable Ask AI for this session</button>';
   var b=document.getElementById("askAiEnableBtn");
-  if(b) b.addEventListener("click",function(){ state.askAiEnabled=true; renderAskAiGate(); renderAskAiPanel(); });
+  if(b) b.addEventListener("click",function(){ state.askAiEnabled=true; renderAskAiGate(); renderAskAiPanel();
+    auditLog("Feature enabled","Ask AI enabled for this session"); });
 }
 
 /* UX upgrade round (2026-08-25, TJ's direct ask: "more interactive, engaging, lively,
@@ -9682,6 +9690,31 @@ function renderCarbonDisclosure(){
       '<td><span class="pill '+(c.quantityReported?"g":"r")+'">'+(c.quantityReported?"Reported":"Pending")+'</span></td></tr>'; }).join("")+
     '</tbody></table></div>';
 }
+
+/* Session activity/change-audit trail (brainstorm-mode round, 2026-08-26) — item #16. Real,
+   current pressure: construction ransomware attacks rose 44% year-over-year in Q1 2026, with
+   named 2026 incidents (11_STRATEGIC_CHALLENGES_AND_SOLUTIONS.md #16). Data-governance
+   discipline doubles as a security control — logging who touched what, when, directly reduces
+   both fraud/error risk and tampering blast radius. Honest scope: this is a single-session,
+   client-side-only static page with no real multi-user authentication, so this is a genuinely
+   REAL, working per-session interaction log (every row is an actual logged event, never a
+   decorative sample row) that demonstrates the mechanism — not a claim of enterprise multi-user
+   audit logging this architecture can't provide. Bounded at 50 entries, not unbounded growth. */
+var AUDIT_LOG=[];
+function auditLog(action,detail){
+  AUDIT_LOG.unshift({ts:new Date(),action:action,detail:detail});
+  if(AUDIT_LOG.length>50) AUDIT_LOG.length=50;
+  renderAuditLog();
+}
+function renderAuditLog(){
+  var el=document.getElementById("auditLogTable");
+  if(!el) return;
+  el.innerHTML = AUDIT_LOG.length===0
+    ? '<p class="lede" style="margin:0">No logged interactions yet this session — try one of the &ldquo;Try it&rdquo; demo toggles or enable Ask AI to see a real entry appear.</p>'
+    : '<table><thead><tr><th scope="col">Time</th><th scope="col">Action</th><th scope="col">Detail</th></tr></thead><tbody>'+
+      AUDIT_LOG.map(function(e){ return '<tr style="cursor:default"><td class="mono" style="font-size:11px">'+e.ts.toLocaleTimeString()+'</td><td>'+e.action+'</td><td style="color:rgb(var(--c-mut))">'+e.detail+'</td></tr>'; }).join("")+
+      '</tbody></table>';
+}
 /* Same visual family as renderGuards() above (.gate/.rowbar/.pill) on purpose — this should read
    as a sibling control, not a new kind of chrome. Runs once at init; no interactive state, so
    (like renderGuards) it's not called from redrawCharts(). */
@@ -12343,9 +12376,11 @@ document.getElementById("clearScen").addEventListener("click",function(){ SCEN=[
 document.getElementById("printBtn").addEventListener("click",function(){ renderPrint(); window.print(); });
 document.getElementById("aiNarrBtn").addEventListener("click",renderNarr);
 document.getElementById("narrTamperToggle").addEventListener("change",function(e){
-  state.narrTamper=e.target.checked; renderNarr(); });
+  state.narrTamper=e.target.checked; renderNarr();
+  auditLog("Simulated tampering",'AI narrative tamper demo toggled '+(e.target.checked?"ON":"OFF")); });
 document.getElementById("guardsDemoToggle").addEventListener("change",function(e){
-  state.guardsDemo=e.target.checked; renderGuards(); });
+  state.guardsDemo=e.target.checked; renderGuards();
+  auditLog("Simulated tampering",'Integrity-gate failure demo toggled '+(e.target.checked?"ON":"OFF")); });
 /* Delegated on #aiEwmaControl (the static card in the HTML markup itself), not #ewmaSvgChart —
    that inner div is only created once renderEwmaControl() first runs, and this listener binds at
    boot time BEFORE that first render call below, so document.getElementById("ewmaSvgChart") would
@@ -12553,7 +12588,7 @@ renderMcRiskFilter();
 document.getElementById("mcDistTri").setAttribute("aria-pressed", String(state.mcDist==="triangular"));
 document.getElementById("mcDistPert").setAttribute("aria-pressed", String(state.mcDist==="pert"));
 syncMcView(); renderMcMath(); renderPertPlay(); renderGaltonStatic(); renderScen(); renderPrint();
-renderArch(); renderGuards(); renderCarbonDisclosure(); renderStatControl(); renderZscoreMath(); renderEwmaControl(); renderEwmaMath(); renderMultiAnomaly(); renderMultiAnomalyMath(); renderIngestGuards();
+renderArch(); renderGuards(); renderCarbonDisclosure(); renderAuditLog(); renderStatControl(); renderZscoreMath(); renderEwmaControl(); renderEwmaMath(); renderMultiAnomaly(); renderMultiAnomalyMath(); renderIngestGuards();
 renderGlossCatBar();
 renderGlossary("");
 renderDomainMap();
@@ -12581,6 +12616,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   materialIndexReal:MATERIAL_INDEX_REAL,materialEscalationBaselinePct:MATERIAL_ESCALATION_BASELINE_PCT,
   materialEscalationMultiple:materialEscalationMultiple,materialUnabsorbedExposure:materialUnabsorbedExposure,
   carbonDisclosure:CARBON_DISCLOSURE,carbonReadinessPct:carbonReadinessPct,renderCarbonDisclosure:renderCarbonDisclosure,
+  auditLogData:AUDIT_LOG,auditLog:auditLog,renderAuditLog:renderAuditLog,
   renderExec:renderExec,execCp201Share:execCp201Share,execFundingGap:execFundingGap,execTopActions:execTopActions,execTranslate:EXEC_TRANSLATE,
   execDrawerContent:execDrawerContent,execFaq:EXEC_FAQ,
   buildAskAiSnapshot:buildAskAiSnapshot,renderAskAiGate:renderAskAiGate,renderAskAiPanel:renderAskAiPanel,
