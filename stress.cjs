@@ -8908,5 +8908,56 @@ console.log("== V. UX/UI upgrade round (brainstorm-mode, 2026-08-26) ==");
   ok(indexSrc.includes('id="aiSystemCard"'), "the AI System Card section keeps its real id (now on the summary tag) -- the Executive Command tab's Ask AI jump-link and the aisystemcard glossary entry both still resolve to it");
 }
 
+// #6: lightweight, always-visible global search (UX upgrade round, 2026-08-26) -- deliberately NOT
+// a hidden Cmd/Ctrl+K palette (that combination is already declined elsewhere on this page, since
+// every major browser reserves it for its own address-bar search). Indexes 4 real registers,
+// reusing each one's own existing jump mechanism.
+try {
+  const idx = P.globalSearchIndex();
+  const expectedTotal = P.kpis.length + P.risks.length + P.actions.length + P.gloss.length;
+  ok(idx.length === expectedTotal, "the search index carries exactly one entry per KPI+risk+action+glossary term -- none silently dropped or duplicated", idx.length + " vs expected " + expectedTotal);
+
+  P.renderGlobalSearch("");
+  ok(G.globalSearchResults.hidden === true && G.globalSearchResults._html === "", "an empty query hides the results dropdown and renders nothing");
+
+  P.renderGlobalSearch("cpi");
+  ok(G.globalSearchResults.hidden === false, "a real query un-hides the results dropdown");
+  ok(G.globalSearchResults._html.includes("Cost Performance Index (CPI)") && G.globalSearchResults._html.includes('data-jump-openkpi="cpi"'),
+    "searching 'cpi' surfaces the real KPI, wired to the SAME data-jump-openkpi attribute the Cost tab's own \"See root cause\" buttons already use");
+
+  P.renderGlobalSearch("r-04");
+  ok(G.globalSearchResults._html.includes('data-jump-riskdrill="R-04"'), "searching a real risk id surfaces it, wired to the SAME data-jump-riskdrill attribute the Overview tab's own root-cause panel already uses");
+
+  P.renderGlobalSearch("a-01");
+  ok(G.globalSearchResults._html.includes('data-search-action="A-01"'), "searching a real action id surfaces it, wired to this feature's own jumpToAction() dispatch");
+
+  P.renderGlobalSearch("wbs");
+  ok(G.globalSearchResults._html.includes("WBS — Work Breakdown Structure") && G.globalSearchResults._html.includes('data-explore="WBS'),
+    "searching a real glossary term surfaces it, wired to the SAME data-explore attribute every other in-page term reference already uses");
+
+  P.renderGlobalSearch("zzz-no-such-thing-on-this-dashboard");
+  has("globalSearchResults", "No matches", "a query with zero hits shows an explicit empty state, not a blank dropdown");
+
+  // results cap: "a" is common enough across 4 real registers to exceed 8 real hits -- confirms
+  // the cap is real, not just numerically smaller than every query anyone would realistically type
+  P.renderGlobalSearch("a");
+  ok((G.globalSearchResults._html.match(/class="gsr-item"/g) || []).length === 8, "results are capped at 8, even when a broad query matches far more than that");
+
+  // clicking a result: clears the box, hides the dropdown, and dispatches the SAME jumpToAction()
+  // the Actions tab's own cross-links use -- not a parallel, untested navigation path.
+  // jumpToAction() -> syncKpiAriaExpanded() calls document.querySelectorAll(), which section T's
+  // own global.document narrowing above (a fix for this file's multi-runPage() drift) stripped;
+  // restored here, matching the same narrow, as-needed pattern already established for
+  // documentElement in item #3's own test.
+  global.document.querySelectorAll = () => [];
+  global.document.querySelector = () => makeEl();
+  G.globalSearch.value = "a-01";
+  const mockResult = { dataset: { searchAction: "A-01" } };
+  fire(R.win, "click", { target: { closest: (sel) => (sel === ".gsr-item" || sel === "[data-search-action]") ? mockResult : null } });
+  ok(G.globalSearch.value === "" && G.globalSearchResults.hidden === true, "clicking a result clears the search box and hides the dropdown");
+  ok(P.state.tab === "act" && P.state.act === "A-01", "clicking an action result actually navigates there (jumpToAction's real state, not a mocked assertion)");
+  P.state.tab = "over"; P.state.act = null; // reset before later sections run
+} catch (e) { ok(false, "global search (item #6)", e.message); }
+
 console.log("\n" + pass + " passed, " + fail + " failed");
 process.exit(fail ? 1 : 0);

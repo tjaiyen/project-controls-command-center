@@ -877,6 +877,20 @@ tr.stale-glow{animation:staleGlow 2.4s ease-in-out infinite}
 .gsearch{width:100%;max-width:430px;padding:9px 13px;border-radius:8px;border:1px solid var(--c-line);
   background:rgb(var(--c-card));color:rgb(var(--c-ink));font:inherit;font-size:13px;margin-top:16px}
 .gsearch:focus{outline:2px solid rgb(var(--c-accent));outline-offset:1px}
+/* Global search (UX upgrade round item #6, 2026-08-26) -- .gsearch.topsearch overrides the
+   glossary-page sizing/margin (that instance sits inline in a page; this one sits in the sticky
+   top bar) without touching the base .gsearch rule #glossQ already relies on. */
+.gsearch.topsearch{margin-top:0;max-width:220px;padding:6px 10px;font-size:12.5px}
+.gsearch-wrap{position:relative;flex-shrink:0}
+.gsearch-results{position:absolute;top:calc(100% + 6px);left:0;width:280px;max-height:360px;
+  overflow-y:auto;background:rgb(var(--c-card));border:1px solid var(--c-line);border-radius:10px;
+  box-shadow:var(--c-elev);z-index:55;padding:5px}
+.gsr-item{display:flex;flex-direction:column;align-items:flex-start;gap:1px;width:100%;text-align:left;
+  padding:7px 9px;border-radius:7px;border:none;background:none;color:rgb(var(--c-ink));cursor:pointer;
+  font:inherit;font-size:12.5px}
+.gsr-item:hover,.gsr-item:focus{background:rgb(var(--c-accent) / .1)}
+.gsr-cat{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:rgb(var(--c-mut))}
+.gsr-empty{padding:9px;font-size:12.5px;color:rgb(var(--c-mut))}
 
 /* print brief */
 #printBrief{display:none}
@@ -902,6 +916,17 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
   <div class="bar-in">
     <a class="brand" href="./"><span class="dot"></span>
       <span>Project Controls Command Center<small id="brandSub">capital program operating framework</small></span></a>
+    <!-- Global search (UX upgrade round item #6, 2026-08-26) -- a real, ALWAYS-VISIBLE search box,
+         deliberately not a hidden Cmd/Ctrl+K palette: every major browser already reserves that
+         combination for its own address-bar search (the same reasoning the "/" glossary shortcut's
+         own comment already states, below in the window keydown handler). Indexes 4 real registers
+         already on this page -- KPIS, RISKS, ACTIONS, GLOSS -- reusing each one's own existing jump
+         mechanism, not a parallel navigation path. -->
+    <div class="gsearch-wrap" id="globalSearchWrap">
+      <input type="search" id="globalSearch" class="gsearch topsearch" autocomplete="off"
+        placeholder="Search KPIs, risks, actions, glossary&hellip;" aria-label="Search this dashboard">
+      <div id="globalSearchResults" class="gsearch-results" hidden></div>
+    </div>
     <div class="right">
       <span class="pill i" id="ddBadge">data date &mdash;</span>
       <span class="pill i" id="opQProgress" title="Every chart's operational-question callout is a click-to-reveal — this counts how many you've opened this session"></span>
@@ -11304,6 +11329,41 @@ function renderGlossary(q){
                                : list.length+" of "+GLOSS.length+" terms match";
 }
 
+/* Global search (UX upgrade round item #6, 2026-08-26) -- indexes 4 real, already-existing
+   registers (KPIS, RISKS, ACTIONS, GLOSS), reusing each one's own existing jump mechanism rather
+   than inventing a parallel navigation path: data-jump-openkpi (same attribute the Cost/Schedule/
+   Delivery tabs' own "See root cause"/"See the formula" buttons already use), data-jump-riskdrill
+   (same one the Overview tab's root-cause consolidation panel uses), jumpToAction() (the
+   Actions tab's own named jump function), and data-explore (the same attribute every other in-page
+   term reference already uses to land on the glossary with that term pre-filled). */
+function globalSearchIndex(){
+  return [].concat(
+    KPIS.map(function(k){ return {cat:"KPI", label:k.name+" ("+k.abbr+")", sub:k.why,
+      jumpHtml:'data-jump-tab="over" data-jump-el="kboard" data-jump-openkpi="'+k.id+'"'}; }),
+    RISKS.map(function(r){ return {cat:"Risk", label:r.id+" — "+r.n.replace(/&amp;/g,"&"),
+      sub:"Exposure "+m(P_BAND[r.p]*r.cost)+" · owner "+r.own,
+      jumpHtml:'data-jump-tab="risk" data-jump-el="riskDrill" data-jump-riskdrill="'+r.id+'"'}; }),
+    ACTIONS.map(function(a){ return {cat:"Action", label:a.id+" — "+a.title.replace(/&mdash;/g,"—"),
+      sub:a.desc.replace(/<[^>]+>/g,"").replace(/&mdash;/g,"—"),
+      jumpHtml:'data-search-action="'+a.id+'"'}; }),
+    GLOSS.map(function(g){ return {cat:"Glossary", label:g.t, sub:g.p,
+      jumpHtml:'data-explore="'+escHtml(g.t)+'"'}; })
+  );
+}
+function renderGlobalSearch(q){
+  var res=document.getElementById("globalSearchResults");
+  q=(q||"").trim().toLowerCase();
+  if(!q){ res.hidden=true; res.innerHTML=""; return; }
+  var hits=globalSearchIndex().filter(function(x){
+    return (x.label+" "+x.sub).toLowerCase().indexOf(q)>=0;
+  }).slice(0,8);
+  res.hidden=false;
+  res.innerHTML = hits.length ? hits.map(function(h){
+    return '<button type="button" class="gsr-item" '+h.jumpHtml+'>'+
+      '<span class="gsr-cat">'+h.cat+'</span><span>'+h.label+'</span></button>';
+  }).join("") : '<div class="gsr-empty">No matches for &ldquo;'+escHtml(q)+'&rdquo;</div>';
+}
+
 /* Domain-map panel -- renders CATS' real external-framework annotations (see CATS' own comment
    for the citation and the honesty rule about the 2 categories with no real mapping). */
 function renderDomainMap(){
@@ -11857,6 +11917,20 @@ window.addEventListener("keydown",function(e){
 /* Inline term-help delegation — one listener for every "i" icon on the page, present or future,
    since they're added dynamically across render functions rather than wired one by one. */
 window.addEventListener("click",function(e){
+  // Global search (item #6): clear the box and hide the dropdown BEFORE handling the actual jump
+  // below -- deliberately no `return` here, so the same click still falls through to whichever
+  // branch (data-explore / data-jump-tab / data-search-action) the clicked .gsr-item's own
+  // attributes match. Emptying #globalSearchResults' innerHTML here detaches the clicked button
+  // from the live DOM, but e.target itself (and its dataset) stays fully readable afterward --
+  // .closest() matches an element against itself before walking parentElement, so a detached node
+  // still resolves correctly.
+  if(e.target.closest(".gsr-item")){
+    document.getElementById("globalSearch").value="";
+    document.getElementById("globalSearchResults").hidden=true;
+    document.getElementById("globalSearchResults").innerHTML="";
+  }
+  var sa=e.target.closest("[data-search-action]");
+  if(sa){ jumpToAction(sa.dataset.searchAction); return; }
   var h=e.target.closest("[data-help]");
   if(h){
     if(helpOpenKey===h.dataset.help) closeHelp(); else openHelp(h.dataset.help,h);
@@ -12683,6 +12757,18 @@ function renderChangeWatch(){
 }
 renderChangeWatch();
 document.getElementById("glossQ").addEventListener("input",function(){ renderGlossary(this.value); });
+// Global search (item #6): input-driven, immediate (undebounced) recompute -- same precedent as
+// #glossQ above (its own comment already established: no .stagger/animation cost on these result
+// rows, so re-rendering every keystroke is free, unlike the debounced Triage search).
+document.getElementById("globalSearch").addEventListener("input",function(){ renderGlobalSearch(this.value); });
+document.getElementById("globalSearch").addEventListener("keydown",function(e){
+  if(e.key==="Escape"){ this.value=""; renderGlobalSearch(""); this.blur(); }
+});
+// Close on blur, but deferred -- a bare blur fires before the results button's own click event
+// gets a chance to register, which would hide the dropdown out from under the click.
+document.getElementById("globalSearch").addEventListener("blur",function(){
+  setTimeout(function(){ renderGlobalSearch(""); document.getElementById("globalSearch").value=""; },160);
+});
 window.addEventListener("scroll",function(){ document.getElementById("tip").classList.remove("on"); },{passive:true});
 
 /* renderGantt() must run AFTER renderScurve() and BEFORE renderScurveScrub(): the scrubber's
@@ -12808,7 +12894,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   guardrails:GUARDRAILS,discrepancySteps:DISCREPANCY_STEPS,rollout:ROLLOUT,dsNodes:DS_NODES,dsCaption:dsCaption,
   toggleDsAutoPlay:toggleDsAutoPlay,stopDsAutoPlay:stopDsAutoPlay,getDsIdx:function(){ return dsIdx; },
   archNodes:ARCH_NODES,archCaption:archCaption,
-  gloss:GLOSS,findGloss:findGloss,
+  gloss:GLOSS,findGloss:findGloss,globalSearchIndex:globalSearchIndex,renderGlobalSearch:renderGlobalSearch,
   miles:MILES,delays:DELAYS,spark:SPARK,baseline:BASELINE,baseSteps:baseSteps,veSandboxCalc:veSandboxCalc,renderBaseline:renderBaseline,
   pfBand:pfBand,cascadeStepContent:cascadeStepContent,renderPfArc:renderPfArc,renderCascade:renderCascade,renderDelivery:renderDelivery,guards:GUARDS,renderGuards:renderGuards,escPat:ESC_PAT,
   mcParams:mcParams,triang:triang,dsStep:dsStep,
