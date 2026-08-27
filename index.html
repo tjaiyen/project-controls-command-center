@@ -323,6 +323,22 @@ h4{font-size:.86rem;margin:0 0 5px}
 .sec-h{display:flex;align-items:baseline;gap:11px;flex-wrap:wrap;margin-bottom:6px}
 .sec-h .tag{font:600 10px/1.7 ui-monospace,monospace;letter-spacing:.1em;text-transform:uppercase;
   padding:1px 8px;border-radius:999px;background:rgb(var(--c-accent) / .13);color:rgb(var(--c-code))}
+/* Collapsible sections on the AI & Data tab (UX upgrade round item #4, 2026-08-26) -- the tab's
+   own longest, ~10-section run gets a real collapse affordance, reusing the existing native
+   <details>/<summary> pattern already established by .dbox ("How this is actually computed") and
+   .anchor-rail elsewhere on this page, not a hand-rolled JS show/hide with its own state machine
+   to get wrong. summary.sec-h keeps the exact same visual layout as the plain-div .sec-h used on
+   every other tab (untouched); only the disclosure marker is added here. Fragment navigation
+   (e.g. the anchor rail's own #arch/#aiGuards links) into a closed <details> auto-opens it in
+   every evergreen browser -- no extra JS needed to keep those links working. All 10 sections
+   start `open`, so default appearance is unchanged from before this round. */
+details.sec-details{margin:0}
+summary.sec-h{cursor:pointer;list-style:none}
+summary.sec-h::-webkit-details-marker{display:none}
+summary.sec-h::before{content:"";display:inline-block;width:8px;height:8px;margin-right:1px;
+  border-right:2px solid rgb(var(--c-mut));border-bottom:2px solid rgb(var(--c-mut));
+  transform:rotate(-45deg);transition:transform .15s ease;flex-shrink:0}
+details.sec-details[open]>summary.sec-h::before{transform:rotate(45deg)}
 
 .banner{display:flex;gap:11px;align-items:flex-start;margin:18px 0 0;padding:12px 15px;
   border:1px solid rgb(var(--c-warn) / .40);background:rgb(var(--c-warn) / .09);
@@ -1763,7 +1779,8 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         build before a bad number can travel, and the AI layer writes prose only &mdash; it never touches
         a number.</p>
 
-      <div class="sec-h" style="margin-top:30px"><h3>Pipeline architecture</h3></div>
+      <details class="sec-details" open>
+      <summary class="sec-h" style="margin-top:30px"><h3>Pipeline architecture</h3></summary>
       <div class="card" style="margin-top:12px"><div id="archOpQ"></div><div class="chart" id="arch"></div>
         <p class="lede" style="font-size:12.5px;margin-top:10px">This is not a drawing of a hypothetical.
           The same model runs in this repository: <code>pipeline/run_pipeline.py</code> synthesizes the raw
@@ -1825,7 +1842,9 @@ join dim_control_account b using (package_id)</pre></div>
                                            # not the project</pre></div>
       </div>
 
-      <div class="sec-h" style="margin-top:30px"><h3>Integrity gate &mdash; running now, in this page</h3></div>
+      </details>
+      <details class="sec-details" open>
+      <summary class="sec-h" style="margin-top:30px"><h3>Integrity gate &mdash; running now, in this page</h3></summary>
       <p class="lede">These are not screenshots of checks. This page executes them against the live ledger
         on every load; a single failure turns the gate red. The same invariants run as dbt tests in the
         pipeline and as assertions in <code>stress.cjs</code> &mdash; three enforcement points for one
@@ -1836,7 +1855,9 @@ join dim_control_account b using (package_id)</pre></div>
         it&rdquo; on faith</label>
       <div class="card" style="margin-top:12px" id="aiGuards"></div>
 
-      <div class="sec-h" style="margin-top:30px"><h3>Embodied-carbon disclosure readiness</h3></div>
+      </details>
+      <details class="sec-details" open>
+      <summary class="sec-h" style="margin-top:30px"><h3>Embodied-carbon disclosure readiness</h3></summary>
       <p class="lede">Washington's real mechanism (the Buy Clean and Buy Fair Washington Act, RCW
         39.116, signed March 2024) is disclosure-only — an EPD and quantity reported per covered
         material, no numeric emissions threshold — and scoped to state buildings, not WSDOT's
@@ -1845,14 +1866,18 @@ join dim_control_account b using (package_id)</pre></div>
         or get adopted voluntarily, so reporting is never reconstructed from scratch at closeout.</p>
       <div class="card stagger" id="carbonDisclosureCard" style="margin-top:8px"></div>
 
-      <div class="sec-h" style="margin-top:30px"><h3>Session activity log</h3></div>
+      </details>
+      <details class="sec-details" open>
+      <summary class="sec-h" style="margin-top:30px"><h3>Session activity log</h3></summary>
       <p class="lede">Construction-industry ransomware attacks rose 44% year-over-year in Q1
         2026 — data-governance discipline doubles as a security control. A real, working
         per-session log of meaningful interactions on this page, not a claim of enterprise
         multi-user access logging this static, single-session architecture can't provide.</p>
       <div class="card stagger" id="auditLogTable" style="margin-top:8px"></div>
 
-      <div class="sec-h" style="margin-top:30px"><h3>Statistical control &mdash; retrospective anomaly check<button type="button" class="help-ic" data-help="zscore" aria-label="What does this term mean?" aria-expanded="false">i</button></h3></div>
+      </details>
+      <details class="sec-details" open>
+      <summary class="sec-h" style="margin-top:30px"><h3>Statistical control &mdash; retrospective anomaly check<button type="button" class="help-ic" data-help="zscore" aria-label="What does this term mean?" aria-expanded="false">i</button></h3></summary>
       <p class="lede">The guards above are deterministic tie-outs &mdash; recompute and compare, pass or fail.
         This is a different kind of check: a statistical control run over a real historical series already on
         this page (CP-201's weekly crew cost-per-hour), flagging any point beyond &plusmn;<span id="zThreshLede1">2.5</span> standard
@@ -1868,7 +1893,9 @@ join dim_control_account b using (package_id)</pre></div>
         <div id="zscoreMathBody"></div>
       </details>
 
-      <div class="sec-h" style="margin-top:30px"><h3>EWMA control chart &mdash; catching persistent drift, not just outliers<button type="button" class="help-ic" data-help="ewma" aria-label="What does this term mean?" aria-expanded="false">i</button></h3></div>
+      </details>
+      <details class="sec-details" open>
+      <summary class="sec-h" style="margin-top:30px"><h3>EWMA control chart &mdash; catching persistent drift, not just outliers<button type="button" class="help-ic" data-help="ewma" aria-label="What does this term mean?" aria-expanded="false">i</button></h3></summary>
       <p class="lede">The check above flags any single point beyond &plusmn;<span id="zThreshLede2">2.5</span> standard deviations of the
         series mean &mdash; blind to a small, persistent drift that never individually crosses that line. An
         Exponentially Weighted Moving Average (EWMA) tracks the whole trend instead, weighting recent points
@@ -1881,7 +1908,9 @@ join dim_control_account b using (package_id)</pre></div>
         <div id="ewmaMathBody"></div>
       </details>
 
-      <div class="sec-h" style="margin-top:30px"><h3>Multivariate anomaly score &mdash; jointly unusual, even when nothing individually breaks<button type="button" class="help-ic" data-help="multianomaly" aria-label="What does this term mean?" aria-expanded="false">i</button></h3></div>
+      </details>
+      <details class="sec-details" open>
+      <summary class="sec-h" style="margin-top:30px"><h3>Multivariate anomaly score &mdash; jointly unusual, even when nothing individually breaks<button type="button" class="help-ic" data-help="multianomaly" aria-label="What does this term mean?" aria-expanded="false">i</button></h3></summary>
       <p class="lede">The two checks above are univariate and longitudinal (one series, over time). This is
         multivariate and cross-sectional instead: standardize CPI, SPI, PF, float, and CPLI for each of the 8
         real control accounts against the portfolio's own mean and standard deviation across all 8, then
@@ -1896,7 +1925,9 @@ join dim_control_account b using (package_id)</pre></div>
         <div id="multiAnomalyMathBody"></div>
       </details>
 
-      <div class="sec-h" style="margin-top:30px"><h3>Ingestion validation &mdash; not the same thing as the gate above</h3></div>
+      </details>
+      <details class="sec-details" open>
+      <summary class="sec-h" style="margin-top:30px"><h3>Ingestion validation &mdash; not the same thing as the gate above</h3></summary>
       <p class="lede">The integrity gate above re-derives already-accepted totals and compares them &mdash;
         reconciliation, not validation. This checks something earlier: whether a raw record should have been
         trusted at all before it entered the ledger. A real predictive-controls engine quarantines a bad
@@ -1908,7 +1939,9 @@ join dim_control_account b using (package_id)</pre></div>
         skipping it.</p>
       <div class="card" style="margin-top:12px" id="aiIngestGuards"></div>
 
-      <div class="sec-h" style="margin-top:30px" id="aiSystemCard"><h3>AI System Card <span class="pill i" style="margin-left:4px;font-size:10.5px;vertical-align:middle">Ask AI's own disclosure</span></h3></div>
+      </details>
+      <details class="sec-details" open>
+      <summary class="sec-h" style="margin-top:30px" id="aiSystemCard"><h3>AI System Card <span class="pill i" style="margin-left:4px;font-size:10.5px;vertical-align:middle">Ask AI's own disclosure</span></h3></summary>
       <p class="lede">Every AI feature on this dashboard (Ask AI on the Executive Command tab, and the
         narrative drafting below) is governed by the same contract, disclosed here in one place instead
         of scattered across tabs &mdash; the same reason real AI products publish a <b style="color:rgb(var(--c-ink))">system card</b>:
@@ -1943,7 +1976,9 @@ join dim_control_account b using (package_id)</pre></div>
             Gauge charts can. It has no more insight into Change or Compliance's root cause than the dashboard
             itself does either (see the KPI board's own note on that gap).</p></div>
       </div>
-      <div class="sec-h" style="margin-top:30px"><h3>AI narrative &mdash; under a verification contract</h3></div>
+      </details>
+      <details class="sec-details" open>
+      <summary class="sec-h" style="margin-top:30px"><h3>AI narrative &mdash; under a verification contract</h3></summary>
       <p class="lede">The contract: <b style="color:rgb(var(--c-ink))">the model proposes, the code disposes.</b>
         An LLM drafting the monthly narrative receives computed figures and writes only prose; before
         anything renders, every number in the draft is re-extracted and recomputed from the ledger by an
@@ -1958,6 +1993,7 @@ join dim_control_account b using (package_id)</pre></div>
         <div class="narr" id="aiNarr" style="margin-top:13px"></div>
         <div id="aiNarrChecks" style="margin-top:6px"></div>
       </div>
+      </details>
     </div>
   </section>
 

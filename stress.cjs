@@ -8884,5 +8884,29 @@ console.log("== V. UX/UI upgrade round (brainstorm-mode, 2026-08-26) ==");
   ok(!G.printBrief._html.includes("$NaN"), "print brief's material-exposure figure formatted cleanly, not NaN");
 }
 
+// #4: collapsible sections on the AI & Data tab (UX upgrade round, 2026-08-26) -- the tab's own
+// longest ~10-section run gets a real collapse affordance via the native <details>/<summary>
+// pattern already established elsewhere on this page (.dbox, .anchor-rail), not hand-rolled JS.
+// This stub's document is a synthetic per-id registry, not a real parser -- it can't exercise
+// native <details> open/close toggling at all (same class of gap as canvas/getComputedStyle
+// elsewhere in this file), so this is a static structural check on indexSrc, verified live in the
+// browser separately.
+{
+  const aiTabSrc = indexSrc.slice(indexSrc.indexOf('id="p-ai"'), indexSrc.indexOf('id="p-fw"'));
+  const detailsOpens = (aiTabSrc.match(/<details class="sec-details" open>/g) || []).length;
+  const summaries = (aiTabSrc.match(/<summary class="sec-h"/g) || []).length;
+  const detailsCloses = (aiTabSrc.match(/<\/details>/g) || []).length;
+  ok(detailsOpens === 10, "AI & Data tab carries exactly 10 collapsible sections, all starting open (unchanged default appearance)", String(detailsOpens));
+  ok(summaries === 10, "every collapsible section has exactly one summary.sec-h header", String(summaries));
+  // detailsCloses also counts the pre-existing <details> elements that already lived on this tab
+  // before this round: the anchor-rail at the top (1) and the .dbox "How this is actually
+  // computed" panels nested inside 3 of the new sections (zscore/ewma/multianomaly). Pre-
+  // registered this as 10+3=13 first; the probe contradicted that (came back 14) -- the
+  // anchor-rail <details> was the miscounted 4th, not a bug in this round's own markup (B35).
+  ok(detailsCloses === 14, "closing </details> count matches 10 new sec-details wrappers + 1 pre-existing anchor-rail + 3 pre-existing nested .dbox panels, properly balanced", String(detailsCloses));
+  ok(indexSrc.includes("details.sec-details[open]>summary.sec-h::before{transform:rotate(45deg)}"), "the disclosure-chevron CSS rotates on the real [open] attribute, native browser state, not a custom JS class toggle");
+  ok(indexSrc.includes('id="aiSystemCard"'), "the AI System Card section keeps its real id (now on the summary tag) -- the Executive Command tab's Ask AI jump-link and the aisystemcard glossary entry both still resolve to it");
+}
+
 console.log("\n" + pass + " passed, " + fail + " failed");
 process.exit(fail ? 1 : 0);
