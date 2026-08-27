@@ -595,7 +595,19 @@ ok(/How the baseline was built[\s\S]{0,1500}<div class="grid">\s*<div class="car
 has("drill", "CP-201", "default drill-down is CP-201");
 has("drill", (shareCP201 * 100).toFixed(1) + "%", "drill: CP-201 share of gross overrun " + (shareCP201 * 100).toFixed(1) + "%");
 has("miles", "+40d", "milestones: revenue service +40d");
-has("miles", "24 Apr 2028", "milestones: forecast date rendered");
+// Milestone variance moved to the shared bars() component (UX upgrade round, 2026-08-27) --
+// base/forecast dates now live in the hover tooltip, not baked into the always-visible markup,
+// matching every other bars()-rendered list on this tab (float/CPLI bars). Call the real
+// tipFmt function directly (stashed on the host by bars() itself, host._barsTipFmt) rather than
+// simulating a full mouse event through closest() -- same real function that would run on a
+// real hover, just invoked directly.
+{
+  const revSvc = P.miles[P.miles.length - 1];
+  ok(revSvc.n === "Revenue service" && revSvc.fc === "24 Apr 2028", "sanity: revenue service's real forecast date is still 24 Apr 2028", revSvc.fc);
+  const tip = R.registry.miles._barsTipFmt({ id: revSvc.n });
+  ok(tip.includes("24 Apr 2028"), "milestones: hovering revenue service's bar shows its real forecast date in the tooltip", tip);
+  ok(tip.includes(revSvc.base), "milestones: the same tooltip also shows the real baseline date", tip);
+}
 has("schedTriad", "0.968", "triad: SPI 0.968");
 has("schedTriad", "0.878", "triad: CPLI 0.878 (driving path)");
 has("schedTriad", "0.937", "triad: BEI 0.937");
@@ -8848,7 +8860,12 @@ console.log("== T. Session activity/change-audit trail (brainstorm-mode round, 2
   // silently write into the wrong (most-recently-created) stub's registry instead of G's -- a
   // test-harness artifact of this file's own multi-runPage() pattern, not a real app bug (the
   // live-browser check already confirmed the real page works correctly).
-  global.document = { getElementById: (id) => G[id] || (G[id] = makeEl(id)) };
+  // querySelectorAll added (UX upgrade round, 2026-08-27): guardsDemoToggle's real change
+  // handler now also calls wireDetailsAnimation() (the new per-guard "how this is actually
+  // computed" disclosures), which calls document.querySelectorAll("details.dbox") -- same
+  // always-returns-[] limitation already accepted for wireAccountHighlight elsewhere in this
+  // file, just needed here too now that a second real handler reaches it via fire().
+  global.document = { getElementById: (id) => G[id] || (G[id] = makeEl(id)), querySelectorAll: () => [] };
   // Direct answer to 11_STRATEGIC_CHALLENGES_AND_SOLUTIONS.md #16 (construction ransomware
   // attacks rose 44% YoY in Q1 2026). A genuinely REAL, working per-session log, not a decorative
   // sample table -- pre-registered: starts empty (or at whatever count prior sections' own real
@@ -9734,6 +9751,121 @@ console.log("== D58. Cost-code breakdown, quantity/price variance, cost-driver P
   const unitPriceOccurrences = (indexSrc.match(/Unit Price/g) || []).length;
   const withinRealTitle = (indexSrc.match(/Average Low Bid Unit Price/g) || []).length;
   ok(unitPriceOccurrences === withinRealTitle, "every 'Unit Price' occurrence in index.html is part of the real TxDOT report title, none stray", unitPriceOccurrences + " vs " + withinRealTitle);
+}
+
+// UX/UI upgrade round (brainstorm-mode, 2026-08-27) -- 9 items, all reusing an interaction
+// mechanism already proven elsewhere on this exact page (data-acc/data-code hover-highlight,
+// bars() component, data-jump-openkpi idiom, the .dbox "how this is actually computed" pattern,
+// the circuit-breaker demo pattern). See the per-item comments at each build site.
+console.log("== D59. UX/UI upgrade round -- interactivity infrastructure reuse (brainstorm-mode, 2026-08-27) ==");
+{
+  // Item 1: data-acc hover-highlight wired into the PDRI/AACE maturity tables.
+  P.pkgs.forEach((p) => {
+    ok(G.fepCard._html.includes('data-acc="' + p.id + '"'), "fepCard's row for " + p.id + " carries data-acc, joining the page-wide hover-highlight mechanism");
+    ok(G.estClassCard._html.includes('data-acc="' + p.id + '"'), "estClassCard's row for " + p.id + " carries data-acc too");
+  });
+
+  // Item 2: heat-grid click filters/opens the register below instead of repeating the hover tooltip.
+  {
+    const gridRisks = G.heat._gridRisks;
+    // Pre-registered (B35): find a real cell with exactly 1 risk and a real cell with >=2, from
+    // the live grid this session's real RISKS/P_BAND actually produce -- not assumed positions.
+    const singleCellKey = Object.keys(gridRisks).find((k) => gridRisks[k].length === 1);
+    ok(!!singleCellKey, "pre-registered: at least one real P×I cell has exactly 1 risk in it today", singleCellKey);
+    const [pk, ik] = singleCellKey.split("-");
+    P.state.riskDrill = null;
+    fire(G.heat, "click", { target: { classList: { contains: (c) => c === "hot" }, dataset: { p: pk, i: ik } } });
+    ok(P.state.riskDrill === gridRisks[singleCellKey][0].id, "clicking a heat cell with exactly 1 risk opens that risk's real drawer directly", P.state.riskDrill);
+    P.state.riskDrill = null; P.renderRisk();
+
+    const multiCellKey = Object.keys(gridRisks).find((k) => gridRisks[k].length >= 2);
+    if (multiCellKey) {
+      const [pk2, ik2] = multiCellKey.split("-");
+      let scrolled = false;
+      const origScroll = G.risks.scrollIntoView;
+      G.risks.scrollIntoView = () => { scrolled = true; };
+      fire(G.heat, "click", { target: { classList: { contains: (c) => c === "hot" }, dataset: { p: pk2, i: ik2 } } });
+      ok(scrolled, "clicking a heat cell with >=2 risks scrolls the real register into view instead of arbitrarily opening one of them");
+      G.risks.scrollIntoView = origScroll;
+    }
+  }
+
+  // Item 3: per-row jump link on the 20-row KPI reference library.
+  P.kpis.forEach((k) => {
+    ok(G.libTable._html.includes('data-jump-openkpi="' + k.id + '"'), "libTable's row for " + k.abbr + " carries its own real jump link, not just the one generic link above the table");
+  });
+  has("libTable", "See it live", "libTable's per-row jump links carry the real, consistent label text");
+
+  // Item 4: "how this is actually computed" disclosures on all 29 integrity-gate checks --
+  // independently verified the disclosed source IS each check's own real run function, not a
+  // hand-authored paraphrase that could drift from what actually ran.
+  ok(P.guards.length === 29, "sanity: still 29 real guards", String(P.guards.length));
+  P.guards.forEach((g) => {
+    const src = g.run.toString();
+    ok(G.aiGuards._html.includes(escHtmlIndependent(src)), "the integrity-gate disclosure for \"" + g.n + "\" shows its own real run() source, verbatim");
+  });
+  has("aiGuards", "<details class=\"dbox\"", "the integrity-gate rows are now real, collapsible disclosures, not a static list");
+  function escHtmlIndependent(s) { return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+
+  // Item 5: live numeric trace-back on 3 of 12 escalation rules -- independently recomputed from
+  // raw rows/T/eacTrendSeries, not read back from the app's own trace string and compared to itself.
+  {
+    const driving = P.rows.reduce((m, r) => (isFinite(r.cpli) && r.cpli < m.cpli ? r : m), P.rows[0]);
+    has("escWhy", driving.id, "the CPLI escalation row's live trace names today's real driving-path package, " + driving.id);
+    has("escWhy", driving.cpli.toFixed(3), "the CPLI trace states the real, live CPLI value");
+    const shortfall = Math.abs(Math.min(0, P.totals.vac)) - P.totals.contRemaining;
+    ok(shortfall > 0, "pre-registered: today's real VAC genuinely exceeds remaining contingency (a live gap, not a dormant rule shown for reference)", String(shortfall));
+    has("escWhy", "exceeds it by", "the VAC-vs-contingency trace states the real live shortfall, not the dormant fallback text");
+    const series = P.eacTrendSeries();
+    has("escWhy", series[0].m, "the EAC-drift trace names the real earliest month in the series");
+    // Only 3 of 12 rows get this treatment -- verified by counting real trace blocks, not assumed.
+    const traceCount = (G.escWhy._html.match(/Live trace:/g) || []).length;
+    ok(traceCount === 3, "pre-registered: exactly 3 of the 12 real escalation rows carry a live numeric trace, deliberately not all 12", String(traceCount));
+  }
+
+  // Item 6: Milestone Variance moved to the shared bars() component -- covered above (the fixed
+  // "milestones: hovering revenue service..." assertions); confirm the raw bars() markup too.
+  ok(G.miles._html.includes('class="rowbar hot"'), "milestones now render through the shared bars() component (the .rowbar.hot class), not plain divs");
+
+  // Item 7: cost-code table cross-linked to its own Pareto ranking via data-code.
+  P.costCodes.forEach((c) => {
+    ok(G.costCodeCard._html.includes('data-code="' + c.code + '"'), c.code + "'s row in costCodeCard carries data-code");
+  });
+  P.costCodeParetoRank().forEach((c) => {
+    ok(G.costCodeParetoCard._html.includes('data-code="' + c.code + '"'), c.code + "'s row in costCodeParetoCard carries the matching data-code, cross-linking the two tables");
+  });
+
+  // Item 8: Quarantine + Self-healing demos extend the existing Circuit-breaker pattern. The
+  // real listener reads t.checked (the element's own property), not event.target.checked --
+  // same idiom circuitToggle already uses -- so the test sets .checked directly first, matching
+  // that existing precedent, not a fabricated event shape.
+  G.quarantineToggle.checked = true;
+  fire(G.quarantineToggle, "change");
+  has("quarantineDemo", "QUARANTINED", "toggling the quarantine demo shows the real quarantined state");
+  has("quarantineDemo", "dim_control_account", "the quarantine demo names the real guardrail check it's illustrating, not an invented failure mode");
+  G.quarantineToggle.checked = false;
+  fire(G.quarantineToggle, "change");
+
+  // Checked by front-entry content, not a length delta -- the log may already be at its real
+  // 50-entry bound from section T's own bound-test loop earlier in this same run (same
+  // documented reason as that section's own front-entry checks), so a raw length check here
+  // would be a false negative even though the mechanism is genuinely firing.
+  G.selfHealToggle.checked = true;
+  fire(G.selfHealToggle, "change");
+  has("selfHealDemo", "AUTO-CORRECTED", "toggling the self-heal demo shows the real auto-corrected state");
+  ok(P.auditLogData[0].action === "Self-healing", "the self-heal demo genuinely logs through the real auditLog(), not a decorative state change -- new entry is real", P.auditLogData[0].action);
+  ok(P.auditLogData[0].detail.includes("CLM-0178"), "the new audit-log entry's detail names the real illustrative record it corrected", P.auditLogData[0].detail);
+  G.selfHealToggle.checked = false;
+  fire(G.selfHealToggle, "change");
+
+  // Item 9: read-only data-acc hover-highlight on the WBS/CBS/OBS/ABS table (both instances --
+  // Operating Framework's wbsTable AND Data Strategy's wbsCrosswalk) -- deliberately no click
+  // handler added, matching the existing cursor:default choice already in the code.
+  P.wbs.forEach((w) => {
+    ok(G.wbsTable._html.includes('data-acc="' + w.ca + '"'), "wbsTable's row for " + w.ca + " carries data-acc");
+    ok(G.wbsCrosswalk._html.includes('data-acc="' + w.ca + '"'), "wbsCrosswalk's row for " + w.ca + " carries data-acc too");
+  });
+  ok(G.wbsTable._html.includes('cursor:default'), "wbsTable rows are still cursor:default -- hover-only, no new click behavior invented");
 }
 
 console.log("\n" + pass + " passed, " + fail + " failed");

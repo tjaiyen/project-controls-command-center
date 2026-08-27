@@ -30,8 +30,8 @@ anywhere in this repository. The method is the content, not the numbers.
 
 | | |
 |---|---|
-| Primary file | `index.html` — 13,947 lines, one file, no build step |
-| Top-level JS functions | 425 (fresh `grep -cE "^\s*function [a-zA-Z_]" index.html`, this pass) |
+| Primary file | `index.html` — 14,120 lines, one file, no build step |
+| Top-level JS functions | 432 (fresh `grep -cE "^\s*function [a-zA-Z_]" index.html`, this pass) |
 | Tabs | 13, grouped into 5 altitudes on the tab rail (Executive · Program Performance · Field & Assurance · Governance & Execution · Reference) |
 | KPIs (with formula/threshold/phase/source/play each) | 20 |
 | KPI families (`KPI_FAMILIES` — Cost/Schedule/Risk/Change/Delivery/Compliance) | 6, each with its own operational question + why-it-matters card on Overview |
@@ -46,7 +46,7 @@ anywhere in this repository. The method is the content, not the numbers.
 | Risks | 7 (added R-07, extreme-weather exposure, 2026-08-26) |
 | Delay events | 4 |
 | Other 2026-08-26 proactive-mechanism additions (§8) | `OWNER_DECISIONS` (3), `SUB_HEALTH` (3), `LABOR_MOBILIZATION` (3), `CARBON_DISCLOSURE` (3), `AUDIT_LOG` (session-only, unbounded fact — see §8) |
-| `stress.cjs` test assertions | 3,882, all passing |
+| `stress.cjs` test assertions | 3,993, all passing |
 | `worker/smoketest.js` assertions (Ask AI backend, §10) | 25, all passing — a 3rd, independent test harness, Node-only, no real network/Cloudflare runtime |
 | Companion pages | `otak.html` (fit brief, 449 lines), `architecture.html` (static pipeline map, 598 lines) |
 | Companion backend (never deployed — see §10) | `worker/` — a Cloudflare Worker for the Ask AI feature; `ASK_AI_WORKER_URL` in `index.html` is still the `REPLACE-ME` placeholder |
@@ -488,7 +488,7 @@ key — `index.html` is fully static/public and can never hold it. Guardrails, m
 
 ## 11. Testing & verification
 
-**`stress.cjs`** (3,882 assertions, all passing) — stubs the DOM, loads `index.html`'s script
+**`stress.cjs`** (3,993 assertions, all passing) — stubs the DOM, loads `index.html`'s script
 verbatim into that stub, and exercises it exactly like a user would: every tab switch, every
 filter, every drawer, every slider drag, every keyboard interaction. 92 labeled sections (fresh
 `grep -c 'console.log("=='` count, this pass):
@@ -1716,6 +1716,35 @@ carried over from memory or an earlier pass:
   rates. `stress.cjs` 3,825→3,882, `index.html` 13,759→13,947 lines, functions 420→425, glossary
   73→76 terms. `GUARDS`/`RISKS` unchanged (29/7) — the feature adds a new layer below `PKGS`,
   doesn't touch `derive()` or any existing KPI logic; `node verify.cjs` unchanged throughout.
+- **2026-08-27, same day — UX/UI upgrade round.** TJ asked to make the dashboard "more
+  interactive, engaging, lively, entertainment, educational, insightful." A fresh-context reviewer
+  audited the live page cold (not from source alone) and found the site already unusually mature
+  on interactivity, then flagged which specific elements were still static and which existing
+  mechanisms could cover them without inventing anything new. Built all 9: (1) page-wide
+  cross-chart hover-highlight (`data-acc`) wired into the PDRI/AACE maturity tables; (2) the risk
+  heat-grid's click now opens the one real risk directly (or scrolls the register into view for
+  multiple) instead of repeating the hover tooltip; (3) a per-row "See it live" jump link on all
+  20 KPI-reference-library rows, reusing the existing `data-jump-openkpi` idiom; (4) "how this is
+  actually computed" disclosures on all 29 integrity-gate checks — each one shows its own real
+  `run()` function source verbatim, not a hand-authored paraphrase that could drift; (5) a live
+  numeric trace-back on 3 of 12 escalation rules (CPLI, VAC-vs-contingency, EAC drift velocity),
+  deliberately not all 12, matching this dashboard's own cited Pareto stance; (6) the Milestone
+  Variance list moved onto the shared `bars()` component already used for float/CPLI; (7) the new
+  cost-code table cross-linked to its own Pareto ranking via a generalized `data-code` highlight
+  (the account-highlight listener was refactored into one shared, parameterized function rather
+  than duplicated); (8) the Circuit-breaker "try it" demo pattern extended to Quarantine and
+  Self-healing (previously prose-only); (9) read-only hover-highlight on the WBS/CBS/OBS/ABS table
+  (both instances), deliberately keeping its existing `cursor:default` — no click behavior added
+  where none was wanted. One real regression fixed along the way: adding
+  `wireDetailsAnimation()` to a `fire()`-triggered event handler surfaced a genuine gap in
+  `stress.cjs`'s own multi-`runPage()` document-stub pattern (a minimal stub, restored for a
+  different reason in an earlier section, was missing `querySelectorAll`) — fixed in the harness,
+  not worked around in the app. `stress.cjs` 3,882→3,993, `index.html` 13,947→14,120 lines,
+  functions 425→432. `GUARDS`/`RISKS`/glossary unchanged (29/7/76) — every item reused an existing
+  mechanism, none added new data or computation. `node verify.cjs` unchanged throughout.
+  Live-browser-verified item by item (hover cross-highlight, click-to-drawer, jump links, gate
+  disclosures, live traces, both demos) in both themes — the one class of check the Node DOM stub
+  cannot exercise at all.
 
 Generated 2026-08-20, against the tip of the eleven-input-ledger-card engagement round; extended
 2026-08-21 for the six-KPI-families card round, again 2026-08-21 for the Data Strategy tab UI/UX

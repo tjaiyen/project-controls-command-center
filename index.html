@@ -447,6 +447,12 @@ details.sec-details[open]>summary.sec-h::before{transform:rotate(45deg)}
 .dbox[open] summary{margin-bottom:6px}
 .dbox code{font:12px/1.5 ui-monospace,monospace;color:rgb(var(--c-code));background:rgb(var(--c-accent) / .10);
   padding:1px 5px;border-radius:4px}
+/* Multi-line real-source-code blocks inside .dbox (UX upgrade round, integrity-gate disclosures,
+   2026-08-27) -- the inline-chip .dbox code rule above (1px 5px padding, inline display) is for a
+   short formula fragment like EAC = BAC ÷ CPI; a full function body needs its own block treatment,
+   not the same chip stretched over several lines. Scoped to pre code specifically so it never
+   touches the many existing inline .dbox code usages elsewhere on the page. */
+.dbox pre code{display:block;padding:9px 11px;white-space:pre;overflow-x:auto;font-size:11.5px;line-height:1.5}
 .dbox-anim-wrap{overflow:hidden}
 /* Operational-question callouts (UX upgrade round, 2026-08-26) -- .dbox's own summary style
    (10px uppercase monospace) fits a short label like "How this is actually computed", not a full
@@ -2478,6 +2484,8 @@ join dim_control_account b using (package_id)</pre></div>
         Most tools only do the first.</p>
       <div class="tw"><table id="recoveryTable"></table></div>
       <div class="card" style="margin-top:15px" id="circuitDemo"></div>
+      <div class="card" style="margin-top:15px" id="quarantineDemo"></div>
+      <div class="card" style="margin-top:15px" id="selfHealDemo"></div>
       <div class="dbox" style="margin-top:14px"><h4>Already proven at small scale, here</h4><p>The <button type="button" class="btn" style="min-height:auto;padding:1px 8px;font-size:12.5px" data-jump-tab="ai" data-jump-el="aiGuards">integrity gate</button>,
         the <button type="button" class="btn" style="min-height:auto;padding:1px 8px;font-size:12.5px" data-jump-tab="fw" data-jump-el="escTable">escalation matrix</button>,
         the <button type="button" class="btn" style="min-height:auto;padding:1px 8px;font-size:12.5px" data-jump-tab="act" data-jump-el="actFilters" data-jump-actstale="1">Actions register's stale-flag</button>,
@@ -3607,6 +3615,9 @@ var state = {phase:"con", fam:"All", audience:"pcm", kpi:null, pkg:2, actFilter:
   ingestSimAc:0.8, ingestSimEv:0.75, circuitTripped:false, // Data Strategy-tab upgrade
                  // (brainstorm-mode, 2026-08-23) — ingestSim* defaults are a clean synthetic record
                  // (both real checks pass); circuitTripped false = the real, untripped state.
+  quarantineDemo:false, selfHealDemo:false, // UX upgrade round, 2026-08-27 — same untripped-by-
+                 // default posture as circuitTripped above, for the 2 recovery-table demos it was
+                 // sitting next to without its own toggle until this round.
   contractDrill:null, // Change-pipeline/contract-register upgrade (brainstorm-mode, 2026-08-24) —
                  // same null-means-closed drawer idiom as portDrill/riskDrill/actDrill below.
   portDrill:null, portGapOpen:false, portGapFootnote:false, portShift:1.00, portInject:0, // Portfolio-tab
@@ -4960,7 +4971,7 @@ function renderFep(){
   var rowsHtml=rows.map(function(r){
     var pct2=fepCompletenessPct(r.id), pctv=Math.round(pct2*100);
     var cls=pct2>=0.875?"g":pct2>=0.625?"a":"r";
-    return '<tr><th scope="row">'+r.id+' &nbsp;'+r.n+'</th>'+
+    return '<tr data-acc="'+r.id+'"><th scope="row">'+r.id+' &nbsp;'+r.n+'</th>'+
       '<td class="tab-num"><span class="pill '+cls+'">'+pctv+'%</span></td>'+
       '<td class="tab-num '+(r.vac<0?"ba":"ok")+'">'+sgn(r.vac)+'</td></tr>';
   }).join("");
@@ -4991,7 +5002,7 @@ function renderEstClass(){
   var rowsHtml=rows.map(function(r){
     var clsN=PKG_ESTIMATE_CLASS[r.id], c=aaceClassOf(clsN);
     if(!c) return "";
-    return '<tr><th scope="row">'+r.id+' &nbsp;'+r.n+'</th>'+
+    return '<tr data-acc="'+r.id+'"><th scope="row">'+r.id+' &nbsp;'+r.n+'</th>'+
       '<td class="tab-num">Class '+clsN+'</td>'+
       '<td>'+c.desc+'</td>'+
       '<td style="font-size:12px;color:rgb(var(--c-mut))">'+c.method+'</td>'+
@@ -7693,11 +7704,11 @@ function renderCostCodes(){
   var el=document.getElementById("costCodeCard"); if(!el) return;
   var rowsHtml=COST_CODES.map(function(cc){
     if(!cc.unitVerified){
-      return '<tr><th scope="row">'+cc.code+'</th><td>'+cc.desc+'</td><td class="tab-num">'+cc.uom+'</td>'+
+      return '<tr data-code="'+cc.code+'"><th scope="row">'+cc.code+'</th><td>'+cc.desc+'</td><td class="tab-num">'+cc.uom+'</td>'+
         '<td colspan="3" style="font-size:12px;color:rgb(var(--c-mut))"><span class="pill a">No verified rate</span> '+cc.gapNote+'</td></tr>';
     }
     var v=qtyPriceVariance(cc), major=major25PctFlag(cc);
-    return '<tr><th scope="row">'+cc.code+'</th><td>'+cc.desc+'</td><td class="tab-num">'+cc.uom+'</td>'+
+    return '<tr data-code="'+cc.code+'"><th scope="row">'+cc.code+'</th><td>'+cc.desc+'</td><td class="tab-num">'+cc.uom+'</td>'+
       '<td class="tab-num">'+cc.estQty.toLocaleString("en-US")+' &rarr; '+cc.actQty.toLocaleString("en-US")+
       (major?' <span class="pill r" title="Actual quantity moved &gt;25% from estimated &mdash; the real Caltrans/Iowa DOT/FAR 52.211-18 threshold for a unit-price contract adjustment clause">&gt;25%</span>':'')+'</td>'+
       '<td class="tab-num">'+usd(cc.estRate)+' &rarr; '+usd(cc.actRate)+'</td>'+
@@ -7747,7 +7758,7 @@ function renderCostCodePareto(){
     '<table><thead><tr><th scope="col">Code</th><th scope="col">Description</th><th scope="col">|Variance|</th>'+
     '<th scope="col">Cumulative %</th></tr></thead><tbody>'+
     ranked.map(function(c){
-      return '<tr><th scope="row">'+c.code+'</th><td>'+c.desc+'</td><td class="tab-num">'+usd(c.absVar)+'</td>'+
+      return '<tr data-code="'+c.code+'"><th scope="row">'+c.code+'</th><td>'+c.desc+'</td><td class="tab-num">'+usd(c.absVar)+'</td>'+
         '<td class="tab-num">'+pct(c.cumPct,0)+'</td></tr>';
     }).join("")+
     '</tbody></table>'+
@@ -7948,14 +7959,18 @@ function renderSchedule(){
     'style="min-height:auto;padding:1px 8px;font-size:12.5px" data-jump-tab="over" data-jump-el="kboard" '+
     'data-jump-openkpi="cpli">See the formula &rarr;</button></div>');
   renderCpliMath();
-  document.getElementById("miles").innerHTML='<div style="display:grid;gap:2px">'+MILES.map(function(k){
-    var late=k.d>0, c=late?(k.d>30?"var(--c-pill-r)":"var(--c-pill-a)"):"var(--c-pill-g)";
-    return '<div style="padding:7px 0;border-bottom:1px solid var(--c-line)">'+
-      '<div style="display:flex;gap:8px;justify-content:space-between;align-items:baseline">'+
-      '<span style="font-size:12.5px">'+k.n+'</span>'+
-      '<span class="tab-num mono" style="font-size:12px;color:'+c+';white-space:nowrap">'+days(k.d)+'</span></div>'+
-      '<div class="mono" style="font-size:11px;color:rgb(var(--c-mut));margin-top:2px">'+k.base+' &rarr; '+k.fc+'</div></div>';
-  }).join("")+'</div>';
+  // Milestone variance: shared bars() component (UX upgrade round, 2026-08-27 -- /stress-test
+  // finding, independent reviewer: this was 7 plain color-coded text rows, the one list-shaped
+  // panel on this tab that never got the hover tooltip + magnitude-as-bar-width + cross-highlight
+  // every other list on this tab already has (float bars, CPLI bars just above). Same component,
+  // not a new visual language. id is a real milestone name, not a control-account id -- data-acc
+  // on it is a harmless no-op, the exact same documented pattern eacTrend/schedDriftBars/cphBars
+  // already use for the identical reason (bars()'s own comment, a few hundred lines above).
+  bars("miles",MILES.map(function(k){ return {id:k.n,v:k.d,center:true,
+    c:k.d<0?"var(--c-pill-g)":k.d>30?"var(--c-pill-r)":"var(--c-pill-a)"}; }),days,
+    function(o){ var k=MILES.filter(function(x){return x.n===o.id;})[0];
+      return "<b>"+k.n+"</b><br>Baseline "+k.base+" &rarr; Forecast "+k.fc+"<br>"+days(k.d)+
+        (k.d<0?" ahead of baseline":k.d>0?" behind baseline":" on baseline"); });
   // Earned Schedule / SPI(t) joins the triad as its 4th tile (megaproject-controls-doc upgrade,
   // 2026-08-21) — it was already computed and rendered inside the SPI KPI's own click-through
   // drawer (spiTCompanionDbox()), but never as a headline reading the way CPLI/BEI are, even
@@ -8360,16 +8375,34 @@ function renderRisk(){
   heatHost._gridRisks=gridRisks;
   if(!heatHost.dataset.tipWired){
     var heatTip=document.getElementById("tip");
+    function heatCellNames(t){
+      var pk=+t.dataset.p, ik=+t.dataset.i;
+      return (heatHost._gridRisks[pk+"-"+ik]||[]).map(function(k){ return k.id; });
+    }
     function heatTipFn(e){
       var t=e.target; if(!t.classList||!t.classList.contains("hot")){ heatTip.classList.remove("on"); return; }
-      var pk=+t.dataset.p, ik=+t.dataset.i, names=(heatHost._gridRisks[pk+"-"+ik]||[]).map(function(k){ return k.id; });
+      var pk=+t.dataset.p, ik=+t.dataset.i, names=heatCellNames(t);
       heatTip.innerHTML="<b>P"+pk+" &times; I"+ik+"</b>"+(names.length? names.join(", ") : "No risks currently at this probability/impact combination");
       heatTip.classList.add("on");
       heatTip.style.left=Math.min(e.clientX+14,window.innerWidth-262)/curZoom()+"px";
       heatTip.style.top=Math.min(e.clientY+14,window.innerHeight-130)/curZoom()+"px";
     }
+    // Click now DOES something beyond re-showing the hover tooltip (UX upgrade round, 2026-08-27
+    // -- /stress-test finding, independent reviewer: the click handler used to just repeat the
+    // mousemove tooltip, even though the cell already has the exact risk ids in hand). Exactly 1
+    // risk in the cell -> open its real drawer directly (riskDrillToggle, the same single-risk
+    // drill every register row already uses). More than 1 -> scroll the real register into view
+    // so the reader can see all of them (opening one drawer would arbitrarily hide the others).
+    // Zero -> tooltip alone already says so, nothing more to jump to.
+    function heatClickFn(e){
+      var t=e.target; if(!t.classList||!t.classList.contains("hot")) return;
+      heatTipFn(e);
+      var names=heatCellNames(t);
+      if(names.length===1){ riskDrillToggle(names[0]); }
+      if(names.length>=1){ document.getElementById("risks").scrollIntoView({behavior:"smooth",block:"center"}); }
+    }
     heatHost.addEventListener("mousemove",heatTipFn);
-    heatHost.addEventListener("click",heatTipFn);
+    heatHost.addEventListener("click",heatClickFn);
     heatHost.addEventListener("mouseleave",function(){ heatTip.classList.remove("on"); });
     heatHost.dataset.tipWired="1";
   }
@@ -9378,7 +9411,7 @@ function renderWbs(){
     '<thead><tr><th scope="col">WBS ID</th><th scope="col">Scope</th><th scope="col">CBS category</th>'+
     '<th scope="col">OBS lead</th><th scope="col">ABS tag</th><th scope="col">Control account</th><th scope="col">BAC</th></tr></thead><tbody>'+
     WBS.map(function(w){ var p=PKGS.filter(function(x){ return x.id===w.ca; })[0];
-      return '<tr style="cursor:default"><td class="mono" style="font-size:11px">'+w.id+'</td>'+
+      return '<tr style="cursor:default" data-acc="'+w.ca+'"><td class="mono" style="font-size:11px">'+w.id+'</td>'+
         '<td style="white-space:normal">'+w.scope+'</td><td>'+w.cbs+'</td><td>'+w.obs+'</td>'+
         '<td class="mono" style="font-size:11px">'+w.abs+'</td>'+
         '<td class="mono" style="font-size:11.5px">'+w.ca+'</td>'+
@@ -9649,6 +9682,49 @@ function renderGateLine(){
   selectGL(glIdx);
 }
 
+/* Live numeric trace-back for 3 of 12 escalation rules (UX upgrade round, 2026-08-27 --
+   /stress-test finding, independent reviewer: only Gate 5's own rule gets the "Working backward"
+   live-arithmetic treatment renderInversion() already builds; the other 11 firing rules show
+   status + static trigger text only, no live formula). Deliberately NOT all 12 -- the dashboard's
+   own cited Pareto-principle stance (see the cost-code Pareto card: "concentrate estimating
+   scrutiny on the highest-impact items rather than spreading effort evenly") argues against
+   building all 12 symmetrically. Picked the 3 highest-value, real-formula rules distinct from
+   Gate 5's own contingency-coverage trace: CPLI (driving-path schedule health), VAC-vs-remaining-
+   contingency (the funding-disclosure trigger), and EAC drift velocity (the leading indicator).
+   Every input below is looked up live, never hardcoded -- the driving-path package is found by
+   its own worst-cpli value, not assumed to always be CP-201 (it currently isn't: CP-601's
+   float/cpRem ratio is worse today). Returns null for the other 9 rows -- honest omission, not a
+   stub block that would misleadingly claim every rule got this treatment. */
+function escLiveTrace(trigger){
+  if(/^CPLI/.test(trigger)){
+    var driving=rows.reduce(function(m,r){ return (isFinite(r.cpli)&&r.cpli<m.cpli)?r:m; },rows[0]);
+    return '<p style="margin:4px 0 0;font-size:12px;color:rgb(var(--c-mut));padding-left:10px;'+
+      'border-left:2px solid rgb(var(--c-accent) / .4)">Live trace: CPLI = (remaining CP duration + '+
+      'float) &divide; remaining CP duration. The real driving path today is <b style="color:rgb(var(--c-ink))">'+
+      driving.id+'</b> ('+driving.n.replace(/&amp;/g,"&")+'), '+driving.cpRem+'d remaining CP duration, '+
+      days(driving.float)+' float &rarr; ('+driving.cpRem+(driving.float<0?"":"+")+driving.float+')/'+
+      driving.cpRem+' = <b style="color:rgb(var(--c-ink))">'+idx(driving.cpli)+'</b>.</p>';
+  }
+  if(/^VAC exceeds/.test(trigger)){
+    var shortfall=Math.abs(Math.min(0,T.vac))-T.contRemaining;
+    return '<p style="margin:4px 0 0;font-size:12px;color:rgb(var(--c-mut));padding-left:10px;'+
+      'border-left:2px solid rgb(var(--c-accent) / .4)">Live trace: VAC = BAC &minus; EAC = '+
+      m(T.bac)+' &minus; '+m(T.eac)+' = <b style="color:rgb(var(--c-ink))">'+sgn(T.vac)+'</b>. Remaining '+
+      'contingency is '+m(T.contRemaining)+'. '+(shortfall>0?
+      'The forecast overrun already exceeds it by <b style="color:rgb(var(--c-ink))">'+m(shortfall)+'</b> &mdash; the real, live gap the disclosure obligation is measured against.':
+      'It does not currently exceed it — this rule is dormant, shown for reference.')+'</p>';
+  }
+  if(/^EAC Drift Velocity/.test(trigger)){
+    var series=eacTrendSeries(), first=series[0], last=series[series.length-1], v=eacDriftVelocity();
+    return '<p style="margin:4px 0 0;font-size:12px;color:rgb(var(--c-mut));padding-left:10px;'+
+      'border-left:2px solid rgb(var(--c-accent) / .4)">Live trace: velocity = (latest EAC &minus; '+
+      'earliest EAC) &divide; (months of history &minus; 1). From '+first.m+' ('+m(first.eac)+') to '+
+      last.m+' ('+m(last.eac)+') across '+(series.length-1)+' month'+(series.length-1===1?"":"s")+
+      ' &rarr; <b style="color:rgb(var(--c-ink))">'+sgn(v)+'/month</b>, against the real $1.0M/month '+
+      'threshold.</p>';
+  }
+  return null;
+}
 function renderFramework(){
   renderWbs(); renderInversion(renderGates()); renderGateLine(); renderGate5Sandbox();
   document.getElementById("playbook").innerHTML=PHASES.map(function(p,i){
@@ -9681,7 +9757,8 @@ function renderFramework(){
   // it again would double-encode its own entities.
   if(whyEl) whyEl.innerHTML=ESCALATION.map(function(r){
     return '<p style="margin:10px 0 0;font-size:12.5px"><b style="color:rgb(var(--c-ink))" class="mono">'+r[0]+'</b><br>'+
-      '<span style="color:rgb(var(--c-mut))">'+escHtml(r[4])+'</span></p>'; }).join("");
+      '<span style="color:rgb(var(--c-mut))">'+escHtml(r[4])+'</span></p>'+(escLiveTrace(r[0])||"");
+  }).join("");
   document.getElementById("ownerDecTable").innerHTML=
     '<caption class="tw-caption">'+OWNER_DECISIONS.length+' pending, '+OWNER_DECISIONS.filter(function(o){return odDaysOverdue(o)>=0;}).length+' overdue right now.</caption>'+
     '<thead><tr><th scope="col">Status</th><th scope="col">Ask</th><th scope="col">Agency</th><th scope="col">Blocks</th><th scope="col">Clock</th></tr></thead><tbody>'+
@@ -9698,10 +9775,17 @@ function renderFramework(){
   }).join("");
   document.getElementById("libTable").innerHTML=
     '<thead><tr><th scope="col">KPI</th><th scope="col">Family</th><th scope="col">Formula as implemented</th>'+
-    '<th scope="col">Thresholds</th><th scope="col">System of record</th></tr></thead><tbody>'+
+    '<th scope="col">Thresholds</th><th scope="col">System of record</th><th scope="col"></th></tr></thead><tbody>'+
+    // Per-row jump link (UX upgrade round, 2026-08-27 -- /stress-test finding, independent
+    // reviewer: only one generic link sat above this whole 20-row table; a reader scanning row 14
+    // had no path back to that specific KPI's own drawer, even though the identical
+    // data-jump-openkpi idiom is already proven 76 times over on the Glossary tab). Reuses the
+    // SAME jump idiom as the EAC/CPLI/PF root-cause links elsewhere on this page, not a new one.
     KPIS.map(function(k){ return '<tr style="cursor:default"><td><b>'+k.abbr+'</b> · '+k.name+'</td>'+
       '<td>'+k.fam+'</td><td class="mono" style="font-size:11.5px;white-space:normal">'+k.f+'</td>'+
-      '<td style="white-space:normal;font-size:11.8px">'+k.th+'</td><td style="white-space:normal;font-size:11.8px">'+k.src+'</td></tr>';
+      '<td style="white-space:normal;font-size:11.8px">'+k.th+'</td><td style="white-space:normal;font-size:11.8px">'+k.src+'</td>'+
+      '<td><button type="button" class="btn" style="min-height:auto;padding:1px 8px;font-size:11px" '+
+      'data-jump-tab="over" data-jump-el="kboard" data-jump-openkpi="'+k.id+'">See it live &rarr;</button></td></tr>';
     }).join("")+'</tbody>';
   document.getElementById("stakeMap").innerHTML=
     '<thead><tr><th scope="col">Stakeholder</th><th scope="col">Forum</th><th scope="col">Cadence</th>'+
@@ -10530,7 +10614,7 @@ var GUARDS=[
    return [bad.length===0, bad.length+" of "+ncrs.length+" closed without a root cause"];}}
 ];
 function renderGuards(){
-  var res=GUARDS.map(function(g){ var r=g.run(); return {n:g.n,pass:r[0],detail:r[1]}; });
+  var res=GUARDS.map(function(g){ var r=g.run(); return {n:g.n,pass:r[0],detail:r[1],src:g.run}; });
   var fails=res.filter(function(r){return !r.pass;}).length;
   var ledeCount=document.getElementById("guardCountLede");
   if(ledeCount) ledeCount.textContent=GUARDS.length; // was a hardcoded "27" in static prose — a
@@ -10541,11 +10625,24 @@ function renderGuards(){
   document.getElementById("aiGuards").innerHTML=
    '<div class="gate"><b>Integrity gate &middot; '+GUARDS.length+' checks</b>'+
    '<span class="pill '+(fails?"r":"g")+'">'+(fails? fails+" FAILING":"GREEN — all "+GUARDS.length+" passing")+'</span></div>'+
+   // "How this is actually computed" per check (UX upgrade round, 2026-08-27 -- /stress-test
+   // finding, independent reviewer: this is the site's single biggest trust-building artifact,
+   // and the one 29-item list that never got the disclosure pattern used pervasively elsewhere).
+   // Deliberately shows the check's own REAL `run` function source (g.run.toString()), not a
+   // hand-authored paraphrase -- zero new content to author or let drift for 29 checks (and any
+   // future one added later), and this file has already been bitten twice by exactly that drift
+   // class (the stale "27" guard count, the stale "twenty-seven" aria-label). What you read here
+   // IS the code that just ran, not a description of it. cursor:default removed -- the whole row
+   // is now the <summary>, genuinely interactive, not a static list.
    res.map(function(r){
-     return '<div class="rowbar" style="grid-template-columns:1fr auto 64px;cursor:default">'+
+     return '<details class="dbox" style="margin:0 0 4px;padding-left:10px">'+
+       '<summary style="text-transform:none;font:inherit;letter-spacing:normal;color:inherit;'+
+       'display:grid;grid-template-columns:1fr auto 64px;gap:8px;align-items:center">'+
        '<span style="font-size:12.5px">'+r.n+'</span>'+
        '<span class="tab-num mono" style="font-size:11.5px;color:rgb(var(--c-mut))">'+r.detail+'</span>'+
-       '<span style="text-align:right"><span class="pill '+(r.pass?"g":"r")+'">'+(r.pass?"PASS":"FAIL")+'</span></span></div>';
+       '<span style="text-align:right"><span class="pill '+(r.pass?"g":"r")+'">'+(r.pass?"PASS":"FAIL")+'</span></span>'+
+       '</summary>'+
+       '<pre style="margin:0;overflow-x:auto"><code>'+escHtml(r.src.toString())+'</code></pre></details>';
    }).join("");
 }
 /* GAO Cost-Estimate credibility checklist (research-backed upgrade, item #12, Tier 3, 2026-08-27)
@@ -11174,6 +11271,70 @@ function renderCircuitDemo(){
    '</div>';
   var t=document.getElementById("circuitToggle");
   if(t) t.addEventListener("change",function(){ state.circuitTripped=t.checked; renderCircuitDemo(); });
+}
+/* Quarantine + Self-healing toggle demos (UX upgrade round, 2026-08-27 -- /stress-test finding,
+   independent reviewer: RECOVERY_ROWS already promises three "try it" behaviors in prose, but
+   only Circuit breaker got an actual toggle demo -- Quarantine and Self-healing just described
+   themselves. Same illustrative-demo posture as Circuit breaker (explicitly not a real feed),
+   same real reused mechanisms: the quarantine reason text names an actual guardrail check this
+   dashboard's own pipeline/run_pipeline.py runs for real (package_id relationships to
+   dim_control_account -- see that file's own guardrail section), not an invented failure mode;
+   the self-healing demo logs through the SAME real auditLog() every other real interaction on
+   this page already uses, not a second, parallel log. */
+function renderQuarantineDemo(){
+  var el=document.getElementById("quarantineDemo"); if(!el) return;
+  var q=state.quarantineDemo;
+  el.innerHTML=
+   '<div class="eyebrow">Try it &middot; record quarantine</div>'+
+   '<h3 style="margin:6px 0 3px">'+(q?"1 record quarantined":"Feed clean")+'</h3>'+
+   '<p class="lede" style="font-size:12.5px;margin:0 0 12px">Illustrative demo, not a live feed. Submit a '+
+     'record with an unrecognized control-account id and watch it get isolated with the specific reason it '+
+     'failed &mdash; the real guardrail check this names (package_id relationships to dim_control_account) '+
+     'is the same one <code>pipeline/run_pipeline.py</code> actually runs against this ledger, not an '+
+     'invented failure mode.</p>'+
+   '<label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer">'+
+     '<input type="checkbox" id="quarantineToggle"'+(q?" checked":"")+'> Submit a record for control account "CP-99"</label>'+
+   '<div class="card" style="margin-top:14px;padding:12px 14px'+(q?';border-color:rgb(var(--c-warn) / .5)':'')+'">'+
+     '<div style="display:flex;justify-content:space-between;align-items:baseline">'+
+       '<span style="font-size:13px;font-weight:600">CLM-0177 (illustrative)</span>'+
+       '<span class="pill '+(q?"a":"g")+'">'+(q?"QUARANTINED":"admitted")+'</span></div>'+
+     (q?
+       '<p style="margin:8px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">Reason: <b style="color:rgb(var(--c-ink))">'+
+         'package_id "CP-99" has no match in dim_control_account</b> &mdash; isolated to a visible '+
+         'quarantine lane, never silently dropped and never passed through anyway.</p>'
+       :'<p style="margin:8px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">Passing validation normally.</p>')+
+   '</div>';
+  var t=document.getElementById("quarantineToggle");
+  if(t) t.addEventListener("change",function(){ state.quarantineDemo=t.checked; renderQuarantineDemo(); });
+}
+function renderSelfHealDemo(){
+  var el=document.getElementById("selfHealDemo"); if(!el) return;
+  var h=state.selfHealDemo;
+  el.innerHTML=
+   '<div class="eyebrow">Try it &middot; self-healing</div>'+
+   '<h3 style="margin:6px 0 3px">'+(h?"1 record auto-corrected":"No known-pattern records pending")+'</h3>'+
+   '<p class="lede" style="font-size:12.5px;margin:0 0 12px">Illustrative demo, not a live feed. Submit a '+
+     'record with a known, narrow pattern &mdash; a unit-of-measure mismatch, the same example this page\'s '+
+     'own recovery table already names &mdash; and watch it auto-correct and log that it happened, through '+
+     'the same real <code>auditLog()</code> every other logged interaction on this page uses, not a second, '+
+     'parallel log.</p>'+
+   '<label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer">'+
+     '<input type="checkbox" id="selfHealToggle"'+(h?" checked":"")+'> Submit a record reported in linear feet instead of cubic yards</label>'+
+   '<div class="card" style="margin-top:14px;padding:12px 14px'+(h?';border-color:rgb(var(--c-ok) / .5)':'')+'">'+
+     '<div style="display:flex;justify-content:space-between;align-items:baseline">'+
+       '<span style="font-size:13px;font-weight:600">CLM-0178 (illustrative)</span>'+
+       '<span class="pill '+(h?"g":"g")+'">'+(h?"AUTO-CORRECTED":"pending")+'</span></div>'+
+     (h?
+       '<p style="margin:8px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">Unit converted LF &rarr; CY '+
+         'against the known conversion for this cost code, logged with a visible &ldquo;auto-corrected&rdquo; '+
+         'flag &mdash; not a blanket auto-fix for anything unfamiliar, only this one recognized pattern.</p>'
+       :'<p style="margin:8px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">Nothing pending.</p>')+
+   '</div>';
+  var t=document.getElementById("selfHealToggle");
+  if(t) t.addEventListener("change",function(){
+    state.selfHealDemo=t.checked; renderSelfHealDemo();
+    if(t.checked) auditLog("Self-healing",'CLM-0178 auto-corrected: unit converted LF → CY (known pattern)');
+  });
 }
 
 /* The narrative: figures first, prose second, verification last. */
@@ -11805,7 +11966,7 @@ function renderWbsCrosswalk(){
    '<thead><tr><th scope="col">Control account</th><th scope="col">WBS scope</th><th scope="col">CBS</th>'+
    '<th scope="col">OBS owner</th><th scope="col">ABS asset code</th></tr></thead><tbody>'+
    WBS.map(function(w){
-     return '<tr style="cursor:default"><td class="mono" style="font-size:11.5px">'+w.ca+'</td>'+
+     return '<tr style="cursor:default" data-acc="'+w.ca+'"><td class="mono" style="font-size:11.5px">'+w.ca+'</td>'+
        '<td style="font-size:12px">'+w.scope+'</td>'+
        '<td style="font-size:12px">'+w.cbs+'</td>'+
        '<td style="font-size:12px">'+w.obs+'</td>'+
@@ -11855,6 +12016,8 @@ function renderDataStrategy(){
   renderLedgerReference(""); // real, existing convention: renderGlossary("") gets the same literal-empty init call
   renderIngestSim();
   renderCircuitDemo();
+  renderQuarantineDemo();
+  renderSelfHealDemo();
   // 4-tile status grid (UI/UX upgrade round, 2026-08-21) — was a plain 3-column table; same
   // GUARDRAILS data, same copy, reusing the .ledgerGrid/.ledger-item pattern built for the
   // Overview tab's six-KPI-families card. Tile 2 (Range/restriction) additionally embeds the
@@ -11925,7 +12088,15 @@ function findGloss(key){ return GLOSS.filter(function(g){ return g.k===key; })[0
    whole page, not one per chart. Highlighting something on a hidden tab would be pointless (the
    user can't see it), so this naturally only ever lights up whatever's actually rendered — no tab-
    awareness needed, closest() simply won't find anything inside a display:none panel's subtree. */
-function wireAccountHighlight(){
+function wireAccountHighlight(){ wireDataHoverHighlight("data-acc","acc"); }
+/* Generalized (UX upgrade round, 2026-08-27) -- this used to be one function hardcoded to
+   data-acc. The cost-code / Pareto tables (see wireCostCodeHighlight below) need the identical
+   mechanism keyed on a DIFFERENT attribute (data-code, cost-code strings like "10.1" instead of
+   control-account ids) -- reusing the exact same .acc-hover CSS class (the styling is generic
+   per-element-type already, not account-specific), not inventing a second copy of this logic or a
+   second CSS rule set. attr is the full attribute name (e.g. "data-acc"); dataKey is its
+   camelCase .dataset property name (e.g. "acc" for data-acc, "code" for data-code). */
+function wireDataHoverHighlight(attr,dataKey){
   var current=null;
   function clear(){
     if(!current) return;
@@ -11933,20 +12104,21 @@ function wireAccountHighlight(){
     current=null;
   }
   document.addEventListener("mouseover",function(e){
-    var el=e.target.closest && e.target.closest("[data-acc]");
-    if(!el || el.dataset.acc===current) return;
+    var el=e.target.closest && e.target.closest("["+attr+"]");
+    if(!el || el.dataset[dataKey]===current) return;
     clear();
-    current=el.dataset.acc;
-    Array.prototype.forEach.call(document.querySelectorAll('[data-acc="'+current+'"]'),function(x){ x.classList.add("acc-hover"); });
+    current=el.dataset[dataKey];
+    Array.prototype.forEach.call(document.querySelectorAll('['+attr+'="'+current+'"]'),function(x){ x.classList.add("acc-hover"); });
   });
   document.addEventListener("mouseout",function(e){
-    var el=e.target.closest && e.target.closest("[data-acc]");
+    var el=e.target.closest && e.target.closest("["+attr+"]");
     if(!el) return;
-    var to=e.relatedTarget && e.relatedTarget.closest ? e.relatedTarget.closest("[data-acc]") : null;
-    if(to && to.dataset.acc===current) return; // moved within the same highlighted group
+    var to=e.relatedTarget && e.relatedTarget.closest ? e.relatedTarget.closest("["+attr+"]") : null;
+    if(to && to.dataset[dataKey]===current) return; // moved within the same highlighted group
     clear();
   });
 }
+function wireCostCodeHighlight(){ wireDataHoverHighlight("data-code","code"); }
 /* Animated open/close for every <details class="dbox"> "how this is actually computed" panel,
    site-wide — one shared wiring, not five copies. Moves each panel's post-summary children into
    a single measurable wrapper (once, at init) so the animation only ever has to track one
@@ -13582,7 +13754,7 @@ document.getElementById("narrTamperToggle").addEventListener("change",function(e
   state.narrTamper=e.target.checked; renderNarr();
   auditLog("Simulated tampering",'AI narrative tamper demo toggled '+(e.target.checked?"ON":"OFF")); });
 document.getElementById("guardsDemoToggle").addEventListener("change",function(e){
-  state.guardsDemo=e.target.checked; renderGuards();
+  state.guardsDemo=e.target.checked; renderGuards(); wireDetailsAnimation();
   auditLog("Simulated tampering",'Integrity-gate failure demo toggled '+(e.target.checked?"ON":"OFF")); });
 /* Delegated on #aiEwmaControl (the static card in the HTML markup itself), not #ewmaSvgChart —
    that inner div is only created once renderEwmaControl() first runs, and this listener binds at
@@ -13839,6 +14011,7 @@ renderWhatIf(true);
 wireDetailsAnimation();
 wireAskAiPlaceholderRotation();
 wireAccountHighlight();
+wireCostCodeHighlight();
 renderScurveScrub(); // after renderGantt() above, so the Gantt reference marker is correct on first paint too
 syncStickyNavOffsets(); // after every render call above, not where the function is defined -- see its own comment for why
 
