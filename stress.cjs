@@ -3802,7 +3802,7 @@ console.log("== D10. inline term help ==");
 // 57 as of the same round's follow-up: a real "pband" entry, same reasoning as impactscore -- the
 // probability scale had no glossary entry either, and TJ's own follow-up question ("why P4, no
 // parameters given") is exactly what it closes.
-ok(P.gloss.length === 69, "GLOSS grew to 69 entries (68 prior + envision, research-backed upgrade 2026-08-27)", String(P.gloss.length));
+ok(P.gloss.length === 70, "GLOSS grew to 70 entries (69 prior + icsra, research-backed upgrade 2026-08-27)", String(P.gloss.length));
 // title independently re-typed per term (/stress-test finding, 2026-08-21: the prior version only
 // checked g.p/g.e() were non-empty, which passes even for a totally wrong or swapped-in entry) —
 // guards that findGloss(k) actually resolves to the RIGHT term, not just SOME term.
@@ -4795,7 +4795,7 @@ console.log("== D23. Glossary upgrade round, items 1-3 (2026-08-21) ==");
   // to a known category. Independently re-derived from the raw array, not read back from the
   // rendered pill counts and trusted against itself. (61 as of the brainstorm-mode ML round's
   // multianomaly addition, 2026-08-26.)
-  ok(P.gloss.length === 69, "sanity: still 69 real glossary terms");
+  ok(P.gloss.length === 70, "sanity: still 70 real glossary terms");
   const validCats = Object.keys(P.cats);
   P.gloss.forEach(g => ok(validCats.indexOf(g.cat) >= 0, "term '" + g.k + "' carries a real category (" + g.cat + ")", g.cat));
 
@@ -9346,6 +9346,37 @@ console.log("== D52. Envision rating structure (research-backed upgrade, item #7
   has("envisionCard", "64", "the card states the real total credit count");
   has("envisionCard", "Honest gap", "the card explicitly states no score is fabricated for this program, not silently omitted");
   ok(!/\bscore\s*[:=]\s*\d/i.test(G.envisionCard._html), "no fabricated numeric self-assessment score appears anywhere in the card's own rendered HTML");
+}
+
+// item #9 (Tier 3): integrated cost-schedule risk view (AACE RP 57R-09 ICSRA) -- see
+// riskScheduleExposure's own comment for the real methodology sourcing and the honest scoping
+// (uses the SAME riskLinkedActions() the existing risk drill-down already relies on, never a
+// fabricated risk-to-package map).
+console.log("== D53. Integrated cost-schedule risk view (research-backed upgrade, item #9, 2026-08-27) ==");
+{
+  // Independent recomputation of the risk-to-package-to-float chain from raw ACTIONS/PKGS data,
+  // not calling riskScheduleExposure() and comparing it to itself.
+  function schedExpIndependent(riskId) {
+    const linked = P.actions.filter((a) => a.src && a.src.indexOf(riskId) >= 0);
+    const pkgIds = [...new Set(linked.map((a) => a.pkg).filter(Boolean))];
+    if (!pkgIds.length) return null;
+    const floats = pkgIds.map((id) => P.pkgs.find((p) => p.id === id)).filter(Boolean).map((p) => p.float);
+    return floats.length ? Math.min(...floats) : null;
+  }
+  P.risks.forEach((k) => {
+    const expected = schedExpIndependent(k.id);
+    const actual = P.riskScheduleExposure(k);
+    ok(actual === expected, k.id + "'s riskScheduleExposure matches an independent recomputation from raw ACTIONS/PKGS data", actual + " vs " + expected);
+  });
+  ok(P.riskScheduleExposure({ id: "R-01" }) === -40, "pre-registered: R-01's real derived schedule exposure is CP-201's own real float, -40 days", String(P.riskScheduleExposure({ id: "R-01" })));
+  ["R-02", "R-03", "R-04", "R-05", "R-06", "R-07"].forEach((id) => {
+    ok(P.riskScheduleExposure({ id }) === null, id + " has no linked package with a real float field, correctly returns null (not fabricated)");
+  });
+
+  has("icsraCard", "Integrated cost-schedule risk view", "the card renders its real heading");
+  has("icsraCard", "AACE RP 57R-09", "the card cites the real standard, not a vague description");
+  has("icsraCard", "not derivable", "the card honestly shows 'not derivable' for the 6 risks with no linked schedule data, not a fabricated number");
+  has("icsraCard", "1 of 7", "pre-registered: exactly 1 of 7 real risks (R-01) shows a genuine joint cost+schedule hit today");
 }
 
 console.log("\n" + pass + " passed, " + fail + " failed");

@@ -1627,6 +1627,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
       <nav aria-label="Section anchors">
         <a href="#tornado">Sensitivity</a>
         <a href="#risks">Register</a>
+        <a href="#icsraCard">ICSRA</a>
         <a href="#materialExposureCard">Material Exposure</a>
         <a href="#contractTable">Contracts</a>
         <a href="#subHealthTable">Financial-Health Watch</a>
@@ -1660,6 +1661,8 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         <summary>How this is actually computed</summary>
         <div id="riskMathBody"></div>
       </details>
+
+      <div class="card tw" style="margin-top:15px" id="icsraCard"></div>
 
       <div class="sec-h" style="margin-top:24px"><h3>Material-price exposure &mdash; is the escalation clause still enough?</h3></div>
       <p class="lede">A forward-looking extension of the Contingency Drawdown Index's own
@@ -8095,6 +8098,7 @@ function renderRisk(){
     m(T.overrun-T.contRemaining)+' short of the forecast overrun before any risk lands. Click any '+
     'risk above for its linked action items and field data.</p>';
   renderRiskDrill(ranked);
+  renderIcsra();
 
   document.getElementById("changePipe").innerHTML=
    [["Approved",PROGRAM.coApprovedCount+" · "+m(PROGRAM.coApprovedValue),"ba"],
@@ -8242,6 +8246,52 @@ function renderRiskDrill(ranked){
     (fieldHtml? '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--c-line)">'+
       '<div class="eyebrow">Field data on the same control account</div>'+fieldHtml+'</div>' : "")+
     '<button class="btn" id="riskDrillClose2" type="button" style="margin-top:12px">Close</button></div>';
+}
+/* Integrated cost-schedule risk view (research-backed upgrade, item #9, Tier 3, 2026-08-27) --
+   AACE International RP 57R-09's real Integrated Cost and Schedule Risk Analysis (ICSRA)
+   methodology: risk DRIVERS propagate into both cost AND schedule together, rather than the
+   two being analyzed on separate tornado charts (the risk tornado elsewhere on this tab is
+   cost-only). Honestly scoped: a full ICSRA is a resource-loaded CPM Monte Carlo simulation --
+   this dashboard's real Monte Carlo engine already runs a cost-only simulation, and building a
+   genuine joint cost+schedule simulation is a materially larger undertaking than this feature
+   warrants. What's built instead is real and useful without overclaiming: each risk's existing
+   real cost exposure, paired with its linked package's REAL float (schedule exposure) using the
+   SAME riskLinkedActions() derivation the existing risk drill-down already uses -- never a
+   fabricated R-id -> package map. Risks with no linked action (per riskLinkedActions' own
+   documented gap) show "not derivable" honestly rather than inventing a schedule number. */
+function riskScheduleExposure(k){
+  var linked=riskLinkedActions(k);
+  var pkgs=[]; linked.forEach(function(a){ if(a.pkg&&pkgs.indexOf(a.pkg)<0) pkgs.push(a.pkg); });
+  if(!pkgs.length) return null;
+  var floats=pkgs.map(function(pid){ var p=rows.filter(function(r){return r.id===pid;})[0]; return p?p.float:null; }).filter(function(f){return f!==null;});
+  if(!floats.length) return null;
+  return Math.min.apply(null,floats); // most-negative (worst) linked float, when more than one package is linked
+}
+function renderIcsra(){
+  var el=document.getElementById("icsraCard"); if(!el) return;
+  var ranked=RISKS.map(function(k){ return Object.assign({},k,{exp:P_BAND[k.p]*k.cost,schedExp:riskScheduleExposure(k)}); })
+    .sort(function(a,b){ return b.exp-a.exp; });
+  var jointCount=ranked.filter(function(r){ return r.schedExp!==null && r.schedExp<0; }).length;
+  el.innerHTML=
+    '<h3>Integrated cost-schedule risk view (AACE RP 57R-09)</h3>'+
+    '<p class="lede" style="font-size:12.5px;margin-top:5px">The real Integrated Cost and Schedule '+
+    'Risk Analysis (ICSRA) methodology: risk drivers propagate into both cost AND schedule '+
+    'together, not two separate tornado charts. Honestly scoped &mdash; a full ICSRA is a '+
+    'resource-loaded CPM Monte Carlo simulation, a materially larger undertaking than this feature '+
+    'attempts; shown instead is each risk\'s real priced exposure paired with its linked package\'s '+
+    'real float, using the same derivation this tab\'s own risk drill-down already relies on, never '+
+    'a fabricated risk-to-package map.</p>'+
+    '<table><thead><tr><th>Risk</th><th>Cost exposure</th><th>Linked schedule exposure</th></tr></thead><tbody>'+
+    ranked.map(function(r){
+      return '<tr><th scope="row">'+r.id+'</th><td class="tab-num">'+m(r.exp)+'</td>'+
+        '<td class="tab-num'+(r.schedExp!==null&&r.schedExp<0?" ba":"")+'">'+(r.schedExp!==null?days(r.schedExp):'<span style="color:rgb(var(--c-mut))">not derivable</span>')+'</td></tr>';
+    }).join("")+
+    '</tbody></table>'+
+    '<p style="margin:12px 0 0;font-size:12.5px;color:rgb(var(--c-mut))"><b style="color:rgb(var(--c-ink))">'+
+    jointCount+' of '+ranked.length+'</b> real risks hit BOTH axes today (priced cost exposure AND a '+
+    'linked package already carrying negative float) &mdash; the exact class of risk ICSRA exists to '+
+    'surface, that a cost-only tornado alone can\'t distinguish from one that\'s expensive but '+
+    'schedule-neutral.</p>';
 }
 /* Settlement decision — direct vs. DRB (advanced-quant upgrade, 2026-08-23). Does not touch
    #coDefense's own table/rows above; a clearly-separate, additive section. */
@@ -11112,6 +11162,8 @@ var GLOSS=[
   e:function(){ var series=CPH_CELLS[0].weeks.map(function(w){return w.actual;}), e2=deriveEwma(series), flags=e2.points.filter(function(p2){return p2.flag;}).length;
     return "Run against the tunnel crew's own 6-week $/hr series: "+flags+" of "+e2.points.length+" weeks currently breach the dynamic control limit ("+
       (flags?"a real, live flag":"a genuine null result — the honest answer, not a manufactured anomaly")+"). &lambda;="+e2.lambda+", L="+e2.L+" are standard SPC parameter choices, not derived from this program's own history."; }},
+ {k:"icsra", cat:"risk", jT:"risk", jE:"icsraCard", t:"ICSRA — Integrated Cost-Schedule Risk Analysis", p:"AACE International RP 57R-09's real methodology: risk drivers propagate into BOTH cost and schedule together, rather than being analyzed on two separate tornado charts. A full ICSRA is a resource-loaded CPM Monte Carlo simulation — this dashboard pairs each risk's real priced exposure with its linked package's real float instead, an honestly-scoped, real-data version, not a claimed full simulation.",
+  e:function(){ var ranked=RISKS.map(function(k){return Object.assign({},k,{schedExp:riskScheduleExposure(k)});}); var joint=ranked.filter(function(r){return r.schedExp!==null&&r.schedExp<0;}).length; return joint+" of "+ranked.length+" real risks hit both cost AND schedule today — a risk that's expensive but schedule-neutral doesn't show up here, by design."; }},
  {k:"envision", cat:"data", jT:"ai", jE:"envisionCard", t:"Envision (ISI infrastructure rating)", p:"The Institute for Sustainable Infrastructure's real rating system — 64 credits across 5 categories, 1,000 points, third-party-verified award tiers Verified through Platinum. Sound Transit's own Federal Way Link Extension and Downtown Redmond Link Extension both earned Envision Platinum — ISI names Federal Way Link only the 7th transit project nationally to reach it.",
   e:function(){ var t=ENVISION_CATEGORIES.reduce(function(s,c){return s+c.credits;},0); return "The real structure: "+t+" credits across "+ENVISION_CATEGORIES.length+" categories. This program hasn't pursued a formal assessment, so no score is shown — Sound Transit's own 2 real Platinum awards are the aspirational benchmark, not a claim about this program."; }},
  {k:"ftascc", cat:"cost", jT:"cost", jE:"ftaSccCard", t:"FTA Standard Cost Categories (SCC)", p:"The real 10-category worksheet (Guideway & Track Elements, Stations, Support Facilities, Sitework, Systems, ROW, Vehicles, Professional Services, Unallocated Contingency, Finance Charges) FTA has required New Starts/Core Capacity/Small Starts sponsors to report capital costs against since 2005 — enabling apples-to-apples benchmarking across CIG-funded transit projects.",
@@ -13479,6 +13531,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   overrunTaxonomy:OVERRUN_TAXONOMY,overrunTaxonomyRow:overrunTaxonomyRow,renderOverrunTaxonomy:renderOverrunTaxonomy,
   ftaScc:FTA_SCC,sccBac:sccBac,renderFtaScc:renderFtaScc,
   envisionCategories:ENVISION_CATEGORIES,renderEnvision:renderEnvision,
+  riskScheduleExposure:riskScheduleExposure,renderIcsra:renderIcsra,
   mcParams:mcParams,triang:triang,dsStep:dsStep,
   gaussRnd:gaussRnd,gammaRnd:gammaRnd,betaRnd:betaRnd,pertRnd:pertRnd,mcDraw:mcDraw,computeMc:computeMc,
   recomputeActiveMc:recomputeActiveMc,syncMcDist:syncMcDist,renderMcMath:renderMcMath,
