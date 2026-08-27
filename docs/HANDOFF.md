@@ -30,8 +30,8 @@ anywhere in this repository. The method is the content, not the numbers.
 
 | | |
 |---|---|
-| Primary file | `index.html` — 12,936 lines, one file, no build step |
-| Top-level JS functions | 396 (fresh `grep -cE "^\s*function [a-zA-Z_]" index.html`, this pass) |
+| Primary file | `index.html` — 13,054 lines, one file, no build step |
+| Top-level JS functions | 397 (fresh `grep -cE "^\s*function [a-zA-Z_]" index.html`, this pass) |
 | Tabs | 13, grouped into 5 altitudes on the tab rail (Executive · Program Performance · Field & Assurance · Governance & Execution · Reference) |
 | KPIs (with formula/threshold/phase/source/play each) | 20 |
 | KPI families (`KPI_FAMILIES` — Cost/Schedule/Risk/Change/Delivery/Compliance) | 6, each with its own operational question + why-it-matters card on Overview |
@@ -46,12 +46,12 @@ anywhere in this repository. The method is the content, not the numbers.
 | Risks | 7 (added R-07, extreme-weather exposure, 2026-08-26) |
 | Delay events | 4 |
 | Other 2026-08-26 proactive-mechanism additions (§8) | `OWNER_DECISIONS` (3), `SUB_HEALTH` (3), `LABOR_MOBILIZATION` (3), `CARBON_DISCLOSURE` (3), `AUDIT_LOG` (session-only, unbounded fact — see §8) |
-| `stress.cjs` test assertions | 3,536, all passing |
+| `stress.cjs` test assertions | 3,568, all passing |
 | `worker/smoketest.js` assertions (Ask AI backend, §10) | 25, all passing — a 3rd, independent test harness, Node-only, no real network/Cloudflare runtime |
 | Companion pages | `otak.html` (fit brief, 449 lines), `architecture.html` (static pipeline map, 598 lines) |
 | Companion backend (never deployed — see §10) | `worker/` — a Cloudflare Worker for the Ask AI feature; `ASK_AI_WORKER_URL` in `index.html` is still the `REPLACE-ME` placeholder |
 | Hosting | GitHub Pages, served directly from `main`, zero build |
-| Git history | 190 commits |
+| Git history | 206 commits |
 
 Current EVM tie-out (verify live in the browser console via `__PCC__.totals`, or `node verify.cjs`):
 
@@ -114,7 +114,7 @@ in this repo (GitHub Pages serves the static files directly from `main` with no 
 ## 4. Architecture & stack
 
 **Static HTML, one file, zero dependencies.** `index.html` is CSS (inline `<style>`) + markup +
-one `<script>` block containing a single IIFE with 375 top-level functions (fresh count, this
+one `<script>` block containing a single IIFE with 397 top-level functions (fresh count, this
 pass — see §2's note on the prior 176-vs-204 mismatch). No framework, no
 bundler, no CDN, no `npm install`. Opening the file directly in a browser (`file://`) or serving it
 with any static file server works identically — the repo's own convention for local testing is
@@ -488,7 +488,7 @@ key — `index.html` is fully static/public and can never hold it. Guardrails, m
 
 ## 11. Testing & verification
 
-**`stress.cjs`** (3,536 assertions, all passing) — stubs the DOM, loads `index.html`'s script
+**`stress.cjs`** (3,568 assertions, all passing) — stubs the DOM, loads `index.html`'s script
 verbatim into that stub, and exercises it exactly like a user would: every tab switch, every
 filter, every drawer, every slider drag, every keyboard interaction. 92 labeled sections (fresh
 `grep -c 'console.log("=='` count, this pass):
