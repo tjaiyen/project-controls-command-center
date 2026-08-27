@@ -2100,7 +2100,10 @@ try {
   // 4->5 (six-families card, 2026-08-21): the new "Risk family" glossary entry genuinely discusses
   // the contingency reserve twice (its own definition and its live-computed worked example) — same
   // real-collision pattern as above, found the same way, not assumed.
-  ok(n >= 1 && n <= 5, "glossary filter narrows to matching terms", String(n));
+  // 5->6 (research-backed upgrade, item #6, 2026-08-27): the new "ftascc" glossary entry names
+  // FTA's real "Unallocated Contingency" SCC category by its real name, in both its prose and its
+  // worked example — same real-collision pattern, found the same way.
+  ok(n >= 1 && n <= 6, "glossary filter narrows to matching terms", String(n));
   has("glossList", "Contingency", "filter keeps the contingency term");
   G.glossQ.value = "";
   fire(G.glossQ, "input");
@@ -3799,7 +3802,7 @@ console.log("== D10. inline term help ==");
 // 57 as of the same round's follow-up: a real "pband" entry, same reasoning as impactscore -- the
 // probability scale had no glossary entry either, and TJ's own follow-up question ("why P4, no
 // parameters given") is exactly what it closes.
-ok(P.gloss.length === 67, "GLOSS grew to 67 entries (66 prior + overruntaxonomy, research-backed upgrade 2026-08-27)", String(P.gloss.length));
+ok(P.gloss.length === 68, "GLOSS grew to 68 entries (67 prior + ftascc, research-backed upgrade 2026-08-27)", String(P.gloss.length));
 // title independently re-typed per term (/stress-test finding, 2026-08-21: the prior version only
 // checked g.p/g.e() were non-empty, which passes even for a totally wrong or swapped-in entry) —
 // guards that findGloss(k) actually resolves to the RIGHT term, not just SOME term.
@@ -4792,7 +4795,7 @@ console.log("== D23. Glossary upgrade round, items 1-3 (2026-08-21) ==");
   // to a known category. Independently re-derived from the raw array, not read back from the
   // rendered pill counts and trusted against itself. (61 as of the brainstorm-mode ML round's
   // multianomaly addition, 2026-08-26.)
-  ok(P.gloss.length === 67, "sanity: still 67 real glossary terms");
+  ok(P.gloss.length === 68, "sanity: still 68 real glossary terms");
   const validCats = Object.keys(P.cats);
   P.gloss.forEach(g => ok(validCats.indexOf(g.cat) >= 0, "term '" + g.k + "' carries a real category (" + g.cat + ")", g.cat));
 
@@ -9285,6 +9288,43 @@ console.log("== D50. Overrun-driver taxonomy + stakeholder attribution (research
   has("overrunTaxonomyCard", "Overrun-driver taxonomy", "the card renders its real heading");
   has("overrunTaxonomyCard", "Cantarelli", "the card cites the real academic source, not a vague description");
   P.overrunTaxonomy.forEach((r) => has("overrunTaxonomyCard", r.actionId, "the card lists every tagged action, including " + r.actionId));
+}
+
+// item #6 (Tier 2): FTA Standard Cost Category realignment -- see FTA_SCC's own comment for the
+// real 10-category worksheet sourcing and the deliberate no-double-reconciliation design.
+console.log("== D51. FTA Standard Cost Category realignment (research-backed upgrade, item #6, 2026-08-27) ==");
+{
+  ok(P.ftaScc.length === 10, "all 10 real FTA SCC categories present (10-100)", String(P.ftaScc.length));
+  const codes = P.ftaScc.map((s) => s.code);
+  ok(JSON.stringify(codes) === JSON.stringify(["10", "20", "30", "40", "50", "60", "70", "80", "90", "100"]), "SCC codes are the real, complete FTA sequence, in order", JSON.stringify(codes));
+
+  // Every real package is mapped to EXACTLY ONE SCC category -- no gaps, no double-counting.
+  const allMappedPkgs = P.ftaScc.flatMap((s) => s.pkgs);
+  ok(allMappedPkgs.length === P.pkgs.length, "every real control account is mapped to exactly one SCC category, none missing", allMappedPkgs.length + " vs " + P.pkgs.length);
+  const uniqueMapped = new Set(allMappedPkgs);
+  ok(uniqueMapped.size === allMappedPkgs.length, "no control account is double-mapped into two SCC categories");
+  P.pkgs.forEach((p) => ok(allMappedPkgs.includes(p.id), p.id + " is genuinely mapped somewhere, not silently dropped"));
+
+  // The load-bearing invariant: the itemized SCC 10-80 total reconciles EXACTLY to T.bac,
+  // independently recomputed from the raw per-package BAC fields, not read back from sccBac()
+  // and compared to itself.
+  const itemizedCodes = codes.filter((c) => c !== "90");
+  const expectedTotal = itemizedCodes.reduce((sum, code) => {
+    const row = P.ftaScc.find((s) => s.code === code);
+    return sum + row.pkgs.reduce((s2, id) => s2 + P.pkgs.find((p) => p.id === id).bac, 0);
+  }, 0);
+  ok(Math.abs(expectedTotal - T.bac) < 1e-9, "the itemized SCC 10-80 total reconciles EXACTLY to the real T.bac, independently recomputed from raw per-package BAC fields", expectedTotal + " vs " + T.bac);
+  P.ftaScc.forEach((s) => {
+    if (s.code === "90") return;
+    const expected = s.pkgs.reduce((sum, id) => sum + P.pkgs.find((p) => p.id === id).bac, 0);
+    ok(Math.abs(P.sccBac(s.code) - expected) < 1e-9, "SCC " + s.code + "'s BAC matches an independent recomputation from its mapped packages' real BAC fields");
+  });
+
+  has("ftaSccCard", "FTA", "the card renders its real heading");
+  has("ftaSccCard", "since 2005", "the card cites the real requirement date, not a vague claim");
+  has("ftaSccCard", m(T.bac), "the card's own reconciliation note states the real, live T.bac figure");
+  ["Guideway", "Stations", "Sitework", "Systems"].forEach((name) => has("ftaSccCard", name, "the card lists the real category name " + name + " among its 10 rows"));
+  has("ftaSccCard", "Not itemized in this ledger", "the card honestly states which categories aren't tracked, not backfilled with an invented number");
 }
 
 console.log("\n" + pass + " passed, " + fail + " failed");

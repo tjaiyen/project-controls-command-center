@@ -1213,6 +1213,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         <a href="#galtonCanvas">Galton Engine</a>
         <a href="#pertPlayChart">PERT Playground</a>
         <a href="#pkgTable">Control Ledger</a>
+        <a href="#ftaSccCard">FTA Cost Categories</a>
       </nav>
     </details>
     <div class="sec">
@@ -1492,6 +1493,9 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
           <th scope="col">VAC</th><th scope="col">Float</th><th scope="col">CPLI</th><th scope="col">Status</th></tr></thead>
         <tbody id="pkgBody"></tbody><tfoot id="pkgFoot"></tfoot></table></div>
       <div class="card" id="drill" style="margin-top:15px" aria-live="polite"></div>
+
+      <div class="sec-h" style="margin-top:34px"><h2>FTA cost structure</h2><span class="tag">Standard Cost Categories</span></div>
+      <div class="card tw" id="ftaSccCard"></div>
     </div>
   </section>
 
@@ -7381,6 +7385,64 @@ function select(i){
      : 'It carries '+r.float+' days of float, so it is not currently driving the completion date.')+'</p>';
 }
 
+/* FTA Standard Cost Category realignment (research-backed upgrade, item #6, Tier 2, 2026-08-27)
+   -- FTA has required New Starts/Core Capacity/Small Starts sponsors to report capital costs
+   against a standardized 10-category Standard Cost Category (SCC) worksheet (10 Guideway & Track
+   Elements, 20 Stations/Stops/Terminals, 30 Support Facilities, 40 Sitework & Special Conditions,
+   50 Systems, 60 ROW/Land, 70 Vehicles, 80 Professional Services, 90 Unallocated Contingency,
+   100 Finance Charges) since 2005, enabling apples-to-apples benchmarking across CIG projects --
+   the same real taxonomy this dashboard's own real Sound Transit citations sit inside. Real
+   mapping, not fabricated: each of this program's 8 real control accounts is mapped to the SCC
+   category its own scope actually describes (SCC 10 covers underground/tunnel guideway per
+   FTA's own line items, so CP-201 belongs there, not a separate category). Categories this
+   ledger doesn't separately itemize (ROW, Vehicles, Professional Services, Finance Charges) are
+   shown honestly as not tracked at that granularity, not backfilled with an invented number.
+   PROGRAM.contingency maps to SCC 90 and is shown as a separate reference row -- it is NOT summed
+   into the SCC 10-80 total, since that total already reconciles exactly to T.bac via this
+   program's own existing "Portfolio BAC equals sum of package budgets" guard; adding contingency
+   into the same sum would create a second, competing reconciliation target. */
+var FTA_SCC=[
+ {code:"10",name:"Guideway & Track Elements",pkgs:["CP-101","CP-102","CP-201"]},
+ {code:"20",name:"Stations, Stops, Terminals, Intermodal",pkgs:["CP-301","CP-501"]},
+ {code:"30",name:"Support Facilities: Yards, Shops, Admin. Buildings",pkgs:[]},
+ {code:"40",name:"Sitework & Special Conditions",pkgs:["CP-601"]},
+ {code:"50",name:"Systems",pkgs:["CP-401","CP-701"]},
+ {code:"60",name:"Right-of-Way, Land, Existing Improvements",pkgs:[]},
+ {code:"70",name:"Vehicles",pkgs:[]},
+ {code:"80",name:"Professional Services (applies to 10-50)",pkgs:[]},
+ {code:"90",name:"Unallocated Contingency",pkgs:[]},
+ {code:"100",name:"Finance Charges",pkgs:[]}
+];
+function sccBac(code){
+  var row=FTA_SCC.filter(function(s){return s.code===code;})[0]; if(!row) return 0;
+  return row.pkgs.reduce(function(sum,id){ var p=rows.filter(function(r){return r.id===id;})[0]; return sum+(p?p.bac:0); },0);
+}
+function renderFtaScc(){
+  var el=document.getElementById("ftaSccCard"); if(!el) return;
+  var itemizedTotal=FTA_SCC.filter(function(s){return s.code!=="90";}).reduce(function(sum,s){return sum+sccBac(s.code);},0);
+  el.innerHTML=
+    '<h3>Cost structure, realigned to FTA\'s real Standard Cost Categories</h3>'+
+    '<p class="lede" style="font-size:12.5px;margin-top:5px">FTA has required New Starts/Core '+
+    'Capacity/Small Starts sponsors to report capital costs against this exact 10-category '+
+    'worksheet since 2005, so a real reviewer scanning this program would look for these '+
+    'categories, not this dashboard\'s own control-account labels. Categories this ledger doesn\'t '+
+    'separately itemize (right-of-way, vehicles, professional services, finance charges) are shown '+
+    'as not tracked at that granularity, not backfilled with an invented number.</p>'+
+    '<table><thead><tr><th>SCC</th><th>Category</th><th>Mapped accounts</th><th>BAC</th></tr></thead><tbody>'+
+    FTA_SCC.map(function(s){
+      var bac=sccBac(s.code);
+      return '<tr><th scope="row">'+s.code+'</th><td>'+s.name+'</td>'+
+        '<td style="font-size:12px;color:rgb(var(--c-mut))">'+(s.pkgs.length?s.pkgs.join(", "):"Not itemized in this ledger")+'</td>'+
+        '<td class="tab-num">'+(s.code==="90"?m(PROGRAM.contingency)+' <span class="mono" style="font-size:10px;color:rgb(var(--c-mut))">(reference, not summed below)</span>':s.pkgs.length?m(bac):"—")+'</td></tr>';
+    }).join("")+
+    '</tbody><tfoot><tr><th scope="row" colspan="3">SCC 10-80, itemized total</th><td class="tab-num">'+m(itemizedTotal)+'</td></tr></tfoot></table>'+
+    '<p style="margin:12px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">The itemized SCC 10-80 total '+
+    'reconciles exactly to this program\'s own '+m(T.bac)+' baseline (the same real total the '+
+    'control-account ledger above sums to) &mdash; SCC 90\'s contingency is a separate reference '+
+    'row, not summed into it, so this doesn\'t create a second reconciliation target competing '+
+    'with the one this dashboard\'s own integrity gate already checks.</p>';
+}
+
 /* ---------- schedule tab ---------- */
 function bars(el,items,fmt,tipFmt){
   var host=document.getElementById(el);
@@ -11004,6 +11066,8 @@ var GLOSS=[
   e:function(){ var series=CPH_CELLS[0].weeks.map(function(w){return w.actual;}), e2=deriveEwma(series), flags=e2.points.filter(function(p2){return p2.flag;}).length;
     return "Run against the tunnel crew's own 6-week $/hr series: "+flags+" of "+e2.points.length+" weeks currently breach the dynamic control limit ("+
       (flags?"a real, live flag":"a genuine null result — the honest answer, not a manufactured anomaly")+"). &lambda;="+e2.lambda+", L="+e2.L+" are standard SPC parameter choices, not derived from this program's own history."; }},
+ {k:"ftascc", cat:"cost", jT:"cost", jE:"ftaSccCard", t:"FTA Standard Cost Categories (SCC)", p:"The real 10-category worksheet (Guideway & Track Elements, Stations, Support Facilities, Sitework, Systems, ROW, Vehicles, Professional Services, Unallocated Contingency, Finance Charges) FTA has required New Starts/Core Capacity/Small Starts sponsors to report capital costs against since 2005 — enabling apples-to-apples benchmarking across CIG-funded transit projects.",
+  e:function(){ return "This program's own 8 real control accounts map to just 4 of the 10 categories (Guideway, Stations, Sitework, Systems); contingency has its own real figure under Unallocated Contingency, shown separately; the remaining 5 (Support Facilities, ROW, Vehicles, Professional Services, Finance Charges) aren't itemized in this ledger at that granularity, shown honestly rather than backfilled."; }},
  {k:"overruntaxonomy", cat:"risk", jT:"act", jE:"overrunTaxonomyCard", t:"Overrun-driver taxonomy & stakeholder attribution", p:"Two real, peer-reviewed classification schemes: Cantarelli/Flyvbjerg's 4-category overrun-explanation taxonomy (technical, economic, psychological, political) and ASCE's owner/design/contractor/external stakeholder-attribution study — applied to this program's own real root-caused actions, scoped only to the ones that are genuine strategic overrun drivers, not stretched to every open item.",
   e:function(){ return OVERRUN_TAXONOMY.length+" real actions carry both tags today, all technical/design or economic/external — this program's own real data happens not to show a psychological or political driver yet, not a gap in the taxonomy."; }},
  {k:"cabuyclean", cat:"data", jT:"ai", jE:"carbonDisclosureCard", t:"California Buy Clean Act (AB 262)", p:"A real numeric maximum-GWP ceiling (not just disclosure) for structural steel, concrete reinforcing steel, flat glass, and mineral wool on California state-funded projects, enforced via third-party-verified EPDs. A harder real-world model than WA's own disclosure-only mechanism tracked above. The comparable federal mechanism (numeric thresholds for concrete under the IIJA/IRA Buy Clean Initiative) was rescinded by Executive Order in Jan 2025 and defunded by the One Big Beautiful Bill Act in July 2025 — not active today.",
@@ -13279,7 +13343,7 @@ document.getElementById("vConf").textContent="P"+Math.round(state.mcConfidence*1
 renderMcConfCallout();
 document.getElementById("mcInspect").value=String(state.mcInspect);
 document.getElementById("vInspect").textContent="P"+state.mcInspect;
-renderWaterfall(); renderWaterfallMath(); renderBaseline(); renderFep(); renderEstClass(); renderVeSandbox(); renderEac(); renderCont(); renderTable();
+renderWaterfall(); renderWaterfallMath(); renderBaseline(); renderFep(); renderEstClass(); renderVeSandbox(); renderEac(); renderCont(); renderTable(); renderFtaScc();
 renderEacTrend(); renderFcastTable(); renderGbmDiffusion(); renderGbmLogReturns(); renderGbmMathUnlocked(); renderGbmVsEvm(); renderCashflow();
 renderGantt(); renderSchedule(); renderRisk(); renderSoundTransitLessons(); renderDrbEmv(); renderContracts(); renderSubHealth(); renderDelivery(); renderFramework(); renderActions(); renderActionsMath(); renderOverrunTaxonomy(); renderTriage(); renderExec();
 document.getElementById("sDrbP").value=DRB_ASSUMPTIONS.pOwnerWins;
@@ -13365,6 +13429,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   soundTransitAudit:SOUND_TRANSIT_AUDIT,referenceDesignDeficiencyExposure:referenceDesignDeficiencyExposure,renderSoundTransitLessons:renderSoundTransitLessons,
   caBuyCleanRebarCap:CA_BUY_CLEAN_REBAR_CAP,renderCaBuyCleanComparison:renderCaBuyCleanComparison,
   overrunTaxonomy:OVERRUN_TAXONOMY,overrunTaxonomyRow:overrunTaxonomyRow,renderOverrunTaxonomy:renderOverrunTaxonomy,
+  ftaScc:FTA_SCC,sccBac:sccBac,renderFtaScc:renderFtaScc,
   mcParams:mcParams,triang:triang,dsStep:dsStep,
   gaussRnd:gaussRnd,gammaRnd:gammaRnd,betaRnd:betaRnd,pertRnd:pertRnd,mcDraw:mcDraw,computeMc:computeMc,
   recomputeActiveMc:recomputeActiveMc,syncMcDist:syncMcDist,renderMcMath:renderMcMath,
