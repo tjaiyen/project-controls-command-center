@@ -76,7 +76,13 @@ Schedule, and a "return to origin tab" breadcrumb after any cross-tab jump.
   shape MLE fits to them (centered on the sample mean, not the Itô-adjusted drift — a real
   distinction the chart gets right), a plain-language "Math unlocked" drift/volatility explainer,
   and an EVM-vs-GBM card comparing what each method *assumes* — never a forward-projected
-  P80-completion figure, which the card itself explains was deliberately declined.
+  P80-completion figure, which the card itself explains was deliberately declined; a CII PDRI
+  front-end-planning completeness tracker (per-package, 8-checkpoint) paired with an AACE
+  RP 17R-97/56R-08 estimate-classification card (Class 5-1); a reference-class-forecast band
+  comparing this program's own Monte Carlo P10/P50/P80/P95 against a Flyvbjerg-derived megaproject
+  multiplier; an FTA Standard Cost Category realignment of the full BAC into the real 10-category
+  worksheet (reconciles exactly); and an FHWA LCCA 30-year NPV comparison (ballasted vs.
+  direct-fixation track, real discount-rate methodology, explicitly illustrative dollar inputs).
 - **Schedule** — DCMA-style schedule health, named explicitly (SPI(t)/Earned Schedule, CPLI, BEI,
   float erosion — the objective metric triad the DCMA 14-Point Assessment and ANSI/EIA-748 sit
   under), a CPLI status-band summary strip alongside the per-package bars, a tracking Gantt with a
@@ -93,8 +99,11 @@ Schedule, and a "return to origin tab" breadcrumb after any cross-tab jump.
   against real AGC steel/aluminum index data, a subcontractor financial-health watch (the 3
   highest-exposure contracts, a 90-day check cycle), a contract commercial register (a third axis
   distinct from control accounts) with row hover highlighting, a change pipeline with
-  proposed-vs-settled pricing defense, and a settle-vs-DRB Expected Monetary Value decision tree
-  with two live sliders (win probability, legal cost).
+  proposed-vs-settled pricing defense, a settle-vs-DRB Expected Monetary Value decision tree
+  with two live sliders (win probability, legal cost), an integrated cost-schedule risk view
+  (ICSRA — which risks carry a real, derivable joint cost+schedule hit, reusing the existing
+  risk→action linkage rather than a fabricated map), and a Washington State Auditor Sound Transit
+  lessons card (real design-deficiency change-order exposure + geotechnical-coverage findings).
 - **Delivery** — leading indicators (productivity factor, RFI/submittal aging, a quality NCR
   register with real open counts and per-item aging), a productivity-factor gauge, a
   field-to-boardroom cascade tracing a crew-level cause up to its program-level cost effect, and a
@@ -103,9 +112,15 @@ Schedule, and a "return to origin tab" breadcrumb after any cross-tab jump.
   the live field it feeds), the SQL model, a live 29-check integrity gate (the 29th requires a
   logged root cause before any Quality NCR can be marked closed), an embodied-carbon
   disclosure-readiness tracker (deliberately a readiness tracker, not a compliance-threshold KPI —
-  WA's real Buy Clean law is disclosure-only), a real per-session activity/change-audit log, a real
+  WA's real Buy Clean law is disclosure-only) paired with a California Buy Clean Act (AB 262) rebar
+  GWP-cap comparison (real numeric caps, the comparable federal program correctly flagged as
+  rescinded/defunded in 2025) and an Envision (ISI) rating-structure card (real 64-credit/5-category
+  framework, deliberately no fabricated score), a GAO-20-195G cost-estimate credibility checklist
+  (audits this dashboard's own real features against GAO's 4 real characteristics, honestly scored
+  Partial where the underlying gap is real), a real per-session activity/change-audit log, a real
   SVG EWMA control chart with a dynamically widening control-limit band and a per-week
-  click-through drill-down, a z-score control chart, and narrative generation under a verification
+  click-through drill-down, a z-score control chart, a Hotelling's T² multivariate control chart
+  (joint cost + idle-time, honestly caveated at n=6), and narrative generation under a verification
   contract with a live tamper-and-catch sandbox demonstrating the contract actually blocks a
   disagreeing narrative.
 - **Operating Framework** — a phase playbook, a WBS/CBS/OBS/ABS control-account mapping, Board
@@ -117,8 +132,10 @@ Schedule, and a "return to origin tab" breadcrumb after any cross-tab jump.
   formula live, an escalation matrix, a live Working-Backward/inversion worked example, reporting
   cadence, a stakeholder interface map, and a KPI reference library.
 - **Actions** — a RAID/CAPA register with proactive staleness detection and owner accountability
-  rollup, a Kanban board view of the same filtered list, and a branching status drawer explaining
-  exactly which `actionStatus()` rule fired for that item.
+  rollup, a Kanban board view of the same filtered list, a real cost-overrun-driver taxonomy
+  (Cantarelli/Flyvbjerg's 4-category technical/economic/psychological/political framework plus
+  ASCE stakeholder attribution, applied to this program's own 3 real root-caused actions), and a
+  branching status drawer explaining exactly which `actionStatus()` rule fired for that item.
 - **Attention & Triage** — a cross-cutting "what needs a human right now" view: every firing
   escalation-matrix rule, stale RAID item, near-term deadline, and pre-breach condition, pulled
   live from the same registers every other tab reads — nothing duplicated.
