@@ -10727,7 +10727,15 @@ function renderDataStrategy(){
   document.getElementById("parityLede").innerHTML=
     "This program's own Cost Performance Index reads <b class=\"mono\" style=\"color:rgb(var(--c-code))\">"+idx(T.cpi)+
     "</b> on the Overview KPI board &mdash; computed once in this page's JavaScript (<code>EV &divide; AC</code>) "+
-    "and a second time, independently, in SQL run cold against the same raw package data:";
+    "and a second time, independently, in SQL run cold against the same raw package data. "+
+    // Named explicitly (brainstorm-mode round, 2026-08-26, item #4) -- a real pattern this
+    // dashboard has always implemented, never previously stated by this name: a project-controls
+    // specialist competing on independence of voice, not headcount scale, has to prove its own
+    // numbers are never simply a re-narration of a prime contractor's figures. This IS what a
+    // shadow ledger is for -- pure narrative naming, nothing new computed, same discipline the
+    // "Three-layer architecture" card already established for a different existing pattern.
+    "This is a <b>shadow ledger</b> in the literal sense: not a backup copy of the same number, an "+
+    "independently-computed second answer that the real one has to agree with before either is trusted:";
   document.getElementById("paritySql").innerHTML=
     '-- pipeline/models/fct_control_account.sql<br>'+
     'm.ev / nullif(m.ac, 0)  <span style="color:rgb(var(--c-mut))">as cpi</span>&nbsp;&nbsp;'+

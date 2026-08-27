@@ -8677,5 +8677,15 @@ console.log("== R. Embodied-carbon disclosure readiness (brainstorm-mode round, 
   ok(!indexSrc.includes("150% of NRMCA") && !/embodied.carbon[^.]{0,80}threshold[^.]{0,40}(g\/kg|kgCO2e|gCO2e)/i.test(indexSrc), "no fabricated numeric emissions threshold (e.g. New York's real 150%-of-baseline figure) is misattributed to this program's own WA-scoped requirement");
 }
 
+console.log("== S. Shadow-ledger framing (brainstorm-mode round, 2026-08-26) ==");
+{
+  // Item #4 -- pure narrative naming of an ALREADY-BUILT mechanism (the dual-stack JS/SQL parity
+  // proof), same discipline as the earlier "Three-layer architecture" card. Nothing new computed
+  // here; the check is that the naming actually landed on the real parity card, not floating
+  // detached prose elsewhere.
+  has("parityLede", "shadow ledger", "the Dual-Stack Parity card explicitly names the pattern as a shadow ledger");
+  ok(G.parityLede._html.includes(idx(T.cpi)), "the shadow-ledger framing sits alongside the real, live CPI figure, not a hardcoded placeholder");
+}
+
 console.log("\n" + pass + " passed, " + fail + " failed");
 process.exit(fail ? 1 : 0);
