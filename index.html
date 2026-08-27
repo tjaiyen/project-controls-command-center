@@ -4959,12 +4959,12 @@ function renderFep(){
     'research (1,000+ projects, ~$52B) found high-completeness projects run roughly 10% lower cost, '+
     '7% shorter schedule and 5% fewer change orders, for planning itself costing about 2.5% of the '+
     'project.</p>'+
-    '<table><thead><tr><th>Control account</th><th>Completeness</th><th>VAC</th></tr></thead>'+
+    '<table><thead><tr><th scope="col">Control account</th><th scope="col">Completeness</th><th scope="col">VAC</th></tr></thead>'+
     '<tbody>'+rowsHtml+'</tbody></table>'+
     '<p style="margin:12px 0 0;font-size:12.5px;color:rgb(var(--c-mut))"><b style="color:rgb(var(--c-ink))">'+
     'In this program\'s own data</b> (not a claim about CII\'s study, a live computation from THIS '+
     'ledger): the '+weak.length+' account(s) below 75% front-end-planning completeness ('+
-    weak.map(function(r){return r.id;}).join(", ")+') carry '+pct(weakVac/totalVac,0)+
+    weak.map(function(r){return r.id;}).join(", ")+') carry '+pct(totalVac>0?weakVac/totalVac:0,0)+
     ' of the program\'s total unfavorable VAC, despite being '+pct(weak.length/rows.length,0)+
     ' of the accounts &mdash; the same pattern CII\'s research describes, not proof of it here.</p>';
 }
@@ -4975,6 +4975,7 @@ function renderEstClass(){
   var el=document.getElementById("estClassCard"); if(!el) return;
   var rowsHtml=rows.map(function(r){
     var clsN=PKG_ESTIMATE_CLASS[r.id], c=aaceClassOf(clsN);
+    if(!c) return "";
     return '<tr><th scope="row">'+r.id+' &nbsp;'+r.n+'</th>'+
       '<td class="tab-num">Class '+clsN+'</td>'+
       '<td>'+c.desc+'</td>'+
@@ -4990,7 +4991,7 @@ function renderEstClass(){
     'never read off a fixed table as fact. Class assignment below ties directly to each account\'s '+
     'own front-end-planning completeness above &mdash; a package can\'t credibly claim a tight '+
     'Class 1/2 estimate while its own checkpoints are still open.</p>'+
-    '<table><thead><tr><th>Control account</th><th>Class</th><th>Stage</th><th>Indicative range</th></tr></thead>'+
+    '<table><thead><tr><th scope="col">Control account</th><th scope="col">Class</th><th scope="col">Stage</th><th scope="col">Indicative range</th></tr></thead>'+
     '<tbody>'+rowsHtml+'</tbody></table>';
 }
 /* Real per-account drill-down (declined the brief's fabricated per-package VE breakdown — no such
@@ -5082,8 +5083,8 @@ function renderLcca(){
     'methodology is applied to a real, directionally-correct rail-industry decision instead, the '+
     'same "real methodology, illustrative inputs" posture the settlement-negotiation sandbox '+
     'elsewhere on this page already takes.</p>'+
-    '<table><thead><tr><th>Alternative</th><th>Initial cost</th><th>Annual maintenance</th>'+
-    '<th>Rehab cycle</th><th>NPV over '+LCCA_ASSUMPTIONS.analysisYears+'yr</th></tr></thead><tbody>'+
+    '<table><thead><tr><th scope="col">Alternative</th><th scope="col">Initial cost</th><th scope="col">Annual maintenance</th>'+
+    '<th scope="col">Rehab cycle</th><th scope="col">NPV over '+LCCA_ASSUMPTIONS.analysisYears+'yr</th></tr></thead><tbody>'+
     scored.map(function(a){
       return '<tr'+(a.name===best.name?' style="border-left:3px solid rgb(var(--c-ok))"':'')+'>'+
         '<th scope="row">'+a.name+(a.name===best.name?' <span class="pill g">Lower NPV</span>':'')+'</th>'+
@@ -5993,7 +5994,7 @@ function renderRcfComparison(){
     'own published figure is an average, not a documented percentile spread, so this deliberately '+
     'does not invent one. What it CAN honestly show: where that one real number falls against this '+
     'program\'s own real, already-simulated forecast band.</p>'+
-    '<table><thead><tr><th>Percentile</th><th>This program\'s own Monte Carlo</th></tr></thead><tbody>'+
+    '<table><thead><tr><th scope="col">Percentile</th><th scope="col">This program\'s own Monte Carlo</th></tr></thead><tbody>'+
     [["P10",MC.p10],["P50",MC.p50],["P80",MC.p80],["P95",MC.p95]].map(function(r){
       return '<tr><th scope="row">'+r[0]+'</th><td class="tab-num">'+m(r[1])+'</td></tr>';
     }).join("")+
@@ -7421,6 +7422,18 @@ function renderPrint(){
     '<tr><td>Owner/agency decisions overdue</td><td>'+pw.ownerDecOverdue+' of '+OWNER_DECISIONS.length+'</td></tr>'+
     '<tr><td>Unabsorbed material-escalation exposure (R-04)</td><td>'+m(materialUnabsorbedExposure())+'</td></tr>'+
     '<tr><td>Carbon disclosure readiness</td><td>'+pct(pw.carbonReady,0)+'</td></tr></table>'+
+    // Research-backed diligence (/stress-test finding, 2026-08-27, independent reviewer) -- the
+    // same gap the "Proactive watch" section above was built to close, repeated by the 12-item
+    // research-build round: those cards render on-screen but never reached this print-only brief.
+    // Every figure below is read from the SAME functions the on-screen cards already call
+    // (gaoCredibilityChecklist(), riskScheduleExposure(), fepPortfolioAvgPct()) -- no new
+    // computation invented for print.
+    '<h2>Research-backed diligence</h2><table><tr><th>Signal</th><th>Status</th></tr>'+
+    '<tr><td>GAO-20-195G cost-estimate credibility characteristics passing</td><td>'+
+    gaoCredibilityChecklist().filter(function(r){return r.status==="pass";}).length+' of '+gaoCredibilityChecklist().length+'</td></tr>'+
+    '<tr><td>Risks with a real, derivable joint cost+schedule exposure (ICSRA)</td><td>'+
+    RISKS.filter(function(k){var e=riskScheduleExposure(k); return e!==null&&e<0;}).length+' of '+RISKS.length+'</td></tr>'+
+    '<tr><td>Front-end-planning (PDRI) portfolio-average completeness</td><td>'+pct(fepPortfolioAvgPct(),0)+'</td></tr></table>'+
     '<h2>Top risks</h2><table><tr><th>ID</th><th>Risk</th><th>Exposure</th><th>Owner</th></tr>'+
     topR.map(function(k){return '<tr><td>'+k.id+'</td><td>'+k.n+'</td><td>'+m(k.exp)+'</td><td>'+k.own+'</td></tr>';}).join("")+'</table>'+
     '<h2>Milestones</h2><p style="margin:0">'+lateM.length+' of '+MILES.length+' late; revenue service '+
@@ -7549,7 +7562,7 @@ function renderFtaScc(){
     'categories, not this dashboard\'s own control-account labels. Categories this ledger doesn\'t '+
     'separately itemize (right-of-way, vehicles, professional services, finance charges) are shown '+
     'as not tracked at that granularity, not backfilled with an invented number.</p>'+
-    '<table><thead><tr><th>SCC</th><th>Category</th><th>Mapped accounts</th><th>BAC</th></tr></thead><tbody>'+
+    '<table><thead><tr><th scope="col">SCC</th><th scope="col">Category</th><th scope="col">Mapped accounts</th><th scope="col">BAC</th></tr></thead><tbody>'+
     FTA_SCC.map(function(s){
       var bac=sccBac(s.code);
       return '<tr><th scope="row">'+s.code+'</th><td>'+s.name+'</td>'+
@@ -8281,7 +8294,9 @@ function renderRisk(){
 function renderSoundTransitLessons(){
   var el=document.getElementById("soundTransitLessons"); if(!el) return;
   var tun=rows.filter(function(r){ return r.id==="CP-201"; })[0];
-  var geoDone=FEP_STATUS.filter(function(f){return f.pkg==="CP-201";})[0].done.geo;
+  var fepRow=FEP_STATUS.filter(function(f){return f.pkg==="CP-201";})[0];
+  if(!tun||!fepRow) return;
+  var geoDone=fepRow.done.geo;
   el.innerHTML=
     '<h3>A real lesson from Sound Transit\'s own audit</h3>'+
     '<p class="lede" style="font-size:12.5px;margin-top:5px">The Washington State Auditor examined '+
@@ -8396,7 +8411,7 @@ function renderIcsra(){
     'attempts; shown instead is each risk\'s real priced exposure paired with its linked package\'s '+
     'real float, using the same derivation this tab\'s own risk drill-down already relies on, never '+
     'a fabricated risk-to-package map.</p>'+
-    '<table><thead><tr><th>Risk</th><th>Cost exposure</th><th>Linked schedule exposure</th></tr></thead><tbody>'+
+    '<table><thead><tr><th scope="col">Risk</th><th scope="col">Cost exposure</th><th scope="col">Linked schedule exposure</th></tr></thead><tbody>'+
     ranked.map(function(r){
       return '<tr><th scope="row">'+r.id+'</th><td class="tab-num">'+m(r.exp)+'</td>'+
         '<td class="tab-num'+(r.schedExp!==null&&r.schedExp<0?" ba":"")+'">'+(r.schedExp!==null?days(r.schedExp):'<span style="color:rgb(var(--c-mut))">not derivable</span>')+'</td></tr>';
@@ -9717,10 +9732,10 @@ function renderOverrunTaxonomy(){
     'caused actions. Scoped to the 3 that are genuine strategic cost/schedule-overrun drivers, not '+
     'stretched to every open item &mdash; the 2 Quality NCRs and A-15 (a reviewer-staffing gap) are '+
     'real too, just tactical/quality issues this specific taxonomy wasn\'t built to explain.</p>'+
-    '<table><thead><tr><th>Action</th><th>Overrun category</th><th>Stakeholder</th><th>Why</th></tr></thead><tbody>'+
+    '<table><thead><tr><th scope="col">Action</th><th scope="col">Overrun category</th><th scope="col">Stakeholder</th><th scope="col">Why</th></tr></thead><tbody>'+
     OVERRUN_TAXONOMY.map(function(r){
       var a=ACTIONS.filter(function(x){return x.id===r.actionId;})[0];
-      return '<tr><th scope="row">'+r.actionId+'</th>'+
+      return '<tr><th scope="row">'+r.actionId+(a?' &mdash; '+a.title:"")+'</th>'+
         '<td><span class="pill i">'+catLabel[r.category]+'</span></td>'+
         '<td><span class="pill a">'+attrLabel[r.attribution]+'</span></td>'+
         '<td style="font-size:12px;color:rgb(var(--c-mut))">'+r.why+'</td></tr>';
@@ -10389,7 +10404,7 @@ function renderGaoCredibility(){
     'Well-documented, Accurate, Credible. Audited here against this dashboard\'s own already-real '+
     'features, not a new mechanism &mdash; honestly scored, including the one real, named gap this '+
     'program hasn\'t closed.</p>'+
-    '<table><thead><tr><th>Characteristic</th><th>Status</th><th>Evidence</th></tr></thead><tbody>'+
+    '<table><thead><tr><th scope="col">Characteristic</th><th scope="col">Status</th><th scope="col">Evidence</th></tr></thead><tbody>'+
     rows.map(function(r){
       return '<tr><th scope="row">'+r.characteristic+'</th>'+
         '<td><span class="pill '+statusCls[r.status]+'">'+statusLabel[r.status]+'</span></td>'+
@@ -10458,7 +10473,13 @@ function renderCaBuyCleanComparison(){
     'under the IIJA/IRA Buy Clean Initiative) was rescinded by Executive Order in Jan 2025 and its '+
     'remaining funding was defunded by the One Big Beautiful Bill Act in July 2025 &mdash; named here as '+
     'the real historical model for a federal numeric-threshold mechanism, not as a program to comply '+
-    'with today.</p></div>';
+    'with today.</p>'+
+    (rebar && !rebar.quantityReported? '<p style="margin:6px 0 0;font-size:11.5px;color:rgb(var(--c-mut))">'+
+      '<b style="color:rgb(var(--c-ink))">Honest gap:</b> this program has not yet reported a real '+
+      'steel quantity (see the disclosure table above), so there is no real project-specific GWP figure '+
+      'to compare against California\'s cap today &mdash; only the cap itself is real, the comparison '+
+      'point isn\'t.</p>' : "")+
+    '</div>';
 }
 /* Envision rating structure (research-backed upgrade, item #7, Tier 2, 2026-08-27) -- the real
    Institute for Sustainable Infrastructure (ISI) framework, co-founded with Harvard's Zofnass
@@ -10491,7 +10512,7 @@ function renderEnvision(){
     'Transit\'s own Federal Way Link Extension and Downtown Redmond Link Extension both earned '+
     'Envision Platinum &mdash; ISI names Federal Way Link only the 7th transit project nationally '+
     'to reach it.</p>'+
-    '<table><thead><tr><th>Category</th><th>Credits</th></tr></thead><tbody>'+
+    '<table><thead><tr><th scope="col">Category</th><th scope="col">Credits</th></tr></thead><tbody>'+
     ENVISION_CATEGORIES.map(function(c){
       return '<tr><td>'+c.name+'</td><td class="tab-num">'+c.credits+'</td></tr>';
     }).join("")+
@@ -10781,7 +10802,7 @@ function renderHotellingT2(){
     'distance across this program\'s 8 packages as overfitting risk at that sample size &mdash; the '+
     'same caveat applies here even harder at 6 weeks. This demonstrates the real mechanism, not a '+
     'production-ready control limit a sample this small could genuinely support.</p>'+
-    '<table><thead><tr><th>Week</th><th>Actual $/hr</th><th>Idle %</th><th>T&sup2;</th></tr></thead>'+
+    '<table><thead><tr><th scope="col">Week</th><th scope="col">Actual $/hr</th><th scope="col">Idle %</th><th scope="col">T&sup2;</th></tr></thead>'+
     '<tbody>'+rowsHtml+'</tbody></table>'+
     '<p style="margin:12px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">Textbook individual-'+
     'observations approximation for 2 variables: T&sup2; &gt; '+T2_CHI2_DF2_ALPHA05+

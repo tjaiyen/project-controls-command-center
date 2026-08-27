@@ -8931,6 +8931,41 @@ console.log("== V. UX/UI upgrade round (brainstorm-mode, 2026-08-26) ==");
   ok(Math.abs(P.materialUnabsorbedExposure() - expectedExposure) < 1e-6, "materialUnabsorbedExposure() matches an independent recomputation from R-04's real cost and the real published index figures", P.materialUnabsorbedExposure() + " vs expected " + expectedExposure);
   has("printBrief", "Unabsorbed material-escalation exposure", "print brief carries the material-escalation exposure line");
   ok(!G.printBrief._html.includes("$NaN"), "print brief's material-exposure figure formatted cleanly, not NaN");
+
+  // Research-backed diligence (/stress-test finding, 2026-08-27, independent reviewer) -- the
+  // 12-item research-build round repeated the exact same print-brief gap item #7 above was built
+  // to close: none of its 12 cards reached this print-only summary. Expected values are
+  // independently recomputed from raw RISKS/FTA_SCC/FEP_STATUS data, not the app's own print
+  // output checked against itself.
+  const gaoRows = P.gaoCredibilityChecklist();
+  const gaoPassIndependent = gaoRows.filter((r) => r.status === "pass").length;
+  ok(gaoPassIndependent === 3, "pre-registered: exactly 3 of 4 real GAO characteristics pass today", String(gaoPassIndependent));
+  has("printBrief", "GAO-20-195G cost-estimate credibility characteristics passing</td><td>" + gaoPassIndependent + " of " + gaoRows.length,
+    "print brief's GAO-checklist pass count matches the independent recomputation");
+
+  function icsraJointIndependent() {
+    return P.risks.filter((k) => {
+      const linked = P.riskLinkedActions(k);
+      const pkgs = [];
+      linked.forEach((a) => { if (a.pkg && pkgs.indexOf(a.pkg) < 0) pkgs.push(a.pkg); });
+      if (!pkgs.length) return false;
+      const floats = pkgs.map((pid) => { const p = P.rows.find((r) => r.id === pid); return p ? p.float : null; }).filter((f) => f !== null);
+      if (!floats.length) return false;
+      return Math.min(...floats) < 0;
+    }).length;
+  }
+  const jointIndependent = icsraJointIndependent();
+  ok(jointIndependent === 1, "pre-registered: exactly 1 of 7 real risks (R-01) carries a joint cost+schedule hit today", String(jointIndependent));
+  has("printBrief", "Risks with a real, derivable joint cost+schedule exposure (ICSRA)</td><td>" + jointIndependent + " of " + P.risks.length,
+    "print brief's ICSRA joint-exposure count matches the independent recomputation");
+
+  const fepAvgIndependent = P.pkgs.reduce((s, p) => {
+    const st = P.fepStatus.find((f) => f.pkg === p.id);
+    const keys = P.fepCheckpoints.map((c) => c.k);
+    return s + keys.filter((k) => st.done[k]).length / keys.length;
+  }, 0) / P.pkgs.length;
+  has("printBrief", "Front-end-planning (PDRI) portfolio-average completeness</td><td>" + pct(fepAvgIndependent, 0),
+    "print brief's FEP portfolio-average figure matches an independent recomputation from raw checkpoint booleans");
 }
 
 // #4: collapsible sections on the AI & Data tab (UX upgrade round, 2026-08-26) -- the tab's own
@@ -9163,6 +9198,15 @@ console.log("== D45. Front-end-planning completeness (research-backed upgrade, i
   ok(JSON.stringify(weak.map((p) => p.id).sort()) === JSON.stringify(["CP-201", "CP-601", "CP-701"].sort()),
     "pre-registered: exactly 3 real packages sit below 75% completeness today (CP-201, CP-601, CP-701)", JSON.stringify(weak.map((p) => p.id)));
   weak.forEach((p) => has("fepCard", p.id, p.id + " is named in the card's own weak-package callout"));
+
+  // /stress-test finding (2026-08-27, independent reviewer): weakVac/totalVac had no zero-guard --
+  // if every real package's VAC were ever non-negative, totalVac would be 0 and the card would
+  // render the literal string "NaN%" into live prose. Fixed to match carbonReadinessPct()'s own
+  // established total>0 guard pattern a few hundred lines away. Static check only: forcing the
+  // actual 0/0 case needs a synthetic all-favorable-VAC dataset the runtime stub can't construct
+  // without rewriting PKGS, so this asserts the guard is present, not the zero-VAC branch itself.
+  ok(indexSrc.includes("totalVac>0?weakVac/totalVac:0"), "the FEP card's weak-package VAC share is zero-guarded against a future all-favorable-VAC dataset");
+  ok(!G.fepCard._html.includes("NaN"), "today's real card never renders the literal string NaN");
 }
 
 // item #5 (Tier 2): AACE Estimate Classification (RP 17R-97/56R-08).
@@ -9273,6 +9317,14 @@ console.log("== D49. California Buy Clean comparison (research-backed upgrade, i
   // Note: this item's own draft briefly introduced an unbalanced <div> (a missing closing tag in
   // renderCaBuyCleanComparison) -- caught by this file's ALREADY-EXISTING general tag-balance
   // sweep (line ~148 above), not a new check added here; no redundant copy needed.
+
+  // /stress-test finding (2026-08-27, independent reviewer): the function looked up this
+  // program's own real steel disclosure row but never used it -- dead code. Wired in as an honest
+  // gap statement instead of deleted, since CARBON_DISCLOSURE's real steel row has
+  // quantityReported=false (no real project-specific GWP figure exists to compare against CA's
+  // cap), matching this build's own "resolve toward honesty, not completeness" pattern.
+  ok(P.carbonDisclosure.find((c) => c.material.indexOf("steel") >= 0).quantityReported === false, "pre-registered: this program's real steel row has not reported a quantity, so the honest-gap branch is the live one today");
+  has("carbonDisclosureCard", "Honest gap", "the card states the honest gap rather than implying a fabricated comparison point");
 }
 
 // item #8 (Tier 2): overrun-driver taxonomy + stakeholder attribution -- see OVERRUN_TAXONOMY's
@@ -9298,6 +9350,14 @@ console.log("== D50. Overrun-driver taxonomy + stakeholder attribution (research
   has("overrunTaxonomyCard", "Overrun-driver taxonomy", "the card renders its real heading");
   has("overrunTaxonomyCard", "Cantarelli", "the card cites the real academic source, not a vague description");
   P.overrunTaxonomy.forEach((r) => has("overrunTaxonomyCard", r.actionId, "the card lists every tagged action, including " + r.actionId));
+
+  // /stress-test finding (2026-08-27, independent reviewer): the row-map callback looked up each
+  // action's own real record but never used it -- dead code, and the row showed only a bare id
+  // with no title. Wired in to render the action's real title alongside its id.
+  P.overrunTaxonomy.forEach((r) => {
+    const a = P.actions.find((x) => x.id === r.actionId);
+    has("overrunTaxonomyCard", a.title, "the card shows " + r.actionId + "'s real action title, not just its bare id");
+  });
 }
 
 // item #6 (Tier 2): FTA Standard Cost Category realignment -- see FTA_SCC's own comment for the
@@ -9476,13 +9536,37 @@ console.log("== D56. GAO cost-estimate credibility checklist (research-backed up
   const wellDoc = rows.find((r) => r.characteristic === "Well-documented");
   ok(wellDoc.evidence.includes(String(P.kpis.length)), "Well-documented's evidence cites the real KPI count, not a hardcoded one");
   const accurate = rows.find((r) => r.characteristic === "Accurate");
-  ok(accurate.evidence.includes("65 parity checks"), "Accurate's evidence cites the real, already-established SQL/DuckDB parity-check count");
+  // /stress-test finding (2026-08-27, independent reviewer): this checks the evidence string
+  // against a literal, not an independent recomputation -- flagged as tautological. It genuinely
+  // can't be recomputed live here: the real count only exists by executing pipeline/run_pipeline.py
+  // against DuckDB (many of its `check()` calls run inside per-package/per-month loops, so the
+  // total isn't statically countable from source either). This is the SAME accepted limitation
+  // already stated for architecture.html's identical figure (see this file's own D-section comment
+  // at line ~8110-8113) -- not a new, silent instance of it. Real accepted limitation, not a gap:
+  // a stale "65" would only be caught by the separate live venv run this project already does
+  // before every push (see docs/HANDOFF.md's own "independently re-run and verified this pass").
+  ok(accurate.evidence.includes("65 parity checks"), "Accurate's evidence cites the real, already-established SQL/DuckDB parity-check count (accepted limitation: text-presence only, not a live recomputation -- see comment)");
   const credible = rows.find((r) => r.characteristic === "Credible");
   ok(credible.evidence.includes(P.mc.n.toLocaleString("en-US")) && credible.evidence.includes(String(P.risks.length)), "Credible's evidence cites the real Monte Carlo run count and real risk-register size, not hardcoded numbers");
 
   has("gaoCredibilityCard", "GAO", "the card renders its real heading, citing the real source agency");
   has("gaoCredibilityCard", "GAO-20-195G", "the card cites the real, specific GAO guide number");
   has("gaoCredibilityCard", "Partial", "the card's own table shows the real Partial status, not smoothed to Pass");
+}
+
+// /stress-test finding (2026-08-27, independent reviewer): every one of the 12 research-build
+// items' new tables (renderFep/renderEstClass/renderLcca/renderRcfComparison/renderFtaScc/
+// renderIcsra/renderOverrunTaxonomy/renderGaoCredibility/renderEnvision/renderHotellingT2)
+// omitted scope="col" on its header <th> cells -- a page-wide convention every other table on
+// the page follows (dozens of examples, e.g. index.html:1499). Static regex sweep, not a runtime
+// DOM check, since the fix is markup the app never re-derives at runtime.
+console.log("== D57. Table header scope=\"col\" accessibility sweep (research-build round, /stress-test finding, 2026-08-27) ==");
+{
+  const newCardIds = ["fepCard", "estClassCard", "lccaCard", "rcfComparisonCard", "ftaSccCard", "icsraCard", "overrunTaxonomyCard", "gaoCredibilityCard", "envisionCard", "hotellingCard"];
+  newCardIds.forEach((id) => {
+    ok(G[id]._html.includes('scope="col"'), id + "'s table header cells carry the page's own scope=\"col\" convention, not omitted");
+    ok(!/<thead>[\s\S]{0,40}<th>/.test(G[id]._html), id + "'s table has no bare, unscoped <th> immediately inside its <thead>");
+  });
 }
 
 console.log("\n" + pass + " passed, " + fail + " failed");
