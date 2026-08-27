@@ -10101,7 +10101,43 @@ function renderCarbonDisclosure(){
       '<td><span class="pill '+(c.coveredByRCW?"i":"g")+'">'+(c.coveredByRCW?"Covered":"Not covered")+'</span></td>'+
       '<td><span class="pill '+(c.epdSubmitted?"g":"r")+'">'+(c.epdSubmitted?"Submitted":"Pending")+'</span></td>'+
       '<td><span class="pill '+(c.quantityReported?"g":"r")+'">'+(c.quantityReported?"Reported":"Pending")+'</span></td></tr>'; }).join("")+
-    '</tbody></table></div>';
+    '</tbody></table></div>'+
+    renderCaBuyCleanComparison();
+}
+/* California Buy Clean comparison (research-backed upgrade, item #4, Tier 1, 2026-08-27) --
+   independently verified before building: California's real Buy Clean Act (AB 262 / Public
+   Contract Code §§3500-3505) sets numeric maximum-GWP CEILINGS per material (not disclosure-
+   only like WA's RCW 39.116 above), enforced via third-party-verified EPDs. The first 3-year
+   review (effective Jan 2025) set the real, current reinforcing-steel caps: 755 kg CO2e/tonne
+   unfabricated, 778 kg CO2e/tonne fabricated -- CA's covered-materials list (structural steel,
+   concrete reinforcing steel, flat glass, mineral wool) maps to exactly ONE of this program's 3
+   tracked materials (reinforcing & structural steel); concrete and wood are NOT covered by CA's
+   Act the way they were briefly covered by the federal program below, so this comparison is
+   scoped narrowly, not stretched to claim CA covers everything WA discloses.
+   Honesty flag (research finding, not assumed): the comparable FEDERAL mechanism (the Buy Clean
+   Initiative / Low-Carbon Transportation Materials Program under IIJA/IRA, which DID have real
+   numeric GWP thresholds for 9 concrete mix classes) was rescinded by Executive Order in Jan 2025
+   and its remaining ~$1.9B in funding was defunded by the One Big Beautiful Bill Act in July
+   2025 -- it is NOT presented here as an active program to comply with, only as the historical
+   reference for what a federal numeric-threshold mechanism looked like while it existed. */
+var CA_BUY_CLEAN_REBAR_CAP={unfabricated:755, fabricated:778}; // kg CO2e/tonne, real 2025 DGS limit
+function renderCaBuyCleanComparison(){
+  var rebar=CARBON_DISCLOSURE.filter(function(c){ return c.material.indexOf("steel")>=0; })[0];
+  return '<div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--c-line)">'+
+    '<h4 style="margin:0 0 6px">A harder real-world model: California\'s Buy Clean Act</h4>'+
+    '<p class="lede" style="font-size:12.3px">Unlike WA\'s disclosure-only mechanism above, California\'s '+
+    'real Buy Clean Act (AB 262) sets a numeric maximum-GWP ceiling, not just a reporting requirement. '+
+    'Its most recent real threshold for reinforcing steel &mdash; the one material here it actually '+
+    'covers &mdash; is <b style="color:rgb(var(--c-ink))">'+CA_BUY_CLEAN_REBAR_CAP.unfabricated+' kg CO2e/tonne '+
+    'unfabricated, '+CA_BUY_CLEAN_REBAR_CAP.fabricated+' kg CO2e/tonne fabricated</b> (effective Jan 2025). '+
+    'CA\'s covered-materials list does not reach the concrete or wood tracked above the way it reaches '+
+    'steel &mdash; this comparison is scoped to the one material it genuinely covers, not stretched.</p>'+
+    '<p style="margin:8px 0 0;font-size:11.5px;color:rgb(var(--c-mut))"><b style="color:rgb(var(--c-ink))">'+
+    'Not presented as active:</b> the comparable federal mechanism (numeric GWP thresholds for concrete '+
+    'under the IIJA/IRA Buy Clean Initiative) was rescinded by Executive Order in Jan 2025 and its '+
+    'remaining funding was defunded by the One Big Beautiful Bill Act in July 2025 &mdash; named here as '+
+    'the real historical model for a federal numeric-threshold mechanism, not as a program to comply '+
+    'with today.</p></div>';
 }
 
 /* Session activity/change-audit trail (brainstorm-mode round, 2026-08-26) — item #16. Real,
@@ -10920,6 +10956,8 @@ var GLOSS=[
   e:function(){ var series=CPH_CELLS[0].weeks.map(function(w){return w.actual;}), e2=deriveEwma(series), flags=e2.points.filter(function(p2){return p2.flag;}).length;
     return "Run against the tunnel crew's own 6-week $/hr series: "+flags+" of "+e2.points.length+" weeks currently breach the dynamic control limit ("+
       (flags?"a real, live flag":"a genuine null result — the honest answer, not a manufactured anomaly")+"). &lambda;="+e2.lambda+", L="+e2.L+" are standard SPC parameter choices, not derived from this program's own history."; }},
+ {k:"cabuyclean", cat:"data", jT:"ai", jE:"carbonDisclosureCard", t:"California Buy Clean Act (AB 262)", p:"A real numeric maximum-GWP ceiling (not just disclosure) for structural steel, concrete reinforcing steel, flat glass, and mineral wool on California state-funded projects, enforced via third-party-verified EPDs. A harder real-world model than WA's own disclosure-only mechanism tracked above. The comparable federal mechanism (numeric thresholds for concrete under the IIJA/IRA Buy Clean Initiative) was rescinded by Executive Order in Jan 2025 and defunded by the One Big Beautiful Bill Act in July 2025 — not active today.",
+  e:function(){ return "The real 2025 reinforcing-steel cap is "+CA_BUY_CLEAN_REBAR_CAP.unfabricated+" kg CO2e/tonne unfabricated, "+CA_BUY_CLEAN_REBAR_CAP.fabricated+" kg CO2e/tonne fabricated — the one material this program tracks that CA's Act actually covers."; }},
  {k:"soundtransitaudit", cat:"risk", jT:"risk", jE:"soundTransitLessons", t:"Sound Transit design-deficiency audit finding", p:"A real Washington State Auditor finding: 13% of Sound Transit's own examined change orders traced to design deficiencies found only after award, and an additional ~$2M of exploratory drilling could have raised geotechnical coverage 25% across the projects examined — root-caused to inadequate ground-condition characterization during planning.",
   e:function(){ return "Applied as a reference-class comparison to this program's own real approved change value: "+m(referenceDesignDeficiencyExposure())+" — not a claim about this program's own itemized causes, which this ledger doesn't track that granularly."; }},
  {k:"hotellingt2", cat:"field", jT:"ai", jE:"hotellingCard", t:"Hotelling's T² control chart", p:"Combines two correlated metrics into one joint control statistic per period instead of watching them on separate charts — the real, peer-reviewed answer to the finding that independent univariate control limits on correlated series inflate the false-alarm rate. Here: CP-201's own crew cost-per-hour and idle-time percentage, the same 6 real weeks the z-score/EWMA panels already use.",
@@ -13275,6 +13313,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   aaceClasses:AACE_CLASSES,pkgEstimateClass:PKG_ESTIMATE_CLASS,aaceClassOf:aaceClassOf,renderEstClass:renderEstClass,
   hotellingT2:hotellingT2,t2Chi2Df2Alpha05:T2_CHI2_DF2_ALPHA05,renderHotellingT2:renderHotellingT2,
   soundTransitAudit:SOUND_TRANSIT_AUDIT,referenceDesignDeficiencyExposure:referenceDesignDeficiencyExposure,renderSoundTransitLessons:renderSoundTransitLessons,
+  caBuyCleanRebarCap:CA_BUY_CLEAN_REBAR_CAP,renderCaBuyCleanComparison:renderCaBuyCleanComparison,
   mcParams:mcParams,triang:triang,dsStep:dsStep,
   gaussRnd:gaussRnd,gammaRnd:gammaRnd,betaRnd:betaRnd,pertRnd:pertRnd,mcDraw:mcDraw,computeMc:computeMc,
   recomputeActiveMc:recomputeActiveMc,syncMcDist:syncMcDist,renderMcMath:renderMcMath,

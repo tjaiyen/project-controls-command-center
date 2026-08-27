@@ -3799,7 +3799,7 @@ console.log("== D10. inline term help ==");
 // 57 as of the same round's follow-up: a real "pband" entry, same reasoning as impactscore -- the
 // probability scale had no glossary entry either, and TJ's own follow-up question ("why P4, no
 // parameters given") is exactly what it closes.
-ok(P.gloss.length === 65, "GLOSS grew to 65 entries (64 prior + soundtransitaudit, research-backed upgrade 2026-08-27)", String(P.gloss.length));
+ok(P.gloss.length === 66, "GLOSS grew to 66 entries (65 prior + cabuyclean, research-backed upgrade 2026-08-27)", String(P.gloss.length));
 // title independently re-typed per term (/stress-test finding, 2026-08-21: the prior version only
 // checked g.p/g.e() were non-empty, which passes even for a totally wrong or swapped-in entry) —
 // guards that findGloss(k) actually resolves to the RIGHT term, not just SOME term.
@@ -4792,7 +4792,7 @@ console.log("== D23. Glossary upgrade round, items 1-3 (2026-08-21) ==");
   // to a known category. Independently re-derived from the raw array, not read back from the
   // rendered pill counts and trusted against itself. (61 as of the brainstorm-mode ML round's
   // multianomaly addition, 2026-08-26.)
-  ok(P.gloss.length === 65, "sanity: still 65 real glossary terms");
+  ok(P.gloss.length === 66, "sanity: still 66 real glossary terms");
   const validCats = Object.keys(P.cats);
   P.gloss.forEach(g => ok(validCats.indexOf(g.cat) >= 0, "term '" + g.k + "' carries a real category (" + g.cat + ")", g.cat));
 
@@ -9243,6 +9243,23 @@ console.log("== D48. Sound Transit lessons — design-deficiency exposure + geot
   const geoDone = P.fepStatus.find((f) => f.pkg === "CP-201").done.geo;
   ok(geoDone === false, "pre-registered: CP-201's real geotechnical checkpoint is still open today, consistent with R-01's ground-conditions risk");
   has("soundTransitLessons", "Not complete", "the card correctly reflects CP-201's real, still-open geotechnical status, cross-referenced from item #1's own FEP_STATUS");
+}
+
+// item #4 (Tier 1): California Buy Clean Act comparison -- see CA_BUY_CLEAN_REBAR_CAP's own
+// comment for the real sourcing and the defunct-federal-program honesty flag.
+console.log("== D49. California Buy Clean comparison (research-backed upgrade, item #4, 2026-08-27) ==");
+{
+  ok(P.caBuyCleanRebarCap.unfabricated === 755 && P.caBuyCleanRebarCap.fabricated === 778, "pre-registered: the real 2025 CA reinforcing-steel GWP caps are 755/778 kg CO2e per tonne", JSON.stringify(P.caBuyCleanRebarCap));
+  has("carbonDisclosureCard", "California", "the carbon-disclosure card now includes the CA Buy Clean comparison");
+  has("carbonDisclosureCard", "755 kg CO2e", "the card states the real current unfabricated cap");
+  has("carbonDisclosureCard", "778 kg CO2e", "the card states the real current fabricated cap");
+  has("carbonDisclosureCard", "One Big Beautiful Bill Act", "the card explicitly flags the comparable federal mechanism as defunded, not presented as active");
+  has("carbonDisclosureCard", "Executive Order in Jan 2025", "the card explicitly flags the federal program's rescission, not silently omitted");
+  ok(!G.carbonDisclosureCard._html.includes("federal Buy Clean Initiative</b> is active") && !G.carbonDisclosureCard._html.includes("comply with the federal"),
+    "the card never implies the federal program is something to comply with today");
+  // Note: this item's own draft briefly introduced an unbalanced <div> (a missing closing tag in
+  // renderCaBuyCleanComparison) -- caught by this file's ALREADY-EXISTING general tag-balance
+  // sweep (line ~148 above), not a new check added here; no redundant copy needed.
 }
 
 console.log("\n" + pass + " passed, " + fail + " failed");
