@@ -2170,6 +2170,7 @@ join dim_control_account b using (package_id)</pre></div>
       <nav aria-label="Section anchors">
         <a href="#actStrip">Summary</a>
         <a href="#ownerTable">By Owner</a>
+        <a href="#overrunTaxonomyCard">Overrun Taxonomy</a>
         <a href="#actFilters">Register</a>
         <a href="#actionsMathBody">SLA Engine</a>
       </nav>
@@ -2189,6 +2190,9 @@ join dim_control_account b using (package_id)</pre></div>
       <p class="lede">Not enforcement, visibility. This is the table that makes it obvious who is carrying
         what, and who has gone quiet on something that's still open &mdash; before it becomes a surprise.</p>
       <div class="tw"><table id="ownerTable"></table></div>
+
+      <div class="sec-h" style="margin-top:30px"><h3>Overrun-driver taxonomy</h3></div>
+      <div class="card tw" id="overrunTaxonomyCard"></div>
 
       <div class="sec-h" style="margin-top:30px"><h3>Register</h3>
         <div style="display:flex;gap:4px;margin-left:auto" role="group" aria-label="Register view">
@@ -9449,6 +9453,50 @@ function hideJumpBreadcrumb(){
   var el=document.getElementById("jumpBreadcrumb");
   el.hidden=true; el.innerHTML="";
 }
+/* Overrun-driver taxonomy + stakeholder attribution (research-backed upgrade, item #8, Tier 2,
+   2026-08-27) -- two real, peer-reviewed classification schemes applied to this program's own
+   real root-caused actions, not invented categories:
+   1. Cantarelli, Flyvbjerg, Molin & van Wee, "Cost Overruns in Large-Scale Transportation
+      Infrastructure Projects: Explanations and Their Theoretical Embeddedness," European Journal
+      of Transport and Infrastructure Research 10(1), 2010 -- four overrun-explanation categories
+      (technical, economic, psychological, political), finding political explanations dominant,
+      not just estimation error.
+   2. ASCE Journal of Construction Engineering and Management, "Cost Overruns and Failure in
+      Project Management: Understanding the Roles of Key Stakeholders in Construction Projects,"
+      Vol. 139 No. 3, 2013 -- stakeholder attribution across owner/design/contractor/external.
+   Scoped deliberately: only the 3 real actions whose root cause IS a genuine strategic cost/
+   schedule-overrun driver (A-01, A-04, A-14 -- all tied to a real KPI via ACTIONS' own kpi field)
+   are tagged. The 2 Quality NCRs and A-15 are real, root-caused items too, but they're tactical/
+   quality issues, not what this specific academic taxonomy was built to explain -- force-fitting
+   them would be less honest than leaving them out and saying why. */
+var OVERRUN_TAXONOMY=[
+ {actionId:"A-01",category:"technical",attribution:"design",why:"Insufficient front-end geotechnical characterization (see item #1's own FEP_STATUS, CP-201) — an engineering/technical gap, root-caused to the design-stage investigation, not a market or governance factor."},
+ {actionId:"A-04",category:"technical",attribution:"design",why:"Same tunnel, same theme — face conditions varying faster than the original geotechnical program sampled for is a technical characterization gap, not a pricing or ownership issue."},
+ {actionId:"A-14",category:"economic",attribution:"external",why:"Steel/OCS index pricing running ahead of the escalation clause's own trigger is a real market/commodity factor — external to any party's decision, the textbook economic category, not a technical or governance failure."}
+];
+function overrunTaxonomyRow(actionId){ return OVERRUN_TAXONOMY.filter(function(r){return r.actionId===actionId;})[0]||null; }
+function renderOverrunTaxonomy(){
+  var el=document.getElementById("overrunTaxonomyCard"); if(!el) return;
+  var catLabel={technical:"Technical",economic:"Economic",psychological:"Psychological",political:"Political"};
+  var attrLabel={owner:"Owner",design:"Design",contractor:"Contractor",external:"External"};
+  el.innerHTML=
+    '<h3>Overrun-driver taxonomy &amp; stakeholder attribution</h3>'+
+    '<p class="lede" style="font-size:12.5px;margin-top:5px">Two real, peer-reviewed classification '+
+    'schemes (Cantarelli/Flyvbjerg\'s 4-category overrun-explanation taxonomy; ASCE\'s owner/design/'+
+    'contractor/external stakeholder-attribution study) applied to this program\'s own real root-'+
+    'caused actions. Scoped to the 3 that are genuine strategic cost/schedule-overrun drivers, not '+
+    'stretched to every open item &mdash; the 2 Quality NCRs and A-15 (a reviewer-staffing gap) are '+
+    'real too, just tactical/quality issues this specific taxonomy wasn\'t built to explain.</p>'+
+    '<table><thead><tr><th>Action</th><th>Overrun category</th><th>Stakeholder</th><th>Why</th></tr></thead><tbody>'+
+    OVERRUN_TAXONOMY.map(function(r){
+      var a=ACTIONS.filter(function(x){return x.id===r.actionId;})[0];
+      return '<tr><th scope="row">'+r.actionId+'</th>'+
+        '<td><span class="pill i">'+catLabel[r.category]+'</span></td>'+
+        '<td><span class="pill a">'+attrLabel[r.attribution]+'</span></td>'+
+        '<td style="font-size:12px;color:rgb(var(--c-mut))">'+r.why+'</td></tr>';
+    }).join("")+
+    '</tbody></table>';
+}
 function jumpToAction(id){
   var fromTab=state.tab;
   state.kpi=null; renderDetail();
@@ -10956,6 +11004,8 @@ var GLOSS=[
   e:function(){ var series=CPH_CELLS[0].weeks.map(function(w){return w.actual;}), e2=deriveEwma(series), flags=e2.points.filter(function(p2){return p2.flag;}).length;
     return "Run against the tunnel crew's own 6-week $/hr series: "+flags+" of "+e2.points.length+" weeks currently breach the dynamic control limit ("+
       (flags?"a real, live flag":"a genuine null result — the honest answer, not a manufactured anomaly")+"). &lambda;="+e2.lambda+", L="+e2.L+" are standard SPC parameter choices, not derived from this program's own history."; }},
+ {k:"overruntaxonomy", cat:"risk", jT:"act", jE:"overrunTaxonomyCard", t:"Overrun-driver taxonomy & stakeholder attribution", p:"Two real, peer-reviewed classification schemes: Cantarelli/Flyvbjerg's 4-category overrun-explanation taxonomy (technical, economic, psychological, political) and ASCE's owner/design/contractor/external stakeholder-attribution study — applied to this program's own real root-caused actions, scoped only to the ones that are genuine strategic overrun drivers, not stretched to every open item.",
+  e:function(){ return OVERRUN_TAXONOMY.length+" real actions carry both tags today, all technical/design or economic/external — this program's own real data happens not to show a psychological or political driver yet, not a gap in the taxonomy."; }},
  {k:"cabuyclean", cat:"data", jT:"ai", jE:"carbonDisclosureCard", t:"California Buy Clean Act (AB 262)", p:"A real numeric maximum-GWP ceiling (not just disclosure) for structural steel, concrete reinforcing steel, flat glass, and mineral wool on California state-funded projects, enforced via third-party-verified EPDs. A harder real-world model than WA's own disclosure-only mechanism tracked above. The comparable federal mechanism (numeric thresholds for concrete under the IIJA/IRA Buy Clean Initiative) was rescinded by Executive Order in Jan 2025 and defunded by the One Big Beautiful Bill Act in July 2025 — not active today.",
   e:function(){ return "The real 2025 reinforcing-steel cap is "+CA_BUY_CLEAN_REBAR_CAP.unfabricated+" kg CO2e/tonne unfabricated, "+CA_BUY_CLEAN_REBAR_CAP.fabricated+" kg CO2e/tonne fabricated — the one material this program tracks that CA's Act actually covers."; }},
  {k:"soundtransitaudit", cat:"risk", jT:"risk", jE:"soundTransitLessons", t:"Sound Transit design-deficiency audit finding", p:"A real Washington State Auditor finding: 13% of Sound Transit's own examined change orders traced to design deficiencies found only after award, and an additional ~$2M of exploratory drilling could have raised geotechnical coverage 25% across the projects examined — root-caused to inadequate ground-condition characterization during planning.",
@@ -13231,7 +13281,7 @@ document.getElementById("mcInspect").value=String(state.mcInspect);
 document.getElementById("vInspect").textContent="P"+state.mcInspect;
 renderWaterfall(); renderWaterfallMath(); renderBaseline(); renderFep(); renderEstClass(); renderVeSandbox(); renderEac(); renderCont(); renderTable();
 renderEacTrend(); renderFcastTable(); renderGbmDiffusion(); renderGbmLogReturns(); renderGbmMathUnlocked(); renderGbmVsEvm(); renderCashflow();
-renderGantt(); renderSchedule(); renderRisk(); renderSoundTransitLessons(); renderDrbEmv(); renderContracts(); renderSubHealth(); renderDelivery(); renderFramework(); renderActions(); renderActionsMath(); renderTriage(); renderExec();
+renderGantt(); renderSchedule(); renderRisk(); renderSoundTransitLessons(); renderDrbEmv(); renderContracts(); renderSubHealth(); renderDelivery(); renderFramework(); renderActions(); renderActionsMath(); renderOverrunTaxonomy(); renderTriage(); renderExec();
 document.getElementById("sDrbP").value=DRB_ASSUMPTIONS.pOwnerWins;
 document.getElementById("sDrbLegal").value=DRB_ASSUMPTIONS.legalCost;
 renderDrbSlider();
@@ -13314,6 +13364,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   hotellingT2:hotellingT2,t2Chi2Df2Alpha05:T2_CHI2_DF2_ALPHA05,renderHotellingT2:renderHotellingT2,
   soundTransitAudit:SOUND_TRANSIT_AUDIT,referenceDesignDeficiencyExposure:referenceDesignDeficiencyExposure,renderSoundTransitLessons:renderSoundTransitLessons,
   caBuyCleanRebarCap:CA_BUY_CLEAN_REBAR_CAP,renderCaBuyCleanComparison:renderCaBuyCleanComparison,
+  overrunTaxonomy:OVERRUN_TAXONOMY,overrunTaxonomyRow:overrunTaxonomyRow,renderOverrunTaxonomy:renderOverrunTaxonomy,
   mcParams:mcParams,triang:triang,dsStep:dsStep,
   gaussRnd:gaussRnd,gammaRnd:gammaRnd,betaRnd:betaRnd,pertRnd:pertRnd,mcDraw:mcDraw,computeMc:computeMc,
   recomputeActiveMc:recomputeActiveMc,syncMcDist:syncMcDist,renderMcMath:renderMcMath,

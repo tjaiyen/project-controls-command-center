@@ -3799,7 +3799,7 @@ console.log("== D10. inline term help ==");
 // 57 as of the same round's follow-up: a real "pband" entry, same reasoning as impactscore -- the
 // probability scale had no glossary entry either, and TJ's own follow-up question ("why P4, no
 // parameters given") is exactly what it closes.
-ok(P.gloss.length === 66, "GLOSS grew to 66 entries (65 prior + cabuyclean, research-backed upgrade 2026-08-27)", String(P.gloss.length));
+ok(P.gloss.length === 67, "GLOSS grew to 67 entries (66 prior + overruntaxonomy, research-backed upgrade 2026-08-27)", String(P.gloss.length));
 // title independently re-typed per term (/stress-test finding, 2026-08-21: the prior version only
 // checked g.p/g.e() were non-empty, which passes even for a totally wrong or swapped-in entry) —
 // guards that findGloss(k) actually resolves to the RIGHT term, not just SOME term.
@@ -4792,7 +4792,7 @@ console.log("== D23. Glossary upgrade round, items 1-3 (2026-08-21) ==");
   // to a known category. Independently re-derived from the raw array, not read back from the
   // rendered pill counts and trusted against itself. (61 as of the brainstorm-mode ML round's
   // multianomaly addition, 2026-08-26.)
-  ok(P.gloss.length === 66, "sanity: still 66 real glossary terms");
+  ok(P.gloss.length === 67, "sanity: still 67 real glossary terms");
   const validCats = Object.keys(P.cats);
   P.gloss.forEach(g => ok(validCats.indexOf(g.cat) >= 0, "term '" + g.k + "' carries a real category (" + g.cat + ")", g.cat));
 
@@ -9260,6 +9260,31 @@ console.log("== D49. California Buy Clean comparison (research-backed upgrade, i
   // Note: this item's own draft briefly introduced an unbalanced <div> (a missing closing tag in
   // renderCaBuyCleanComparison) -- caught by this file's ALREADY-EXISTING general tag-balance
   // sweep (line ~148 above), not a new check added here; no redundant copy needed.
+}
+
+// item #8 (Tier 2): overrun-driver taxonomy + stakeholder attribution -- see OVERRUN_TAXONOMY's
+// own comment for the real Cantarelli/Flyvbjerg + ASCE sourcing and the deliberate scoping.
+console.log("== D50. Overrun-driver taxonomy + stakeholder attribution (research-backed upgrade, item #8, 2026-08-27) ==");
+{
+  ok(P.overrunTaxonomy.length === 3, "exactly 3 real actions carry the taxonomy, deliberately scoped (not all 6 root-caused actions)", String(P.overrunTaxonomy.length));
+  const validCats = ["technical", "economic", "psychological", "political"];
+  const validAttrs = ["owner", "design", "contractor", "external"];
+  P.overrunTaxonomy.forEach((r) => {
+    ok(validCats.includes(r.category), r.actionId + "'s overrun category is one of the real 4 (Cantarelli/Flyvbjerg)", r.category);
+    ok(validAttrs.includes(r.attribution), r.actionId + "'s stakeholder attribution is one of the real 4 (ASCE)", r.attribution);
+    const a = P.actions.find((x) => x.id === r.actionId);
+    ok(!!a && !!a.root, r.actionId + " genuinely has a real root-cause field on the underlying action, not a tag with nothing behind it");
+  });
+  ok(P.overrunTaxonomyRow("A-01").category === "technical" && P.overrunTaxonomyRow("A-01").attribution === "design", "A-01 (tunnel ground conditions) is tagged technical/design, consistent with item #1's own FEP_STATUS finding CP-201's geotechnical checkpoint incomplete");
+  ok(P.overrunTaxonomyRow("A-14").category === "economic" && P.overrunTaxonomyRow("A-14").attribution === "external", "A-14 (steel/OCS index pricing) is tagged economic/external, consistent with the real market-escalation root cause");
+  // Deliberately excluded items -- checked explicitly, not just absent by omission.
+  ["A-15", "NCR-2026-014", "NCR-2026-021"].forEach((id) => {
+    ok(!P.overrunTaxonomyRow(id), id + " is deliberately NOT tagged (a real root-caused item, but a tactical/quality issue, not a strategic overrun driver)");
+  });
+
+  has("overrunTaxonomyCard", "Overrun-driver taxonomy", "the card renders its real heading");
+  has("overrunTaxonomyCard", "Cantarelli", "the card cites the real academic source, not a vague description");
+  P.overrunTaxonomy.forEach((r) => has("overrunTaxonomyCard", r.actionId, "the card lists every tagged action, including " + r.actionId));
 }
 
 console.log("\n" + pass + " passed, " + fail + " failed");
