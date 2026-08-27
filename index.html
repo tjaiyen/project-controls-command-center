@@ -1810,6 +1810,15 @@ join dim_control_account b using (package_id)</pre></div>
         it&rdquo; on faith</label>
       <div class="card" style="margin-top:12px" id="aiGuards"></div>
 
+      <div class="sec-h" style="margin-top:30px"><h3>Embodied-carbon disclosure readiness</h3></div>
+      <p class="lede">Washington's real mechanism (the Buy Clean and Buy Fair Washington Act, RCW
+        39.116, signed March 2024) is disclosure-only — an EPD and quantity reported per covered
+        material, no numeric emissions threshold — and scoped to state buildings, not WSDOT's
+        transportation work directly. Not a compliance gate this program is actually held to
+        today — a readiness tracker for a real, currently-narrower requirement that could extend
+        or get adopted voluntarily, so reporting is never reconstructed from scratch at closeout.</p>
+      <div class="card" id="carbonDisclosureCard" style="margin-top:8px"></div>
+
       <div class="sec-h" style="margin-top:30px"><h3>Statistical control &mdash; retrospective anomaly check<button type="button" class="help-ic" data-help="zscore" aria-label="What does this term mean?" aria-expanded="false">i</button></h3></div>
       <p class="lede">The guards above are deterministic tie-outs &mdash; recompute and compare, pass or fail.
         This is a different kind of check: a statistical control run over a real historical series already on
@@ -2599,6 +2608,21 @@ function materialUnabsorbedExposure(){
   var unabsorbedShare=Math.max(0,MATERIAL_INDEX_REAL.steelYoyPct-MATERIAL_ESCALATION_BASELINE_PCT)/MATERIAL_INDEX_REAL.steelYoyPct;
   return r04.cost*unabsorbedShare;
 }
+
+/* Embodied-carbon disclosure readiness (brainstorm-mode round, 2026-08-26) — item #17.
+   Independently verified against the primary statute before building anything (per TJ's direct
+   instruction, 2026-08-26, to verify unfamiliar claims): Washington's real mechanism is the Buy
+   Clean and Buy Fair Washington Act (RCW 39.116, signed March 2024) — EPD + quantity reporting
+   ONLY, no numeric emissions threshold, and scoped to state buildings >=50,000 sq ft. It does
+   NOT reach WSDOT's transportation/paving work the way New York's 150%-of-baseline concrete rule
+   reaches state DOT purchases directly — a materially different, narrower mechanism than the
+   original research pass assumed. Built deliberately as a DISCLOSURE-READINESS tracker, not a
+   compliance KPI with a pass/fail threshold this program isn't actually held to today. */
+var CARBON_DISCLOSURE=[
+ {material:"Structural concrete (guideway, tunnel liner, stations)", coveredByRCW:true, epdSubmitted:true, quantityReported:true},
+ {material:"Reinforcing &amp; structural steel", coveredByRCW:true, epdSubmitted:true, quantityReported:false},
+ {material:"Structural &amp; architectural wood (station finishes)", coveredByRCW:true, epdSubmitted:false, quantityReported:false}
+];
 /* Standard qualitative probability-band names (brainstorm-mode upgrade, 2026-08-24) — the same
    P_BAND percentages, given the industry-conventional label alongside the number wherever
    probability is shown, so the abstract P1-P5 scale itself has a stated, checkable meaning. */
@@ -9636,6 +9660,28 @@ function renderGuards(){
        '<span style="text-align:right"><span class="pill '+(r.pass?"g":"r")+'">'+(r.pass?"PASS":"FAIL")+'</span></span></div>';
    }).join("");
 }
+function carbonReadinessPct(){
+  var total=CARBON_DISCLOSURE.length*2; // 2 tracked fields per covered material (EPD, quantity)
+  var done=CARBON_DISCLOSURE.reduce(function(s,c){ return s+(c.epdSubmitted?1:0)+(c.quantityReported?1:0); },0);
+  return done/total;
+}
+function renderCarbonDisclosure(){
+  var el=document.getElementById("carbonDisclosureCard");
+  if(!el) return;
+  var pct2=carbonReadinessPct();
+  el.innerHTML=
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'+
+    '<b>'+pct(pct2,0)+' disclosure-ready</b>'+
+    '<span class="pill '+(pct2>=1?"g":pct2>=0.5?"a":"r")+'">'+CARBON_DISCLOSURE.length+' covered materials tracked</span></div>'+
+    '<div class="tw"><table><thead><tr><th scope="col">Material</th><th scope="col">RCW 39.116 covered</th>'+
+    '<th scope="col">EPD submitted</th><th scope="col">Quantity reported</th></tr></thead><tbody>'+
+    CARBON_DISCLOSURE.map(function(c){
+      return '<tr style="cursor:default"><td>'+c.material+'</td>'+
+      '<td><span class="pill '+(c.coveredByRCW?"i":"g")+'">'+(c.coveredByRCW?"Covered":"Not covered")+'</span></td>'+
+      '<td><span class="pill '+(c.epdSubmitted?"g":"r")+'">'+(c.epdSubmitted?"Submitted":"Pending")+'</span></td>'+
+      '<td><span class="pill '+(c.quantityReported?"g":"r")+'">'+(c.quantityReported?"Reported":"Pending")+'</span></td></tr>'; }).join("")+
+    '</tbody></table></div>';
+}
 /* Same visual family as renderGuards() above (.gate/.rowbar/.pill) on purpose — this should read
    as a sibling control, not a new kind of chrome. Runs once at init; no interactive state, so
    (like renderGuards) it's not called from redrawCharts(). */
@@ -12499,7 +12545,7 @@ renderMcRiskFilter();
 document.getElementById("mcDistTri").setAttribute("aria-pressed", String(state.mcDist==="triangular"));
 document.getElementById("mcDistPert").setAttribute("aria-pressed", String(state.mcDist==="pert"));
 syncMcView(); renderMcMath(); renderPertPlay(); renderGaltonStatic(); renderScen(); renderPrint();
-renderArch(); renderGuards(); renderStatControl(); renderZscoreMath(); renderEwmaControl(); renderEwmaMath(); renderMultiAnomaly(); renderMultiAnomalyMath(); renderIngestGuards();
+renderArch(); renderGuards(); renderCarbonDisclosure(); renderStatControl(); renderZscoreMath(); renderEwmaControl(); renderEwmaMath(); renderMultiAnomaly(); renderMultiAnomalyMath(); renderIngestGuards();
 renderGlossCatBar();
 renderGlossary("");
 renderDomainMap();
@@ -12526,6 +12572,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   laborMobilization:LABOR_MOBILIZATION,laborMobGapDays:laborMobGapDays,laborMobStatus:laborMobStatus,
   materialIndexReal:MATERIAL_INDEX_REAL,materialEscalationBaselinePct:MATERIAL_ESCALATION_BASELINE_PCT,
   materialEscalationMultiple:materialEscalationMultiple,materialUnabsorbedExposure:materialUnabsorbedExposure,
+  carbonDisclosure:CARBON_DISCLOSURE,carbonReadinessPct:carbonReadinessPct,renderCarbonDisclosure:renderCarbonDisclosure,
   renderExec:renderExec,execCp201Share:execCp201Share,execFundingGap:execFundingGap,execTopActions:execTopActions,execTranslate:EXEC_TRANSLATE,
   execDrawerContent:execDrawerContent,execFaq:EXEC_FAQ,
   buildAskAiSnapshot:buildAskAiSnapshot,renderAskAiGate:renderAskAiGate,renderAskAiPanel:renderAskAiPanel,

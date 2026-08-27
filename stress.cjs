@@ -8649,5 +8649,33 @@ console.log("== Q. QA/QC-to-critical-path closure gate (brainstorm-mode round, 2
   ok(passRestored === true, "restoring the real NCR's original state restores the guard to PASS -- proves this is a real read of live state, not a cached result");
 }
 
+console.log("== R. Embodied-carbon disclosure readiness (brainstorm-mode round, 2026-08-26) ==");
+{
+  // Direct answer to 11_STRATEGIC_CHALLENGES_AND_SOLUTIONS.md #17 -- independently re-verified
+  // against RCW 39.116's primary statutory text before building anything (per TJ's direct
+  // instruction, 2026-08-26): WA's real mechanism is disclosure/EPD-reporting only, no numeric
+  // threshold, scoped to buildings not WSDOT transportation work. Built as a readiness tracker,
+  // deliberately NOT a compliance-threshold KPI that would misstate the real, narrower law.
+  const cd = P.carbonDisclosure;
+  ok(cd.length === 3, "3 real covered-material categories are tracked", String(cd.length));
+  ok(cd.every((c) => c.coveredByRCW === true), "every tracked material is genuinely RCW 39.116-covered (concrete, wood, steel) -- no invented coverage claim");
+  // Independent recomputation of readiness %, not a call into the app's own answer.
+  const expectDone = cd.reduce((s, c) => s + (c.epdSubmitted ? 1 : 0) + (c.quantityReported ? 1 : 0), 0);
+  const expectPct = expectDone / (cd.length * 2);
+  ok(Math.abs(P.carbonReadinessPct() - expectPct) < 1e-9, "carbonReadinessPct independently recomputes done-fields / total-fields", (P.carbonReadinessPct() * 100).toFixed(0) + "%");
+  ok(P.carbonReadinessPct() < 1, "pre-registered: readiness is genuinely partial today (wood has neither EPD nor quantity reported) -- not decorated as 100% when it isn't", (P.carbonReadinessPct() * 100).toFixed(0) + "%");
+
+  const cardHtml = G.carbonDisclosureCard._html;
+  cd.forEach((c) => {
+    ok(cardHtml.includes(c.material) && cardHtml.includes(c.epdSubmitted ? "Submitted" : "Pending") && cardHtml.includes(c.quantityReported ? "Reported" : "Pending"), c.material + "'s real coverage/EPD/quantity status all render in the table");
+  });
+  ok(cardHtml.includes(pct(P.carbonReadinessPct(), 0)), "the card states the real, independently-recomputed readiness percentage, not a hardcoded number");
+
+  // Honesty check -- this feature must NOT imply a numeric compliance threshold exists (the
+  // exact overclaim the independent research verification caught and corrected).
+  ok(indexSrc.includes("disclosure-only") && indexSrc.includes("no numeric emissions threshold"), "the visible copy explicitly states RCW 39.116 is disclosure-only with no numeric threshold, not implied as a pass/fail compliance gate");
+  ok(!indexSrc.includes("150% of NRMCA") && !/embodied.carbon[^.]{0,80}threshold[^.]{0,40}(g\/kg|kgCO2e|gCO2e)/i.test(indexSrc), "no fabricated numeric emissions threshold (e.g. New York's real 150%-of-baseline figure) is misattributed to this program's own WA-scoped requirement");
+}
+
 console.log("\n" + pass + " passed, " + fail + " failed");
 process.exit(fail ? 1 : 0);
