@@ -30,7 +30,7 @@ anywhere in this repository. The method is the content, not the numbers.
 
 | | |
 |---|---|
-| Primary file | `index.html` — 13,738 lines, one file, no build step |
+| Primary file | `index.html` — 13,759 lines, one file, no build step |
 | Top-level JS functions | 420 (fresh `grep -cE "^\s*function [a-zA-Z_]" index.html`, this pass) |
 | Tabs | 13, grouped into 5 altitudes on the tab rail (Executive · Program Performance · Field & Assurance · Governance & Execution · Reference) |
 | KPIs (with formula/threshold/phase/source/play each) | 20 |

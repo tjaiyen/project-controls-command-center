@@ -30,15 +30,39 @@ const askAiLib = require(DIR + "worker/lib.js"); // pure guardrail logic, same r
 // venv set up (bin-tools.md: "degrade gracefully... never crash," "emit a clear finding").
 const { execFileSync } = require("child_process");
 function livePipelineCheckCount() {
+  // Opt-out (/stress-test finding, independent reviewer, 2026-08-27): a real pipeline run costs
+  // ~10s wall-clock on top of the rest of this suite's ~3s -- an unconditional tax on every
+  // `node stress.cjs` invocation for a developer with no interest in the SQL-parity feature.
+  // `SKIP_LIVE_PIPELINE=1 node stress.cjs` skips it (loudly, same as the other degraded paths),
+  // falling back to the text-presence-only check.
+  if (process.env.SKIP_LIVE_PIPELINE) {
+    console.log("  [degraded] SKIP_LIVE_PIPELINE set — skipping the live SQL/DuckDB parity-check verification by request. The '65 parity checks' assertions below fall back to a text-presence-only check.");
+    return null;
+  }
+  // Accepted, stated gap (/stress-test finding, independent reviewer, 2026-08-27): this assumes a
+  // Unix venv layout (bin/python3). On Windows (Scripts\python.exe) fs.existsSync simply returns
+  // false, so this correctly falls through to the loud [degraded] path below rather than crashing
+  // or misbehaving -- but the gap itself was undocumented, which verify.md's own "no silent caps"
+  // rule calls a lie of omission when left unstated. Stated here, not silently left as unknown.
   const venvPy = DIR + "pipeline/.venv/bin/python3";
   if (!fs.existsSync(venvPy)) {
-    console.log("  [degraded] pipeline/.venv not found — skipping the live SQL/DuckDB parity-check verification (run `python3 -m venv pipeline/.venv && pipeline/.venv/bin/pip install duckdb` once to enable it). The '65 parity checks' assertions below fall back to a text-presence-only check.");
+    console.log("  [degraded] pipeline/.venv not found — skipping the live SQL/DuckDB parity-check verification (run `python3 -m venv pipeline/.venv && pipeline/.venv/bin/pip install duckdb` once to enable it, or set SKIP_LIVE_PIPELINE=1 to silence this note). The '65 parity checks' assertions below fall back to a text-presence-only check.");
     return null;
   }
   try {
-    execFileSync(venvPy, [DIR + "pipeline/run_pipeline.py"], { cwd: DIR, stdio: "pipe" });
+    // timeout (/stress-test finding, own review, 2026-08-27): a real run takes ~1.3s -- 30s gives
+    // huge headroom while still guaranteeing `node stress.cjs` can never hang forever if this
+    // script is ever edited into a bad state (an infinite loop, a DuckDB lock). Without this, a
+    // single misbehaving pipeline run would silently freeze the whole test suite with zero
+    // diagnostic, for a feature most callers of `node stress.cjs` have no interest in.
+    execFileSync(venvPy, [DIR + "pipeline/run_pipeline.py"], { cwd: DIR, stdio: "pipe", timeout: 30000 });
   } catch (e) {
-    console.log("  [degraded] live pipeline run failed (" + String(e.message).split("\n")[0] + ") — falling back to a text-presence-only check.");
+    // Surface the child's real stderr, not just e.message's first line (/stress-test finding, own
+    // review): stdio:"pipe" captures stdout/stderr onto the error object -- discarding them here
+    // would hide the actual Python traceback a real failure (a schema mismatch, a DuckDB version
+    // incompatibility, the 30s timeout above firing) needs to be debuggable at all.
+    const detail = (e.stderr && e.stderr.toString().trim()) || String(e.message).split("\n")[0];
+    console.log("  [degraded] live pipeline run failed — falling back to a text-presence-only check. " + (e.signal === "SIGTERM" ? "(timed out after 30s) " : "") + detail);
     return null;
   }
   try {
@@ -9602,10 +9626,21 @@ console.log("== D56. GAO cost-estimate credibility checklist (research-backed up
 // DOM check, since the fix is markup the app never re-derives at runtime.
 console.log("== D57. Table header scope=\"col\" accessibility sweep (research-build round, /stress-test finding, 2026-08-27) ==");
 {
+  // Strengthened (/stress-test finding, independent reviewer, 2026-08-27): the original version
+  // only checked scope="col" appears SOMEWHERE in the card and only inspected a 40-char window
+  // right after <thead> -- a header with its 1st <th> scoped and its 2nd/3rd/4th left bare (a
+  // realistic partial regression, e.g. hand-editing one column later) would still pass both old
+  // checks. Fixed to extract the full <thead>...</thead> block and require EVERY <th> in it to
+  // carry scope="col", not just the first.
   const newCardIds = ["fepCard", "estClassCard", "lccaCard", "rcfComparisonCard", "ftaSccCard", "icsraCard", "overrunTaxonomyCard", "gaoCredibilityCard", "envisionCard", "hotellingCard"];
   newCardIds.forEach((id) => {
-    ok(G[id]._html.includes('scope="col"'), id + "'s table header cells carry the page's own scope=\"col\" convention, not omitted");
-    ok(!/<thead>[\s\S]{0,40}<th>/.test(G[id]._html), id + "'s table has no bare, unscoped <th> immediately inside its <thead>");
+    const html = G[id]._html;
+    const theadMatch = html.match(/<thead>([\s\S]*?)<\/thead>/);
+    const thead = theadMatch ? theadMatch[1] : "";
+    const allTh = (thead.match(/<th\b/g) || []).length;
+    const scopedTh = (thead.match(/<th scope="col">/g) || []).length;
+    ok(allTh > 0, id + "'s table has a real <thead> with at least one <th>, not an empty/missing header row", String(allTh));
+    ok(allTh === scopedTh, id + "'s table has scope=\"col\" on EVERY header cell, not just some", scopedTh + " of " + allTh + " scoped");
   });
 }
 
