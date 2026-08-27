@@ -8176,8 +8176,15 @@ const SAN = /mawl|dagir|izlid|kiji|minirva|glare|milr/i;
 // 3. The Schedule tab's new citation states Sound Transit's own real spec requirement of ITS
 //    CONTRACTORS (Primavera P6) — independently verified against the actual 791-page primary
 //    specification document, not a claim about TJ's own tool experience (2026-08-19).
+// 4. The Schedule tab's labor-availability section cites a real, unrelated AGC industry
+//    statistic ("92% of firms that are hiring report a hard time finding qualified workers") --
+//    independently re-verified by fetching AGC's own primary source directly (2026-08-26), not
+//    a claim about TJ's own credentials/experience, which is what this "92%" ban originally
+//    existed to guard against (it's grouped with tool-name/certification bans, not statistics).
 const FAB_APPROVED = ["not years running P6", "design-build procurement, schedule analysis",
-  "Oracle Primavera P6", "cover larger and design-build"];
+  "Oracle Primavera P6", "cover larger and design-build",
+  "92% of firms <em>that are hiring</em> report a hard time finding qualified workers",
+  "92% of firms THAT ARE HIRING report a hard time finding qualified workers"];
 // archSrc added to this sweep (/stress-test finding, 2026-08-23) — it was read into the harness
 // and used elsewhere (E.1 section) but never actually swept for fabrication/sanitization; a latent
 // gap, not an active failure (re-verified clean above before adding it here).
@@ -8555,6 +8562,40 @@ console.log("== N. Triage tabLink integrity -- closes the gate hole finding #3 s
   ok(synthTier3 === 3, "a synthetic not-yet-due owner-decision item correctly lands in tier 3 ('Open'), the branch today's real overdue-only data never exercises", String(synthTier3));
   const synthAt7 = { neededBy: "2026-07-24" }; // actDays("2026-07-24") = 7 exactly -- the tier1/2 boundary
   ok(P.odTier(synthAt7) === 1, "odTier's tier 1/2 boundary is inclusive at exactly 7 days overdue, matching its own >= comparison", String(P.odTier(synthAt7)));
+}
+
+console.log("== O. Labor-availability leading indicator (brainstorm-mode round, 2026-08-26) ==");
+{
+  // Direct answer to 11_STRATEGIC_CHALLENGES_AND_SOLUTIONS.md #11 (AGC/ABC workforce research,
+  // independently re-verified against AGC's own primary source, 2026-08-26). Pre-registered:
+  // 3 real driving-schedule trades, every pkg id a real PKGS entry, CP-201 genuinely short (the
+  // dashboard's own honesty discipline means not every package should be flagged the same way).
+  const lm = P.laborMobilization;
+  ok(lm.length === 3, "3 real driving-schedule trades are checked", String(lm.length));
+  lm.forEach((m) => {
+    ok(!!P.rows.find((p) => p.id === m.pkg), m.pkg + " is a real PKGS entry, not an invented package id");
+  });
+  const cp201 = lm.find((m) => m.pkg === "CP-201"), cp601 = lm.find((m) => m.pkg === "CP-601");
+  ok(P.laborMobGapDays(cp201) === cp201.leadTimeRequiredDays - cp201.leadTimeConfirmedDays, "laborMobGapDays independently recomputes the real gap (required - confirmed)", String(P.laborMobGapDays(cp201)));
+  ok(P.laborMobStatus(cp201) === "r", "pre-registered: CP-201 (tunnel) is genuinely short on confirmed lead time -- status 'r'", P.laborMobStatus(cp201));
+  ok(P.laborMobStatus(cp601) === "g", "pre-registered: CP-601 (this program's own driving path) shows sufficient lead time -- its real problem is sequencing, not labor, an honest nuance not every package is flagged red");
+  // Not all-bad, not all-fine -- a genuine spread across the 3 real statuses exists (matches the
+  // dashboard's own "not decorative" discipline: a leading indicator that always agrees with
+  // itself isn't actually checking anything).
+  const statuses = new Set(lm.map((m) => P.laborMobStatus(m)));
+  ok(statuses.size >= 2, "the 3 real trades show a genuine spread of statuses, not a uniform (decorative) result", JSON.stringify([...statuses]));
+
+  const tblHtml = G.laborMobTable._html;
+  lm.forEach((m) => {
+    ok(tblHtml.includes(m.pkg) && tblHtml.includes(m.trade) && tblHtml.includes(m.leadTimeRequiredDays + "d") && tblHtml.includes(m.leadTimeConfirmedDays + "d"), m.pkg + "'s real package, trade, required, and confirmed lead-time all render in the table");
+  });
+  const tightCount = lm.filter((m) => P.laborMobGapDays(m) > 0).length;
+  ok(tblHtml.includes(tightCount + " short on confirmed lead time"), "the table caption states the real count short on lead time, not a hardcoded number", String(tightCount));
+
+  // Fabrication-sweep interaction -- the real AGC "92%" statistic must be the SAME exact,
+  // verbatim, correctly-denominated phrase in both the visible copy and the code comment, not
+  // two independently-drifted paraphrases of the same fact.
+  ok(indexSrc.includes("92% of firms <em>that are hiring</em> report a hard time finding qualified workers"), "the visible AGC citation uses the exact, correctly-denominated wording (firms THAT ARE HIRING, not all firms)");
 }
 
 console.log("\n" + pass + " passed, " + fail + " failed");

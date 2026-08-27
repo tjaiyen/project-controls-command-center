@@ -1519,6 +1519,13 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         actually has to fix.</p>
       <div class="card" style="margin-top:15px" id="floatErosionCard"></div>
 
+      <div class="sec-h" style="margin-top:34px"><h2>Labor-availability leading indicator</h2><span class="tag">mobilization lead-time</span></div>
+      <p class="lede">A real, current industry pressure (AGC: 92% of firms <em>that are hiring</em> report a hard time finding qualified workers;
+        ABC projects the industry needs ~349,000 net new workers in 2026 just to keep pace) —
+        checked here as subcontractor mobilization lead-time confirmed vs. required, so a shortfall
+        shows up before it erodes float, not after a crew fails to mobilize.</p>
+      <div class="tw"><table id="laborMobTable" style="min-width:600px"></table></div>
+
       <div class="sec-h" style="margin-top:34px"><h2>Revenue-service forecast drift</h2><span class="tag">trend, not a snapshot</span></div>
       <p class="lede">The milestone table above shows today's variance against the contractual date. This
         shows the same forecast&rsquo;s <em>trajectory</em> &mdash; whether the projected date has been
@@ -2565,6 +2572,27 @@ var RISKS = [
    P_BAND percentages, given the industry-conventional label alongside the number wherever
    probability is shown, so the abstract P1-P5 scale itself has a stated, checkable meaning. */
 var P_BAND_NAME = {1:"Rare",2:"Unlikely",3:"Possible",4:"Likely",5:"Almost certain"};
+
+/* Labor-availability leading indicator (brainstorm-mode round, 2026-08-26) — item #11. AGC's 2025
+   workforce survey: 92% of firms THAT ARE HIRING report a hard time finding qualified workers
+   (independently re-verified by fetching the primary source directly, 2026-08-26 — the real
+   denominator is firms currently hiring, not all firms), 45% report experiencing project delays
+   due to shortages. ABC's parallel projection: the industry needs ~349,000 net new workers in 2026,
+   ~456,000 more in 2027, just to keep supply/demand balanced — structural, not cyclical.
+   (11_STRATEGIC_CHALLENGES_AND_SOLUTIONS.md #11.) A LEADING indicator, not a lagging one:
+   subcontractor mobilization lead-time CONFIRMED vs. REQUIRED, checked on the packages the
+   schedule can least afford to lose time on — so a shortfall shows up before it erodes float,
+   not after. Deliberately not all bad: CP-601 (this program's own driving path per CPLI) shows
+   sufficient lead time, an honest signal that its real problem is sequencing, not a labor
+   shortage — folding every schedule risk into "it's the labor market" would be the kind of
+   overclaim this dashboard's own honesty discipline exists to avoid. */
+var LABOR_MOBILIZATION=[
+ {pkg:"CP-201",trade:"Tunnel miners &amp; shotcrete crew",leadTimeRequiredDays:45,leadTimeConfirmedDays:28},
+ {pkg:"CP-301",trade:"Station finish trades (tile, millwork)",leadTimeRequiredDays:21,leadTimeConfirmedDays:19},
+ {pkg:"CP-601",trade:"Utility relocation crews (electrical, gas, water)",leadTimeRequiredDays:30,leadTimeConfirmedDays:34}
+];
+function laborMobGapDays(m){ return m.leadTimeRequiredDays-m.leadTimeConfirmedDays; } // positive = short by N days
+function laborMobStatus(m){ var g=laborMobGapDays(m); return g>10?"r":g>0?"a":"g"; }
 
 /* Crew cost-per-hour — a fourth axis again: not the control account's monthly EVM, a specific
    crew's weekly burn rate against a standard. Raw inputs per week are actual $/hr and idle share;
@@ -7286,6 +7314,7 @@ function renderSchedule(){
     ' late. An event with no fragnet is an opinion; an event with one is arithmetic.</p>';
   renderSchedDrift();
   renderFloatErosion();
+  renderLaborMob();
   /* CPLI status-band summary strip (brainstorm-mode upgrade, 2026-08-21) — a glanceable rollup
      above the per-package bars: how many packages sit in each band, not each one's own number.
      Complements the bars chart below rather than duplicating it — the bars answer "which package,
@@ -7376,6 +7405,20 @@ function renderFloatErosion(){
    ' Same tunnel condition carried by R-01, NCR-2026-014, the crew cost-per-hour spike, and the revenue-service drift trend below &mdash; one root cause, five instruments.</p>';
   bars("floatErosionBars",deltas.map(function(d){ return {id:d.m,v:d.delta,c:d.delta<0?"var(--c-pill-r)":"var(--c-pill-g)"}; }),days,
     function(o,i){ return "<b>"+o.id+"</b>CP-201 float moved "+days(s[i].float)+" &rarr; "+days(s[i+1].float); });
+}
+function renderLaborMob(){
+  var el=document.getElementById("laborMobTable");
+  if(!el) return;
+  var tight=LABOR_MOBILIZATION.filter(function(m){ return laborMobGapDays(m)>0; }).length;
+  el.innerHTML=
+    '<caption class="tw-caption">'+LABOR_MOBILIZATION.length+' driving-schedule trades checked, '+tight+' short on confirmed lead time.</caption>'+
+    '<thead><tr><th scope="col">Status</th><th scope="col">Package</th><th scope="col">Trade</th><th scope="col">Required</th><th scope="col">Confirmed</th><th scope="col">Gap</th></tr></thead><tbody>'+
+    LABOR_MOBILIZATION.map(function(m){
+      var g=laborMobGapDays(m), st=laborMobStatus(m);
+      return '<tr style="cursor:default"><td><span class="pill '+st+'">'+(st==="g"?"Sufficient":st==="a"?"Tight":"Short")+'</span></td>'+
+      '<td class="mono">'+m.pkg+'</td><td style="white-space:normal;max-width:220px">'+m.trade+'</td>'+
+      '<td>'+m.leadTimeRequiredDays+'d</td><td>'+m.leadTimeConfirmedDays+'d</td>'+
+      '<td>'+(g>0?(g+"d short"):((-g)+"d to spare"))+'</td></tr>'; }).join("")+'</tbody>';
 }
 
 /* ---------- risk tab ---------- */
@@ -12415,6 +12458,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   generateTriageQueue:generateTriageQueue,renderTriage:renderTriage,triageEscMeta:TRIAGE_ESC_META,triageClockTier:TRIAGE_CLOCK_TIER,
   ownerDecisions:OWNER_DECISIONS,odTier:odTier,odDaysOverdue:odDaysOverdue,odDaysOpen:odDaysOpen,odRiskRef:odRiskRef,
   subHealth:SUB_HEALTH,subHealthOverdue:subHealthOverdue,subHealthTier:subHealthTier,renderSubHealth:renderSubHealth,
+  laborMobilization:LABOR_MOBILIZATION,laborMobGapDays:laborMobGapDays,laborMobStatus:laborMobStatus,
   renderExec:renderExec,execCp201Share:execCp201Share,execFundingGap:execFundingGap,execTopActions:execTopActions,execTranslate:EXEC_TRANSLATE,
   execDrawerContent:execDrawerContent,execFaq:EXEC_FAQ,
   buildAskAiSnapshot:buildAskAiSnapshot,renderAskAiGate:renderAskAiGate,renderAskAiPanel:renderAskAiPanel,
