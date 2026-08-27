@@ -3799,7 +3799,7 @@ console.log("== D10. inline term help ==");
 // 57 as of the same round's follow-up: a real "pband" entry, same reasoning as impactscore -- the
 // probability scale had no glossary entry either, and TJ's own follow-up question ("why P4, no
 // parameters given") is exactly what it closes.
-ok(P.gloss.length === 63, "GLOSS grew to 63 entries (61 prior + pdri + aaceclass, research-backed upgrade 2026-08-27)", String(P.gloss.length));
+ok(P.gloss.length === 64, "GLOSS grew to 64 entries (63 prior + hotellingt2, research-backed upgrade 2026-08-27)", String(P.gloss.length));
 // title independently re-typed per term (/stress-test finding, 2026-08-21: the prior version only
 // checked g.p/g.e() were non-empty, which passes even for a totally wrong or swapped-in entry) —
 // guards that findGloss(k) actually resolves to the RIGHT term, not just SOME term.
@@ -4792,7 +4792,7 @@ console.log("== D23. Glossary upgrade round, items 1-3 (2026-08-21) ==");
   // to a known category. Independently re-derived from the raw array, not read back from the
   // rendered pill counts and trusted against itself. (61 as of the brainstorm-mode ML round's
   // multianomaly addition, 2026-08-26.)
-  ok(P.gloss.length === 63, "sanity: still 63 real glossary terms");
+  ok(P.gloss.length === 64, "sanity: still 64 real glossary terms");
   const validCats = Object.keys(P.cats);
   P.gloss.forEach(g => ok(validCats.indexOf(g.cat) >= 0, "term '" + g.k + "' carries a real category (" + g.cat + ")", g.cat));
 
@@ -9186,6 +9186,45 @@ console.log("== D46. AACE estimate classification (research-backed upgrade, item
   P.pkgs.forEach((p) => {
     has("estClassCard", p.id, "the card lists every real control account, including " + p.id);
   });
+}
+
+// item #2 (Tier 1): Hotelling's T² multivariate control chart -- see hotellingT2's own comment
+// for the real-research grounding and the honest small-sample caveat.
+console.log("== D47. Hotelling's T² multivariate control chart (research-backed upgrade, item #2, 2026-08-27) ==");
+{
+  const h = P.hotellingT2();
+  const wk = P.cphCells[0].weeks;
+  ok(h.weeks.length === 6 && h.weeks.length === wk.length, "T² covers all 6 real weeks of CP-201's own crew data, none dropped", String(h.weeks.length));
+  ok(JSON.stringify(h.actual) === JSON.stringify(wk.map((w) => w.actual)), "the actual-$/hr series matches CPH_CELLS' own real field exactly, not a copy that drifted");
+  ok(JSON.stringify(h.idle) === JSON.stringify(wk.map((w) => w.idlePct)), "the idle-% series matches CPH_CELLS' own real field exactly, not a copy that drifted");
+
+  // Independent recomputation of the T2 statistic from the raw weekly fields, not calling
+  // hotellingT2() and comparing it to itself.
+  function t2Independent() {
+    const x = wk.map((w) => w.actual), y = wk.map((w) => w.idlePct), n = x.length;
+    const mx = x.reduce((a, b) => a + b, 0) / n, my = y.reduce((a, b) => a + b, 0) / n;
+    let sxx = 0, syy = 0, sxy = 0;
+    for (let i = 0; i < n; i++) { const dx = x[i] - mx, dy = y[i] - my; sxx += dx * dx; syy += dy * dy; sxy += dx * dy; }
+    sxx /= n - 1; syy /= n - 1; sxy /= n - 1;
+    const det = sxx * syy - sxy * sxy;
+    return x.map((_, i) => {
+      const dx = x[i] - mx, dy = y[i] - my;
+      return (syy * dx * dx - 2 * sxy * dx * dy + sxx * dy * dy) / det;
+    });
+  }
+  const expected = t2Independent();
+  h.t2.forEach((v, i) => {
+    ok(Math.abs(v - expected[i]) < 1e-9, "week " + h.weeks[i] + "'s T² matches an independent recomputation from the raw actual/idlePct fields", v + " vs " + expected[i]);
+  });
+  ok(Math.abs(h.corr - 0.990617872768718) < 1e-9, "pre-registered: today's real correlation between crew cost and idle-time is r≈0.9906", String(h.corr));
+  const maxT2 = Math.max(...h.t2);
+  ok(Math.abs(maxT2 - 2.4202950803545695) < 1e-6, "pre-registered: today's real highest weekly T² is ~2.42 (W-4), well under the 5.991 textbook threshold", String(maxT2));
+  ok(maxT2 < P.t2Chi2Df2Alpha05, "no real week breaches the textbook chi-square threshold today, consistent with the z-score/EWMA panels' own 0-breach state");
+
+  has("hotellingCard", "Hotelling", "the card renders its real heading");
+  has("hotellingCard", "5.991", "the card states the real textbook threshold, not a vague description");
+  has("hotellingCard", "overfitting risk", "the card carries the same honest small-sample caveat the existing multivariate-anomaly panel states, not silently omitted");
+  wk.forEach((w) => has("hotellingCard", w.w, "the card lists every real week, including " + w.w));
 }
 
 console.log("\n" + pass + " passed, " + fail + " failed");

@@ -1943,6 +1943,8 @@ join dim_control_account b using (package_id)</pre></div>
         <div id="ewmaMathBody"></div>
       </details>
 
+      <div class="card tw" style="margin-top:16px" id="hotellingCard"></div>
+
       </details>
       <details class="sec-details" open>
       <summary class="sec-h" style="margin-top:30px"><h3>Multivariate anomaly score &mdash; jointly unusual, even when nothing individually breaks<button type="button" class="help-ic" data-help="multianomaly" aria-label="What does this term mean?" aria-expanded="false">i</button></h3></summary>
@@ -10278,6 +10280,65 @@ function renderEwmaMath(){
    usd(last.ucl-e.mean)+" = <b style='color:rgb(var(--c-ink))'>"+usd(last.ucl)+"/hr</b> &mdash; also matching the row "+
    "above, because this IS that number, not a separate one that happens to agree.</p>";
 }
+/* Hotelling's T² multivariate control chart (research-backed upgrade, item #2, 2026-08-27) --
+   the real, peer-reviewed "what's next" after the z-score/EWMA panels above, which are both
+   UNIVARIATE and LONGITUDINAL (one series, over time). T² is also longitudinal but MULTIVARIATE:
+   it combines two correlated metrics into ONE out-of-control statistic per period, motivated by
+   real published research (Automation in Construction, construction-specific) finding that
+   running independent univariate control limits on CORRELATED variables inflates the false-alarm
+   rate — two charts, each individually fine, can both be quietly saying the same thing.
+   Applied here to CPH_CELLS[0]'s own real actual-$/hr and idlePct fields, the SAME 6-week series
+   the z-score/EWMA panels already use — not a new series invented for this card.
+   HONESTLY SIZED: the existing Multivariate anomaly score panel below already declined a full
+   covariance-based Mahalanobis distance across this program's 8 packages, citing overfitting risk
+   at that sample size; the same caveat applies here even more sharply at n=6. This card
+   demonstrates the real mechanism on the one time-series long enough to compute it at all, not a
+   production-ready control limit any n=6 sample could actually support — stated in the card's own
+   prose, not glossed over. */
+var T2_CHI2_DF2_ALPHA05=5.991; // standard chi-square critical value, df=2, alpha=0.05 (textbook table)
+function hotellingT2(){
+  var wk=CPH_CELLS[0].weeks, n=wk.length;
+  var x=wk.map(function(w){return w.actual;}), y=wk.map(function(w){return w.idlePct;});
+  var mx=x.reduce(function(a,b){return a+b;},0)/n, my=y.reduce(function(a,b){return a+b;},0)/n;
+  var sxx=0,syy=0,sxy=0,i;
+  for(i=0;i<n;i++){ var dx=x[i]-mx, dy=y[i]-my; sxx+=dx*dx; syy+=dy*dy; sxy+=dx*dy; }
+  sxx/=(n-1); syy/=(n-1); sxy/=(n-1);
+  var det=sxx*syy-sxy*sxy;
+  var t2=wk.map(function(w,i2){
+    var dx=x[i2]-mx, dy=y[i2]-my;
+    return (syy*dx*dx-2*sxy*dx*dy+sxx*dy*dy)/det;
+  });
+  return {weeks:wk.map(function(w){return w.w;}), actual:x, idle:y, t2:t2, meanActual:mx, meanIdle:my, corr:sxy/Math.sqrt(sxx*syy)};
+}
+function renderHotellingT2(){
+  var el=document.getElementById("hotellingCard"); if(!el) return;
+  var h=hotellingT2();
+  var breach=h.t2.some(function(v){return v>T2_CHI2_DF2_ALPHA05;});
+  var rowsHtml=h.weeks.map(function(w,i){
+    var v=h.t2[i], over=v>T2_CHI2_DF2_ALPHA05;
+    return '<tr><th scope="row">'+w+'</th><td class="tab-num">'+usd(h.actual[i])+'</td>'+
+      '<td class="tab-num">'+pct(h.idle[i],0)+'</td>'+
+      '<td class="tab-num '+(over?"ba":"ok")+'">'+v.toFixed(2)+'</td></tr>';
+  }).join("");
+  el.innerHTML=
+    '<h3>Hotelling\'s T&sup2; &mdash; joint cost + idle-time control</h3>'+
+    '<p class="lede" style="font-size:12.5px;margin-top:5px">The z-score and EWMA panels above run '+
+    'one series at a time. This combines CP-201\'s crew cost-per-hour AND its idle-time percentage '+
+    '&mdash; the same 6 real weeks, correlated at r='+h.corr.toFixed(2)+' &mdash; into one joint '+
+    'statistic per week, the standard fix (from real construction-management research) for the '+
+    'documented finding that two independent, individually-fine control charts on correlated '+
+    'series can inflate the real false-alarm rate. <b style="color:rgb(var(--c-ink))">Honestly '+
+    'sized:</b> the multivariate anomaly panel below already declined a full covariance-based '+
+    'distance across this program\'s 8 packages as overfitting risk at that sample size &mdash; the '+
+    'same caveat applies here even harder at 6 weeks. This demonstrates the real mechanism, not a '+
+    'production-ready control limit a sample this small could genuinely support.</p>'+
+    '<table><thead><tr><th>Week</th><th>Actual $/hr</th><th>Idle %</th><th>T&sup2;</th></tr></thead>'+
+    '<tbody>'+rowsHtml+'</tbody></table>'+
+    '<p style="margin:12px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">Textbook individual-'+
+    'observations approximation for 2 variables: T&sup2; &gt; '+T2_CHI2_DF2_ALPHA05+
+    ' (&chi;&sup2;, df=2, &alpha;=0.05) flags a joint breach. '+
+    (breach? 'At least one week crosses it.' : 'No week crosses it today &mdash; consistent with the z-score/EWMA panels above, which also show zero real breaches in this program\'s current data.')+'</p>';
+}
 /* Multivariate anomaly score (brainstorm-mode ML round, 2026-08-26) -- deliberately NOT a full
    Mahalanobis distance: that needs a covariance-matrix estimate, and a covariance matrix from
    only 8 points is itself the overfitting risk this round's other additions (see
@@ -10810,6 +10871,8 @@ var GLOSS=[
   e:function(){ var series=CPH_CELLS[0].weeks.map(function(w){return w.actual;}), e2=deriveEwma(series), flags=e2.points.filter(function(p2){return p2.flag;}).length;
     return "Run against the tunnel crew's own 6-week $/hr series: "+flags+" of "+e2.points.length+" weeks currently breach the dynamic control limit ("+
       (flags?"a real, live flag":"a genuine null result — the honest answer, not a manufactured anomaly")+"). &lambda;="+e2.lambda+", L="+e2.L+" are standard SPC parameter choices, not derived from this program's own history."; }},
+ {k:"hotellingt2", cat:"field", jT:"ai", jE:"hotellingCard", t:"Hotelling's T² control chart", p:"Combines two correlated metrics into one joint control statistic per period instead of watching them on separate charts — the real, peer-reviewed answer to the finding that independent univariate control limits on correlated series inflate the false-alarm rate. Here: CP-201's own crew cost-per-hour and idle-time percentage, the same 6 real weeks the z-score/EWMA panels already use.",
+  e:function(){ var h=hotellingT2(); var mx=Math.max.apply(null,h.t2); var wIdx=h.t2.indexOf(mx); return "This program's own 6 weeks correlate at r="+h.corr.toFixed(2)+"; the highest joint statistic is "+h.weeks[wIdx]+" at T²="+mx.toFixed(2)+", still under the "+T2_CHI2_DF2_ALPHA05+" textbook threshold — no breach today."; }},
  {k:"multianomaly", cat:"field", jT:"ai", jE:"aiMultiAnomaly", t:"Multivariate anomaly score", p:"The z-score and EWMA checks above are univariate and longitudinal — one series (CP-201's crew cost-per-hour), over time. This is multivariate and cross-sectional instead: it standardizes 5 real per-package fields (CPI, SPI, PF, float, CPLI) against the portfolio's own mean and standard deviation across all 8 packages, then combines them into one composite distance per package — catching a package that looks unremarkable on every single metric but is jointly unusual across all of them, something no single-metric threshold can see by construction. Deliberately not a full Mahalanobis distance — a covariance matrix estimated from only 8 points would be an overfitting risk, not a real refinement — and ranked, not thresholded, since a hard pass/fail line would be arbitrary at this sample size. The composite itself is direction-blind (squaring erases sign), so a package can rank high purely because it's outperforming, not just underperforming — the bar's own color (red/amber/green, from the signed sum of the same 5 z-scores) is what actually says which one, not the ranking alone.",
   e:function(){ var s2=multiAnomalyScores().slice().sort(function(a,b){return b.composite-a.composite;})[0];
     return s2.id+" ranks highest today at a composite score of "+s2.composite.toFixed(2)+" ("+multiAnomalyDirLabel(s2.dir)+"), driven mainly by its "+s2.maxKey.toUpperCase()+" (z = "+s2.per[s2.maxKey].toFixed(2)+")."; }},
@@ -13091,7 +13154,7 @@ renderMcRiskFilter();
 document.getElementById("mcDistTri").setAttribute("aria-pressed", String(state.mcDist==="triangular"));
 document.getElementById("mcDistPert").setAttribute("aria-pressed", String(state.mcDist==="pert"));
 syncMcView(); renderMcMath(); renderPertPlay(); renderGaltonStatic(); renderScen(); renderPrint();
-renderArch(); renderGuards(); renderCarbonDisclosure(); renderAuditLog(); renderStatControl(); renderZscoreMath(); renderEwmaControl(); renderEwmaMath(); renderMultiAnomaly(); renderMultiAnomalyMath(); renderIngestGuards();
+renderArch(); renderGuards(); renderCarbonDisclosure(); renderAuditLog(); renderStatControl(); renderZscoreMath(); renderEwmaControl(); renderEwmaMath(); renderHotellingT2(); renderMultiAnomaly(); renderMultiAnomalyMath(); renderIngestGuards();
 renderGlossCatBar();
 renderGlossary("");
 renderDomainMap();
@@ -13159,6 +13222,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   pfBand:pfBand,cascadeStepContent:cascadeStepContent,renderPfArc:renderPfArc,renderCascade:renderCascade,renderDelivery:renderDelivery,guards:GUARDS,renderGuards:renderGuards,escPat:ESC_PAT,
   fepCheckpoints:FEP_CHECKPOINTS,fepStatus:FEP_STATUS,fepCompletenessPct:fepCompletenessPct,fepPortfolioAvgPct:fepPortfolioAvgPct,renderFep:renderFep,
   aaceClasses:AACE_CLASSES,pkgEstimateClass:PKG_ESTIMATE_CLASS,aaceClassOf:aaceClassOf,renderEstClass:renderEstClass,
+  hotellingT2:hotellingT2,t2Chi2Df2Alpha05:T2_CHI2_DF2_ALPHA05,renderHotellingT2:renderHotellingT2,
   mcParams:mcParams,triang:triang,dsStep:dsStep,
   gaussRnd:gaussRnd,gammaRnd:gammaRnd,betaRnd:betaRnd,pertRnd:pertRnd,mcDraw:mcDraw,computeMc:computeMc,
   recomputeActiveMc:recomputeActiveMc,syncMcDist:syncMcDist,renderMcMath:renderMcMath,
