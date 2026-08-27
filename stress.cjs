@@ -590,7 +590,11 @@ has("eacTable", "$1,297.3M", "EAC table: BAC/CPI $1,297.3M");
 // {0,1500} widened from {0,900} (research-backed upgrade, 2026-08-27) -- the new "Estimate
 // maturity" section (front-end-planning + AACE class cards) was inserted in this same gap; real
 // measured distance is 1407 chars, same budget-not-a-constant reasoning as the prior widen.
-ok(/How the baseline was built[\s\S]{0,1500}<div class="grid">\s*<div class="card">\s*<h3>Estimate at completion/.test(indexSrc),
+// {0,2000} widened from {0,1500} (TJ's own reported friction, 2026-08-27) -- the Estimate
+// Maturity cards' own wrapper changed from grid.g2 to plain grid (stacked 1-per-row, closing a
+// real void-space complaint), adding an explanatory HTML comment in the same gap; real measured
+// distance is 1945 chars, same budget-not-a-constant reasoning as both prior widens.
+ok(/How the baseline was built[\s\S]{0,2000}<div class="grid">\s*<div class="card">\s*<h3>Estimate at completion/.test(indexSrc),
   "the EAC-methods / contingency-vs-progress pair no longer uses the 2-column grid.g2 wrapper");
 has("drill", "CP-201", "default drill-down is CP-201");
 has("drill", (shareCP201 * 100).toFixed(1) + "%", "drill: CP-201 share of gross overrun " + (shareCP201 * 100).toFixed(1) + "%");
@@ -9866,6 +9870,25 @@ console.log("== D59. UX/UI upgrade round -- interactivity infrastructure reuse (
     ok(G.wbsCrosswalk._html.includes('data-acc="' + w.ca + '"'), "wbsCrosswalk's row for " + w.ca + " carries data-acc too");
   });
   ok(G.wbsTable._html.includes('cursor:default'), "wbsTable rows are still cursor:default -- hover-only, no new click behavior invented");
+}
+
+// Estimate Maturity cards stacked 1-per-row (TJ's own reported friction, 2026-08-27): the FEP
+// and AACE cards used to sit side by side in a 2-column .grid.g2, but the AACE card's extra
+// Method column makes it meaningfully taller, and CSS grid's default row-stretch left visible
+// void space under the shorter FEP card. Static source check, not a runtime height comparison --
+// the Node DOM stub doesn't compute real layout/row heights (documented elsewhere in this file),
+// so the only thing provable here is that the wrapper class itself changed, not the pixel result.
+console.log("== D60. Estimate Maturity cards stacked, not side-by-side (TJ's own reported friction, 2026-08-27) ==");
+{
+  // {0,1200} measured, not guessed: real distance from the heading to the wrapper div is 919
+  // chars (the explanatory HTML comment above the wrapper), same budget-not-a-constant reasoning
+  // as the neighboring EAC-methods check a few hundred lines above.
+  ok(/<h2>Estimate maturity<\/h2>[\s\S]{0,1200}<div class="grid" style="margin-top:12px">\s*<div class="card tw" id="fepCard">/.test(indexSrc),
+    "the Estimate Maturity section now wraps fepCard/estClassCard in a plain .grid (stacked), not .grid.g2 (side by side)");
+  ok(!/<h2>Estimate maturity<\/h2>[\s\S]{0,1200}<div class="grid g2"/.test(indexSrc),
+    "the 2-column grid.g2 wrapper is genuinely gone from this specific section, not just relabeled");
+  has("fepCard", "Front-end planning completeness", "fepCard still renders its real heading after the wrapper change");
+  has("estClassCard", "Estimate classification", "estClassCard still renders its real heading after the wrapper change");
 }
 
 console.log("\n" + pass + " passed, " + fail + " failed");

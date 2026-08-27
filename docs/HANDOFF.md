@@ -30,7 +30,7 @@ anywhere in this repository. The method is the content, not the numbers.
 
 | | |
 |---|---|
-| Primary file | `index.html` — 14,120 lines, one file, no build step |
+| Primary file | `index.html` — 14,126 lines, one file, no build step |
 | Top-level JS functions | 432 (fresh `grep -cE "^\s*function [a-zA-Z_]" index.html`, this pass) |
 | Tabs | 13, grouped into 5 altitudes on the tab rail (Executive · Program Performance · Field & Assurance · Governance & Execution · Reference) |
 | KPIs (with formula/threshold/phase/source/play each) | 20 |
@@ -46,7 +46,7 @@ anywhere in this repository. The method is the content, not the numbers.
 | Risks | 7 (added R-07, extreme-weather exposure, 2026-08-26) |
 | Delay events | 4 |
 | Other 2026-08-26 proactive-mechanism additions (§8) | `OWNER_DECISIONS` (3), `SUB_HEALTH` (3), `LABOR_MOBILIZATION` (3), `CARBON_DISCLOSURE` (3), `AUDIT_LOG` (session-only, unbounded fact — see §8) |
-| `stress.cjs` test assertions | 3,993, all passing |
+| `stress.cjs` test assertions | 3,997, all passing |
 | `worker/smoketest.js` assertions (Ask AI backend, §10) | 25, all passing — a 3rd, independent test harness, Node-only, no real network/Cloudflare runtime |
 | Companion pages | `otak.html` (fit brief, 449 lines), `architecture.html` (static pipeline map, 598 lines) |
 | Companion backend (never deployed — see §10) | `worker/` — a Cloudflare Worker for the Ask AI feature; `ASK_AI_WORKER_URL` in `index.html` is still the `REPLACE-ME` placeholder |
@@ -488,7 +488,7 @@ key — `index.html` is fully static/public and can never hold it. Guardrails, m
 
 ## 11. Testing & verification
 
-**`stress.cjs`** (3,993 assertions, all passing) — stubs the DOM, loads `index.html`'s script
+**`stress.cjs`** (3,997 assertions, all passing) — stubs the DOM, loads `index.html`'s script
 verbatim into that stub, and exercises it exactly like a user would: every tab switch, every
 filter, every drawer, every slider drag, every keyboard interaction. 92 labeled sections (fresh
 `grep -c 'console.log("=='` count, this pass):
@@ -1745,6 +1745,14 @@ carried over from memory or an earlier pass:
   Live-browser-verified item by item (hover cross-highlight, click-to-drawer, jump links, gate
   disclosures, live traces, both demos) in both themes — the one class of check the Node DOM stub
   cannot exercise at all.
+- **2026-08-27, same day — Estimate Maturity cards stacked (TJ's own reported friction).** The
+  PDRI/AACE cards sat side by side in a 2-column `.grid.g2`; the AACE card's extra Method column
+  makes it meaningfully taller (750px vs 606px real, live-measured heights), and CSS grid's
+  default row-stretch left visible void space under the shorter FEP card. Switched to a plain
+  `.grid` (stacked, one full-width row each) — the same single-column pattern already used a few
+  sections below. Live-browser-verified: both cards now render at identical width (967px at
+  1280px viewport), a normal 29px gap between them, no stretched void. `stress.cjs` 3,993→3,997,
+  `index.html` 14,120→14,126 lines. `node verify.cjs` unchanged (pure presentational).
 
 Generated 2026-08-20, against the tip of the eleven-input-ledger-card engagement round; extended
 2026-08-21 for the six-KPI-families card round, again 2026-08-21 for the Data Strategy tab UI/UX

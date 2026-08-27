@@ -1280,7 +1280,13 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
       <p class="lede">A budget is only as trustworthy as the planning behind it. These two cards
         answer, per control account: how well-defined was the scope before the number was set, and
         what accuracy range does that level of definition honestly support?</p>
-      <div class="grid g2" style="margin-top:12px">
+      <!-- Stacked 1-per-row, not the 2-column .g2 grid (TJ's own reported friction, 2026-08-27):
+           side-by-side left large void space under the shorter FEP card, since the AACE card's
+           extra Method column (long text like "Semi-detailed unit costs with assembly-level line
+           items") makes it meaningfully taller and CSS grid's default row-stretch matched both
+           cards to it. Plain .grid, same single-column pattern already used a few sections below
+           (the EAC-methods/contingency pair) -- not a new layout mechanism. -->
+      <div class="grid" style="margin-top:12px">
         <div class="card tw" id="fepCard"></div>
         <div class="card tw" id="estClassCard"></div>
       </div>
