@@ -1627,6 +1627,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         <a href="#contractTable">Contracts</a>
         <a href="#subHealthTable">Financial-Health Watch</a>
         <a href="#changePipe">Change Pipeline</a>
+        <a href="#soundTransitLessons">Sound Transit Lessons</a>
         <a href="#drbEmv">Settlement</a>
       </nav>
     </details>
@@ -1697,6 +1698,8 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         <p class="lede" style="font-size:12px;margin-top:6px;color:rgb(var(--c-mut))">Blended pending exposure at that mix:
           <b id="coMixBlend" style="color:rgb(var(--c-ink))"></b> &mdash; illustrative only; the program&rsquo;s own
           forecast still carries pending change at the independent estimate in the table above, not this slider.</p></div>
+
+      <div class="card" style="margin-top:15px" id="soundTransitLessons"></div>
 
       <div class="sec-h" style="margin-top:34px"><h2>Settlement decision &mdash; direct vs. Dispute Review Board</h2><span class="tag">expected monetary value</span></div>
       <p class="lede">Real: the pending change population above &mdash; $18.6M carried at the independent estimate,
@@ -2798,6 +2801,27 @@ function materialUnabsorbedExposure(){
   var unabsorbedShare=Math.max(0,MATERIAL_INDEX_REAL.steelYoyPct-MATERIAL_ESCALATION_BASELINE_PCT)/MATERIAL_INDEX_REAL.steelYoyPct;
   return r04.cost*unabsorbedShare;
 }
+
+/* Sound Transit lessons — design-deficiency change-order exposure + geotechnical coverage
+   (research-backed upgrade, item #3, Tier 1, 2026-08-27). Sourced directly from the Washington
+   State Auditor's real report, "Improving Sound Transit's Project Planning and Design to Reduce
+   Costs": examining Sound Transit's own change orders found $23M (13% of the examined population)
+   spent correcting design deficiencies, including $1.9M on electrical mistakes and ~$4M on
+   building-code violations found post-award; root causes named inadequate ground-condition
+   characterization during planning and no formal cross-project lessons-learned process. The
+   report's own quantified recommendation: an additional ~$2M of exploratory drilling could have
+   raised geotechnical coverage by 25% across the 5 projects it examined.
+   This ledger does NOT track itemized per-change-order root causes (no such field exists on
+   PROGRAM's real change fields), so applying the real 13% share to this program's own real
+   coApprovedValue is a REFERENCE-CLASS comparison — "if this program's own design-deficiency
+   share matched the rate a real state auditor found on Sound Transit" — the same honest framing
+   this dashboard already uses for Flyvbjerg's reference-class forecast, never a claim this
+   program's own change orders have been broken down that granularly. */
+var SOUND_TRANSIT_AUDIT={
+  designDeficiencyShare:0.13, // 13% of examined COs, WA State Auditor
+  drillingUpliftCost:2.0, drillingUpliftCoverageGainPct:0.25 // $2M -> +25% coverage, 5 examined projects
+};
+function referenceDesignDeficiencyExposure(){ return PROGRAM.coApprovedValue*SOUND_TRANSIT_AUDIT.designDeficiencyShare; }
 
 /* Embodied-carbon disclosure readiness (brainstorm-mode round, 2026-08-26) — item #17.
    Independently verified against the primary statute before building anything (per TJ's direct
@@ -8064,6 +8088,31 @@ function renderRisk(){
     'become a change order yet (EMV). They belong on one page because all three draw against the same '+
     'contingency pool &mdash; <b style="color:rgb(var(--c-ink))">'+m(T.contRemaining)+'</b> remaining.';
 }
+/* Sound Transit lessons card — see SOUND_TRANSIT_AUDIT's own comment above for the real WA State
+   Auditor sourcing. */
+function renderSoundTransitLessons(){
+  var el=document.getElementById("soundTransitLessons"); if(!el) return;
+  var tun=rows.filter(function(r){ return r.id==="CP-201"; })[0];
+  var geoDone=FEP_STATUS.filter(function(f){return f.pkg==="CP-201";})[0].done.geo;
+  el.innerHTML=
+    '<h3>A real lesson from Sound Transit\'s own audit</h3>'+
+    '<p class="lede" style="font-size:12.5px;margin-top:5px">The Washington State Auditor examined '+
+    'Sound Transit\'s own change orders and found <b style="color:rgb(var(--c-ink))">13% of the '+
+    'examined population</b> ($23M) traced to design deficiencies — mistakes found only after '+
+    'award, including electrical errors and building-code violations — root-caused to inadequate '+
+    'ground-condition characterization during planning and no formal cross-project lessons-learned '+
+    'process. The Auditor\'s own quantified fix: about $2M more exploratory drilling could have '+
+    'raised geotechnical coverage 25% across the 5 projects examined. Source: WA State Auditor, '+
+    '&ldquo;Improving Sound Transit\'s Project Planning and Design to Reduce Costs.&rdquo;</p>'+
+    '<div class="grid g2" style="margin-top:12px">'+
+    '<div><div class="k" style="font-size:11px;color:rgb(var(--c-mut))">If this program\'s own change orders matched that 13% design-deficiency share</div>'+
+    '<div class="v" style="font-size:20px;font-weight:700;color:rgb(var(--c-ink))">'+m(referenceDesignDeficiencyExposure())+'</div>'+
+    '<div style="font-size:11.5px;color:rgb(var(--c-mut))">of the '+m(PROGRAM.coApprovedValue)+' approved change value &mdash; a reference-class comparison, not a claim about this program\'s own itemized causes (not tracked at that granularity)</div></div>'+
+    '<div><div class="k" style="font-size:11px;color:rgb(var(--c-mut))">'+tun.id+' (tunnel) geotechnical investigation</div>'+
+    '<div class="v" style="font-size:20px;font-weight:700"><span class="pill '+(geoDone?"g":"r")+'">'+(geoDone?"Complete":"Not complete")+'</span></div>'+
+    '<div style="font-size:11.5px;color:rgb(var(--c-mut))">the exact real finding this audit describes — R-01\'s own ground-conditions risk is already this program\'s worst float and CPI driver; the Auditor\'s $2M-for-25%-coverage finding is the real-world benchmark for what closing that gap looks like</div></div>'+
+    '</div>';
+}
 /* Risk drill-down drawer (brainstorm-mode round, 2026-08-23) — RISKS[] carries no pkg field of
    its own, so the link to a control account/delay/crew is found the same way a human reader
    would: through the Actions register's own src text ("Risk register · R-01"), which already
@@ -10871,6 +10920,8 @@ var GLOSS=[
   e:function(){ var series=CPH_CELLS[0].weeks.map(function(w){return w.actual;}), e2=deriveEwma(series), flags=e2.points.filter(function(p2){return p2.flag;}).length;
     return "Run against the tunnel crew's own 6-week $/hr series: "+flags+" of "+e2.points.length+" weeks currently breach the dynamic control limit ("+
       (flags?"a real, live flag":"a genuine null result — the honest answer, not a manufactured anomaly")+"). &lambda;="+e2.lambda+", L="+e2.L+" are standard SPC parameter choices, not derived from this program's own history."; }},
+ {k:"soundtransitaudit", cat:"risk", jT:"risk", jE:"soundTransitLessons", t:"Sound Transit design-deficiency audit finding", p:"A real Washington State Auditor finding: 13% of Sound Transit's own examined change orders traced to design deficiencies found only after award, and an additional ~$2M of exploratory drilling could have raised geotechnical coverage 25% across the projects examined — root-caused to inadequate ground-condition characterization during planning.",
+  e:function(){ return "Applied as a reference-class comparison to this program's own real approved change value: "+m(referenceDesignDeficiencyExposure())+" — not a claim about this program's own itemized causes, which this ledger doesn't track that granularly."; }},
  {k:"hotellingt2", cat:"field", jT:"ai", jE:"hotellingCard", t:"Hotelling's T² control chart", p:"Combines two correlated metrics into one joint control statistic per period instead of watching them on separate charts — the real, peer-reviewed answer to the finding that independent univariate control limits on correlated series inflate the false-alarm rate. Here: CP-201's own crew cost-per-hour and idle-time percentage, the same 6 real weeks the z-score/EWMA panels already use.",
   e:function(){ var h=hotellingT2(); var mx=Math.max.apply(null,h.t2); var wIdx=h.t2.indexOf(mx); return "This program's own 6 weeks correlate at r="+h.corr.toFixed(2)+"; the highest joint statistic is "+h.weeks[wIdx]+" at T²="+mx.toFixed(2)+", still under the "+T2_CHI2_DF2_ALPHA05+" textbook threshold — no breach today."; }},
  {k:"multianomaly", cat:"field", jT:"ai", jE:"aiMultiAnomaly", t:"Multivariate anomaly score", p:"The z-score and EWMA checks above are univariate and longitudinal — one series (CP-201's crew cost-per-hour), over time. This is multivariate and cross-sectional instead: it standardizes 5 real per-package fields (CPI, SPI, PF, float, CPLI) against the portfolio's own mean and standard deviation across all 8 packages, then combines them into one composite distance per package — catching a package that looks unremarkable on every single metric but is jointly unusual across all of them, something no single-metric threshold can see by construction. Deliberately not a full Mahalanobis distance — a covariance matrix estimated from only 8 points would be an overfitting risk, not a real refinement — and ranked, not thresholded, since a hard pass/fail line would be arbitrary at this sample size. The composite itself is direction-blind (squaring erases sign), so a package can rank high purely because it's outperforming, not just underperforming — the bar's own color (red/amber/green, from the signed sum of the same 5 z-scores) is what actually says which one, not the ranking alone.",
@@ -13103,7 +13154,7 @@ window.addEventListener("scroll",function(){ document.getElementById("tip").clas
    pre-existing pattern) silently reset the scrubber's cursor to hidden while the slider value and
    HUD text stayed on whatever month was last scrubbed — the display and the control disagreeing
    with each other, silently, on the single most ordinary action in the app. */
-function redrawCharts(){ renderScurve(); renderWaterfall(); renderBaseline(); renderFep(); renderEstClass(); renderVeSandbox(); renderCont(); renderRisk(); syncMcView(); renderPertPlay(); renderGaltonStatic(); renderGantt(); renderScurveScrub(); renderGateLine(); renderCdeFlow(); renderGbmLogReturns(); renderDelivery(); renderTriage(); renderExec();
+function redrawCharts(){ renderScurve(); renderWaterfall(); renderBaseline(); renderFep(); renderEstClass(); renderVeSandbox(); renderCont(); renderRisk(); renderSoundTransitLessons(); syncMcView(); renderPertPlay(); renderGaltonStatic(); renderGantt(); renderScurveScrub(); renderGateLine(); renderCdeFlow(); renderGbmLogReturns(); renderDelivery(); renderTriage(); renderExec();
   wireDetailsAnimation(); } // re-wire any freshly-rebuilt details.dbox (see its own idempotency-guard comment)
 document.getElementById("mcViewHist").addEventListener("click",function(){ state.mcView="hist"; syncMcView(); });
 document.getElementById("mcViewCdf").addEventListener("click",function(){ state.mcView="cdf"; syncMcView(); });
@@ -13142,7 +13193,7 @@ document.getElementById("mcInspect").value=String(state.mcInspect);
 document.getElementById("vInspect").textContent="P"+state.mcInspect;
 renderWaterfall(); renderWaterfallMath(); renderBaseline(); renderFep(); renderEstClass(); renderVeSandbox(); renderEac(); renderCont(); renderTable();
 renderEacTrend(); renderFcastTable(); renderGbmDiffusion(); renderGbmLogReturns(); renderGbmMathUnlocked(); renderGbmVsEvm(); renderCashflow();
-renderGantt(); renderSchedule(); renderRisk(); renderDrbEmv(); renderContracts(); renderSubHealth(); renderDelivery(); renderFramework(); renderActions(); renderActionsMath(); renderTriage(); renderExec();
+renderGantt(); renderSchedule(); renderRisk(); renderSoundTransitLessons(); renderDrbEmv(); renderContracts(); renderSubHealth(); renderDelivery(); renderFramework(); renderActions(); renderActionsMath(); renderTriage(); renderExec();
 document.getElementById("sDrbP").value=DRB_ASSUMPTIONS.pOwnerWins;
 document.getElementById("sDrbLegal").value=DRB_ASSUMPTIONS.legalCost;
 renderDrbSlider();
@@ -13223,6 +13274,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   fepCheckpoints:FEP_CHECKPOINTS,fepStatus:FEP_STATUS,fepCompletenessPct:fepCompletenessPct,fepPortfolioAvgPct:fepPortfolioAvgPct,renderFep:renderFep,
   aaceClasses:AACE_CLASSES,pkgEstimateClass:PKG_ESTIMATE_CLASS,aaceClassOf:aaceClassOf,renderEstClass:renderEstClass,
   hotellingT2:hotellingT2,t2Chi2Df2Alpha05:T2_CHI2_DF2_ALPHA05,renderHotellingT2:renderHotellingT2,
+  soundTransitAudit:SOUND_TRANSIT_AUDIT,referenceDesignDeficiencyExposure:referenceDesignDeficiencyExposure,renderSoundTransitLessons:renderSoundTransitLessons,
   mcParams:mcParams,triang:triang,dsStep:dsStep,
   gaussRnd:gaussRnd,gammaRnd:gammaRnd,betaRnd:betaRnd,pertRnd:pertRnd,mcDraw:mcDraw,computeMc:computeMc,
   recomputeActiveMc:recomputeActiveMc,syncMcDist:syncMcDist,renderMcMath:renderMcMath,

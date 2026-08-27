@@ -3799,7 +3799,7 @@ console.log("== D10. inline term help ==");
 // 57 as of the same round's follow-up: a real "pband" entry, same reasoning as impactscore -- the
 // probability scale had no glossary entry either, and TJ's own follow-up question ("why P4, no
 // parameters given") is exactly what it closes.
-ok(P.gloss.length === 64, "GLOSS grew to 64 entries (63 prior + hotellingt2, research-backed upgrade 2026-08-27)", String(P.gloss.length));
+ok(P.gloss.length === 65, "GLOSS grew to 65 entries (64 prior + soundtransitaudit, research-backed upgrade 2026-08-27)", String(P.gloss.length));
 // title independently re-typed per term (/stress-test finding, 2026-08-21: the prior version only
 // checked g.p/g.e() were non-empty, which passes even for a totally wrong or swapped-in entry) —
 // guards that findGloss(k) actually resolves to the RIGHT term, not just SOME term.
@@ -4792,7 +4792,7 @@ console.log("== D23. Glossary upgrade round, items 1-3 (2026-08-21) ==");
   // to a known category. Independently re-derived from the raw array, not read back from the
   // rendered pill counts and trusted against itself. (61 as of the brainstorm-mode ML round's
   // multianomaly addition, 2026-08-26.)
-  ok(P.gloss.length === 64, "sanity: still 64 real glossary terms");
+  ok(P.gloss.length === 65, "sanity: still 65 real glossary terms");
   const validCats = Object.keys(P.cats);
   P.gloss.forEach(g => ok(validCats.indexOf(g.cat) >= 0, "term '" + g.k + "' carries a real category (" + g.cat + ")", g.cat));
 
@@ -9225,6 +9225,24 @@ console.log("== D47. Hotelling's T² multivariate control chart (research-backed
   has("hotellingCard", "5.991", "the card states the real textbook threshold, not a vague description");
   has("hotellingCard", "overfitting risk", "the card carries the same honest small-sample caveat the existing multivariate-anomaly panel states, not silently omitted");
   wk.forEach((w) => has("hotellingCard", w.w, "the card lists every real week, including " + w.w));
+}
+
+// item #3 (Tier 1): Sound Transit design-deficiency change-order exposure + geotechnical coverage
+// -- see SOUND_TRANSIT_AUDIT's own comment for the real WA State Auditor sourcing.
+console.log("== D48. Sound Transit lessons — design-deficiency exposure + geotech coverage (research-backed upgrade, item #3, 2026-08-27) ==");
+{
+  ok(P.soundTransitAudit.designDeficiencyShare === 0.13, "pre-registered: the real WA State Auditor design-deficiency share is 13%", String(P.soundTransitAudit.designDeficiencyShare));
+  ok(P.soundTransitAudit.drillingUpliftCost === 2.0 && P.soundTransitAudit.drillingUpliftCoverageGainPct === 0.25, "pre-registered: the real WA State Auditor drilling finding is $2M -> +25% coverage");
+  const expectedExposure = P.program.coApprovedValue * 0.13;
+  ok(Math.abs(P.referenceDesignDeficiencyExposure() - expectedExposure) < 1e-9, "the reference-class exposure matches an independent recomputation from the real coApprovedValue", P.referenceDesignDeficiencyExposure() + " vs " + expectedExposure);
+  ok(Math.abs(expectedExposure - 5.356) < 1e-9, "pre-registered: today's real reference-class exposure is $5.356M (13% of the real $41.2M approved change value)", String(expectedExposure));
+
+  has("soundTransitLessons", "Sound Transit", "the card names its real source agency");
+  has("soundTransitLessons", "13%", "the card states the real audit percentage");
+  has("soundTransitLessons", m(expectedExposure), "the card renders the real, live-computed reference-class dollar figure, not a hardcoded one");
+  const geoDone = P.fepStatus.find((f) => f.pkg === "CP-201").done.geo;
+  ok(geoDone === false, "pre-registered: CP-201's real geotechnical checkpoint is still open today, consistent with R-01's ground-conditions risk");
+  has("soundTransitLessons", "Not complete", "the card correctly reflects CP-201's real, still-open geotechnical status, cross-referenced from item #1's own FEP_STATUS");
 }
 
 console.log("\n" + pass + " passed, " + fail + " failed");
