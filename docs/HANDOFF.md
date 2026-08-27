@@ -30,8 +30,8 @@ anywhere in this repository. The method is the content, not the numbers.
 
 | | |
 |---|---|
-| Primary file | `index.html` — 13,759 lines, one file, no build step |
-| Top-level JS functions | 420 (fresh `grep -cE "^\s*function [a-zA-Z_]" index.html`, this pass) |
+| Primary file | `index.html` — 13,947 lines, one file, no build step |
+| Top-level JS functions | 425 (fresh `grep -cE "^\s*function [a-zA-Z_]" index.html`, this pass) |
 | Tabs | 13, grouped into 5 altitudes on the tab rail (Executive · Program Performance · Field & Assurance · Governance & Execution · Reference) |
 | KPIs (with formula/threshold/phase/source/play each) | 20 |
 | KPI families (`KPI_FAMILIES` — Cost/Schedule/Risk/Change/Delivery/Compliance) | 6, each with its own operational question + why-it-matters card on Overview |
@@ -39,14 +39,14 @@ anywhere in this repository. The method is the content, not the numbers.
 | Ingestion-validation checks (`INGEST_GUARDS`) | 2 |
 | SQL/DuckDB parity checks (`pipeline/run_pipeline.py`) | 65, independently re-run and verified this pass. `stress.cjs` now live-verifies this count itself (2026-08-27, "resolve all limitations") when `pipeline/.venv` exists — create it once via `python3 -m venv pipeline/.venv && pipeline/.venv/bin/pip install duckdb`; without it, the check degrades to a loudly-flagged text-presence check rather than a silent one |
 | Escalation-matrix rules (`ESCALATION`) | 12, each with a named owner, a clock, and (added 2026-08-26) a stated rationale for why its threshold sits where it does |
-| Glossary terms (each with a live-computed worked example) | 73 |
+| Glossary terms (each with a live-computed worked example) | 76 |
 | Actions/RAID register items | 17 (6 Issue, 10 Task, 1 Decision) |
 | Control accounts / packages | 8 |
 | Contracts | 6 |
 | Risks | 7 (added R-07, extreme-weather exposure, 2026-08-26) |
 | Delay events | 4 |
 | Other 2026-08-26 proactive-mechanism additions (§8) | `OWNER_DECISIONS` (3), `SUB_HEALTH` (3), `LABOR_MOBILIZATION` (3), `CARBON_DISCLOSURE` (3), `AUDIT_LOG` (session-only, unbounded fact — see §8) |
-| `stress.cjs` test assertions | 3,825, all passing |
+| `stress.cjs` test assertions | 3,882, all passing |
 | `worker/smoketest.js` assertions (Ask AI backend, §10) | 25, all passing — a 3rd, independent test harness, Node-only, no real network/Cloudflare runtime |
 | Companion pages | `otak.html` (fit brief, 449 lines), `architecture.html` (static pipeline map, 598 lines) |
 | Companion backend (never deployed — see §10) | `worker/` — a Cloudflare Worker for the Ask AI feature; `ASK_AI_WORKER_URL` in `index.html` is still the `REPLACE-ME` placeholder |
@@ -245,7 +245,7 @@ pass found is no longer true — flagged, not fixed here, since it's a code comm
 | 1 | **Overview** (`over`) | A "Six lenses, not one blended score" card explaining what each of the 6 KPI families (Cost/Schedule/Risk/Change/Delivery/Compliance) actually asks and why it can't be folded into the others, a "Three layers, not one number" card naming this dashboard's own leading-telemetry / confirming-EVM / independent-assurance architecture for the first time (each layer real, already built, just never named as one system), directly above the 20-KPI board with drill-down detail (formula/threshold/source/play per card, plus a "computed from the ledger" / "not from the ledger" provenance box, honestly stated per KPI), a live root-cause-to-owner trace, the eleven-input ledger card (all 11 raw fields, a per-package inspector, and a live "change one input, watch the KPIs move" demo — reads a local snapshot, never mutates the real ledger), an 11-stop guided Tour with tab-jumping evidence links, an executive summary. |
 | 2 | **Executive Command** (`exec`) | Plain-English Gate 5 status, a proactive-problem-solving sandbox, context callouts — the board-level "what does this actually mean" reading of the same real data, distinct from Overview's KPI-board detail view. Also hosts the **Ask AI** free-text Q&A (§10) — dormant by default (opt-in per session, zero network calls until enabled) and not yet deployed live (`ASK_AI_WORKER_URL` is still the `REPLACE-ME` placeholder). |
 | 3 | **Portfolio** (`port`) | Agency-level rollup across 4 lines of business — one reads live off this program's own totals (never duplicated, `GUARDS`-checked), three are summary-only illustrative peers. |
-| 4 | **Cost** (`cost`) | EVM S-curve + variance bridge, an estimate-to-budget baseline bridge reconciled to the ledger, four-method EAC, a forecast-reliability section (EAC trend, a naive-drift-vs-linear-regression forecaster comparison with a disclosed identical-first-value caveat, monthly cash flow), what-if forecasting with 3 live sliders + scenario comparison, Monte Carlo completion distribution (10,000 runs, seeded/reproducible, a Triangular/PERT draw-shape toggle, an opt-in AACE 57R-09 risk-driver layer), a reference-class-forecast comparison band (this program's own Monte Carlo P10/P50/P80/P95 against a real Flyvbjerg-derived megaproject reference-class multiplier), the cost-diffusion (GBM) card — with a log-return strip plot + fitted-curve overlay, a "Math unlocked" plain-language drawer, and an EVM-vs-GBM methodology comparison (what each method assumes, never a forward-projected figure), a CII PDRI front-end-planning completeness tracker (per-package, 8-checkpoint), an AACE RP 17R-97/56R-08 estimate-classification card (Class 5-1 per control account), an FTA Standard Cost Category (SCC) realignment of `T.bac` into the real 10-category worksheet (reconciles exactly), an FHWA LCCA 30-year NPV comparison (ballasted vs. direct-fixation track, real discount-rate methodology, explicitly illustrative dollar inputs), a sticky in-tab section-anchor rail. |
+| 4 | **Cost** (`cost`) | EVM S-curve + variance bridge, an estimate-to-budget baseline bridge reconciled to the ledger, four-method EAC, a forecast-reliability section (EAC trend, a naive-drift-vs-linear-regression forecaster comparison with a disclosed identical-first-value caveat, monthly cash flow), what-if forecasting with 3 live sliders + scenario comparison, Monte Carlo completion distribution (10,000 runs, seeded/reproducible, a Triangular/PERT draw-shape toggle, an opt-in AACE 57R-09 risk-driver layer), a reference-class-forecast comparison band (this program's own Monte Carlo P10/P50/P80/P95 against a real Flyvbjerg-derived megaproject reference-class multiplier), the cost-diffusion (GBM) card — with a log-return strip plot + fitted-curve overlay, a "Math unlocked" plain-language drawer, and an EVM-vs-GBM methodology comparison (what each method assumes, never a forward-projected figure), a CII PDRI front-end-planning completeness tracker (per-package, 8-checkpoint), an AACE RP 17R-97/56R-08 estimate-classification card (Class 5-1 per control account), an FTA Standard Cost Category (SCC) realignment of `T.bac` into the real 10-category worksheet (reconciles exactly), an FHWA LCCA 30-year NPV comparison (ballasted vs. direct-fixation track, real discount-rate methodology, explicitly illustrative dollar inputs), a WSDOT-style cost-code / unit-price bid-item breakdown one level below the FTA SCC categories (real TxDOT-sourced concrete/excavation unit rates, 3 honest-gap lines where no verified public rate exists, a real quantity-vs-price variance decomposition, a 25%-quantity-overrun contract-adjustment flag, real Sound Transit/LA Metro reference benchmarks) with a Pareto cost-driver ranking one level below the package-level variance bridge, an AACE estimating-method column added to the estimate-classification card, a sticky in-tab section-anchor rail. |
 | 5 | **Schedule** (`sched`) | DCMA-style schedule health — SPI, SPI(t)/Earned Schedule, CPLI, BEI, the full objective metric triad the DCMA 14-Point Assessment and ANSI/EIA-748 sit under, named explicitly (checks 13/14, with the other 12 stated as a real gap) — a Gantt-style bar with baseline vs. forecast, a fragnet-based delay & TIA register tied to package float, a labor-availability leading indicator (3 real driving-schedule trades, mobilization lead-time confirmed vs. required — AGC/ABC-sourced), revenue-service forecast drift, statistical control charts (z-score + EWMA) over crew cost-per-hour. |
 | 6 | **Risk & Change** (`risk`) | A priced risk register (probability × impact heat map + sensitivity tornado chart, 7 risks including a 2026-08-26 extreme-weather addition), an integrated cost-schedule risk view (ICSRA — which of the 7 risks carry a real, derivable joint cost+schedule hit, reusing the existing risk→action linkage, not a fabricated map), a Washington State Auditor Sound Transit lessons card (real design-deficiency change-order exposure + geotechnical-coverage findings, cross-referenced against this program's own PDRI front-end-planning status), a forward material-price exposure trigger extending CDI (real AGC steel/aluminum index data against R-04's own escalation-clause mitigation), a subcontractor financial-health watch (3 highest-exposure contracts, 90-day check cycle), a contract commercial register (a third axis distinct from control accounts), change pipeline with proposed-vs-settled pricing defense, the settle-vs-DRB EMV decision tree with an **interactive slider + chart** (§8). |
 | 7 | **Delivery** (`del`) | Leading indicators (productivity factor by package, RFI/submittal aging, a quality NCR register with real open counts and per-item aging read live off the Actions/RAID register), the crew cost-per-hour module with a drill-down into idle/rework/baseline attribution. |
@@ -298,7 +298,7 @@ Everything below is a real DOM interaction, independently covered by `stress.cjs
   display state only and never mutate `DRB_ASSUMPTIONS`; a small SVG chart makes the "escalating
   can never beat settling" structural finding visible across the whole probability range instead
   of asserting it as one static delta.
-- **73-term glossary** with live search filter, plus a click-driven inline "i" help icon next to
+- **76-term glossary** with live search filter, plus a click-driven inline "i" help icon next to
   jargon anywhere on the page — both read from the same `GLOSS` array, so there's one source of
   truth for every definition.
 - **1 six-KPI-families card** (Overview: `KPI_FAMILIES`) — each of the 6 family tiles carries its
@@ -488,7 +488,7 @@ key — `index.html` is fully static/public and can never hold it. Guardrails, m
 
 ## 11. Testing & verification
 
-**`stress.cjs`** (3,825 assertions, all passing) — stubs the DOM, loads `index.html`'s script
+**`stress.cjs`** (3,882 assertions, all passing) — stubs the DOM, loads `index.html`'s script
 verbatim into that stub, and exercises it exactly like a user would: every tab switch, every
 filter, every drawer, every slider drag, every keyboard interaction. 92 labeled sections (fresh
 `grep -c 'console.log("=='` count, this pass):
@@ -1698,6 +1698,24 @@ carried over from memory or an earlier pass:
   397→420, git 200→218 commits, glossary 61→73 terms. `GUARDS` (29) and `RISKS` (7) unchanged —
   every item added a leading indicator/comparison/checklist, none touched `PKGS`/`derive()`
   logic; `node verify.cjs` tie-out unchanged throughout both rounds.
+- **2026-08-27, same day — cost-code / unit-rate granularity round.** TJ asked for the dashboard's
+  cost structure to go one level below the FTA SCC categories, down to real, unit-priced bid-item
+  granularity with multi-level cost-driver indicators — 2 research passes (one flagged a
+  fabricated premise in the request's own framing: no real "CSI MasterFormat Heavy Civil
+  Construction Supplement" exists; a follow-up specifically hunted rail-track/TBM-tunnel unit
+  costs). Built: a 6-line cost-code breakdown (WSDOT Standard Item Number convention, real
+  TxDOT-sourced concrete/excavation unit rates on 3 lines, 3 honest "no verified public source"
+  gaps on reinforcing steel/track/tunnel-excavation rather than invented numbers), the real
+  quantity-variance/price-variance decomposition (AACE RP 86R-14 pointer, the identity proven
+  independently), a real 25%-quantity-overrun contract-adjustment flag (Caltrans/Iowa DOT/FAR
+  52.211-18), a Pareto cost-driver ranking (real ASCE 2022 methodology) one level below the
+  existing package-level variance bridge, an AACE estimating-method column on the existing
+  estimate-classification card (Class 3/2/1 verbatim-confirmed, Class 4/5 stated at lower
+  confidence, not overclaimed), and 2 real reference benchmarks (Sound Transit U-Link, LA Metro
+  SCC-10) explicitly labeled as bundled/all-in figures, never conflated with the atomic cost-code
+  rates. `stress.cjs` 3,825→3,882, `index.html` 13,759→13,947 lines, functions 420→425, glossary
+  73→76 terms. `GUARDS`/`RISKS` unchanged (29/7) — the feature adds a new layer below `PKGS`,
+  doesn't touch `derive()` or any existing KPI logic; `node verify.cjs` unchanged throughout.
 
 Generated 2026-08-20, against the tip of the eleven-input-ledger-card engagement round; extended
 2026-08-21 for the six-KPI-families card round, again 2026-08-21 for the Data Strategy tab UI/UX

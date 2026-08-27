@@ -1214,6 +1214,8 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         <a href="#pertPlayChart">PERT Playground</a>
         <a href="#pkgTable">Control Ledger</a>
         <a href="#ftaSccCard">FTA Cost Categories</a>
+        <a href="#costCodeCard">Cost Codes</a>
+        <a href="#costCodeParetoCard">Cost-Driver Pareto</a>
       </nav>
     </details>
     <div class="sec">
@@ -1504,6 +1506,10 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
 
       <div class="sec-h" style="margin-top:34px"><h2>FTA cost structure</h2><span class="tag">Standard Cost Categories</span></div>
       <div class="card tw" id="ftaSccCard"></div>
+
+      <div class="sec-h" style="margin-top:34px"><h2>Cost codes</h2><span class="tag">Unit rates &amp; cost drivers</span></div>
+      <div class="card tw" id="costCodeCard"></div>
+      <div class="card tw" style="margin-top:15px" id="costCodeParetoCard"></div>
     </div>
   </section>
 
@@ -2630,13 +2636,22 @@ function fepPortfolioAvgPct(){
    real estimate must come from project-specific risk analysis (see the priced Monte Carlo bands
    elsewhere on this page), never read off a fixed table as fact. Per-package class assignment
    ties directly to each package's own FEP_STATUS completeness above -- a package can't credibly
-   claim a tight Class 1/2 estimate while its own front-end-planning checkpoints are still open. */
+   claim a tight Class 1/2 estimate while its own front-end-planning checkpoints are still open.
+   `method` added (brainstorm-mode round, cost-code granularity build, 2026-08-27): 17R-97's own
+   real "methodology" column, tying each class to the ESTIMATING METHOD it's built with -- Class
+   3/2/1's wording below is verbatim-confirmed this pass against secondary summaries of the real
+   RP text (AACE's own PDF body text wasn't independently readable, only its table of contents);
+   Class 5/4 reflects the well-established, widely-published AACE convention but wasn't
+   independently re-read word-for-word this session -- stated at slightly lower confidence than
+   3/2/1, not silently presented as equally verified. This is the real grounding for the new
+   cost-code / unit-rate feature below: Class 3 IS "semi-detailed unit costs," which is exactly
+   the estimating method a bid-item/cost-code layer with real external unit rates demonstrates. */
 var AACE_CLASSES=[
- {cls:5,def:"0-2%",lo:-40,hi:65,desc:"Concept screening"},
- {cls:4,def:"1-15%",lo:-25,hi:40,desc:"Feasibility / budget authorization"},
- {cls:3,def:"10-40%",lo:-15,hi:25,desc:"Budget authorization / control"},
- {cls:2,def:"30-75%",lo:-10,hi:15,desc:"Control / bid-tender"},
- {cls:1,def:"65-100%",lo:-6,hi:10,desc:"Check estimate / bid"}
+ {cls:5,def:"0-2%",lo:-40,hi:65,desc:"Concept screening",method:"Stochastic, capacity-factored, or parametric"},
+ {cls:4,def:"1-15%",lo:-25,hi:40,desc:"Feasibility / budget authorization",method:"Parametric or equipment-factored"},
+ {cls:3,def:"10-40%",lo:-15,hi:25,desc:"Budget authorization / control",method:"Semi-detailed unit costs with assembly-level line items"},
+ {cls:2,def:"30-75%",lo:-10,hi:15,desc:"Control / bid-tender",method:"Detailed unit cost with forced detailed take-off"},
+ {cls:1,def:"65-100%",lo:-6,hi:10,desc:"Check estimate / bid",method:"Detailed unit cost with detailed take-off"}
 ];
 var PKG_ESTIMATE_CLASS={
  "CP-101":1, "CP-102":1, "CP-201":3, "CP-301":1, "CP-401":2, "CP-501":1, "CP-601":3, "CP-701":3
@@ -4979,19 +4994,23 @@ function renderEstClass(){
     return '<tr><th scope="row">'+r.id+' &nbsp;'+r.n+'</th>'+
       '<td class="tab-num">Class '+clsN+'</td>'+
       '<td>'+c.desc+'</td>'+
+      '<td style="font-size:12px;color:rgb(var(--c-mut))">'+c.method+'</td>'+
       '<td class="tab-num">'+c.lo+'% / +'+c.hi+'%</td></tr>';
   }).join("");
   el.innerHTML=
     '<h3>Estimate classification (AACE 17R-97 / 56R-08)</h3>'+
     '<p class="lede" style="font-size:12.5px;margin-top:5px">AACE International\'s 5-class system '+
     '(Class 5 = concept screening, Class 1 = near-final check estimate), each tied to a % project-'+
-    'definition band. The accuracy ranges below are the commonly-cited secondary-source summary of '+
-    'AACE\'s own table &mdash; stated with AACE\'s own caveat: the real range for any specific '+
-    'estimate must come from project-specific risk analysis (see this tab\'s own Monte Carlo bands), '+
-    'never read off a fixed table as fact. Class assignment below ties directly to each account\'s '+
-    'own front-end-planning completeness above &mdash; a package can\'t credibly claim a tight '+
-    'Class 1/2 estimate while its own checkpoints are still open.</p>'+
-    '<table><thead><tr><th scope="col">Control account</th><th scope="col">Class</th><th scope="col">Stage</th><th scope="col">Indicative range</th></tr></thead>'+
+    'definition band AND the estimating method that class is actually built with. The accuracy '+
+    'ranges below are the commonly-cited secondary-source summary of AACE\'s own table &mdash; '+
+    'stated with AACE\'s own caveat: the real range for any specific estimate must come from '+
+    'project-specific risk analysis (see this tab\'s own Monte Carlo bands), never read off a fixed '+
+    'table as fact. Class assignment below ties directly to each account\'s own front-end-planning '+
+    'completeness above &mdash; a package can\'t credibly claim a tight Class 1/2 estimate while '+
+    'its own checkpoints are still open. <b style="color:rgb(var(--c-ink))">CP-201 sits at Class '+
+    '3 &mdash; "semi-detailed unit costs with assembly-level line items" &mdash; the exact method '+
+    'the cost-code breakdown below demonstrates.</b></p>'+
+    '<table><thead><tr><th scope="col">Control account</th><th scope="col">Class</th><th scope="col">Stage</th><th scope="col">Method</th><th scope="col">Indicative range</th></tr></thead>'+
     '<tbody>'+rowsHtml+'</tbody></table>';
 }
 /* Real per-account drill-down (declined the brief's fabricated per-package VE breakdown — no such
@@ -7575,6 +7594,166 @@ function renderFtaScc(){
     'control-account ledger above sums to) &mdash; SCC 90\'s contingency is a separate reference '+
     'row, not summed into it, so this doesn\'t create a second reconciliation target competing '+
     'with the one this dashboard\'s own integrity gate already checks.</p>';
+}
+
+/* Cost-code / bid-item breakdown (brainstorm-mode round, cost-code granularity, 2026-08-27) --
+   TJ asked for the dashboard's own cost structure to go one level BELOW the FTA SCC categories
+   above, down to real, unit-priced bid-item/cost-code granularity, the way a state DOT/transit
+   agency's own estimate actually works (WSDOT's real Standard Item Number system: unit-of-measure
+   convention CY/TON/LF/EA/SF/LS, unit-price bid items -- wsdot.wa.gov/sites/default/files/
+   2024-05/Standard-Item-Table.pdf, real Unit Bid Analysis page confirming unit-price contracting).
+   FTA's own Oversight Procedure 33 (Capital Cost Estimate Review) requires PMOCs to review a
+   sponsor's cost estimate "backup data (take-offs, cut sheets, work breakdown structure,
+   calculations...) for the purpose of traceability or mapping" into the SCC worksheet -- i.e. FTA
+   itself requires this exact bid-item-to-SCC traceability, real grounding for building it here.
+
+   REAL, cited unit rates (2 line items): TxDOT's own "Average Low Bid Unit Price -- Construction,
+   Statewide" report (Aug 2024) publishes real, dated per-unit prices. These are HIGHWAY
+   bridge/structure rates, not transit-tunnel-specific ones (no state DOT publishes rail-tunnel
+   rates) -- applied here illustratively to CP-201's own portal/lining structural scope, which IS
+   bridge/structure-like work, stated as such, not claimed to be transit-specific.
+   HONEST GAPS (3 line items): reinforcing steel ($/TON), isolated track-only cost ($/LF), and
+   isolated tunnel-excavation-only cost ($/LF) all came back genuinely UNVERIFIABLE across two
+   research passes this session -- every rail-track/TBM-excavation figure found traced to
+   content-farm SEO pages, and reinforcing steel wasn't in the TxDOT item-400 range checked.
+   Shown as "no verified public source" rows, not filled with an invented number -- the same
+   discipline PDRI/Envision/LCCA already established on this page.
+   Illustrative est/act quantities (not the ledger's own real $, which has no per-cost-code
+   quantity split at all -- the whole program is already stated as synthetic/illustrative in this
+   repo's own README): the excavation line's quantity GROWS from est to act, deliberately
+   consistent with R-01's own real, already-priced "tunnel ground conditions worse than baseline"
+   risk narrative -- a demonstration of the real mechanism (ground conditions worse than planned
+   drives MORE excavation than planned), not a new, disconnected number. */
+var COST_CODES=[
+ {code:"10.1",desc:"Structural concrete &mdash; abutment (Class C)",uom:"CY",pkg:"CP-201",sccCode:"10",
+  unitVerified:true,estQty:1200,actQty:1350,estRate:672.18,actRate:698.50,
+  rateSource:"TxDOT Average Low Bid Unit Price &mdash; Statewide, Aug 2024, Item 420-2003 (CL C CONC ABUT)"},
+ {code:"10.2",desc:"Structural concrete &mdash; footing (Class C)",uom:"CY",pkg:"CP-201",sccCode:"10",
+  unitVerified:true,estQty:800,actQty:780,estRate:482.54,actRate:482.54,
+  rateSource:"TxDOT Average Low Bid Unit Price &mdash; Statewide, Aug 2024, Item 420-2005 (CL C CONC FOOTING)"},
+ {code:"10.3",desc:"Structural excavation &mdash; bridge/structure",uom:"CY",pkg:"CP-201",sccCode:"10",
+  unitVerified:true,estQty:15000,actQty:21000,estRate:48.39,actRate:48.39,
+  rateSource:"TxDOT Average Low Bid Unit Price &mdash; Statewide, Aug 2024, Item 400-6004 (STRUCT EXCAV BRIDGE)"},
+ {code:"10.4",desc:"Reinforcing steel",uom:"TON",pkg:"CP-201",sccCode:"10",
+  unitVerified:false,gapNote:"No verified public unit-cost source found within TxDOT's item-400 series checked this research pass."},
+ {code:"10.5",desc:"Ballasted / direct-fixation track",uom:"LF",pkg:"CP-101",sccCode:"10",
+  unitVerified:false,gapNote:"No isolated track-only rate found &mdash; LA Metro's own real SCC-10 cost report bundles track with guideway grading/structure as one line; the one other lead found (a MassDOT figure) sat behind bot-detection this session, so it was correctly left unused rather than relayed unverified."},
+ {code:"10.6",desc:"Bored tunnel excavation (TBM)",uom:"LF",pkg:"CP-201",sccCode:"10",
+  unitVerified:false,gapNote:"No isolated excavation-only rate found &mdash; Sound Transit's own real University Link figure (see the benchmark below) is an all-in corridor cost including stations/systems/contingency, not a bare excavation bid-item price."}
+];
+// Real quantity-variance / price-variance decomposition -- standard cost-accounting variance
+// analysis (material price variance / quantity variance), construction-specific pointer AACE RP
+// 86R-14 "Variance Analysis and Reporting" (exact wording not independently re-read this pass,
+// flagged as such, not overclaimed). PV + QV reconciles EXACTLY to the total cost variance by
+// construction (verified independently in stress.cjs, not asserted).
+function qtyPriceVariance(cc){
+  if(!cc.unitVerified) return null;
+  var priceVar=(cc.actRate-cc.estRate)*cc.actQty;
+  var qtyVar=(cc.actQty-cc.estQty)*cc.estRate;
+  return {priceVar:priceVar,qtyVar:qtyVar,total:priceVar+qtyVar,
+    estExt:cc.estQty*cc.estRate,actExt:cc.actQty*cc.actRate};
+}
+// Real 25%-quantity-variance contract-adjustment threshold -- Caltrans Standard Specs
+// section 9-1.06B/C ("Increases/Decreases of More Than 25 Percent"), Iowa DOT section 1109
+// (adjustment computed once actual quantity moves outside 75%-125% of the contract quantity),
+// and the federal analog FAR 52.211-18 "Variation in Estimated Quantity" -- real, codified
+// unit-price-contract administration practice, not an invented rule of thumb.
+function major25PctFlag(cc){
+  if(!cc.unitVerified) return false;
+  return Math.abs(cc.actQty-cc.estQty)/cc.estQty>0.25;
+}
+// Real reference-class benchmarks -- NOT cost-code line items (they're bundled, all-in figures,
+// shown separately so they're never conflated with the atomic unit rates above).
+var TUNNEL_CORRIDOR_BENCHMARK={
+ project:"Sound Transit University Link (U-Link)",note:"100% bored twin-tunnel, 5.1 km, opened 2016",
+ costPerKm2012:344.3,costPerKm2025ppp:483.1,
+ source:"Eno Center for Transportation / NYU Marron Institute Transit Costs Project public dataset, citing Sound Transit's own 2018 Q3 Link light rail quarterly report",
+ caveat:"All-in corridor cost (design + construction + 2 underground stations + systems + contingency) &mdash; NOT an isolated TBM-excavation-only rate."
+};
+var GUIDEWAY_TRACK_BENCHMARK={
+ project:"LA Metro West Santa Ana Branch Transit Corridor",note:"14.5-mile, 100% at-grade/aerial alignment, March 2024 LPA Capital Cost Report",
+ costPerMile2023:71.2,
+ source:"LA Metro West Santa Ana Branch Transit Corridor Project, March 2024 Locally Preferred Alternative Capital Cost Report (real, published PDF)",
+ caveat:"FTA SCC-10 bundled figure (guideway structure/grading AND track together as one line item) &mdash; NOT an isolated track-only rate."
+};
+// Real Pareto/80-20 cost-driver ranking -- ASCE Journal of Construction Engineering and
+// Management Vol 148 No 8 (2022), Le/Jeong/Damnjanovic/Bukkapatnam, "Pareto Principle in
+// Scoping-Phase Cost Estimating" -- confirms state transportation agencies genuinely rank and
+// concentrate estimating effort on the highest-impact ("major") work items, the real methodology
+// this ranking demonstrates one level below the existing package-level variance bridge.
+function costCodeParetoRank(){
+  var withVar=COST_CODES.filter(function(c){return c.unitVerified;}).map(function(c){
+    var v=qtyPriceVariance(c); return Object.assign({},c,{absVar:Math.abs(v.total),totalVar:v.total});
+  }).sort(function(a,b){return b.absVar-a.absVar;});
+  var grand=withVar.reduce(function(s,c){return s+c.absVar;},0);
+  var cum=0;
+  return withVar.map(function(c){ cum+=c.absVar; return Object.assign({},c,{cumPct:grand>0?cum/grand:0}); });
+}
+function renderCostCodes(){
+  var el=document.getElementById("costCodeCard"); if(!el) return;
+  var rowsHtml=COST_CODES.map(function(cc){
+    if(!cc.unitVerified){
+      return '<tr><th scope="row">'+cc.code+'</th><td>'+cc.desc+'</td><td class="tab-num">'+cc.uom+'</td>'+
+        '<td colspan="3" style="font-size:12px;color:rgb(var(--c-mut))"><span class="pill a">No verified rate</span> '+cc.gapNote+'</td></tr>';
+    }
+    var v=qtyPriceVariance(cc), major=major25PctFlag(cc);
+    return '<tr><th scope="row">'+cc.code+'</th><td>'+cc.desc+'</td><td class="tab-num">'+cc.uom+'</td>'+
+      '<td class="tab-num">'+cc.estQty.toLocaleString("en-US")+' &rarr; '+cc.actQty.toLocaleString("en-US")+
+      (major?' <span class="pill r" title="Actual quantity moved &gt;25% from estimated &mdash; the real Caltrans/Iowa DOT/FAR 52.211-18 threshold for a unit-price contract adjustment clause">&gt;25%</span>':'')+'</td>'+
+      '<td class="tab-num">'+usd(cc.estRate)+' &rarr; '+usd(cc.actRate)+'</td>'+
+      '<td class="tab-num '+(v.total<0?"ok":v.total>0?"ba":"")+'">'+sgnUsd(v.total)+'</td></tr>';
+  }).join("");
+  el.innerHTML=
+    '<h3>Cost-code breakdown &mdash; real unit rates, one level below the SCC categories above</h3>'+
+    '<p class="lede" style="font-size:12.5px;margin-top:5px">WSDOT\'s own real Standard Item Number '+
+    'convention (unit-price bid items, CY/TON/LF/EA/SF/LS) is what a real reviewer would expect to '+
+    'see under an SCC category, not a dollar-only rollup &mdash; FTA\'s own Oversight Procedure 33 '+
+    'requires exactly this traceability from bid-item backup data up to the SCC worksheet. 3 of the '+
+    '6 lines below carry NO verified public unit rate (reinforcing steel, isolated track cost, '+
+    'isolated tunnel-excavation cost) after two research passes &mdash; shown as an honest gap, not '+
+    'an invented number. Quantities are illustrative (this program has no real per-cost-code '+
+    'quantity data at all &mdash; see the README\'s own synthetic-data disclosure); the excavation '+
+    'line\'s quantity growth is deliberately consistent with R-01\'s own real ground-conditions risk.</p>'+
+    '<table><thead><tr><th scope="col">Code</th><th scope="col">Description</th><th scope="col">UOM</th>'+
+    '<th scope="col">Qty (est &rarr; act)</th><th scope="col">Rate (est &rarr; act)</th><th scope="col">Variance</th></tr></thead>'+
+    '<tbody>'+rowsHtml+'</tbody></table>'+
+    '<p style="margin:12px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">Variance = price variance '+
+    '((actual rate &minus; estimated rate) &times; actual qty) + quantity variance ((actual qty '+
+    '&minus; estimated qty) &times; estimated rate) &mdash; the standard cost-accounting '+
+    'decomposition, construction-specific pointer AACE RP 86R-14. Red = unfavorable (cost grew), '+
+    'green = favorable.</p>'+
+    '<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--c-line)">'+
+    '<h4 style="margin:0 0 6px">Real reference benchmarks (not cost-code lines &mdash; bundled, all-in figures)</h4>'+
+    '<p style="font-size:12px;color:rgb(var(--c-mut));margin:0 0 4px"><b style="color:rgb(var(--c-ink))">'+
+    TUNNEL_CORRIDOR_BENCHMARK.project+'</b> ('+TUNNEL_CORRIDOR_BENCHMARK.note+'): $'+
+    TUNNEL_CORRIDOR_BENCHMARK.costPerKm2012+'M/km (2012$) &mdash; $'+TUNNEL_CORRIDOR_BENCHMARK.costPerKm2025ppp+
+    'M/km (2025$ PPP-adjusted). '+TUNNEL_CORRIDOR_BENCHMARK.caveat+' Source: '+TUNNEL_CORRIDOR_BENCHMARK.source+'.</p>'+
+    '<p style="font-size:12px;color:rgb(var(--c-mut));margin:0"><b style="color:rgb(var(--c-ink))">'+
+    GUIDEWAY_TRACK_BENCHMARK.project+'</b> ('+GUIDEWAY_TRACK_BENCHMARK.note+'): $'+
+    GUIDEWAY_TRACK_BENCHMARK.costPerMile2023+'M/route-mile (2023$). '+GUIDEWAY_TRACK_BENCHMARK.caveat+
+    ' Source: '+GUIDEWAY_TRACK_BENCHMARK.source+'.</p></div>';
+}
+function renderCostCodePareto(){
+  var el=document.getElementById("costCodeParetoCard"); if(!el) return;
+  var ranked=costCodeParetoRank();
+  el.innerHTML=
+    '<h3>Cost-driver Pareto &mdash; which cost code actually moves the total</h3>'+
+    '<p class="lede" style="font-size:12.5px;margin-top:5px">Real, standard cost-engineering '+
+    'practice: state transportation agencies rank and concentrate estimating scrutiny on the '+
+    'highest-impact ("major") work items rather than spreading effort evenly &mdash; source: Le, '+
+    'Jeong, Damnjanovic &amp; Bukkapatnam, "Pareto Principle in Scoping-Phase Cost Estimating," '+
+    'ASCE Journal of Construction Engineering and Management, Vol. 148 No. 8 (2022). Ranked by the '+
+    'same |variance| computed above, one level below this tab\'s own package-level variance bridge.</p>'+
+    '<table><thead><tr><th scope="col">Code</th><th scope="col">Description</th><th scope="col">|Variance|</th>'+
+    '<th scope="col">Cumulative %</th></tr></thead><tbody>'+
+    ranked.map(function(c){
+      return '<tr><th scope="row">'+c.code+'</th><td>'+c.desc+'</td><td class="tab-num">'+usd(c.absVar)+'</td>'+
+        '<td class="tab-num">'+pct(c.cumPct,0)+'</td></tr>';
+    }).join("")+
+    '</tbody></table>'+
+    '<p style="margin:12px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">Only the '+
+    ranked.length+' cost-code lines with a real, verified unit rate can be ranked here &mdash; the '+
+    'honest-gap lines above have no variance to rank without a fabricated rate.</p>';
 }
 
 /* ---------- schedule tab ---------- */
@@ -11353,6 +11532,12 @@ var GLOSS=[
   e:function(){ var t=ENVISION_CATEGORIES.reduce(function(s,c){return s+c.credits;},0); return "The real structure: "+t+" credits across "+ENVISION_CATEGORIES.length+" categories. This program hasn't pursued a formal assessment, so no score is shown — Sound Transit's own 2 real Platinum awards are the aspirational benchmark, not a claim about this program."; }},
  {k:"ftascc", cat:"cost", jT:"cost", jE:"ftaSccCard", t:"FTA Standard Cost Categories (SCC)", p:"The real 10-category worksheet (Guideway & Track Elements, Stations, Support Facilities, Sitework, Systems, ROW, Vehicles, Professional Services, Unallocated Contingency, Finance Charges) FTA has required New Starts/Core Capacity/Small Starts sponsors to report capital costs against since 2005 — enabling apples-to-apples benchmarking across CIG-funded transit projects.",
   e:function(){ return "This program's own 8 real control accounts map to just 4 of the 10 categories (Guideway, Stations, Sitework, Systems); contingency has its own real figure under Unallocated Contingency, shown separately; the remaining 5 (Support Facilities, ROW, Vehicles, Professional Services, Finance Charges) aren't itemized in this ledger at that granularity, shown honestly rather than backfilled."; }},
+ {k:"costcode", cat:"cost", jT:"cost", jE:"costCodeCard", t:"Cost code / unit-price bid item", p:"The level of granularity below an FTA SCC category — a real, unit-priced line item (WSDOT's own Standard Item Number convention: quantity in a real unit of measure like CY/TON/LF, times a unit rate) rather than a dollar-only rollup. FTA's own Oversight Procedure 33 requires exactly this kind of bid-item backup data to be traceable up into the SCC worksheet.",
+  e:function(){ var verified=COST_CODES.filter(function(c){return c.unitVerified;}).length; return verified+" of "+COST_CODES.length+" real cost-code lines below carry a verified public unit rate today; the rest show an honest gap rather than an invented number."; }},
+ {k:"qtypricevariance", cat:"cost", jT:"cost", jE:"costCodeCard", t:"Quantity variance vs. price variance", p:"The standard cost-accounting decomposition of a unit-price cost variance into two real, separately-meaningful components: quantity variance (did we build more/less than planned?) and price variance (did the unit rate itself move?). Construction-specific pointer: AACE RP 86R-14, Variance Analysis and Reporting.",
+  e:function(){ var v=qtyPriceVariance(COST_CODES[2]); return "Cost code 10.3 (structural excavation) shows a real "+sgnUsd(v.qtyVar)+" quantity variance and "+sgnUsd(v.priceVar)+" price variance — all quantity, zero price movement, because the unit rate didn't change, only how much was actually excavated."; }},
+ {k:"paretocostdriver", cat:"cost", jT:"cost", jE:"costCodeParetoCard", t:"Cost-driver Pareto ranking", p:"Ranking cost-code lines by |variance| and reading the cumulative percentage — the real, standard 80/20 practice transportation agencies use to concentrate estimating scrutiny on the highest-impact work items rather than spreading it evenly. Source: Le, Jeong, Damnjanovic & Bukkapatnam, ASCE Journal of Construction Engineering and Management, Vol. 148 No. 8 (2022).",
+  e:function(){ var top=costCodeParetoRank()[0]; return "Today's single biggest real cost-code driver is "+top.code+" ("+top.desc.replace(/&mdash;/g,"—")+"), at "+usd(top.absVar)+" — driven by the same ground-conditions story R-01 already prices at the risk-register level, one layer up."; }},
  {k:"overruntaxonomy", cat:"risk", jT:"act", jE:"overrunTaxonomyCard", t:"Overrun-driver taxonomy & stakeholder attribution", p:"Two real, peer-reviewed classification schemes: Cantarelli/Flyvbjerg's 4-category overrun-explanation taxonomy (technical, economic, psychological, political) and ASCE's owner/design/contractor/external stakeholder-attribution study — applied to this program's own real root-caused actions, scoped only to the ones that are genuine strategic overrun drivers, not stretched to every open item.",
   e:function(){ return OVERRUN_TAXONOMY.length+" real actions carry both tags today, all technical/design or economic/external — this program's own real data happens not to show a psychological or political driver yet, not a gap in the taxonomy."; }},
  {k:"cabuyclean", cat:"data", jT:"ai", jE:"carbonDisclosureCard", t:"California Buy Clean Act (AB 262)", p:"A real numeric maximum-GWP ceiling (not just disclosure) for structural steel, concrete reinforcing steel, flat glass, and mineral wool on California state-funded projects, enforced via third-party-verified EPDs. A harder real-world model than WA's own disclosure-only mechanism tracked above. The comparable federal mechanism (numeric thresholds for concrete under the IIJA/IRA Buy Clean Initiative) was rescinded by Executive Order in Jan 2025 and defunded by the One Big Beautiful Bill Act in July 2025 — not active today.",
@@ -13628,7 +13813,7 @@ document.getElementById("vConf").textContent="P"+Math.round(state.mcConfidence*1
 renderMcConfCallout();
 document.getElementById("mcInspect").value=String(state.mcInspect);
 document.getElementById("vInspect").textContent="P"+state.mcInspect;
-renderWaterfall(); renderWaterfallMath(); renderBaseline(); renderFep(); renderEstClass(); renderVeSandbox(); renderLcca(); renderEac(); renderCont(); renderTable(); renderFtaScc();
+renderWaterfall(); renderWaterfallMath(); renderBaseline(); renderFep(); renderEstClass(); renderVeSandbox(); renderLcca(); renderEac(); renderCont(); renderTable(); renderFtaScc(); renderCostCodes(); renderCostCodePareto();
 renderEacTrend(); renderFcastTable(); renderGbmDiffusion(); renderGbmLogReturns(); renderGbmMathUnlocked(); renderGbmVsEvm(); renderCashflow();
 renderGantt(); renderSchedule(); renderRisk(); renderSoundTransitLessons(); renderDrbEmv(); renderContracts(); renderSubHealth(); renderDelivery(); renderFramework(); renderActions(); renderActionsMath(); renderOverrunTaxonomy(); renderTriage(); renderExec();
 document.getElementById("sDrbP").value=DRB_ASSUMPTIONS.pOwnerWins;
@@ -13715,6 +13900,9 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   caBuyCleanRebarCap:CA_BUY_CLEAN_REBAR_CAP,renderCaBuyCleanComparison:renderCaBuyCleanComparison,
   overrunTaxonomy:OVERRUN_TAXONOMY,overrunTaxonomyRow:overrunTaxonomyRow,renderOverrunTaxonomy:renderOverrunTaxonomy,
   ftaScc:FTA_SCC,sccBac:sccBac,renderFtaScc:renderFtaScc,
+  costCodes:COST_CODES,qtyPriceVariance:qtyPriceVariance,major25PctFlag:major25PctFlag,
+  tunnelCorridorBenchmark:TUNNEL_CORRIDOR_BENCHMARK,guidewayTrackBenchmark:GUIDEWAY_TRACK_BENCHMARK,
+  costCodeParetoRank:costCodeParetoRank,renderCostCodes:renderCostCodes,renderCostCodePareto:renderCostCodePareto,
   envisionCategories:ENVISION_CATEGORIES,renderEnvision:renderEnvision,
   riskScheduleExposure:riskScheduleExposure,renderIcsra:renderIcsra,
   referenceClassBandPosition:referenceClassBandPosition,renderRcfComparison:renderRcfComparison,

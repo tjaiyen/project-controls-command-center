@@ -3858,7 +3858,7 @@ console.log("== D10. inline term help ==");
 // 57 as of the same round's follow-up: a real "pband" entry, same reasoning as impactscore -- the
 // probability scale had no glossary entry either, and TJ's own follow-up question ("why P4, no
 // parameters given") is exactly what it closes.
-ok(P.gloss.length === 73, "GLOSS grew to 73 entries (72 prior + gaocredibility, research-backed upgrade 2026-08-27)", String(P.gloss.length));
+ok(P.gloss.length === 76, "GLOSS grew to 76 entries (73 prior + costcode/qtypricevariance/paretocostdriver, cost-code granularity round 2026-08-27)", String(P.gloss.length));
 // title independently re-typed per term (/stress-test finding, 2026-08-21: the prior version only
 // checked g.p/g.e() were non-empty, which passes even for a totally wrong or swapped-in entry) —
 // guards that findGloss(k) actually resolves to the RIGHT term, not just SOME term.
@@ -4851,7 +4851,7 @@ console.log("== D23. Glossary upgrade round, items 1-3 (2026-08-21) ==");
   // to a known category. Independently re-derived from the raw array, not read back from the
   // rendered pill counts and trusted against itself. (61 as of the brainstorm-mode ML round's
   // multianomaly addition, 2026-08-26.)
-  ok(P.gloss.length === 73, "sanity: still 73 real glossary terms");
+  ok(P.gloss.length === 76, "sanity: still 76 real glossary terms");
   const validCats = Object.keys(P.cats);
   P.gloss.forEach(g => ok(validCats.indexOf(g.cat) >= 0, "term '" + g.k + "' carries a real category (" + g.cat + ")", g.cat));
 
@@ -5728,8 +5728,14 @@ console.log("== D33. Risk & Change-tab upgrade -- risk drill-down drawer, contra
     "contract tooltip stashes cs on the host element for the same reason heatHost._gridRisks does -- a closure captured on the first renderContracts() call would go stale on a later re-render");
 
   // compliance sweep for this round's own brief
+  // /stress-test collision (cost-code granularity round, 2026-08-27): the real TxDOT report
+  // title "Average Low Bid Unit Price -- Construction, Statewide" (cited 4x this round for real
+  // cost-code unit rates -- structural concrete/excavation) legitimately contains the banned
+  // "Unit Price" fragment below. Scoped exception, not a weakened check: ban bare "Unit Price"
+  // everywhere EXCEPT inside that exact real report-title string.
   ["C-100", "CM/GC", "Unit Price", "Package #11", "3.49% of BAC"].forEach(bad => {
-    ok(!indexSrc.includes(bad), 'fabricated Risk & Change-tab brief content never made it into index.html: "' + bad + '"');
+    const haystack = bad === "Unit Price" ? indexSrc.split("Average Low Bid Unit Price").join("") : indexSrc;
+    ok(!haystack.includes(bad), 'fabricated Risk & Change-tab brief content never made it into index.html: "' + bad + '"');
   });
 }
 
@@ -9642,6 +9648,92 @@ console.log("== D57. Table header scope=\"col\" accessibility sweep (research-bu
     ok(allTh > 0, id + "'s table has a real <thead> with at least one <th>, not an empty/missing header row", String(allTh));
     ok(allTh === scopedTh, id + "'s table has scope=\"col\" on EVERY header cell, not just some", scopedTh + " of " + allTh + " scoped");
   });
+}
+
+// Cost-code / unit-rate breakdown (brainstorm-mode round, cost-code granularity, 2026-08-27) --
+// see COST_CODES' own comment for the real WSDOT/FTA-OP33 grounding, the real TxDOT rate sourcing,
+// and the honest gaps on the 3 lines with no verified public rate.
+console.log("== D58. Cost-code breakdown, quantity/price variance, cost-driver Pareto, AACE method mapping (brainstorm-mode round, cost-code granularity, 2026-08-27) ==");
+{
+  ok(P.costCodes.length === 6, "6 real cost-code lines (3 with verified unit rates, 3 honest gaps)", String(P.costCodes.length));
+  const verified = P.costCodes.filter((c) => c.unitVerified);
+  const gaps = P.costCodes.filter((c) => !c.unitVerified);
+  ok(verified.length === 3 && gaps.length === 3, "exactly 3 verified / 3 gap lines, independently counted", verified.length + "/" + gaps.length);
+  gaps.forEach((c) => ok(typeof c.gapNote === "string" && c.gapNote.length > 20, c.code + "'s honest-gap line carries a real, non-trivial explanation, not a stub", c.gapNote));
+
+  // Independent recomputation of qtyPriceVariance() from raw estQty/actQty/estRate/actRate --
+  // not calling the app's own function and comparing it to itself.
+  function varianceIndependent(c) {
+    const priceVar = (c.actRate - c.estRate) * c.actQty;
+    const qtyVar = (c.actQty - c.estQty) * c.estRate;
+    return { priceVar, qtyVar, total: priceVar + qtyVar };
+  }
+  verified.forEach((c) => {
+    const expected = varianceIndependent(c);
+    const actual = P.qtyPriceVariance(c);
+    ok(Math.abs(actual.priceVar - expected.priceVar) < 1e-6, c.code + "'s price variance matches an independent recomputation", actual.priceVar + " vs " + expected.priceVar);
+    ok(Math.abs(actual.qtyVar - expected.qtyVar) < 1e-6, c.code + "'s quantity variance matches an independent recomputation", actual.qtyVar + " vs " + expected.qtyVar);
+    // The real mathematical identity: PV + QV must reconcile EXACTLY to (actQty*actRate - estQty*estRate).
+    const identity = c.actQty * c.actRate - c.estQty * c.estRate;
+    ok(Math.abs(actual.total - identity) < 1e-6, c.code + "'s price+quantity variance reconciles exactly to the real extended-cost delta (the standard variance-decomposition identity)", actual.total + " vs " + identity);
+  });
+  gaps.forEach((c) => ok(P.qtyPriceVariance(c) === null, c.code + " (no verified rate) returns null, not a fabricated variance"));
+
+  // Pre-registered (B35): computed independently before writing these assertions.
+  const cc101 = P.costCodes[0], cc102 = P.costCodes[1], cc103 = P.costCodes[2];
+  ok(Math.abs(P.qtyPriceVariance(cc101).total - 136359) < 1, "pre-registered: 10.1's real total variance is ~$136,359 (unfavorable)", String(P.qtyPriceVariance(cc101).total));
+  ok(Math.abs(P.qtyPriceVariance(cc102).total - -9650.8) < 1, "pre-registered: 10.2's real total variance is ~-$9,650.80 (favorable)", String(P.qtyPriceVariance(cc102).total));
+  ok(Math.abs(P.qtyPriceVariance(cc103).total - 290340) < 1, "pre-registered: 10.3's real total variance is exactly $290,340 (unfavorable, all quantity, zero price movement)", String(P.qtyPriceVariance(cc103).total));
+
+  // major25PctFlag() -- real Caltrans/Iowa DOT/FAR 52.211-18 threshold, independently recomputed.
+  ok(P.major25PctFlag(cc101) === false, "pre-registered: 10.1's real qty change is 12.5%, under the real 25% threshold", "12.5%");
+  ok(P.major25PctFlag(cc102) === false, "pre-registered: 10.2's real qty change is 2.5%, under the real 25% threshold", "2.5%");
+  ok(P.major25PctFlag(cc103) === true, "pre-registered: 10.3's real qty change is 40%, over the real 25% threshold -- the same real ground-conditions story R-01 already prices", "40%");
+  gaps.forEach((c) => ok(P.major25PctFlag(c) === false, c.code + " (no verified rate) never fabricates a threshold flag"));
+
+  // Pareto ranking -- independent recomputation, not calling costCodeParetoRank() and comparing
+  // it to itself.
+  const ranked = P.costCodeParetoRank();
+  ok(ranked.length === 3, "only the 3 verified lines are ranked -- the gap lines have no variance to rank without a fabricated rate", String(ranked.length));
+  const expectedOrder = [cc103.code, cc101.code, cc102.code]; // by |total| descending: 290340, 136359, 9650.8
+  ok(JSON.stringify(ranked.map((r) => r.code)) === JSON.stringify(expectedOrder), "Pareto ranking is 10.3 > 10.1 > 10.2 by |variance|, matching an independent sort", JSON.stringify(ranked.map((r) => r.code)));
+  ok(Math.abs(ranked[ranked.length - 1].cumPct - 1) < 1e-9, "the last ranked item's cumulative percentage reaches exactly 100%", String(ranked[ranked.length - 1].cumPct));
+  ok(ranked[0].code === "10.3", "pre-registered: today's single biggest real cost-code driver is 10.3 (structural excavation), consistent with R-01's own ground-conditions risk", ranked[0].code);
+
+  // Real reference benchmarks -- NOT cost-code lines, verified separately so they can never be
+  // conflated with the atomic unit rates above.
+  ok(P.tunnelCorridorBenchmark.costPerKm2012 === 344.3 && P.tunnelCorridorBenchmark.costPerKm2025ppp === 483.1,
+    "pre-registered: Sound Transit U-Link's real cost is $344.3M/km (2012$) / $483.1M/km (2025$ PPP)", JSON.stringify(P.tunnelCorridorBenchmark));
+  ok(P.tunnelCorridorBenchmark.caveat.includes("NOT an isolated"), "the tunnel benchmark states its own all-in caveat, not silently presented as a pure excavation rate");
+  ok(P.guidewayTrackBenchmark.costPerMile2023 === 71.2, "pre-registered: LA Metro's real bundled guideway+track cost is $71.2M/route-mile (2023$)", String(P.guidewayTrackBenchmark.costPerMile2023));
+  ok(P.guidewayTrackBenchmark.caveat.includes("NOT an isolated"), "the guideway+track benchmark states its own bundled caveat, not silently presented as a pure track rate");
+
+  // AACE method mapping (extends the existing estClassCard, item #5) -- real 17R-97 methodology
+  // column, Class 3/2/1 verbatim-confirmed this session.
+  const cls3 = P.aaceClassOf(3);
+  ok(cls3 && cls3.method === "Semi-detailed unit costs with assembly-level line items", "pre-registered: AACE Class 3's real methodology is verbatim 'semi-detailed unit costs with assembly-level line items'", cls3 && cls3.method);
+  [1, 2, 3, 4, 5].forEach((n) => {
+    const c = P.aaceClassOf(n);
+    ok(c && typeof c.method === "string" && c.method.length > 5, "AACE Class " + n + " carries a real, non-empty method string, not a stub");
+  });
+
+  // Card rendering.
+  has("costCodeCard", "Cost-code breakdown", "the card renders its real heading");
+  has("costCodeCard", "No verified rate", "the card visibly flags the 3 honest-gap lines, not silently omitting them");
+  verified.forEach((c) => has("costCodeCard", c.code, "the card lists every verified cost code, including " + c.code));
+  gaps.forEach((c) => has("costCodeCard", c.code, "the card lists every gap cost code too, including " + c.code));
+  has("costCodeCard", "344.3", "the card states the real Sound Transit U-Link benchmark figure");
+  has("costCodeCard", "71.2", "the card states the real LA Metro benchmark figure");
+  has("costCodeParetoCard", "Cost-driver Pareto", "the card renders its real heading");
+  has("costCodeParetoCard", "10.3", "the Pareto card lists the real #1 driver, 10.3");
+  has("estClassCard", "Semi-detailed unit costs", "the estimate-class card now shows the real AACE method column");
+
+  // Fabrication-sweep collision check (own regression, not duplicating the scoped exception
+  // added above): confirm every "Unit Price" occurrence in the whole file is legitimately part
+  // of the real TxDOT report title, not a stray new fabrication the scoped exception would mask.
+  const unitPriceOccurrences = (indexSrc.match(/Unit Price/g) || []).length;
+  const withinRealTitle = (indexSrc.match(/Average Low Bid Unit Price/g) || []).length;
+  ok(unitPriceOccurrences === withinRealTitle, "every 'Unit Price' occurrence in index.html is part of the real TxDOT report title, none stray", unitPriceOccurrences + " vs " + withinRealTitle);
 }
 
 console.log("\n" + pass + " passed, " + fail + " failed");
