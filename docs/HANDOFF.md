@@ -30,27 +30,28 @@ anywhere in this repository. The method is the content, not the numbers.
 
 | | |
 |---|---|
-| Primary file | `index.html` — 12,249 lines, one file, no build step |
-| Top-level JS functions | 375 (fresh `grep -nE "^\s*function [a-zA-Z_]" index.html \| wc -l`, this pass — the prior "176 vs 204" mismatch (§18) was never reconciled to a trusted baseline, so this is a clean recount, not a patch to the old number) |
+| Primary file | `index.html` — 12,691 lines, one file, no build step |
+| Top-level JS functions | 392 (fresh `grep -cE "^\s*function [a-zA-Z_]" index.html`, this pass) |
 | Tabs | 13, grouped into 5 altitudes on the tab rail (Executive · Program Performance · Field & Assurance · Governance & Execution · Reference) |
 | KPIs (with formula/threshold/phase/source/play each) | 20 |
 | KPI families (`KPI_FAMILIES` — Cost/Schedule/Risk/Change/Delivery/Compliance) | 6, each with its own operational question + why-it-matters card on Overview |
-| JS integrity-gate checks (`GUARDS`) | 28, re-run on every page load |
+| JS integrity-gate checks (`GUARDS`) | 29, re-run on every page load |
 | Ingestion-validation checks (`INGEST_GUARDS`) | 2 |
 | SQL/DuckDB parity checks (`pipeline/run_pipeline.py`) | 65, independently re-run and verified this pass (installed `duckdb` into a throwaway venv, ran fresh) |
-| Escalation-matrix rules (`ESCALATION`) | 12, each with a named owner and a clock |
+| Escalation-matrix rules (`ESCALATION`) | 12, each with a named owner, a clock, and (added 2026-08-26) a stated rationale for why its threshold sits where it does |
 | Glossary terms (each with a live-computed worked example) | 61 |
 | Actions/RAID register items | 17 (6 Issue, 10 Task, 1 Decision) |
 | Control accounts / packages | 8 |
 | Contracts | 6 |
-| Risks | 6 |
+| Risks | 7 (added R-07, extreme-weather exposure, 2026-08-26) |
 | Delay events | 4 |
-| `stress.cjs` test assertions | 3,330, all passing |
+| Other 2026-08-26 proactive-mechanism additions (§8) | `OWNER_DECISIONS` (3), `SUB_HEALTH` (3), `LABOR_MOBILIZATION` (3), `CARBON_DISCLOSURE` (3), `AUDIT_LOG` (session-only, unbounded fact — see §8) |
+| `stress.cjs` test assertions | 3,469, all passing |
 | `worker/smoketest.js` assertions (Ask AI backend, §10) | 25, all passing — a 3rd, independent test harness, Node-only, no real network/Cloudflare runtime |
 | Companion pages | `otak.html` (fit brief, 449 lines), `architecture.html` (static pipeline map, 598 lines) |
 | Companion backend (never deployed — see §10) | `worker/` — a Cloudflare Worker for the Ask AI feature; `ASK_AI_WORKER_URL` in `index.html` is still the `REPLACE-ME` placeholder |
 | Hosting | GitHub Pages, served directly from `main`, zero build |
-| Git history | 178 commits |
+| Git history | 190 commits |
 
 Current EVM tie-out (verify live in the browser console via `__PCC__.totals`, or `node verify.cjs`):
 
@@ -159,10 +160,10 @@ browser's dev console to independently sanity-check a number.
 | `PKGS` → `rows` / `T` | 8 packages, 1 portfolio total | The ledger: BAC/PV/EV/AC/commit/float/cpRem/activity-counts/hours per control account | Nearly every tab |
 | `WBS` | 8 | Scope element ↔ CBS category ↔ OBS owner ↔ control account, one row per package | Operating Framework (WBS/CBS/OBS table, the "100% Rule" proof) |
 | `KPIS` | 20 | id/family/abbr/name/tier/formula/threshold/phase/source/why/play, per metric | Overview KPI board, Operating Framework's reference library |
-| `GUARDS` | 28 | Deterministic reconciliation checks, re-run against the live ledger on every load | AI & Data tab's integrity gate |
+| `GUARDS` | 29 | Deterministic reconciliation checks, re-run against the live ledger on every load — the 29th (added 2026-08-26) requires a logged root cause on any closed Quality NCR | AI & Data tab's integrity gate |
 | `INGEST_GUARDS` | 2 | Raw-record validation (no negative AC, EV ≤ BAC) — distinct from `GUARDS`' reconciliation | AI & Data tab |
-| `ESCALATION` | 12 | Escalation-matrix rule: trigger condition, owner, response-time clock | Operating Framework tab's escalation matrix |
-| `RISKS` | 6 | id/name/probability(1-5)/impact-cost/root cause | Risk & Change tab (tornado chart + heat map) |
+| `ESCALATION` | 12 | Escalation-matrix rule: trigger condition, owner, response-time clock, and (added 2026-08-26) a rationale string naming why the threshold sits where it does | Operating Framework tab's escalation matrix |
+| `RISKS` | 7 | id/name/probability(1-5)/impact-cost/root cause — R-07 (extreme-weather exposure) added 2026-08-26 | Risk & Change tab (tornado chart + heat map) |
 | `DELAYS` | 4 | id/classification (`Excusable — compensable` / `Non-excusable` / `Recovered`)/days/fragnet | Schedule tab's TIA register |
 | `CONTRACTS` | 6 | Award value, approved/pending change, contingency allocation, per contract | Risk & Change tab's commercial register (a third axis, distinct from control accounts) |
 | `ACTIONS` | 17 | RAID register: Issue/Task/Decision, owner, opened/due/touch dates, root/corrective/preventive fields | Actions tab |
@@ -173,6 +174,11 @@ browser's dev console to independently sanity-check a number.
 | `PROGRAM` | 32 fields | Everything not per-package: contingency, funding, safety (TRIR), RFI aging, subcontractor turnaround, change-order pipeline | Cost, Schedule, Delivery, Risk & Change tabs |
 | `DRB_ASSUMPTIONS` | `{pOwnerWins: 0.55, legalCost: 0.75}` | Illustrative-only assumptions for the settle-vs-escalate decision tree — never mutated by the interactive slider (§8) | Risk & Change tab |
 | `DS_NODES` / `GL_NODES` / `ARCH_NODES` | 12 / 13 / 12 | The three story-navigator flow diagrams' node lists (see §8) | Data Strategy, Operating Framework, AI & Data tabs |
+| `OWNER_DECISIONS` | 3 | Pending owner/agency decision: ask/agency/submitted/neededBy/blocks, own aging clock | Operating Framework tab; a 5th independent source in the triage queue |
+| `SUB_HEALTH` | 3 | Subcontractor financial-health watch on the 3 highest-exposure contracts, 90-day check cycle | Risk & Change tab, near the contract register; a 6th triage-queue source |
+| `LABOR_MOBILIZATION` | 3 | Real driving-schedule trade: mobilization lead-time confirmed vs. required, a leading indicator | Schedule tab, after the float-erosion section |
+| `CARBON_DISCLOSURE` | 3 | RCW 39.116-covered material: EPD-submitted / quantity-reported readiness, deliberately not a compliance-threshold KPI | AI & Data tab, next to the integrity gate |
+| `AUDIT_LOG` | Session-only, bounded at 50 | Real, working per-session interaction log (timestamp/action/detail) — a genuine mechanism demonstration, not a claim of enterprise multi-user audit logging | AI & Data tab |
 
 `PROGRAM.name` = "Cascade Transit Extension", `PROGRAM.client` = "Regional transit authority
 (illustrative)", `PROGRAM.corridor` = "18 miles · 12 stations", `PROGRAM.delivery` = "GC/CM +
@@ -240,11 +246,11 @@ pass found is no longer true — flagged, not fixed here, since it's a code comm
 | 2 | **Executive Command** (`exec`) | Plain-English Gate 5 status, a proactive-problem-solving sandbox, context callouts — the board-level "what does this actually mean" reading of the same real data, distinct from Overview's KPI-board detail view. Also hosts the **Ask AI** free-text Q&A (§10) — dormant by default (opt-in per session, zero network calls until enabled) and not yet deployed live (`ASK_AI_WORKER_URL` is still the `REPLACE-ME` placeholder). |
 | 3 | **Portfolio** (`port`) | Agency-level rollup across 4 lines of business — one reads live off this program's own totals (never duplicated, `GUARDS`-checked), three are summary-only illustrative peers. |
 | 4 | **Cost** (`cost`) | EVM S-curve + variance bridge, an estimate-to-budget baseline bridge reconciled to the ledger, four-method EAC, a forecast-reliability section (EAC trend, a naive-drift-vs-linear-regression forecaster comparison with a disclosed identical-first-value caveat, monthly cash flow), what-if forecasting with 3 live sliders + scenario comparison, Monte Carlo completion distribution (10,000 runs, seeded/reproducible, a Triangular/PERT draw-shape toggle, an opt-in AACE 57R-09 risk-driver layer), the cost-diffusion (GBM) card — with a log-return strip plot + fitted-curve overlay, a "Math unlocked" plain-language drawer, and an EVM-vs-GBM methodology comparison (what each method assumes, never a forward-projected figure), a sticky in-tab section-anchor rail. |
-| 5 | **Schedule** (`sched`) | DCMA-style schedule health — SPI, SPI(t)/Earned Schedule, CPLI, BEI, the full objective metric triad the DCMA 14-Point Assessment and ANSI/EIA-748 sit under, named explicitly (checks 13/14, with the other 12 stated as a real gap) — a Gantt-style bar with baseline vs. forecast, a fragnet-based delay & TIA register tied to package float, revenue-service forecast drift, statistical control charts (z-score + EWMA) over crew cost-per-hour. |
-| 6 | **Risk & Change** (`risk`) | A priced risk register (probability × impact heat map + sensitivity tornado chart), a contract commercial register (a third axis distinct from control accounts), change pipeline with proposed-vs-settled pricing defense, the settle-vs-DRB EMV decision tree with an **interactive slider + chart** (§8). |
+| 5 | **Schedule** (`sched`) | DCMA-style schedule health — SPI, SPI(t)/Earned Schedule, CPLI, BEI, the full objective metric triad the DCMA 14-Point Assessment and ANSI/EIA-748 sit under, named explicitly (checks 13/14, with the other 12 stated as a real gap) — a Gantt-style bar with baseline vs. forecast, a fragnet-based delay & TIA register tied to package float, a labor-availability leading indicator (3 real driving-schedule trades, mobilization lead-time confirmed vs. required — AGC/ABC-sourced), revenue-service forecast drift, statistical control charts (z-score + EWMA) over crew cost-per-hour. |
+| 6 | **Risk & Change** (`risk`) | A priced risk register (probability × impact heat map + sensitivity tornado chart, 7 risks including a 2026-08-26 extreme-weather addition), a forward material-price exposure trigger extending CDI (real AGC steel/aluminum index data against R-04's own escalation-clause mitigation), a subcontractor financial-health watch (3 highest-exposure contracts, 90-day check cycle), a contract commercial register (a third axis distinct from control accounts), change pipeline with proposed-vs-settled pricing defense, the settle-vs-DRB EMV decision tree with an **interactive slider + chart** (§8). |
 | 7 | **Delivery** (`del`) | Leading indicators (productivity factor by package, RFI/submittal aging, a quality NCR register with real open counts and per-item aging read live off the Actions/RAID register), the crew cost-per-hour module with a drill-down into idle/rework/baseline attribution. |
-| 8 | **AI & Data** (`ai`) | The pipeline architecture diagram (interactive — §8), the SQL model, a live 28-check integrity gate + 2 ingestion-validation checks, statistical control (z-score/EWMA) with worked-math accordions, a multivariate anomaly score across all 8 packages (a root-sum-of-squares composite over every metric's z-score, with a signed-sum direction disclosure so a package that outperforms everywhere isn't rendered with the same color as one that's genuinely bad), and AI narrative generation under a verification contract (§10). |
-| 9 | **Operating Framework** (`fw`) | Phase playbook, the WBS/CBS/OBS/ABS control-account mapping (with a worked "100% Rule" proof, carrying an illustrative ABS tag per row alongside WBS/CBS/OBS), Board phase-gate governance with a live Gate-5 hard stop, a 12-rule escalation matrix, a live Working-Backward/inversion worked example, reporting cadence, stakeholder interface map, the 20-metric KPI reference library. |
+| 8 | **AI & Data** (`ai`) | The pipeline architecture diagram (interactive — §8), the SQL model, a live 29-check integrity gate (the 29th, added 2026-08-26, gates Quality NCR closure on a logged root cause) + 2 ingestion-validation checks, an embodied-carbon disclosure-readiness tracker (RCW 39.116-covered materials, deliberately not a compliance-threshold KPI — the real WA law is disclosure-only), a real per-session activity/change-audit log, statistical control (z-score/EWMA) with worked-math accordions, a multivariate anomaly score across all 8 packages (a root-sum-of-squares composite over every metric's z-score, with a signed-sum direction disclosure so a package that outperforms everywhere isn't rendered with the same color as one that's genuinely bad), and AI narrative generation under a verification contract (§10). |
+| 9 | **Operating Framework** (`fw`) | Phase playbook, the WBS/CBS/OBS/ABS control-account mapping (with a worked "100% Rule" proof, carrying an illustrative ABS tag per row alongside WBS/CBS/OBS), Board phase-gate governance with a live Gate-5 hard stop, a 12-rule escalation matrix (each rule now also carries a stated rationale for its threshold, a mentoring/knowledge-transfer artifact added 2026-08-26), a pending owner/agency decisions register (its own aging clock, a 5th independent triage source), a live Working-Backward/inversion worked example, reporting cadence, stakeholder interface map, the 20-metric KPI reference library. |
 | 10 | **Actions** (`act`) | A RAID/CAPA register with proactive staleness detection, owner accountability rollup, a worked-math accordion for `actionStatus()`'s threshold logic. |
 | 11 | **Attention & Triage** (`triage`) | Cross-cutting "what needs a human right now" view — every firing escalation rule, stale RAID item, near-term deadline, and pre-breach condition, pulled live from the same registers every other tab reads (no duplicated data). |
 | 12 | **Data Strategy** (`data`) | A real-world plan for connecting scattered, multi-system data — ISO 19650 CDE staging architecture as an interactive flow diagram (§8), a 4-tile IDS guardrail status grid with a genuinely live 2-check ingestion-validation panel embedded in it, automated guardrails, a discrepancy-resolution decision flow folded into that same diagram, a Category/Trigger/Routing proactive-error-recovery table, a Dual-Stack Parity card citing this program's own real, live CPI against the actual SQL that independently re-derives it. |
@@ -273,8 +279,8 @@ Everything below is a real DOM interaction, independently covered by `stress.cjs
   - **Pipeline architecture** (AI & Data) — 12 nodes (6 sources + dbt staging + marts + integrity
     gate + 3 outputs); each source node names the *specific* live field/downstream tab it feeds
     (e.g. the cost ledger names `PKGS[].ac` and the z-score/EWMA controls it feeds), and the
-    integrity-gate node clarifies the dbt-side 54-check count vs. this tab's own live
-    `GUARDS.length` (28) — two independently-run stacks, not one gate wearing two names.
+    integrity-gate node clarifies the dbt-side 65-check count vs. this tab's own live
+    `GUARDS.length` (29) — two independently-run stacks, not one gate wearing two names.
 - **7 hover/click tooltips on `bars()`-rendered charts** (EAC trend, float, CPLI, schedule drift,
   float erosion, productivity, crew cost-per-hour) plus the risk heat map — each shows the real
   underlying numbers, not just a highlight.
@@ -395,6 +401,18 @@ Everything below is a real DOM interaction, independently covered by `stress.cjs
 - **Cross-account hover-highlight** on the S-curve/waterfall/Gantt.
 - Keyboard support throughout: every clickable node also responds to Tab + Enter/Space, and
   `:focus-visible` gets a visible accent ring distinct from `:hover`.
+- **10 proactive-prevention mechanisms** (brainstorm-mode round, 2026-08-26, sourced from a
+  researched "Top 20 strategic challenges" pass — see the vault's own
+  `11_STRATEGIC_CHALLENGES_AND_SOLUTIONS.md`), each a real, tested mechanism, not narrative only:
+  the pending owner/agency decisions register, the subcontractor financial-health watch, the
+  escalation-matrix rationale field, R-07 (extreme-weather risk), the labor-availability leading
+  indicator, the forward material-price exposure trigger, the QA/QC-to-critical-path closure
+  gate (GUARDS #29), the embodied-carbon disclosure-readiness tracker, the shadow-ledger framing
+  on the Dual-Stack Parity card, and the session activity/change-audit trail — see §5/§7 for
+  where each lives. One of these (embodied-carbon) was substantively rebuilt mid-round after
+  independent verification found the original research's WA "Buy Clean" assumption was wrong —
+  the real statute (RCW 39.116) is disclosure-only, not a numeric compliance threshold; corrected
+  before it shipped, not after.
 
 ---
 
@@ -402,7 +420,7 @@ Everything below is a real DOM interaction, independently covered by `stress.cjs
 
 Three layers, each catching a different failure mode:
 
-1. **`GUARDS`** (28 checks, JS, re-run on every page load, AI & Data tab) — reconciliation: does
+1. **`GUARDS`** (29 checks, JS, re-run on every page load, AI & Data tab) — reconciliation: does
    the portfolio BAC equal the sum of package budgets? Does SPI/CPI recompute to the same value
    shown elsewhere? Does the risk exposure equal `Σ P_BAND[p] × cost`? Does every control account
    map to exactly one contract? Does every "current period" figure shown in a trend series read
@@ -411,7 +429,11 @@ Three layers, each catching a different failure mode:
    (fabricated tool/certification claims) — genuinely live-verified, not a no-op: an earlier
    /stress-test found it silently passing in the test harness (no `document.body` in the DOM
    stub) while genuinely FAILING on the live page (false-flagging two allowlisted citations); both
-   the guard's allowlist and the test harness's blind spot were fixed the same session.
+   the guard's allowlist and the test harness's blind spot were fixed the same session. The 29th
+   check (added 2026-08-26, a formal QA/QC-to-critical-path gate) requires a logged root cause on
+   any Quality NCR before it can be marked closed — passes trivially today (neither real NCR is
+   closed yet), a real structural invariant behaviorally proven to flip to FAIL when tested against
+   a synthetic closed-without-root-cause NCR, then restored.
 2. **`INGEST_GUARDS`** (2 checks) — raw-record validation *before* reconciliation: no negative
    actual cost, no package with EV > BAC. A different failure class than `GUARDS` (a record that's
    internally consistent but individually implausible vs. one that's inconsistent with the rest of
@@ -466,12 +488,10 @@ key — `index.html` is fully static/public and can never hold it. Guardrails, m
 
 ## 11. Testing & verification
 
-**`stress.cjs`** (3,330 assertions, all passing) — stubs the DOM, loads `index.html`'s script
+**`stress.cjs`** (3,469 assertions, all passing) — stubs the DOM, loads `index.html`'s script
 verbatim into that stub, and exercises it exactly like a user would: every tab switch, every
-filter, every drawer, every slider drag, every keyboard interaction. 81 labeled sections (fresh
-`grep -c 'console.log("=='` count, this pass — a different, coarser methodology than the prior
-"57" figure, which was never re-derived the same way, so treat this as a fresh baseline, not a
-patched number):
+filter, every drawer, every slider drag, every keyboard interaction. 92 labeled sections (fresh
+`grep -c 'console.log("=='` count, this pass):
 
 ```
 A. static structure          B/B2. runtime + portfolio tab       C. narrative vs. data
@@ -566,7 +586,7 @@ more than a synthetic single-source demo can prove.
   diagram, distinct from `index.html`'s own interactive `#arch` diagram (§8). The README already
   flags this distinction explicitly ("A verified snapshot, not a live render"). The diagram's own
   *drawing* still has no automated check tying it to `index.html`'s `#arch` diagram — if the
-  pipeline architecture changes again, update both by hand. Its **prose counts** (20 KPIs, 28
+  pipeline architecture changes again, update both by hand. Its **prose counts** (20 KPIs, 29
   guards, 65 SQL checks, 17 actions) are a different story: `stress.cjs`'s `E.1. architecture.html
   sync` section now reads this file's own source the same way it already read `otak.html`'s, and
   asserts those counts against `index.html`'s live arrays — added 2026-08-21 after a live, 3rd
@@ -1598,6 +1618,27 @@ carried over from memory or an earlier pass:
   3,330) — flagged here rather than silently left, fixed separately in that file, not folded into
   this document's own count trail. This pass touched only `docs/HANDOFF.md`; it did not re-verify
   or re-derive any KPI/EVM computation, so `verify.cjs`'s tie-out is unchanged from §2 above.
+- **2026-08-26, later same day — consolidated resync after the 10-feature dashboard-upgrade
+  round.** TJ asked directly to "move forward" and "proceed" through all 10 researched-but-unbuilt
+  proactive-prevention mechanisms named in the vault's `11_STRATEGIC_CHALLENGES_AND_SOLUTIONS.md`
+  (see that file's own revision history for the research side of this work). Rather than resync
+  docs after each of the 10 individual feature commits, this is one consolidated pass covering
+  everything: `index.html` 12,249→12,691 lines, top-level functions 375→392 (fresh
+  `grep -cE "^\s*function [a-zA-Z_]"` count), git 178→190 commits, `stress.cjs` 3,330→3,469
+  passed (fresh `node stress.cjs` run this pass), `GUARDS` 28→29 (a new QA/QC-to-critical-path
+  closure gate), `RISKS` 6→7 (R-07, extreme-weather exposure — a real, cascading addition that
+  also moved `T.riskExposure`/`T.contCoverage`/the Gate 5 funding gap, all independently
+  reconfirmed via the same fresh `stress.cjs`/`verify.cjs` run). Five new data structures
+  documented for the first time (§5): `OWNER_DECISIONS`, `SUB_HEALTH`, `LABOR_MOBILIZATION`,
+  `CARBON_DISCLOSURE`, `AUDIT_LOG`. `architecture.html`'s own "28 checks" prose (diagram box,
+  legend table, and the `#archSvg` aria-label's spoken-word "twenty-eight") was corrected to 29
+  in the SAME commit that added the 29th guard, not deferred here — confirmed via
+  `stress.cjs`'s own `E.1` sync section, which caught the exact drift live before this doc pass
+  started. `README.md`'s headline tagline, its own `stress.cjs`/guard-count citations, and its
+  "every tab, every feature named" section were also updated in this same consolidated pass, not
+  left for a future one. This pass touched no `PKGS`/`derive()` logic itself; `node verify.cjs`
+  tie-out is unchanged from the last real ledger-affecting change (R-07's own commit, already
+  independently verified there).
 
 Generated 2026-08-20, against the tip of the eleven-input-ledger-card engagement round; extended
 2026-08-21 for the six-KPI-families card round, again 2026-08-21 for the Data Strategy tab UI/UX
@@ -1625,4 +1666,9 @@ for the comprehensive resync round (see the entry immediately above this paragra
 everything shipped between 2026-08-24 and 2026-08-26 — the Gate 5 solvency sandbox `/stress-test`
 fixes, the Enterprise Command Center blueprint harvest (temporal-fence guardrail + DCMA glossary
 entry), the multivariate anomaly score, the forecaster comparison, Executive Command + Attention &
-Triage (2 new tabs), the Ask AI feature, and the sticky nav fix.
+Triage (2 new tabs), the Ask AI feature, and the sticky nav fix; again 2026-08-26, later the same
+day, for the consolidated 10-feature dashboard-upgrade resync (see the entry two above this
+paragraph) — the pending owner/agency decisions register, subcontractor financial-health watch,
+escalation-matrix rationale field, R-07 extreme-weather risk, labor-availability leading
+indicator, forward material-price exposure trigger, QA/QC closure gate, embodied-carbon
+disclosure readiness, shadow-ledger framing, and the session activity/audit trail.
