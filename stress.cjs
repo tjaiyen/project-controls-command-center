@@ -8959,5 +8959,34 @@ try {
   P.state.tab = "over"; P.state.act = null; // reset before later sections run
 } catch (e) { ok(false, "global search (item #6)", e.message); }
 
+// #11 (found by /stress-test, 2026-08-27): item #4's collapsible AI & Data sections broke every
+// PRE-EXISTING JS-driven scroll-to-anchor jump landing inside one -- el.scrollIntoView() alone
+// never auto-opens a closed <details> (unlike real <a href="#id"> fragment navigation, which every
+// evergreen browser already handles natively). Confirmed live: collapsed "Integrity gate", clicked
+// the Data Strategy tab's own real "See it live" button pointing at #aiGuards -- the tab switched
+// correctly but the section stayed closed, target invisible. Fixed with one shared scrollToEl()
+// helper (closest("details"); if closed, open it; then scrollIntoView), used by all 3 call sites
+// that shared the identical vulnerable pattern: jumpToEl(), Presentation Mode's goToBeat(), and
+// the Guided Tour's goToTourStop(). The Node stub's el.closest() is a permanent no-op (always
+// returns null, same documented limitation as classList/canvas elsewhere in this file) -- so the
+// open-setting logic itself can't be exercised here; these are static structural checks on
+// indexSrc, the live fix already re-verified in the browser separately.
+{
+  ok(/function scrollToEl\(el\)\{[\s\S]{0,200}closest\("details"\)/.test(indexSrc), "scrollToEl() exists and checks for a closest <details> ancestor before scrolling");
+  ok(/det&&!det\.open\)\s*det\.open=true/.test(indexSrc), "scrollToEl() actually SETS .open=true on a closed ancestor, not just reads it");
+  // jumpToEl() must call the new helper, not a bare scrollIntoView, for its own scroll step
+  const jumpToElBody = indexSrc.slice(indexSrc.indexOf("function jumpToEl("), indexSrc.indexOf("function jumpToEl(") + 500);
+  ok(jumpToElBody.includes("scrollToEl(el)") && !jumpToElBody.includes('el.scrollIntoView({block:"center"'), "jumpToEl() routes its scroll step through scrollToEl(), not a bare scrollIntoView() call");
+  // goToBeat (Presentation Mode) and goToTourStop (Guided Tour) both used the IDENTICAL vulnerable
+  // block -- exactly 2 call sites should now read scrollToEl(document.getElementById(b.anchor)),
+  // and zero bare "if(el) el.scrollIntoView" fragments (the old buggy pattern) should remain.
+  const scrollToElAnchorCalls = (indexSrc.match(/scrollToEl\(document\.getElementById\(b\.anchor\)\)/g) || []).length;
+  ok(scrollToElAnchorCalls === 2, "both goToBeat() and goToTourStop() route their anchor-scroll step through scrollToEl()", String(scrollToElAnchorCalls));
+  ok(!indexSrc.includes('if(el) el.scrollIntoView({block:"center",behavior:"smooth"})'), "the old vulnerable bare-scrollIntoView-with-no-details-check pattern is gone from the file");
+  // jumpToAction() is deliberately UNCHANGED (ACTIONS never live inside a collapsible <details>) --
+  // confirms the fix was surgical, not a blanket rewrite of every scrollIntoView call in the file.
+  ok(indexSrc.includes('row.scrollIntoView({block:"center",behavior:"smooth"});'), "jumpToAction()'s own scrollIntoView is left untouched -- ACTIONS aren't inside any collapsible section, so it was never affected");
+}
+
 console.log("\n" + pass + " passed, " + fail + " failed");
 process.exit(fail ? 1 : 0);

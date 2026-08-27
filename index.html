@@ -9265,10 +9265,30 @@ function jumpToAction(id){
   },140);
   if(fromTab!=="act") renderJumpBreadcrumb(fromTab);
 }
+// Open the target's ancestor <details> before scrolling to it, if it's currently collapsed
+// (/stress-test finding, 2026-08-27) -- a real gap the item #4 collapsible-AI&Data-sections round
+// (2026-08-26) opened against every PRE-EXISTING JS-driven scroll-to-anchor jump: real fragment
+// navigation (a plain <a href="#id"> click, the anchor rail's own links) already auto-opens a
+// closed <details> in every evergreen browser, but a JS-driven el.scrollIntoView() call never
+// triggers that native behavior -- confirmed live (collapsed the "Integrity gate" section, then
+// clicked the Data Strategy tab's own real "See it live" button pointing at #aiGuards; the tab
+// switched correctly but the section stayed closed, target invisible). At least 4 real,
+// pre-existing jump targets are affected (aiGuards ×3 buttons, aiStatControl and aiMultiAnomaly
+// via glossary jT/jE, archSqlCard) -- not a hypothetical. Shared by all 3 call sites carrying the
+// identical scrollIntoView pattern (this function, Presentation Mode's goToBeat, the Guided
+// Tour's goToTourStop) rather than duplicated 3 times, so a future addition to any of them can't
+// silently reopen the same gap.
+function scrollToEl(el){
+  if(!el) return;
+  var det=el.closest("details");
+  if(det&&!det.open) det.open=true;
+  el.scrollIntoView({block:"center",behavior:"smooth"});
+}
 // Generic cross-tab jump (engagement/interactivity upgrade, 2026-08-2x) — same activateTab ->
 // setTimeout -> scrollIntoView -> jump-flash idiom as jumpToAction() above, generalized to any
 // target element rather than one specific to the Actions register. jumpToAction() itself is left
-// untouched (tested, working code) rather than rewritten in terms of this helper.
+// untouched (tested, working code) rather than rewritten in terms of this helper -- ACTIONS live
+// on their own tab, never inside a collapsible <details>, so it isn't affected by the gap above.
 function jumpToEl(tabId,elId,pre){
   var fromTab=state.tab;
   activateTab(tabId);
@@ -9276,7 +9296,7 @@ function jumpToEl(tabId,elId,pre){
   setTimeout(function(){
     var el=document.getElementById(elId);
     if(!el) return;
-    el.scrollIntoView({block:"center",behavior:"smooth"});
+    scrollToEl(el);
     el.classList.add("jump-flash");
     setTimeout(function(){ el.classList.remove("jump-flash"); },1600);
   },140);
@@ -11605,8 +11625,10 @@ function goToBeat(i){
   document.getElementById("presentOnScreen").innerHTML = b.onScreen?
     '<div class="present-onscreen"><div class="eyebrow">Ask the room</div><p>'+b.onScreen()+'</p></div>' : "";
   if(b.anchor){
-    setTimeout(function(){ var el=document.getElementById(b.anchor);
-      if(el) el.scrollIntoView({block:"center",behavior:"smooth"}); },260);
+    // scrollToEl(), not a bare scrollIntoView() -- opens a collapsed AI & Data <details> section
+    // first if the anchor lands inside one (/stress-test finding, 2026-08-27; see scrollToEl's
+    // own comment above jumpToEl()).
+    setTimeout(function(){ scrollToEl(document.getElementById(b.anchor)); },260);
   }
 }
 function switchPresentSet(set){ state.presentSet=set; goToBeat(0); }
@@ -11717,8 +11739,10 @@ function goToTourStop(i){
     if(g5>=0) selectGL(g5);
   }
   if(b.anchor){
-    setTimeout(function(){ var el=document.getElementById(b.anchor);
-      if(el) el.scrollIntoView({block:"center",behavior:"smooth"}); },260);
+    // scrollToEl(), not a bare scrollIntoView() -- opens a collapsed AI & Data <details> section
+    // first if the anchor lands inside one (/stress-test finding, 2026-08-27; see scrollToEl's
+    // own comment above jumpToEl()).
+    setTimeout(function(){ scrollToEl(document.getElementById(b.anchor)); },260);
   }
 }
 function enterTour(){
