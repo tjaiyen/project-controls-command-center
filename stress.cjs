@@ -8820,6 +8820,19 @@ console.log("== V. UX/UI upgrade round (brainstorm-mode, 2026-08-26) ==");
   global.document.documentElement = savedDocEl; // restore, don't leak into any later code
   function bttProgress(){ return G.bttProgress; }
 
+  // #10 (light-theme QA, 2026-08-26): a real bug found live-browsing in light theme --
+  // background:rgb(var(--c-elev)) is invalid CSS, since --c-elev is itself a complete
+  // box-shadow value (e.g. "0 8px 26px rgb(15 23 42 / .12)" in light theme), not a bare RGB
+  // triplet; wrapping it in rgb() silently resolved to a transparent background. Fixed to the
+  // real card-surface token (--c-card, the same one .card{} itself uses) and to using --c-elev
+  // directly as the box-shadow value it actually is. Confirmed live in the browser
+  // (getComputedStyle: backgroundColor "rgb(255, 255, 255)", boxShadow the real light-theme
+  // --c-elev value) -- this static regex closes the gate hole so the buggy pattern can't
+  // silently return (B27).
+  ok(!indexSrc.includes("#backToTop{position:fixed") || !/#backToTop\{[^}]*background:rgb\(var\(--c-elev\)\)/.test(indexSrc), "#backToTop's CSS does NOT use the invalid rgb(var(--c-elev)) pattern (--c-elev is a box-shadow value, not an RGB triplet)");
+  ok(/#backToTop\{[^}]*background:rgb\(var\(--c-card\)\)/.test(indexSrc), "#backToTop's CSS uses the correct rgb(var(--c-card)) background token, same one .card{} itself uses");
+  ok(/#backToTop\{[^}]*box-shadow:var\(--c-elev\)/.test(indexSrc), "#backToTop's CSS uses --c-elev directly as a box-shadow value (its real, documented purpose), not wrapped in rgb()");
+
   // #5: "changed since your last visit" extended to the 4 new registers -- pre-registered
   // expected values against today's real data (independently recomputed, not read from
   // changeWatchSnapshot() itself).
