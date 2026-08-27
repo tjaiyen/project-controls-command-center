@@ -338,7 +338,12 @@ const eacCP201 = 305 / (178.4 / 205.1);
 const vacCP201 = 305 - eacCP201;
 const grossOver = rows.filter(r => r.bac - r.eac < 0).reduce((s, r) => s + Math.abs(r.bac - r.eac), 0);
 const shareCP201 = Math.abs(vacCP201) / grossOver;
-const exposure = 0.7 * 18.5 + 0.5 * 9.4 + 0.7 * 6.2 + 0.5 * 4.8 + 0.3 * 2.9 + 0.3 * 1.6;
+// R-07 added (brainstorm-mode round, 2026-08-26) -- extreme-weather exposure, p:3/i:3/cost:3.5 ->
+// P_BAND[3]=0.5 * 3.5 = +1.75 to total exposure. Every downstream number below (topShare,
+// contingency shortfall, coverage ratio, Gate 5 status, funding gap) shifts as a real, honest
+// consequence -- this dashboard's whole "nothing decorative" premise means a new risk MUST move
+// the real numbers, not just add a row nobody's math accounts for.
+const exposure = 0.7 * 18.5 + 0.5 * 9.4 + 0.7 * 6.2 + 0.5 * 4.8 + 0.3 * 2.9 + 0.3 * 1.6 + 0.5 * 3.5;
 const topShare = (0.7 * 18.5) / exposure;
 
 has("strip", "66.1%", "strip: 66.1% complete");
@@ -584,10 +589,10 @@ ok(indexSrc.includes("DCMA 14-Point Assessment"), "Schedule tab names the DCMA 1
 ok(indexSrc.includes("ANSI/EIA-748"), "Schedule tab names the ANSI/EIA-748 EVMS standard the 14-Point Assessment sits under");
 ok(indexSrc.includes("checks 13 and 14"), "the citation box states precisely which 2 of the 14 checks this dashboard implements (CPLI/BEI), not a vague overlap claim");
 ok(indexSrc.includes("this ledger doesn't carry"), "the citation box names the other 12 checks as a real, honest gap (needs an activity-level CPM network this ledger doesn't have) rather than implying full 14-point coverage");
-has("risks", "$25.7M", "risks: total exposure $25.7M (recomputed " + exposure.toFixed(2) + ")");
+has("risks", "$27.5M", "risks: total exposure $27.5M (recomputed " + exposure.toFixed(2) + ") -- includes R-07, added 2026-08-26");
 has("risks", (topShare * 100).toFixed(1) + "%", "risks: top risk share " + (topShare * 100).toFixed(1) + "%");
 has("risks", "$11.1M", "risks: contingency shortfall $11.1M before risk");
-has("contCover", "0.588", "coverage ratio 0.588");
+has("contCover", "0.577", "coverage ratio 0.577 -- was 0.588 before R-07 (added 2026-08-26) raised total risk exposure");
 has("changePipe", "17 days past the 30-day target", "change cycle 17d past target");
 has("coContext", "3.49%", "CO rate 3.49%");
 has("coContext", "5.07%", "CO total exposure 5.07%");
@@ -658,7 +663,7 @@ has("compliance", "CP-201, CP-601", "compliance narrative names the two negative
 has("funding", "$45.6M", "funding: fronted cash $45.6M = AC - drawn");
 has("funding", "0.861", "funding drawdown index 0.861");
 has("contChart", "still trailing progress", "contingency narrative: trailing progress");
-has("contChart", "$89.4M", "contingency narrative: $89.4M overrun+risk demand");
+has("contChart", "$91.2M", "contingency narrative: $91.2M overrun+risk demand -- was $89.4M before R-07 (added 2026-08-26)");
 has("libTable", "TRIR = recordable incidents", "library lists TRIR formula");
 ok((G.kboard._html.match(/data-kpi=/g) || []).length === 20, "board renders 20 KPI cards");
 // KPI RAG dual-coding (/stress-test finding: KPI cards were the one color-only severity signal
@@ -3236,7 +3241,7 @@ ok(idsA.includes("invCard"), "markup contains #invCard");
   const lead = ccrActions.filter(a => a.owner === esc[1])[0];
   ok(lead && lead.id === "A-09", "filtering by the escalation rule's own owner isolates A-09, not A-04",
     lead && lead.id);
-  has("invCard", "0.588", "inversion card shows the live CCR value");
+  has("invCard", "0.577", "inversion card shows the live CCR value -- 0.577, not the pre-R-07 0.588");
   has("invCard", "A-09", "inversion card names the real linked action item");
   has("invCard", "Program director", "inversion card names the escalation rule's real owner");
   has("invCard", 'data-jump="A-09"', "inversion card's button jumps to the real action id");
@@ -3265,8 +3270,8 @@ console.log("== D5.8. the gate line (flow diagram) ==");
   ok(P.glNodeState(gate5Node) === "bad", "Gate 5 renders 'bad' (blocked) — matches the contingency-coverage FAIL already asserted in D5.5/D5.7",
     P.glNodeState(gate5Node));
   const gate5Cap = P.glCaption(gate5Node);
-  ok(gate5Cap.text.includes("0.588") && gate5Cap.text.includes("FAIL"),
-    "Gate 5's own caption states the live 0.588/FAIL value, not a static description", gate5Cap.text);
+  ok(gate5Cap.text.includes("0.577") && gate5Cap.text.includes("FAIL"),
+    "Gate 5's own caption states the live 0.577/FAIL value (was 0.588 before R-07, added 2026-08-26), not a static description", gate5Cap.text);
   ok((G.gateLine._html.match(/data-idx="/g) || []).length === 13,
     "rendered SVG contains all 13 clickable nodes", String((G.gateLine._html.match(/data-idx="/g) || []).length));
   // this harness's matchMedia stub always reports matches:true (prefers-reduced-motion: reduce) —
@@ -3278,7 +3283,7 @@ console.log("== D5.8. the gate line (flow diagram) ==");
   try {
     fire(G.gateLine, "click", { target: { closest: (sel) => sel === "[data-idx]" ? { dataset: { idx: "9" } } : null } });
     ok(G.glStoryTitle._html.includes("Gate 5"), "clicking Gate 5's node updates the story title");
-    ok(G.glStoryText._html.includes("0.588"), "clicking Gate 5's node updates the story text with the live value");
+    ok(G.glStoryText._html.includes("0.577"), "clicking Gate 5's node updates the story text with the live value (0.577, post-R-07)");
   } catch (e) { ok(false, "gate line click interaction", e.message); }
   try {
     fire(G.gateLine, "keydown", { key: "Enter", preventDefault(){}, target: { closest: (sel) => sel === "[data-idx]" ? { dataset: { idx: "0" } } : null } });
@@ -3581,16 +3586,22 @@ try {
   ok(!G.kdetail._html.includes("Related open items"), "cdi (truly nothing tracked) does not show the open-items heading");
   fire(G.kboard, "click", { target: { closest: () => ({ dataset: { kpi: "cdi" } }) } });
 } catch (e) { ok(false, "cdi (green, no items) root-cause section", e.message); }
+// expo used to be this section's own example of "green but DOES have open items feeding it" --
+// R-07's addition (brainstorm-mode round, 2026-08-26) genuinely raised T.riskExposure past its own
+// rag() green threshold (27.49 > contRemaining*0.5=26.3), so expo is now correctly amber and shows
+// the root-cause heading instead -- a real, desired consequence, not a bug to work around. trir is
+// the new example: still genuinely green (unaffected by risk exposure) and still has a real linked
+// action (A-13), so it exercises the exact same "green but tracked" branch this block always meant
+// to check.
+ok(P.kpis.find(k => k.id === "expo").rag() === "a", "pre-registered: expo moved from green to amber as a real consequence of R-07 (2026-08-26), not silently left describing a stale state", P.kpis.find(k => k.id === "expo").rag());
 try {
-  // expo is green but DOES have 4 open items feeding it — the false-negative this session's own
-  // review caught: claiming "nothing tracked" here would be wrong, not just unhelpful
-  fire(G.kboard, "click", { target: { closest: () => ({ dataset: { kpi: "expo" } }) } });
-  has("kdetail", "Related open items", "green-but-tracked KPI (expo) shows the open-items heading, not the empty-state one");
+  fire(G.kboard, "click", { target: { closest: () => ({ dataset: { kpi: "trir" } }) } });
+  has("kdetail", "Related open items", "green-but-tracked KPI (trir) shows the open-items heading, not the empty-state one");
   ok(!G.kdetail._html.includes("Currently within threshold &mdash; no open item"),
-    "expo does not falsely claim nothing is tracked");
-  has("kdetail", "A-10", "expo drawer includes the R-02 utility item");
-  fire(G.kboard, "click", { target: { closest: () => ({ dataset: { kpi: "expo" } }) } });
-} catch (e) { ok(false, "expo (green, tracked) root-cause section", e.message); }
+    "trir does not falsely claim nothing is tracked");
+  has("kdetail", "A-13", "trir drawer includes the real linked incident-pattern-review action");
+  fire(G.kboard, "click", { target: { closest: () => ({ dataset: { kpi: "trir" } }) } });
+} catch (e) { ok(false, "trir (green, tracked) root-cause section", e.message); }
 try {
   // tcpi is red with no ACTIONS item yet — the escalation-rule fallback, an honest visible gap
   fire(G.kboard, "click", { target: { closest: () => ({ dataset: { kpi: "tcpi" } }) } });
@@ -5634,7 +5645,7 @@ console.log("== D33. Risk & Change-tab upgrade -- risk drill-down drawer, contra
   P.state.riskDrill = null; P.renderRisk(); // reset before later sections run
 
   // B. contract table hover highlight -- real multi-package contract, real per-package BAC
-  ok(P.totals.contCoverage < 1, "sanity: coverage ratio is genuinely below 1.00 today (0.588)", P.totals.contCoverage);
+  ok(P.totals.contCoverage < 1, "sanity: coverage ratio is genuinely below 1.00 today (0.577, post-R-07)", P.totals.contCoverage);
   ok(R.registry.contCover._html.includes('data-jump-tab="fw"') && R.registry.contCover._html.includes('data-jump-el="gate5Card"'),
     "coverage-ratio card links out to the real Gate 5 card when coverage is below 1.00");
 
@@ -6457,7 +6468,10 @@ console.log("== D46. Attention & Triage tab -- external spec, fact-checked befor
   // only fires when its own status reads red OR its check cycle is actually overdue (same
   // "dormant rules don't queue" principle as ESCALATION) -- independently recomputed here, not
   // read back from the app's own filter.
-  const subHealthFiring = P.subHealth.filter((s) => s.status === "red" || P.subHealthOverdue(s) >= 0).length;
+  // Matches the production condition exactly (fixed 2026-08-26, /stress-test finding): only a
+  // fully healthy, on-cycle GREEN item is excluded -- amber fires regardless of its own calendar
+  // cycle, since amber is itself already a real signal.
+  const subHealthFiring = P.subHealth.filter((s) => !(s.status === "green" && P.subHealthOverdue(s) < 0)).length;
   const expectedCount = escCount + staleActions.length + dueSoonNotStale.length + blockedNotClaimed.length + (cphNarrowingExpected ? 1 : 0) + ownerDecisionCount + subHealthFiring;
   ok(queue.length === expectedCount, "the queue's real item count matches an independent recount from the same 6 real sources, deduped by the same stale>due-soon>blocked priority", queue.length + " vs expected " + expectedCount);
 
@@ -6736,6 +6750,8 @@ console.log("== D48. Executive Summary tab -- external spec, fact-checked before
   // figure was imprecise (real: ~55%), R-01's cost was off by $0.1M, and "Jane Doe"/a "$150,000
   // idle cost per week" have no basis anywhere in the real data -- none of that is present. The
   // $36.8M funding-gap figure, however, IS real (independently re-derived below), and is used.
+  // (That figure itself moved to ~$38.6M on 2026-08-26 when R-07 was added to RISKS -- see the
+  // pre-registered check below, updated the same day for the same reason.)
   ok(idsA.includes("t-exec") && idsA.includes("p-exec"), "the tab button and its panel both exist");
   ok(!!P.tabDrawer && !!P.tabDrawer.exec, "TAB_DRAWER carries a real exec entry");
   ["Jane Doe", "$150,000", "August 2027", "October 2027", "59%"].forEach(bad => {
@@ -6758,7 +6774,7 @@ console.log("== D48. Executive Summary tab -- external spec, fact-checked before
   ok(rev.d === 40 && rev.base === "15 Mar 2028" && rev.fc === "24 Apr 2028",
     "pre-registered: the real Revenue Service milestone is +40d, 15 Mar 2028 -> 24 Apr 2028, not the spec's fabricated +24d/Aug-Oct-2027", JSON.stringify(rev));
   ok(Math.abs(cp201ShareReal - 0.552) < 0.01, "pre-registered: CP-201's real cost-variance share is ~55%, not the spec's claimed 59%", cp201ShareReal.toFixed(3));
-  ok(Math.abs(gapReal - 36.81) < 0.1, "pre-registered: the real Gate 5 funding gap is ~$36.8M, independently re-derived (not copied from the spec)", gapReal.toFixed(2));
+  ok(Math.abs(gapReal - 38.56) < 0.1, "pre-registered: the real Gate 5 funding gap is ~$38.6M (was $36.8M before R-07, added 2026-08-26), independently re-derived (not copied from the spec)", gapReal.toFixed(2));
 
   fire(G["t-exec"], "click");
   ok(P.state.tab === "exec", "clicking the Executive Summary tab activates it");
@@ -8385,6 +8401,13 @@ console.log("== J. EXEC_TRANSLATE completeness -- closing the generic-fallback g
   const topActionsReal = P.execTopActions();
   const escFallbacks = topActionsReal.filter((a) => a.item.id.startsWith("esc-") && a.consequence.startsWith("Owner: "));
   ok(escFallbacks.length === 0, "no currently-firing, currently-surfaced escalation item still shows the generic fallback text", JSON.stringify(escFallbacks.map((a) => a.item.id)));
+  // /stress-test finding (independent reviewer, 2026-08-26): the SAME generic-fallback bug class
+  // reopened for owner-*/subhealth-* items when OWNER_DECISIONS/SUB_HEALTH were wired into
+  // generateTriageQueue() without a matching execTopActions() branch -- fixed by dedicated prose
+  // built from the real register objects (see execTopActions() itself). Permanent regression
+  // guard: neither family may EVER surface the bare "Owner: X — Y" mechanical shape again.
+  const newFamilyFallbacks = topActionsReal.filter((a) => (a.item.id.startsWith("owner-") || a.item.id.startsWith("subhealth-")) && a.consequence.startsWith("Owner: "));
+  ok(newFamilyFallbacks.length === 0, "no currently-surfaced owner-*/subhealth-* item shows the generic ACTIONS-style fallback text", JSON.stringify(newFamilyFallbacks.map((a) => a.item.id)));
 }
 
 console.log("== K. Pending owner/agency decisions register (brainstorm-mode round, 2026-08-26) ==");
@@ -8462,11 +8485,12 @@ console.log("== L. Subcontractor financial-health watch (brainstorm-mode round, 
     ok(tblHtml.includes(c.title) && tblHtml.includes(s.lastCheck) && tblHtml.includes(s.note), s.contractId + "'s contract title, last-check date, and note all render in the real table");
   });
 
-  // Triage-queue integration -- the on-cycle green item must NOT appear (dormant, same principle
-  // as an unfired escalation rule); red/amber/overdue items must.
+  // Triage-queue integration -- ONLY an on-cycle green item must NOT appear (dormant, same
+  // principle as an unfired escalation rule); red, amber (regardless of its own cycle -- fixed
+  // 2026-08-26, /stress-test finding), and overdue-green items must all appear.
   const queue = P.generateTriageQueue();
   sh.forEach((s) => {
-    const shouldFire = s.status === "red" || P.subHealthOverdue(s) >= 0;
+    const shouldFire = !(s.status === "green" && P.subHealthOverdue(s) < 0);
     const item = queue.find((it) => it.id === "subhealth-" + s.contractId);
     ok(!!item === shouldFire, s.contractId + "'s triage presence matches the pre-registered fire/dormant expectation", String(shouldFire));
   });
@@ -8480,18 +8504,57 @@ console.log("== M. Escalation rationale ('why') -- item #20, knowledge-transfer 
   // existing escTable/firingEscalations/ESC_PAT tests above already exercise that; this section
   // only tests the new field).
   ok(P.escalation.every((r) => r.length === 5 && typeof r[4] === "string" && r[4].length > 20), "every one of the 12 real escalation rules carries a real (non-trivial) r[4] rationale string");
+  // Independent re-implementation of escHtml()'s exact escaping (not a call into the app's own
+  // function) -- /stress-test finding (independent reviewer, 2026-08-26): the tooltip and the
+  // accordion used to escape inconsistently (only &/" vs. nothing); both now route through the
+  // real shared escHtml(), which also escapes </>/' -- several real rationale strings contain a
+  // literal apostrophe ("program's", "isn't", "it's", "doesn't"), so this must match exactly or
+  // the check would silently pass against un-escaped text.
+  const escAttr = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const escHtml2 = G.escTable._html;
   P.escalation.forEach((r) => {
-    ok(escHtml2.includes(r[4].replace(/&/g, "&amp;").replace(/"/g, "&quot;")), "the trigger cell's title tooltip carries this rule's own real rationale text, not a generic label");
+    ok(escHtml2.includes(escAttr(r[4])), "the trigger cell's title tooltip carries this rule's own real rationale text (correctly escaped), not a generic label");
   });
   const whyHtml = G.escWhy._html;
   P.escalation.forEach((r) => {
-    ok(whyHtml.includes(r[0]) && whyHtml.includes(r[4]), "the rationale accordion states both this rule's real trigger text and its real why-text");
+    ok(whyHtml.includes(r[0]) && whyHtml.includes(escAttr(r[4])), "the rationale accordion states both this rule's real trigger text and its real (correctly escaped) why-text");
   });
   // No two rules share an identical rationale -- each is genuinely specific to its own rule, not
   // a copy-pasted generic sentence repeated 12 times.
   const whys = P.escalation.map((r) => r[4]);
   ok(new Set(whys).size === whys.length, "all 12 rationale strings are genuinely distinct, not a repeated generic sentence");
+}
+
+console.log("== N. Triage tabLink integrity -- closes the gate hole finding #3 slipped through (2026-08-26) ==");
+{
+  // /stress-test finding (independent reviewer, 2026-08-26): a subhealth-* item's tabLink.anchor
+  // pointed at a real but WRONG element id ("contractTable" instead of "subHealthTable") --
+  // every existing test only checked that jumpToEl()/getElementById handle a missing id
+  // gracefully, never that the anchor is the RIGHT one for that item's own data. This check
+  // can't verify "right" for every item generically, but it closes the class of defect that
+  // slipped through undetected: every non-null anchor must at minimum be a REAL id in the
+  // static markup, and every subhealth-*/owner-* item's anchor must specifically be one of
+  // its own tab's own real registers (not a generic escape hatch to some other real id).
+  const queueFull = P.generateTriageQueue();
+  const badAnchors = queueFull.filter((it) => it.tabLink && it.tabLink.anchor && !idsA.includes(it.tabLink.anchor));
+  ok(badAnchors.length === 0, "every triage item's tabLink.anchor (when set) is a real element id in the static markup", JSON.stringify(badAnchors.map((it) => it.id + "->" + it.tabLink.anchor)));
+  queueFull.filter((it) => it.id.indexOf("owner-") === 0).forEach((it) => {
+    ok(it.tabLink.tab === "fw" || it.tabLink.tab === "risk", it.id + "'s tabLink points at a real, relevant tab (fw or risk), not an arbitrary one", it.tabLink.tab);
+  });
+  queueFull.filter((it) => it.id.indexOf("subhealth-") === 0).forEach((it) => {
+    ok(it.tabLink.tab === "risk" && it.tabLink.anchor === "subHealthTable", it.id + "'s tabLink points specifically at subHealthTable, the register that actually carries its own status/note -- not the general contract register", JSON.stringify(it.tabLink));
+  });
+
+  // odRiskRef()'s fallback branch (an unmatched risk id) -- untested until now.
+  ok(P.odRiskRef ? P.odRiskRef("R-99") === "R-99" : true, "odRiskRef() falls back to the bare id when no matching risk exists, rather than throwing or returning undefined");
+
+  // Tier-boundary checks, synthetic dates rather than only today's real data (the "Open"/not-yet-
+  // due branch is never exercised by today's 3 real owner-decision items, which are all overdue).
+  const synthNotYetDue = { neededBy: "2026-09-30", submitted: "2026-07-01" }; // d = actDays(neededBy) < 0
+  const synthTier3 = P.odTier(synthNotYetDue);
+  ok(synthTier3 === 3, "a synthetic not-yet-due owner-decision item correctly lands in tier 3 ('Open'), the branch today's real overdue-only data never exercises", String(synthTier3));
+  const synthAt7 = { neededBy: "2026-07-24" }; // actDays("2026-07-24") = 7 exactly -- the tier1/2 boundary
+  ok(P.odTier(synthAt7) === 1, "odTier's tier 1/2 boundary is inclusive at exactly 7 days overdue, matching its own >= comparison", String(P.odTier(synthAt7)));
 }
 
 console.log("\n" + pass + " passed, " + fail + " failed");

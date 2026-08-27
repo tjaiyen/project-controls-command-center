@@ -2551,7 +2551,15 @@ var RISKS = [
  {id:"R-05",n:"Station finishes labor availability",         p:2,i:3,cost: 2.9,own:"Stations CM",   mit:"Second-source subcontract package; sequence finishes by station",
   basis:"A single-trade, localized labor-market risk — historically realized less often than the ground-condition and third-party-approval risks above on comparable programs."},
  {id:"R-06",n:"Third-party rail coordination windows",       p:2,i:2,cost: 1.6,own:"Program Controls",mit:"Lock a 12-month look-ahead with the operating railroad",
-  basis:"Coordination risk with an established, cooperating operating railroad partner — lower historical frequency than the more externally-driven risks above."}
+  basis:"Coordination risk with an established, cooperating operating railroad partner — lower historical frequency than the more externally-driven risks above."},
+ // R-07 added (brainstorm-mode round, 2026-08-26) -- 11_STRATEGIC_CHALLENGES_AND_SOLUTIONS.md
+ // #15. Priced as a real engineering exposure regardless of the current federal policy posture --
+ // FHWA's own climate-resilience directive (Order 5520) has been canceled and a related 2022
+ // guidance memo rescinded (May 2025), even as the underlying state DOT risk-assessment
+ // requirement (23 CFR 515) remains on the books. Don't wait for federal certainty to price it.
+ {id:"R-07",n:"Extreme-weather exposure on exposed tunnel-portal and elevated-guideway work windows", p:3,i:3,cost:3.5,own:"Program Risk Manager",
+  mit:"Weather-contingency float built into exposed portal/guideway activities; extended-outlook monitoring folded into the existing 3-week look-ahead cadence",
+  basis:"Climate/extreme-weather design mandates are a genuinely contested, currently-reversing federal policy area, not a settled compliance requirement — this risk is priced as a real engineering exposure regardless of that federal posture, since state-level requirements and the program's own weather exposure don't disappear when federal enforcement does."}
 ];
 /* Standard qualitative probability-band names (brainstorm-mode upgrade, 2026-08-24) — the same
    P_BAND percentages, given the industry-conventional label alongside the number wherever
@@ -6147,19 +6155,21 @@ function generateTriageQueue(){
       tabLink:o.tabLink, actionId:null
     });
   });
-  // Subcontractor financial-health watch (brainstorm-mode round, 2026-08-26) — only surfaces an
-  // item once its own check cycle is actually overdue or its status reads red; a green,
-  // on-cycle check is real but not yet something a human needs to act on, so it stays off this
-  // queue the same way a dormant escalation rule does.
+  // Subcontractor financial-health watch (brainstorm-mode round, 2026-08-26) — only a fully
+  // healthy, on-cycle GREEN check stays off this queue, the same way a dormant escalation rule
+  // does. /stress-test finding (independent reviewer, 2026-08-26): the original condition
+  // (`status!=="red" && d<0`) also silently dropped an AMBER item whose calendar cycle hadn't
+  // lapsed yet — amber is itself a real, already-known elevated-risk signal, and shouldn't wait
+  // on an unrelated 90-day clock to get visibility.
   SUB_HEALTH.forEach(function(s){
     var d=subHealthOverdue(s);
-    if(s.status!=="red" && d<0) return;
+    if(s.status==="green" && d<0) return;
     var c=CONTRACTS.filter(function(x){ return x.id===s.contractId; })[0];
     items.push({
       id:"subhealth-"+s.contractId, tier:subHealthTier(s), title:"Re-check bonding capacity — "+(c?c.title:s.contractId),
       metric:s.note, owner:"Procurement",
       escRule:"Subcontractor financial-health watch — "+SUB_HEALTH_CYCLE_DAYS+"-day check cycle",
-      clock: d>=0?(d+"d past cycle"):"Status watch", tabLink:{tab:"risk",anchor:"contractTable"}, actionId:null
+      clock: d>=0?(d+"d past cycle"):"Status watch", tabLink:{tab:"risk",anchor:"subHealthTable"}, actionId:null
     });
   });
   // Tier 2/3/4 — RAID/action staleness, due-soon, and blocked are 3 INDEPENDENT real axes
@@ -6437,6 +6447,23 @@ function execTopActions(){
   return items.map(function(it){
     var t=EXEC_TRANSLATE[it.id];
     if(t) return Object.assign({},t(),{item:it});
+    // /stress-test finding (independent reviewer, 2026-08-26): OWNER_DECISIONS/SUB_HEALTH items
+    // fell through to the generic ACTIONS-style fallback below, which reads as a raw data dump --
+    // the exact bug class commit 96e7d0b already fixed once for escalation items, reopened here
+    // because these two families didn't exist yet when that fix shipped. Built from the real
+    // register objects directly, not the flattened triage item, so the prose is as specific as
+    // EXEC_TRANSLATE's own hand-crafted entries.
+    if(it.id.indexOf("owner-")===0){
+      var o=OWNER_DECISIONS.filter(function(x){ return "owner-"+x.id===it.id; })[0];
+      if(o) return {ask:o.ask, why:"Blocks: "+o.blocks, consequence:"Pending with "+o.agency+" since "+o.submitted+" ("+odDaysOpen(o)+"d ago) — "+o.ref, item:it};
+    }
+    if(it.id.indexOf("subhealth-")===0){
+      var s=SUB_HEALTH.filter(function(x){ return "subhealth-"+x.contractId===it.id; })[0];
+      if(s){ var c=CONTRACTS.filter(function(x){ return x.id===s.contractId; })[0];
+        var od2=subHealthOverdue(s);
+        return {ask:"Re-confirm bonding capacity on "+(c?c.title:s.contractId), why:s.note,
+          consequence:"Standing "+SUB_HEALTH_CYCLE_DAYS+"-day check cycle — "+(od2>=0?(od2+"d past due"):"due soon"), item:it}; }
+    }
     return {ask:it.title, why:it.metric, consequence:"Owner: "+it.owner+" — "+it.escRule, item:it};
   });
 }
@@ -7675,9 +7702,10 @@ function renderRisk(){
 /* Risk drill-down drawer (brainstorm-mode round, 2026-08-23) — RISKS[] carries no pkg field of
    its own, so the link to a control account/delay/crew is found the same way a human reader
    would: through the Actions register's own src text ("Risk register · R-01"), which already
-   exists for 4 of the 6 risks (A-04/R-01, A-10/R-02, A-11/R-03, A-14/R-04). No hand-authored
-   R-id -> package map here — everything below is derived from real, already-shipped data, and
-   the two risks with no linked action (R-05, R-06) say so plainly rather than fabricating one. */
+   exists for 4 of the 7 risks (A-04/R-01, A-10/R-02, A-11/R-03, A-14/R-04) — R-07 (added
+   2026-08-26) makes it 4 of 7, not 4 of 6. No hand-authored R-id -> package map here —
+   everything below is derived from real, already-shipped data, and the risks with no linked
+   action (R-05, R-06, R-07) say so plainly rather than fabricating one. */
 function riskLinkedActions(k){
   return ACTIONS.filter(function(a){ return a.src && a.src.indexOf(k.id)>=0; })
     .map(function(a){ return Object.assign({},a,{status:actionStatus(a),stale:isStale(a)}); });
@@ -8610,7 +8638,7 @@ function renderGate5Sandbox(){
     '<h3 style="margin:6px 0 3px">What would it actually take to clear Gate 5?</h3>'+
     '<p class="lede" style="font-size:12.5px;margin:0 0 12px">Three real levers against the same '+
     'formula Gate 5 itself runs &mdash; remaining contingency &divide; (forecast overrun + risk '+
-    'exposure). Dragging these never changes the real ledger; reset returns to the live 0.588.</p>'+
+    'exposure). Dragging these never changes the real ledger; reset returns to the live '+idx(T.contCoverage)+'.</p>'+
     '<div class="grid" style="margin-top:2px">'+
       veTile("Available reserve",m(c.reserveAlt),true)+
       veTile("Demand",m(c.demandAlt),true)+
@@ -8751,16 +8779,20 @@ function renderFramework(){
     ESCALATION.map(function(r){ var firing=escFiring.indexOf(r)!==-1;
       var esi=ESC_STATUS_ICON[firing?"firing":"dormant"];
       return '<tr style="cursor:default"><td><span class="ticon '+esi.cls+'" aria-hidden="true">'+esi.svg+'</span><span class="pill '+(firing?"r":"g")+'">'+(firing?"Firing now":"Dormant")+'</span></td>'+
-      '<td class="mono" style="font-size:12px" title="'+r[4].replace(/&/g,"&amp;").replace(/"/g,"&quot;")+'">'+r[0]+
+      '<td class="mono" style="font-size:12px" title="'+escHtml(r[4])+'">'+r[0]+
       '</td><td>'+r[1]+'</td><td style="white-space:normal;max-width:200px">'+r[2]+'</td><td>'+r[3]+'</td></tr>'; }).join("")+'</tbody>';
   // Rule 5 accordion (brainstorm-mode round, 2026-08-26) -- the same 12 real r[4] rationale
   // strings the table's own hover tooltip carries, laid out for reading rather than hovering one
   // row at a time. A genuine mentoring artifact: a new team member reads WHY each threshold sits
   // where it does, not just that it exists.
   var whyEl=document.getElementById("escWhy");
+  // r[4] routed through the same escHtml() the tooltip above uses (/stress-test finding,
+  // independent reviewer, 2026-08-26 -- the two call sites used to escape inconsistently). r[0]
+  // is NOT re-escaped here: it's already HTML-authored text (e.g. "CPI &lt; 0.95"), so escaping
+  // it again would double-encode its own entities.
   if(whyEl) whyEl.innerHTML=ESCALATION.map(function(r){
     return '<p style="margin:10px 0 0;font-size:12.5px"><b style="color:rgb(var(--c-ink))" class="mono">'+r[0]+'</b><br>'+
-      '<span style="color:rgb(var(--c-mut))">'+r[4]+'</span></p>'; }).join("");
+      '<span style="color:rgb(var(--c-mut))">'+escHtml(r[4])+'</span></p>'; }).join("");
   document.getElementById("ownerDecTable").innerHTML=
     '<caption class="tw-caption">'+OWNER_DECISIONS.length+' pending, '+OWNER_DECISIONS.filter(function(o){return odDaysOverdue(o)>=0;}).length+' overdue right now.</caption>'+
     '<thead><tr><th scope="col">Status</th><th scope="col">Ask</th><th scope="col">Agency</th><th scope="col">Blocks</th><th scope="col">Clock</th></tr></thead><tbody>'+
@@ -12381,7 +12413,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   escalation:ESCALATION,kpiEscalation:KPI_ESCALATION,actionsForKpi:actionsForKpi,jumpToAction:jumpToAction,
   firingEscalations:firingEscalations,actDays:actDays,
   generateTriageQueue:generateTriageQueue,renderTriage:renderTriage,triageEscMeta:TRIAGE_ESC_META,triageClockTier:TRIAGE_CLOCK_TIER,
-  ownerDecisions:OWNER_DECISIONS,odTier:odTier,odDaysOverdue:odDaysOverdue,odDaysOpen:odDaysOpen,
+  ownerDecisions:OWNER_DECISIONS,odTier:odTier,odDaysOverdue:odDaysOverdue,odDaysOpen:odDaysOpen,odRiskRef:odRiskRef,
   subHealth:SUB_HEALTH,subHealthOverdue:subHealthOverdue,subHealthTier:subHealthTier,renderSubHealth:renderSubHealth,
   renderExec:renderExec,execCp201Share:execCp201Share,execFundingGap:execFundingGap,execTopActions:execTopActions,execTranslate:EXEC_TRANSLATE,
   execDrawerContent:execDrawerContent,execFaq:EXEC_FAQ,

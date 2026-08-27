@@ -113,7 +113,7 @@ function extractNumericClaims(text) {
 function isDateClaim(claim) { return /^\d{1,2}\s[A-Za-z]{3}\s\d{4}$/.test(claim); }
 function parseClaimValue(raw) { return parseFloat(String(raw).replace(/[$,%M]/g, "")); }
   // "M" is stripped, not scaled -- this dashboard's own numbers are already millions-scale by
-  // convention (e.g. contRemaining:52.6 means $52.6M), so "$89.4M" parses to 89.4, matching the
+  // convention (e.g. contRemaining:52.6 means $52.6M), so "$91.2M" parses to 91.2, matching the
   // raw ground-truth number directly. The x1e6/x1e-6 scale variants in collectNumbers() cover the
   // separate case of a claim phrased in full raw dollars ("$52,600,000").
 
