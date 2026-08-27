@@ -8256,6 +8256,23 @@ console.log('== H. "changed since you last looked" localStorage snapshot-diff ==
 // than a hand-typed parallel list -- if that array's own keys ever change, this test's seed keeps
 // them in sync automatically instead of silently drifting out of step.
 const CW_FIELDS_ORDER = P.changeWatchFields.map(f => f.k);
+// Independent reconstruction of the real snapshot (UX upgrade round, 2026-08-26, item #5 --
+// 4 new derived-count fields added to CHANGE_WATCH_FIELDS, each via an f.get() function rather
+// than a bare T[] lookup). NOT calling f.get() itself here -- that would just be checking the
+// app's own answer against itself; each derived count is independently recomputed from the same
+// real underlying arrays instead, matching this file's own "never verify against the app's own
+// formula" doctrine.
+function cwSnapshotIndependent() {
+  const s = {};
+  CW_FIELDS_ORDER.forEach((k) => {
+    if (k === "ownerDecOverdue") s[k] = P.ownerDecisions.filter((o) => P.odDaysOverdue(o) >= 0).length;
+    else if (k === "subHealthFiring") s[k] = P.subHealth.filter((x) => !(x.status === "green" && P.subHealthOverdue(x) < 0)).length;
+    else if (k === "laborMobShort") s[k] = P.laborMobilization.filter((x) => P.laborMobGapDays(x) > 0).length;
+    else if (k === "carbonReady") s[k] = P.carbonReadinessPct();
+    else s[k] = T[k];
+  });
+  return s;
+}
 {
   // no prior snapshot at all (first-ever visit, or cleared site data) -- badge must stay hidden,
   // card empty, never a fabricated "no change" claim with nothing to actually compare against
@@ -8267,8 +8284,7 @@ const CW_FIELDS_ORDER = P.changeWatchFields.map(f => f.k);
 {
   // a prior snapshot IDENTICAL to today's real live totals -- must report "no change," not silently
   // stay hidden (that would be indistinguishable from the no-snapshot-at-all case above)
-  const snap = {};
-  CW_FIELDS_ORDER.forEach(k => { snap[k] = T[k]; });
+  const snap = cwSnapshotIndependent();
   const R5 = runPage(indexSrc, { pccLastSnapshot: JSON.stringify(snap) });
   const P5 = R5.win.__PCC__;
   ok(!!P5, "5th index.html eval (identical snapshot) ran without runtime errors");
@@ -8280,8 +8296,7 @@ const CW_FIELDS_ORDER = P.changeWatchFields.map(f => f.k);
 {
   // a prior snapshot that genuinely differs (BAC $40M lower) -- must report exactly 1 changed
   // figure, name it, and show the real prev -> cur values, not a vague "something changed"
-  const snap = {};
-  CW_FIELDS_ORDER.forEach(k => { snap[k] = T[k]; });
+  const snap = cwSnapshotIndependent();
   snap.bac = T.bac - 40;
   const R6 = runPage(indexSrc, { pccLastSnapshot: JSON.stringify(snap) });
   const badgeHtml = R6.registry.changeWatchBadge;
@@ -8297,7 +8312,7 @@ const CW_FIELDS_ORDER = P.changeWatchFields.map(f => f.k);
   ok(!cardHtml.includes("EAC</span>"), "changed prior snapshot: only the ONE genuinely-changed field is listed, not the other 8");
   // this eval's own render also overwrote pccLastSnapshot with TODAY's real totals -- confirms the
   // write-back actually happened (a real snapshot-then-diff cycle, not a read-only demo)
-  ok(R6.win.localStorage.getItem("pccLastSnapshot") === JSON.stringify((() => { const s = {}; CW_FIELDS_ORDER.forEach(k => { s[k] = T[k]; }); return s; })()),
+  ok(R6.win.localStorage.getItem("pccLastSnapshot") === JSON.stringify(cwSnapshotIndependent()),
     "the render also wrote today's real totals back to localStorage, so the NEXT load compares against this one");
 }
 {
@@ -8804,6 +8819,18 @@ console.log("== V. UX/UI upgrade round (brainstorm-mode, 2026-08-26) ==");
   ok(bttProgress().style.strokeDashoffset === "0.00", "fully scrolled, the ring's dashoffset reaches exactly 0 (100% progress)", bttProgress().style.strokeDashoffset);
   global.document.documentElement = savedDocEl; // restore, don't leak into any later code
   function bttProgress(){ return G.bttProgress; }
+
+  // #5: "changed since your last visit" extended to the 4 new registers -- pre-registered
+  // expected values against today's real data (independently recomputed, not read from
+  // changeWatchSnapshot() itself).
+  const cur = P.changeWatchSnapshot();
+  const expected = cwSnapshotIndependent();
+  ["ownerDecOverdue", "subHealthFiring", "laborMobShort", "carbonReady"].forEach((k) => {
+    ok(Math.abs(cur[k] - expected[k]) < 1e-9, "changeWatchSnapshot()'s real '" + k + "' matches an independent recomputation from the underlying register", cur[k] + " vs expected " + expected[k]);
+  });
+  ok(expected.ownerDecOverdue === 3, "pre-registered: all 3 real owner decisions are currently overdue", String(expected.ownerDecOverdue));
+  ok(expected.subHealthFiring === 2, "pre-registered: 2 of 3 real sub-health items are currently firing (1 red, 1 amber; the on-cycle green is excluded)", String(expected.subHealthFiring));
+  ok(expected.laborMobShort === 2, "pre-registered: 2 of 3 real labor trades are short on confirmed lead time (CP-201, CP-301)", String(expected.laborMobShort));
 }
 
 console.log("\n" + pass + " passed, " + fail + " failed");

@@ -12559,10 +12559,20 @@ var CHANGE_WATCH_FIELDS=[
  {k:"bac",l:"BAC",fmt:m},{k:"eac",l:"EAC",fmt:m},{k:"vac",l:"VAC",fmt:sgn},
  {k:"cpi",l:"CPI",fmt:idx},{k:"spi",l:"SPI",fmt:idx},{k:"tcpi",l:"TCPI",fmt:idx},
  {k:"cpli",l:"CPLI",fmt:idx},{k:"contRemaining",l:"Contingency remaining",fmt:m},
- {k:"contCoverage",l:"Contingency coverage",fmt:idx}
+ {k:"contCoverage",l:"Contingency coverage",fmt:idx},
+ // 4 new fields (UX upgrade round, 2026-08-26, item #5) -- this diff previously only ever
+ // watched single scalar T-fields; the 4 registers added earlier today are arrays of
+ // structured items, not scalars, so each gets a real derived COUNT (not a full item-by-item
+ // diff, which this snapshot format can't represent) via an optional `get` function instead
+ // of a bare T[] lookup. A red subcontractor flag or a newly-overdue owner decision now
+ // produces real signal here, where before it produced none.
+ {k:"ownerDecOverdue",l:"Owner decisions overdue",fmt:function(v){return v+"";},get:function(){return OWNER_DECISIONS.filter(function(o){return odDaysOverdue(o)>=0;}).length;}},
+ {k:"subHealthFiring",l:"Subcontractor watch items needing attention",fmt:function(v){return v+"";},get:function(){return SUB_HEALTH.filter(function(s){return !(s.status==="green"&&subHealthOverdue(s)<0);}).length;}},
+ {k:"laborMobShort",l:"Labor trades short on lead time",fmt:function(v){return v+"";},get:function(){return LABOR_MOBILIZATION.filter(function(x){return laborMobGapDays(x)>0;}).length;}},
+ {k:"carbonReady",l:"Carbon disclosure readiness",fmt:function(v){return pct(v,0);},get:function(){return carbonReadinessPct();}}
 ];
 function changeWatchSnapshot(){
-  var s={}; CHANGE_WATCH_FIELDS.forEach(function(f){ s[f.k]=T[f.k]; }); return s;
+  var s={}; CHANGE_WATCH_FIELDS.forEach(function(f){ s[f.k]=f.get?f.get():T[f.k]; }); return s;
 }
 function renderChangeWatch(){
   var badge=document.getElementById("changeWatchBadge"), card=document.getElementById("changeWatchCard");
