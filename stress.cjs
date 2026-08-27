@@ -8598,5 +8598,27 @@ console.log("== O. Labor-availability leading indicator (brainstorm-mode round, 
   ok(indexSrc.includes("92% of firms <em>that are hiring</em> report a hard time finding qualified workers"), "the visible AGC citation uses the exact, correctly-denominated wording (firms THAT ARE HIRING, not all firms)");
 }
 
+console.log("== P. Material-price exposure trigger (brainstorm-mode round, 2026-08-26) ==");
+{
+  // Direct answer to 11_STRATEGIC_CHALLENGES_AND_SOLUTIONS.md #13. Every real market figure
+  // (steel 22.5%, aluminum 40.5%, input cost 7.1%) traces to the same AGC research already
+  // verified for item #11 -- pre-registered against the exact values used there.
+  ok(P.materialIndexReal.steelYoyPct === 22.5, "real steel index y/y matches the AGC-sourced figure", String(P.materialIndexReal.steelYoyPct));
+  ok(P.materialIndexReal.aluminumYoyPct === 40.5, "real aluminum index y/y matches the AGC-sourced figure", String(P.materialIndexReal.aluminumYoyPct));
+  ok(P.materialIndexReal.inputCostYoyPct === 7.1, "real overall input-cost index y/y matches the AGC-sourced figure", String(P.materialIndexReal.inputCostYoyPct));
+  // Independent recomputation of the derived math, not a call into the app's own formula reused.
+  const expectMult = 22.5 / P.materialEscalationBaselinePct;
+  ok(Math.abs(P.materialEscalationMultiple() - expectMult) < 1e-9, "materialEscalationMultiple independently recomputes real-steel-rate / stated-baseline", P.materialEscalationMultiple().toFixed(2));
+  const r04 = P.risks.find((r) => r.id === "R-04");
+  const expectUnabsorbedShare = Math.max(0, 22.5 - P.materialEscalationBaselinePct) / 22.5;
+  const expectUnabsorbed = r04.cost * expectUnabsorbedShare;
+  ok(Math.abs(P.materialUnabsorbedExposure() - expectUnabsorbed) < 1e-9, "materialUnabsorbedExposure independently recomputes R-04's real cost x the unabsorbed share", P.materialUnabsorbedExposure().toFixed(3));
+
+  const cardHtml = G.materialExposureCard._html;
+  ok(cardHtml.includes("22.5%") && cardHtml.includes("40.5%") && cardHtml.includes("3.5%"), "the card states the real steel/aluminum index figures and the assumed baseline");
+  ok(cardHtml.includes("stated assumption") && cardHtml.includes("Illustrative, not a forecast"), "the card explicitly labels the baseline as a stated assumption and the dollar figure as illustrative, not a verified real forecast -- this is the discipline that keeps the number honest");
+  ok(cardHtml.includes(m(r04.cost)), "the card cites R-04's real, independently-checked priced exposure, not an invented figure");
+}
+
 console.log("\n" + pass + " passed, " + fail + " failed");
 process.exit(fail ? 1 : 0);

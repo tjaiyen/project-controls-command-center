@@ -1581,6 +1581,13 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         <div id="riskMathBody"></div>
       </details>
 
+      <div class="sec-h" style="margin-top:24px"><h3>Material-price exposure &mdash; is the escalation clause still enough?</h3></div>
+      <p class="lede">A forward-looking extension of the Contingency Drawdown Index's own
+        "consuming reserve faster than progress" logic — here checked against the real market,
+        not just internal drawdown pace. AGC: construction input costs climbed 7.1% between July
+        2025 and July 2026; steel mill products specifically ran 22.5% year-over-year, tariff-driven.</p>
+      <div class="card" id="materialExposureCard" style="margin-top:8px"></div>
+
       <div class="sec-h" style="margin-top:34px"><h2>Commercial &mdash; contract register</h2><span class="tag">a third axis</span></div>
       <p class="lede">Control accounts measure performance; contracts carry commercial exposure &mdash;
         and one does not map 1:1 onto the other. The guideway bid-build contract alone covers two control
@@ -2568,6 +2575,30 @@ var RISKS = [
   mit:"Weather-contingency float built into exposed portal/guideway activities; extended-outlook monitoring folded into the existing 3-week look-ahead cadence",
   basis:"Climate/extreme-weather design mandates are a genuinely contested, currently-reversing federal policy area, not a settled compliance requirement — this risk is priced as a real engineering exposure regardless of that federal posture, since state-level requirements and the program's own weather exposure don't disappear when federal enforcement does."}
 ];
+
+/* Forward material-price exposure trigger (brainstorm-mode round, 2026-08-26) — item #13.
+   Real, independently-verified AGC data (same "fetch the primary source before using it"
+   discipline as item #11): construction input costs climbed 7.1% between July 2025 and July
+   2026; steel mill products specifically ran 22.5% year-over-year, tariff-driven; an AGC-NCCER
+   survey found 43% of GCs report at least one project canceled/postponed/scaled back over
+   tariff-driven material costs. (11_STRATEGIC_CHALLENGES_AND_SOLUTIONS.md #13.) Extends CDI's
+   own backward-looking "drawn vs. progress" logic into a forward-looking check: R-04's own
+   mitigation ("EPA clause indexed to a published series") assumes the escalation clause absorbs
+   a "typical" pace of material inflation. MATERIAL_ESCALATION_BASELINE_PCT is a STATED
+   ASSUMPTION — a commonly-cited historical construction-cost-index baseline — not a real,
+   program-specific negotiated figure this synthetic ledger doesn't carry; labeled as such
+   everywhere it's shown, never presented as a verified contract term. */
+var MATERIAL_ESCALATION_BASELINE_PCT=3.5;
+var MATERIAL_INDEX_REAL={steelYoyPct:22.5, aluminumYoyPct:40.5, inputCostYoyPct:7.1};
+function materialEscalationMultiple(){ return MATERIAL_INDEX_REAL.steelYoyPct/MATERIAL_ESCALATION_BASELINE_PCT; }
+function materialUnabsorbedExposure(){
+  // Illustrative, not a claimed real dollar forecast: IF the EPA clause fully absorbs
+  // escalation up to the stated baseline and nothing beyond it, the unabsorbed SHARE of R-04's
+  // own real, priced exposure is the portion of today's real steel rate that exceeds baseline.
+  var r04=RISKS.filter(function(r){ return r.id==="R-04"; })[0];
+  var unabsorbedShare=Math.max(0,MATERIAL_INDEX_REAL.steelYoyPct-MATERIAL_ESCALATION_BASELINE_PCT)/MATERIAL_INDEX_REAL.steelYoyPct;
+  return r04.cost*unabsorbedShare;
+}
 /* Standard qualitative probability-band names (brainstorm-mode upgrade, 2026-08-24) — the same
    P_BAND percentages, given the industry-conventional label alongside the number wherever
    probability is shown, so the abstract P1-P5 scale itself has a stated, checkable meaning. */
@@ -7590,6 +7621,7 @@ function renderRisk(){
   tornHost.addEventListener("click",tornTipFn);
   tornHost.addEventListener("mouseleave",function(){ tornTip.classList.remove("on"); });
   renderRiskMath(ranked);
+  renderMaterialExposure();
   var grid={}, gridRisks={};
   RISKS.forEach(function(k){ var key=k.p+"-"+k.i; grid[key]=(grid[key]||0)+1; (gridRisks[key]=gridRisks[key]||[]).push(k); });
   var html='<div class="ax"></div>',p,im;
@@ -7885,6 +7917,29 @@ function renderDrbSlider(){
    100% would price the single most-likely risk as a certainty — an issue already booked, not
    a risk still being tracked. Live worked example against the top-ranked (highest-exposure)
    risk, not a hypothetical one. */
+function renderMaterialExposure(){
+  var el=document.getElementById("materialExposureCard");
+  if(!el) return;
+  var r04=RISKS.filter(function(r){ return r.id==="R-04"; })[0];
+  var mult=materialEscalationMultiple(), unabsorbed=materialUnabsorbedExposure();
+  el.innerHTML=
+    '<div class="grid" style="margin-bottom:14px">'+
+    [["Real steel index, y/y","+"+MATERIAL_INDEX_REAL.steelYoyPct.toFixed(1)+"%"],
+     ["Real aluminum index, y/y","+"+MATERIAL_INDEX_REAL.aluminumYoyPct.toFixed(1)+"%"],
+     ["EPA clause's assumed baseline","+"+MATERIAL_ESCALATION_BASELINE_PCT.toFixed(1)+"% (stated assumption)"],
+     ["Running at","&times;"+mult.toFixed(1)+" the assumed baseline"]
+    ].map(function(r){ return '<div><div class="k" style="font:600 9.5px/1.3 ui-monospace,monospace;letter-spacing:.11em;text-transform:uppercase;color:rgb(var(--c-mut))">'+
+      r[0]+'</div><div class="v" style="margin-top:5px;font:600 .98rem/1.2 inherit">'+r[1]+'</div></div>'; }).join("")+
+    '</div>'+
+    '<p style="margin:0;font-size:12.5px;color:rgb(var(--c-mut))">R-04\'s own mitigation ("EPA clause '+
+    'indexed to a published series") assumes the escalation clause absorbs a <i>typical</i> pace of '+
+    'material inflation — this baseline is a stated assumption, not a verified contract term this ledger '+
+    'carries. Today\'s real steel rate is running '+mult.toFixed(1)+'&times; that assumed baseline. '+
+    '<b style="color:rgb(var(--c-ink))">Illustrative, not a forecast:</b> if the clause absorbs escalation '+
+    'up to the baseline and nothing beyond it, the unabsorbed share of R-04\'s own priced exposure ('+
+    m(r04.cost)+') is roughly <b style="color:rgb(var(--c-ink))">'+m(unabsorbed)+'</b> — a number worth '+
+    'checking against the clause\'s real, negotiated terms before treating it as a forecast.</p>';
+}
 function renderRiskMath(ranked){
   var top=ranked[0];
   // Impact-score explanation (brainstorm-mode upgrade, 2026-08-24) -- until this round, this
@@ -12459,6 +12514,8 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   ownerDecisions:OWNER_DECISIONS,odTier:odTier,odDaysOverdue:odDaysOverdue,odDaysOpen:odDaysOpen,odRiskRef:odRiskRef,
   subHealth:SUB_HEALTH,subHealthOverdue:subHealthOverdue,subHealthTier:subHealthTier,renderSubHealth:renderSubHealth,
   laborMobilization:LABOR_MOBILIZATION,laborMobGapDays:laborMobGapDays,laborMobStatus:laborMobStatus,
+  materialIndexReal:MATERIAL_INDEX_REAL,materialEscalationBaselinePct:MATERIAL_ESCALATION_BASELINE_PCT,
+  materialEscalationMultiple:materialEscalationMultiple,materialUnabsorbedExposure:materialUnabsorbedExposure,
   renderExec:renderExec,execCp201Share:execCp201Share,execFundingGap:execFundingGap,execTopActions:execTopActions,execTranslate:EXEC_TRANSLATE,
   execDrawerContent:execDrawerContent,execFaq:EXEC_FAQ,
   buildAskAiSnapshot:buildAskAiSnapshot,renderAskAiGate:renderAskAiGate,renderAskAiPanel:renderAskAiPanel,
