@@ -8732,5 +8732,20 @@ console.log("== T. Session activity/change-audit trail (brainstorm-mode round, 2
   fire(G.narrTamperToggle, "change", { target: { checked: false } }); // restore
 }
 
+console.log("== U. Anchor-rail completeness for today's new sections (found live-browsing, 2026-08-26) ==");
+{
+  // Real finding: all 4 anchor rails (Schedule/Risk & Change/Operating Framework/AI & Data) on
+  // tabs touched by today's 10-feature round were never updated with jump links to the new
+  // sections -- found by a live-browser sweep, not by any prior test, since nothing previously
+  // checked anchor-rail completeness against a tab's own real section ids. Fixed the 4 rails;
+  // this closes the gate hole so a future new section on any of these 4 tabs can't silently
+  // ship without its own jump link either.
+  const newIds = ["laborMobTable", "materialExposureCard", "subHealthTable", "ownerDecTable", "carbonDisclosureCard", "auditLogTable"];
+  newIds.forEach((id) => {
+    ok(idsA.includes(id), id + " is a real element id in the static markup");
+    ok(indexSrc.includes('href="#' + id + '"'), id + " has a real anchor-rail jump link somewhere in the markup, not just an id nobody links to");
+  });
+}
+
 console.log("\n" + pass + " passed, " + fail + " failed");
 process.exit(fail ? 1 : 0);
