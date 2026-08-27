@@ -3419,8 +3419,9 @@ var state = {phase:"con", fam:"All", audience:"pcm", kpi:null, pkg:2, actFilter:
   riskDrill:null, // Risk & Change-tab upgrade (brainstorm-mode, 2026-08-23) — starts closed, same
                  // click-to-open idiom as portDrill/cphDrill/ewmaDrillWeek above.
   tourTrack:"full", // Guided-tour tracks (brainstorm-mode nav round, 2026-08-23) — "full" is the
-                 // real, existing 10-stop tour; persists across a tour exit/re-enter, same as
-                 // state.fam/state.audience already persist across their own tabs' revisits.
+                 // real, existing tour (11 stops as of the 2026-08-26 UX round, item #8); persists
+                 // across a tour exit/re-enter, same as state.fam/state.audience already persist
+                 // across their own tabs' revisits.
   gbmInspect:50, gbmSelectedLabel:null, gbmBandsOn:true, // GBM log-return chart interactive
                  // explorer (brainstorm-mode round, 2026-08-24) — gbmInspect is a 0-100 position
                  // along the chart's own [lo,hi] axis (50 = exactly r&#772;, the mean, a sensible
@@ -10280,10 +10281,11 @@ function renderNarr(){
    card into this, TJ's call: "one narrator, not two competing ones"). Same beat shape as
    PRESENT_BEATS_* (t/tab/anchor/x), but written to stand alone on screen with no presenter
    reading a private notes popup — this is the only voice a solo visitor gets, so every beat's
-   x() carries the full explanation, not a terse label. 10 stops across every tab: the first 4
-   and the close are the original STORY beats verbatim (same prose, same live-templated figures,
-   moved here rather than duplicated); the 5 in between are net-new, covering the ground STORY
-   never reached — risk, delivery, gate governance, data integrity, accountability. */
+   x() carries the full explanation, not a terse label. 11 stops across every tab (10 original +
+   1 added 2026-08-26, item #8): the first 4 and the close are the original STORY beats verbatim
+   (same prose, same live-templated figures, moved here rather than duplicated); the 6 in between
+   are net-new, covering the ground STORY never reached — risk, proactive-prevention leading
+   indicators, delivery, gate governance, data integrity, accountability. */
 var TOUR_BEATS=[
  {t:"A billion-dollar promise", tab:"over",
   x:function(){ return "The "+PROGRAM.name+" is a "+m(T.bac)+" capital program — "+PROGRAM.corridor.replace(/&[a-z]+;/g," ")+
@@ -10313,6 +10315,25 @@ var TOUR_BEATS=[
     " ("+top.id+") — the same tunnel already driving the schedule. Contingency has "+m(T.contRemaining)+" left to absorb it, a "+
     "coverage ratio of "+idx(T.contCoverage)+". The simulation from the honesty test is the same math run "+MC.n.toLocaleString("en-US")+" times instead of "+
     "once: "+pct(MC.pBust,0)+" of those runs still bust the budget even after spending every dollar of what's left."; }},
+ /* New tour stop (UX upgrade round item #8, 2026-08-26) -- the tour predated all 10 of today's
+    proactive-prevention mechanisms (labor mobilization, material escalation, subcontractor
+    health, owner/agency decisions, carbon disclosure). Inserted here, right after the risk beat,
+    since it's the same "spot it before it's a variance" theme one step further upstream. Every
+    figure is a real, live recomputation -- the exact same filter expressions
+    CHANGE_WATCH_FIELDS' own get() functions use -- not a narrated summary invented for the tour. */
+ {t:"Catching it before it's a variance", tab:"risk", anchor:"materialExposureCard",
+  x:function(){
+    var laborShort=LABOR_MOBILIZATION.filter(function(x){return laborMobGapDays(x)>0;}).length;
+    var subFiring=SUB_HEALTH.filter(function(s){return !(s.status==="green"&&subHealthOverdue(s)<0);}).length;
+    var odOverdue=OWNER_DECISIONS.filter(function(o){return odDaysOverdue(o)>=0;}).length;
+    return "Every number so far is a lagging indicator — it tells you what already happened. This board also carries "+
+    "leading ones: steel is running "+MATERIAL_INDEX_REAL.steelYoyPct.toFixed(1)+"% over last year against a "+
+    MATERIAL_ESCALATION_BASELINE_PCT.toFixed(1)+"% contractual baseline, leaving "+m(materialUnabsorbedExposure())+
+    " of one risk's own priced exposure unabsorbed before a single change order is even filed. The same pattern runs "+
+    "across the board: "+laborShort+" of "+LABOR_MOBILIZATION.length+" long-lead trades are short on confirmed lead "+
+    "time, "+subFiring+" of "+SUB_HEALTH.length+" subcontractors need a check-in, and "+odOverdue+" of "+OWNER_DECISIONS.length+
+    " owner/agency decisions already sit past their needed-by date. None of that moves CPI or SPI until it's too late "+
+    "to act on it — which is the entire point of tracking it separately."; }},
  {t:"The people doing the work", tab:"del", anchor:"cphCard",
   x:function(){ return "Behind every dollar of actual cost is a crew, and a "+idx(T.pf)+" productivity factor program-wide means "+
     "those crews are running about "+((1/T.pf-1)*100).toFixed(1)+"% over the hours the estimate assumed — the tunnel crew worst "+
@@ -10348,18 +10369,20 @@ var TOUR_BEATS=[
    a "3-playlist Guided Tour selector" as the most interesting idea from an earlier nav-IA proposal,
    deferred pending its own grounding pass before it could be honestly sized. That pass: each track
    below is an ordered list of INDICES into the real TOUR_BEATS array above, never duplicated prose
-   or a fabricated number — "full" is the existing 10-stop tour unchanged (index order, so behavior
-   is identical to before this round for anyone who never touches the new selector). The other three
-   are curated subsets for a specific audience/agenda, reusing exactly the beats that are honestly
-   on-theme; no track claims a beat TOUR_BEATS doesn't actually have (e.g. no CP-201-package-specific
-   CPI=0.870 beat exists — beat 1's cost figure is portfolio-level — so the CP-201 track is titled
-   and framed around what the tour actually narrates, not the sharper-but-fabricated precision an
-   earlier brief proposed). */
+   or a fabricated number. The other three are curated subsets for a specific audience/agenda,
+   reusing exactly the beats that are honestly on-theme; no track claims a beat TOUR_BEATS doesn't
+   actually have (e.g. no CP-201-package-specific CPI=0.870 beat exists — beat 1's cost figure is
+   portfolio-level — so the CP-201 track is titled and framed around what the tour actually
+   narrates, not the sharper-but-fabricated precision an earlier brief proposed).
+   Re-indexed 2026-08-26 (UX upgrade round item #8) when a new proactive-prevention beat was
+   inserted at index 5 — every index at or after 5 shifted +1 from its original value; "full" is
+   now 11 stops, not 10, and the other three tracks' membership (which beats they curate) is
+   otherwise UNCHANGED, just pointing at each beat's new position. */
 var TOUR_TRACKS=[
- {key:"full",  label:"Full tour (10 stops)",             idxs:[0,1,2,3,4,5,6,7,8,9]},
- {key:"exec",  label:"Executive briefing (4 stops)",      idxs:[0,1,6,8]},
- {key:"cp201", label:"CP-201 root-cause thread (4 stops)",idxs:[1,2,4,5]},
- {key:"audit", label:"Data & governance audit (3 stops)", idxs:[7,6,9]}
+ {key:"full",  label:"Full tour (11 stops)",             idxs:[0,1,2,3,4,5,6,7,8,9,10]},
+ {key:"exec",  label:"Executive briefing (4 stops)",      idxs:[0,1,7,9]},
+ {key:"cp201", label:"CP-201 root-cause thread (4 stops)",idxs:[1,2,4,6]},
+ {key:"audit", label:"Data & governance audit (3 stops)", idxs:[8,7,10]}
 ];
 function activeTourBeats(){
   var track=TOUR_TRACKS.filter(function(t){return t.key===state.tourTrack;})[0]||TOUR_TRACKS[0];

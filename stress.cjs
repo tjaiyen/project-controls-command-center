@@ -1975,23 +1975,24 @@ ok(fs.existsSync(DIR + "pipeline/run_pipeline.py") && fs.existsSync(DIR + "pipel
 console.log("== D4. tour / glossary / motion ==");
 ok(idsA.includes("t-gloss") && idsA.includes("p-gloss"), "glossary tab/panel pair exists");
 ok(idsA.includes("storyTourBtn"), "the Overview teaser card carries its own tour entry point");
-// self-guided tour: 10 stops, hidden until entered, opens on stop 1 with live figures.
+// self-guided tour: 11 stops (10 original + 1 added 2026-08-26, item #8), hidden until entered,
+// opens on stop 1 with live figures.
 // tourBar's initial hidden state comes from the raw `hidden` HTML attribute (correct in a real
 // browser, same as presentBar above); the stub doesn't parse markup into initial DOM state, only
 // JS-driven changes, so the meaningful thing to verify is the actual transition once entered.
-ok(P.tourBeats.length === 10, "tour carries 10 stops", String(P.tourBeats.length));
+ok(P.tourBeats.length === 11, "tour carries 11 stops", String(P.tourBeats.length));
 try {
   fire(G.storyTourBtn, "click"); // the Overview teaser card's own entry point
   ok(G.tourBar.hidden === false, "starting the tour from the Overview teaser card shows the bar");
   ok(G.tourBtn.getAttribute("aria-pressed") === "true", "tourBtn reports pressed once touring");
-  has("tourBar", "1 / 10", "tour opens on stop 1 of 10");
+  has("tourBar", "1 / 11", "tour opens on stop 1 of 11");
   has("tourBar", "A billion-dollar promise", "stop 1 keeps the folded-in story's original opening title");
   has("tourBar", "$1,240.0M", "stop 1 quotes the live derived BAC");
   has("tourBar", "disabled", "Back is disabled on stop 1");
-  ok((G.tourBar._html.match(/data-tour="/g) || []).length === 10, "tour bar renders one clickable dot per stop");
+  ok((G.tourBar._html.match(/data-tour="/g) || []).length === 11, "tour bar renders one clickable dot per stop");
 
   fire(G.tourBar, "click", { target: { closest: (sel) => sel === "[data-t]" ? { dataset: { t: "next" } } : null } });
-  has("tourBar", "2 / 10", "Next advances to stop 2");
+  has("tourBar", "2 / 11", "Next advances to stop 2");
   has("tourBar", "The money starts leaking", "stop 2 keeps the folded-in story's title");
   ok(G["p-cost"].hidden === false && G["p-over"].hidden === true, "stop 2 switches to the Cost tab");
   ok(!G.tourBar._html.includes("disabled"), "Back is enabled once past stop 1");
@@ -2024,11 +2025,11 @@ try {
   // while touring, and inert once exited
   fire(G.tourBtn, "click"); // re-enter via the header button this time, resets to stop 1
   ok(G.tourBar.hidden === false, "re-entering the tour works a second time");
-  has("tourBar", "1 / 10", "re-entering resets to stop 1");
+  has("tourBar", "1 / 11", "re-entering resets to stop 1");
   fire(R.win, "keydown", { key: "ArrowRight", target: { tagName: "BODY" } });
-  has("tourBar", "2 / 10", "ArrowRight advances a stop while touring");
+  has("tourBar", "2 / 11", "ArrowRight advances a stop while touring");
   fire(R.win, "keydown", { key: "ArrowLeft", target: { tagName: "BODY" } });
-  has("tourBar", "1 / 10", "ArrowLeft steps back a stop while touring");
+  has("tourBar", "1 / 11", "ArrowLeft steps back a stop while touring");
   fire(R.win, "keydown", { key: "Escape", target: { tagName: "BODY" } });
   ok(G.tourBar.hidden === true, "Escape exits the tour");
   const beforeKey = G.tourBar._html;
@@ -2254,15 +2255,15 @@ try {
 // 9. Tour Back/Prev button + the i<0 clamp, previously entirely unexercised.
 try {
   fire(G.tourBtn, "click");
-  has("tourBar", "1 / 10", "sanity: fresh tour entry starts at stop 1");
+  has("tourBar", "1 / 11", "sanity: fresh tour entry starts at stop 1");
   fire(G.tourBar, "click", { target: { closest: (sel) => (sel === "[data-t]" ? { dataset: { t: "prev" } } : null) } });
-  has("tourBar", "1 / 10", "clicking Prev at stop 1 is a no-op (goToTourStop's i<0 clamp), not a crash");
+  has("tourBar", "1 / 11", "clicking Prev at stop 1 is a no-op (goToTourStop's i<0 clamp), not a crash");
   fire(G.tourBar, "click", { target: { closest: (sel) => (sel === "[data-t]" ? { dataset: { t: "next" } } : null) } });
-  has("tourBar", "2 / 10", "sanity: Next still advances normally after the Prev-at-floor probe");
+  has("tourBar", "2 / 11", "sanity: Next still advances normally after the Prev-at-floor probe");
   fire(G.tourBar, "click", { target: { closest: (sel) => (sel === "[data-t]" ? { dataset: { t: "prev" } } : null) } });
-  has("tourBar", "1 / 10", "Prev from stop 2 correctly returns to stop 1");
+  has("tourBar", "1 / 11", "Prev from stop 2 correctly returns to stop 1");
   fire(R.win, "keydown", { key: "ArrowLeft", target: { tagName: "BODY" } });
-  has("tourBar", "1 / 10", "ArrowLeft at stop 1 is also a no-op, not a crash (same i<0 clamp, keyboard path)");
+  has("tourBar", "1 / 11", "ArrowLeft at stop 1 is also a no-op, not a crash (same i<0 clamp, keyboard path)");
   fire(G.tourBtn, "click");
   fire(G["t-over"], "click");
 } catch (e) { ok(false, "tour Prev/ArrowLeft boundary coverage", e.message); }
@@ -5779,40 +5780,54 @@ console.log("== D35. Global nav upgrade -- 3 more anchor rails, live Glossary co
   ok(G.themeBtn.getAttribute("aria-pressed") === pressedBefore, "pressing 't' again toggles it back");
 
   // D. 3-track guided tour selector -- HANDOFF's own "most interesting idea, deferred pending a
-  // grounding pass" (§18 gap #12). Every track below is a real curated subset of the existing 10
+  // grounding pass" (§18 gap #12). Every track below is a real curated subset of the existing
   // TOUR_BEATS by index, not new narration -- confirmed by title match, not just a length count.
+  // Re-indexed 2026-08-26 (item #8: a new proactive-prevention beat inserted at index 5 shifted
+  // every later index +1) -- each track's MEMBERSHIP (which titles it curates) is unchanged, only
+  // the index numbers pointing at them; the title-string assertions below are therefore identical
+  // to before the re-index, which is itself evidence the re-index didn't silently drop or
+  // duplicate a beat.
   ok(P.tourTracks.length === 4, "sanity: 4 real tracks (full + 3 curated)", String(P.tourTracks.length));
-  ok(P.tourTracks[0].key === "full" && P.activeTourBeats().length === 10,
-    "default track is 'full', reducing EXACTLY to the real unmodified 10-stop tour -- the load-bearing invariant every other sandbox this session has been held to");
+  ok(P.tourTracks[0].key === "full" && P.activeTourBeats().length === 11,
+    "default track is 'full', reducing EXACTLY to the real unmodified 11-stop tour -- the load-bearing invariant every other sandbox this session has been held to");
   ok(P.activeTourBeats().map(b => b.t).join("|") === P.tourBeats.map(b => b.t).join("|"),
     "the default 'full' track's beats are the SAME objects in the SAME order as the real TOUR_BEATS array, not a reordered copy");
 
   P.state.tourTrack = "exec"; P.state.tourIdx = 0;
   const execTitles = P.activeTourBeats().map(b => b.t);
   ok(execTitles.length === 4 && JSON.stringify(execTitles) === JSON.stringify(["A billion-dollar promise", "The money starts leaking", "A gate that says no", "The clock doesn't stop for a status update"]),
-    "Executive briefing track is real beats 0,1,6,8 in order, not fabricated content", JSON.stringify(execTitles));
+    "Executive briefing track is real beats 0,1,7,9 in order, not fabricated content", JSON.stringify(execTitles));
 
   P.state.tourTrack = "cp201"; P.state.tourIdx = 0;
   const cp201Titles = P.activeTourBeats().map(b => b.t);
   ok(cp201Titles.length === 4 && JSON.stringify(cp201Titles) === JSON.stringify(["The money starts leaking", "The tunnel owns the calendar", "Betting on the unknown", "The people doing the work"]),
-    "CP-201 root-cause track is real beats 1,2,4,5 in order", JSON.stringify(cp201Titles));
+    "CP-201 root-cause track is real beats 1,2,4,6 in order", JSON.stringify(cp201Titles));
 
   P.state.tourTrack = "audit"; P.state.tourIdx = 0;
   const auditTitles = P.activeTourBeats().map(b => b.t);
   ok(auditTitles.length === 3 && JSON.stringify(auditTitles) === JSON.stringify(["Trust the number before you read it", "A gate that says no", "Monday morning"]),
-    "Data & governance audit track is real beats 7,6,9 in order", JSON.stringify(auditTitles));
+    "Data & governance audit track is real beats 8,7,10 in order", JSON.stringify(auditTitles));
+
+  // the new proactive-prevention beat itself (item #8) -- lives only in the 'full' track (index
+  // 5), deliberately NOT added to any of the 3 curated tracks above (their membership is
+  // unchanged by design, per the comment above), so it should appear in 'full' and nowhere else.
+  ok(P.tourBeats[5].t === "Catching it before it's a variance" && P.tourBeats[5].tab === "risk",
+    "the new item #8 beat sits at TOUR_BEATS index 5, anchored on the risk tab", P.tourBeats[5].t + " / " + P.tourBeats[5].tab);
+  [execTitles, cp201Titles, auditTitles].forEach((titles, i) => {
+    ok(!titles.includes("Catching it before it's a variance"), ["exec", "cp201", "audit"][i] + " track does NOT include the new beat -- curated-track membership deliberately unchanged");
+  });
 
   // the real UI: entering the tour, switching tracks via the select, and navigating within a
-  // short track correctly clamps at ITS OWN last stop, not the full tour's 10th
+  // short track correctly clamps at ITS OWN last stop, not the full tour's 11th
   P.state.tourTrack = "full";
   P.enterTour();
   ok(P.state.touring === true && P.state.tourIdx === 0, "entering the tour starts at stop 0 of whatever track is currently selected");
   fire(G.tourBar, "change", { target: { closest: sel => sel === "#tourTrackSelect" ? { value: "audit" } : null } });
   ok(P.state.tourTrack === "audit" && P.state.tourIdx === 0, "selecting a track from the dropdown switches tracks and restarts at stop 0");
-  ok(G.tourBar._html.includes("3 / 3") === false && G.tourBar._html.includes("1 / 3"), "the tour bar's own stop counter reads against the ACTIVE track's length (1 / 3), not the full tour's (1 / 10)");
+  ok(G.tourBar._html.includes("3 / 3") === false && G.tourBar._html.includes("1 / 3"), "the tour bar's own stop counter reads against the ACTIVE track's length (1 / 3), not the full tour's (1 / 11)");
   fire(G.tourBar, "click", { target: { closest: sel => sel === "[data-t]" ? { dataset: { t: "next" } } : null } });
   fire(G.tourBar, "click", { target: { closest: sel => sel === "[data-t]" ? { dataset: { t: "next" } } : null } });
-  ok(P.state.tourIdx === 2, "clicking Next twice on the 3-stop audit track lands on its real last stop (index 2), not stop 2-of-10");
+  ok(P.state.tourIdx === 2, "clicking Next twice on the 3-stop audit track lands on its real last stop (index 2), not stop 2-of-11");
   ok(G.tourBar._html.includes(">Done<"), "the Next button reads 'Done' at the audit track's own last stop");
   fire(G.tourBar, "click", { target: { closest: sel => sel === "[data-t]" ? { dataset: { t: "next" } } : null } });
   ok(P.state.touring === false, "clicking Done on a short track exits the tour cleanly, same as the full tour's own last-stop behavior");
