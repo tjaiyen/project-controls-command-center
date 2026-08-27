@@ -1685,7 +1685,7 @@ carried over from memory or an earlier pass:
   agents (AACE/PMI/EVM standards; sustainability frameworks; AI/predictive tech; real transit
   megaproject case studies), then chose "All 12" of the proposed items. Every item traces to a
   real, cited, independently-verified source — AACE International RP 17R-97/56R-08/57R-09, CII's
-  PDRI, a real Automation in Construction paper (Hotelling's T² for correlated EVM metrics), the
+  PDRI, a real Computers & Industrial Engineering paper (Hotelling's T² for correlated EVM metrics), the
   Washington State Auditor's real Sound Transit findings, California's real Buy Clean Act GWP
   caps (with the comparable federal program correctly flagged as rescinded/defunded in 2025), the
   real Cantarelli/Flyvbjerg overrun-taxonomy and ASCE stakeholder-attribution papers, FTA's real

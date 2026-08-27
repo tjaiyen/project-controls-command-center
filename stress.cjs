@@ -9228,6 +9228,16 @@ console.log("== D47. Hotelling's T² multivariate control chart (research-backed
   has("hotellingCard", "5.991", "the card states the real textbook threshold, not a vague description");
   has("hotellingCard", "overfitting risk", "the card carries the same honest small-sample caveat the existing multivariate-anomaly panel states, not silently omitted");
   wk.forEach((w) => has("hotellingCard", w.w, "the card lists every real week, including " + w.w));
+
+  // /stress-test finding (2026-08-27, independent fact-check reviewer): the source comment cited
+  // this construction-management paper's journal as "Automation in Construction" -- the real paper
+  // (Votto, Ho & Berssaneti, 2020, DOI 10.1016/j.cie.2020.106691) is in Computers & Industrial
+  // Engineering. The user-facing card text never names the journal (verified below), so this was
+  // a source-comment-only error, but a citation this project treats as load-bearing gets a
+  // permanent regression check, not just a one-off fix.
+  ok(!indexSrc.includes("Automation in Construction"), "the wrong journal name for the Hotelling's T² paper is gone from index.html");
+  ok(indexSrc.includes("Computers & Industrial Engineering"), "the correct journal name (Computers & Industrial Engineering) is cited in its place");
+  ok(!fs.readFileSync(DIR + "docs/HANDOFF.md", "utf8").includes("Automation in Construction"), "the wrong journal name is also gone from docs/HANDOFF.md");
 }
 
 // item #3 (Tier 1): Sound Transit design-deficiency change-order exposure + geotechnical coverage
