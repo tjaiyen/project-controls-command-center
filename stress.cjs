@@ -3802,7 +3802,7 @@ console.log("== D10. inline term help ==");
 // 57 as of the same round's follow-up: a real "pband" entry, same reasoning as impactscore -- the
 // probability scale had no glossary entry either, and TJ's own follow-up question ("why P4, no
 // parameters given") is exactly what it closes.
-ok(P.gloss.length === 71, "GLOSS grew to 71 entries (70 prior + rcfcomparison, research-backed upgrade 2026-08-27)", String(P.gloss.length));
+ok(P.gloss.length === 72, "GLOSS grew to 72 entries (71 prior + lcca, research-backed upgrade 2026-08-27)", String(P.gloss.length));
 // title independently re-typed per term (/stress-test finding, 2026-08-21: the prior version only
 // checked g.p/g.e() were non-empty, which passes even for a totally wrong or swapped-in entry) —
 // guards that findGloss(k) actually resolves to the RIGHT term, not just SOME term.
@@ -4795,7 +4795,7 @@ console.log("== D23. Glossary upgrade round, items 1-3 (2026-08-21) ==");
   // to a known category. Independently re-derived from the raw array, not read back from the
   // rendered pill counts and trusted against itself. (61 as of the brainstorm-mode ML round's
   // multianomaly addition, 2026-08-26.)
-  ok(P.gloss.length === 71, "sanity: still 71 real glossary terms");
+  ok(P.gloss.length === 72, "sanity: still 72 real glossary terms");
   const validCats = Object.keys(P.cats);
   P.gloss.forEach(g => ok(validCats.indexOf(g.cat) >= 0, "term '" + g.k + "' carries a real category (" + g.cat + ")", g.cat));
 
@@ -9399,6 +9399,42 @@ console.log("== D54. Reference-class comparison band (research-backed upgrade, i
   [["P10", P.mc.p10], ["P50", P.mc.p50], ["P80", P.mc.p80], ["P95", P.mc.p95]].forEach(([label, val]) => {
     has("rcfComparisonCard", m(val), "the card's own table states the real Monte Carlo " + label + " figure");
   });
+}
+
+// item #11 (Tier 3): FHWA Life-Cycle Cost Analysis NPV comparison -- see LCCA_ASSUMPTIONS' own
+// comment for the real FHWA methodology sourcing and the illustrative-inputs honesty framing.
+console.log("== D55. FHWA Life-Cycle Cost Analysis NPV comparison (research-backed upgrade, item #11, 2026-08-27) ==");
+{
+  ok(P.lccaAssumptions.discountRatePct === 4.0, "pre-registered: the real, most-commonly-used FHWA LCCA discount rate is 4.0%", String(P.lccaAssumptions.discountRatePct));
+  ok(P.lccaAssumptions.analysisYears === 30, "a real, stated analysis period (30 years), not left implicit", String(P.lccaAssumptions.analysisYears));
+  ok(P.lccaAssumptions.alternatives.length === 2, "exactly 2 real, named track-form alternatives compared", String(P.lccaAssumptions.alternatives.length));
+
+  // Independent recomputation of the NPV formula from the raw alternative fields, not calling
+  // lccaNpv() and comparing it to itself.
+  function npvIndependent(alt) {
+    const r = P.lccaAssumptions.discountRatePct / 100, years = P.lccaAssumptions.analysisYears;
+    let npv = alt.initialCost;
+    for (let y = 1; y <= years; y++) {
+      npv += alt.annualMaintenance / Math.pow(1 + r, y);
+      if (y % alt.maintenanceCycleYears === 0) npv += alt.cycleRehab / Math.pow(1 + r, y);
+    }
+    return npv;
+  }
+  P.lccaAssumptions.alternatives.forEach((a) => {
+    const expected = npvIndependent(a);
+    const actual = P.lccaNpv(a);
+    ok(Math.abs(actual - expected) < 1e-9, a.name + "'s NPV matches an independent recomputation of the real FHWA NPV formula", actual + " vs " + expected);
+  });
+  const ballasted = P.lccaAssumptions.alternatives.find((a) => a.name === "Ballasted track");
+  const slab = P.lccaAssumptions.alternatives.find((a) => a.name.indexOf("Direct-fixation") >= 0);
+  ok(Math.abs(P.lccaNpv(ballasted) - 29.693032322062226) < 1e-6, "pre-registered: ballasted track's real 30-year NPV is ~$29.693M", String(P.lccaNpv(ballasted)));
+  ok(Math.abs(P.lccaNpv(slab) - 29.61114010203446) < 1e-6, "pre-registered: direct-fixation track's real 30-year NPV is ~$29.611M, narrowly LOWER despite the higher initial cost", String(P.lccaNpv(slab)));
+  ok(P.lccaNpv(slab) < P.lccaNpv(ballasted), "the higher-initial-cost alternative genuinely wins on long-horizon NPV -- the real point FHWA's methodology exists to catch, not asserted without the number backing it");
+
+  has("lccaCard", "Track-form NPV comparison", "the card renders its real heading");
+  has("lccaCard", "4.0%", "the card states the real, most-commonly-used discount rate");
+  has("lccaCard", "Illustrative inputs, not this program's own real", "the card explicitly states the dollar inputs are illustrative, not this program's real data, matching DRB_ASSUMPTIONS' own precedent");
+  has("lccaCard", "Lower NPV", "the card marks the real winning alternative, not left for the reader to compute");
 }
 
 console.log("\n" + pass + " passed, " + fail + " failed");

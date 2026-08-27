@@ -1366,6 +1366,13 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         <div class="tw" id="scenWrap" style="min-width:0;display:none"><table id="scenTable"></table></div>
       </div>
 
+      <div class="sec-h" style="margin-top:34px"><h2>Life-cycle cost, not just first cost</h2><span class="tag">FHWA LCCA</span></div>
+      <p class="lede">A capital budget number is a first-cost number. FHWA's real Life-Cycle Cost
+        Analysis methodology compares design alternatives on total economic worth &mdash; initial
+        cost plus every discounted future maintenance dollar &mdash; over an analysis period, not
+        just the number this program's own baseline already reports.</p>
+      <div class="card tw" id="lccaCard"></div>
+
       <div class="sec-h" style="margin-top:34px"><h2>The forecast is a distribution, not a point</h2><span class="tag">monte carlo</span></div>
       <p class="lede">A single EAC pretends to a certainty the data does not contain. This runs 10,000
         simulated completions: each control account&rsquo;s remaining work is priced at a future efficiency
@@ -5027,6 +5034,67 @@ function veSandboxCalc(){
 function veTile(label,val,ok){
   return '<div class="card ve-tile"><div class="k">'+label+'</div>'+
     '<div class="v" style="color:'+(ok?"rgb(var(--c-ink))":C("bad"))+'">'+val+'</div></div>';
+}
+/* FHWA Life-Cycle Cost Analysis (research-backed upgrade, item #11, Tier 3, 2026-08-27) -- FHWA's
+   real methodology (FHWA-SA-98-079, 1998; supplemented 2015): compare design alternatives on Net
+   Present Value using REAL discount rates (inflation excluded) applied to real costs over an
+   analysis period. FHWA recommends 2-4%; a national LCCA survey of state DOTs found an average of
+   4.1%, with 4.0% cited as the most commonly used value -- used here.
+   Illustrative inputs, deliberately kept in their OWN object, structurally separate from PROGRAM
+   (which holds only real ledger fields) -- the SAME pattern DRB_ASSUMPTIONS already establishes
+   above. LCCA is FHWA's real PAVEMENT-alternative tool; this program's own ledger has no real
+   pavement data, so rather than force-fit it, this applies the real NPV methodology to a real,
+   well-known rail-industry track-form decision (ballasted vs. direct-fixation/slab track) --
+   directionally correct (ballasted costs less upfront but needs periodic tamping/resurfacing;
+   direct-fixation costs more upfront but needs far less maintenance), with illustrative, not
+   this-program's-real, dollar figures -- the exact same "real methodology, illustrative inputs"
+   posture DRB_ASSUMPTIONS already takes for the settlement-negotiation card. */
+var LCCA_ASSUMPTIONS={
+  discountRatePct:4.0, analysisYears:30,
+  alternatives:[
+    {name:"Ballasted track", initialCost:18.0, annualMaintenance:0.42, maintenanceCycleYears:7, cycleRehab:2.1},
+    {name:"Direct-fixation (slab) track", initialCost:26.5, annualMaintenance:0.11, maintenanceCycleYears:15, cycleRehab:1.4}
+  ]
+};
+function lccaNpv(alt){
+  var r=LCCA_ASSUMPTIONS.discountRatePct/100, years=LCCA_ASSUMPTIONS.analysisYears;
+  var npv=alt.initialCost, y;
+  for(y=1;y<=years;y++){
+    npv+=alt.annualMaintenance/Math.pow(1+r,y);
+    if(y%alt.maintenanceCycleYears===0) npv+=alt.cycleRehab/Math.pow(1+r,y);
+  }
+  return npv;
+}
+function renderLcca(){
+  var el=document.getElementById("lccaCard"); if(!el) return;
+  var scored=LCCA_ASSUMPTIONS.alternatives.map(function(a){ return Object.assign({},a,{npv:lccaNpv(a)}); });
+  var best=scored.slice().sort(function(a,b){return a.npv-b.npv;})[0];
+  el.innerHTML=
+    '<h3>Track-form NPV comparison &mdash; illustrative, real methodology</h3>'+
+    '<p class="lede" style="font-size:12.5px;margin-top:5px">FHWA\'s real LCCA discount rate '+
+    '(most commonly used value: '+LCCA_ASSUMPTIONS.discountRatePct.toFixed(1)+'%) applied to a '+
+    'real rail-industry track-form choice over a '+LCCA_ASSUMPTIONS.analysisYears+'-year analysis '+
+    'period. <b style="color:rgb(var(--c-ink))">Illustrative inputs, not this program\'s own real '+
+    'data</b> &mdash; this ledger carries no pavement/track-maintenance cost stream, so rather than '+
+    'force-fit FHWA\'s pavement-specific tool onto data this program doesn\'t have, the real NPV '+
+    'methodology is applied to a real, directionally-correct rail-industry decision instead, the '+
+    'same "real methodology, illustrative inputs" posture the settlement-negotiation sandbox '+
+    'elsewhere on this page already takes.</p>'+
+    '<table><thead><tr><th>Alternative</th><th>Initial cost</th><th>Annual maintenance</th>'+
+    '<th>Rehab cycle</th><th>NPV over '+LCCA_ASSUMPTIONS.analysisYears+'yr</th></tr></thead><tbody>'+
+    scored.map(function(a){
+      return '<tr'+(a.name===best.name?' style="border-left:3px solid rgb(var(--c-ok))"':'')+'>'+
+        '<th scope="row">'+a.name+(a.name===best.name?' <span class="pill g">Lower NPV</span>':'')+'</th>'+
+        '<td class="tab-num">'+m(a.initialCost)+'</td>'+
+        '<td class="tab-num">'+m(a.annualMaintenance)+'/yr</td>'+
+        '<td class="tab-num">'+m(a.cycleRehab)+' every '+a.maintenanceCycleYears+'yr</td>'+
+        '<td class="tab-num" style="font-weight:600">'+m(a.npv)+'</td></tr>';
+    }).join("")+
+    '</tbody></table>'+
+    '<p style="margin:12px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">Ballasted track wins on '+
+    'first cost every time; whether it still wins on '+LCCA_ASSUMPTIONS.analysisYears+'-year NPV '+
+    'is exactly the question a first-cost-only budget number can\'t answer &mdash; which is the '+
+    'real point FHWA\'s methodology exists to make.</p>';
 }
 function renderVeSandbox(){
   var c=veSandboxCalc();
@@ -11207,6 +11275,8 @@ var GLOSS=[
   e:function(){ var series=CPH_CELLS[0].weeks.map(function(w){return w.actual;}), e2=deriveEwma(series), flags=e2.points.filter(function(p2){return p2.flag;}).length;
     return "Run against the tunnel crew's own 6-week $/hr series: "+flags+" of "+e2.points.length+" weeks currently breach the dynamic control limit ("+
       (flags?"a real, live flag":"a genuine null result — the honest answer, not a manufactured anomaly")+"). &lambda;="+e2.lambda+", L="+e2.L+" are standard SPC parameter choices, not derived from this program's own history."; }},
+ {k:"lcca", cat:"cost", jT:"cost", jE:"lccaCard", t:"FHWA Life-Cycle Cost Analysis (LCCA)", p:"FHWA's real methodology for comparing design alternatives on total economic worth — initial cost plus every discounted future maintenance dollar, using a real discount rate (most commonly 4.0%) over an analysis period — not just the first-cost number a capital budget reports.",
+  e:function(){ var scored=LCCA_ASSUMPTIONS.alternatives.map(function(a){return Object.assign({},a,{npv:lccaNpv(a)});}); var best=scored.slice().sort(function(a,b){return a.npv-b.npv;})[0]; return "Applied here (illustrative inputs, real methodology) to ballasted vs. direct-fixation track: "+best.name+" wins on "+LCCA_ASSUMPTIONS.analysisYears+"-year NPV despite not necessarily winning on first cost."; }},
  {k:"rcfcomparison", cat:"cost", jT:"cost", jE:"rcfComparisonCard", t:"Reference-class comparison band", p:"Flyvbjerg's real, cited rail-project average overrun (+45%) is a single published average, not a documented percentile spread — this deliberately doesn't invent one. Instead it shows where that one real external number falls against this program's own real, already-simulated Monte Carlo percentile band (P10/P50/P80/P95), an honest comparison rather than two numbers asserted with no stated relationship.",
   e:function(){ var pos=referenceClassBandPosition(); return "Today, the reference-class figure ("+m(pos.rcfVal)+") sits "+pos.band+" of this program's own real forecast."; }},
  {k:"icsra", cat:"risk", jT:"risk", jE:"icsraCard", t:"ICSRA — Integrated Cost-Schedule Risk Analysis", p:"AACE International RP 57R-09's real methodology: risk drivers propagate into BOTH cost and schedule together, rather than being analyzed on two separate tornado charts. A full ICSRA is a resource-loaded CPM Monte Carlo simulation — this dashboard pairs each risk's real priced exposure with its linked package's real float instead, an honestly-scoped, real-data version, not a claimed full simulation.",
@@ -13490,7 +13560,7 @@ document.getElementById("vConf").textContent="P"+Math.round(state.mcConfidence*1
 renderMcConfCallout();
 document.getElementById("mcInspect").value=String(state.mcInspect);
 document.getElementById("vInspect").textContent="P"+state.mcInspect;
-renderWaterfall(); renderWaterfallMath(); renderBaseline(); renderFep(); renderEstClass(); renderVeSandbox(); renderEac(); renderCont(); renderTable(); renderFtaScc();
+renderWaterfall(); renderWaterfallMath(); renderBaseline(); renderFep(); renderEstClass(); renderVeSandbox(); renderLcca(); renderEac(); renderCont(); renderTable(); renderFtaScc();
 renderEacTrend(); renderFcastTable(); renderGbmDiffusion(); renderGbmLogReturns(); renderGbmMathUnlocked(); renderGbmVsEvm(); renderCashflow();
 renderGantt(); renderSchedule(); renderRisk(); renderSoundTransitLessons(); renderDrbEmv(); renderContracts(); renderSubHealth(); renderDelivery(); renderFramework(); renderActions(); renderActionsMath(); renderOverrunTaxonomy(); renderTriage(); renderExec();
 document.getElementById("sDrbP").value=DRB_ASSUMPTIONS.pOwnerWins;
@@ -13580,6 +13650,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   envisionCategories:ENVISION_CATEGORIES,renderEnvision:renderEnvision,
   riskScheduleExposure:riskScheduleExposure,renderIcsra:renderIcsra,
   referenceClassBandPosition:referenceClassBandPosition,renderRcfComparison:renderRcfComparison,
+  lccaAssumptions:LCCA_ASSUMPTIONS,lccaNpv:lccaNpv,renderLcca:renderLcca,
   mcParams:mcParams,triang:triang,dsStep:dsStep,
   gaussRnd:gaussRnd,gammaRnd:gammaRnd,betaRnd:betaRnd,pertRnd:pertRnd,mcDraw:mcDraw,computeMc:computeMc,
   recomputeActiveMc:recomputeActiveMc,syncMcDist:syncMcDist,renderMcMath:renderMcMath,
