@@ -18,6 +18,38 @@ const archSrc = fs.readFileSync(DIR + "architecture.html", "utf8");
 const askAiLib = require(DIR + "worker/lib.js"); // pure guardrail logic, same require the real
   // Worker entry (worker/index.js) uses — one source of truth, not a copy re-typed for testing.
 
+// Live SQL/DuckDB parity-check count (/stress-test finding, 2026-08-27, "resolve all
+// limitations"): index.html and architecture.html both quote a bare "65 parity checks" literal --
+// previously an accepted, permanent limitation, since that count only exists by actually
+// executing pipeline/run_pipeline.py against DuckDB, which this harness never did. Resolved by
+// attempting a real, offline run through a local venv (pipeline/.venv, gitignored -- create once
+// via `python3 -m venv pipeline/.venv && pipeline/.venv/bin/pip install duckdb`) and reading the
+// pipeline's own structured checks{} field off the JSON artifact it writes (data-discipline.md:
+// "parse structured output, never scrape" -- this is why run_pipeline.py now emits checks{} at
+// all). Degrades LOUDLY, not silently, to a text-presence-only check on any machine without that
+// venv set up (bin-tools.md: "degrade gracefully... never crash," "emit a clear finding").
+const { execFileSync } = require("child_process");
+function livePipelineCheckCount() {
+  const venvPy = DIR + "pipeline/.venv/bin/python3";
+  if (!fs.existsSync(venvPy)) {
+    console.log("  [degraded] pipeline/.venv not found — skipping the live SQL/DuckDB parity-check verification (run `python3 -m venv pipeline/.venv && pipeline/.venv/bin/pip install duckdb` once to enable it). The '65 parity checks' assertions below fall back to a text-presence-only check.");
+    return null;
+  }
+  try {
+    execFileSync(venvPy, [DIR + "pipeline/run_pipeline.py"], { cwd: DIR, stdio: "pipe" });
+  } catch (e) {
+    console.log("  [degraded] live pipeline run failed (" + String(e.message).split("\n")[0] + ") — falling back to a text-presence-only check.");
+    return null;
+  }
+  try {
+    return JSON.parse(fs.readFileSync(DIR + "pipeline/output/ledger.json", "utf8")).checks || null;
+  } catch (e) {
+    console.log("  [degraded] could not read pipeline/output/ledger.json's checks field — falling back to a text-presence-only check.");
+    return null;
+  }
+}
+const LIVE_PIPELINE_CHECKS = livePipelineCheckCount();
+
 let pass = 0, fail = 0;
 function ok(cond, label, extra) {
   if (cond) { pass++; }
@@ -8109,8 +8141,13 @@ ok(P.guards.length === 29, "index.html's live GUARDS array actually has 29 entri
 // prose count) bumped the total check() count by one. Confirmed by ACTUALLY installing duckdb
 // into a throwaway venv and running the real pipeline (`python3 pipeline/run_pipeline.py`, 65
 // PASS / 0 FAIL) -- not assumed from the prior "64" figure's own history.
-ok(archSrc.includes("+ 65-check SQL pipeline"),
-  "architecture.html now cites the real 65-check SQL pipeline figure (static — pipeline/run_pipeline.py isn't executed from THIS harness, so this stays a text-presence check backed by a separate live venv run, not a live recomputation inside stress.cjs)");
+if (LIVE_PIPELINE_CHECKS) {
+  ok(archSrc.includes("+ " + LIVE_PIPELINE_CHECKS.total + "-check SQL pipeline") && LIVE_PIPELINE_CHECKS.failed === 0,
+    "architecture.html's SQL-pipeline check count matches a LIVE run of pipeline/run_pipeline.py this session (resolved -- no longer a static-only assumption)", JSON.stringify(LIVE_PIPELINE_CHECKS));
+} else {
+  ok(archSrc.includes("+ 65-check SQL pipeline"),
+    "architecture.html cites the 65-check SQL pipeline figure (degraded: no local pipeline/.venv found, text-presence check only -- see console note above)");
+}
 ok(archSrc.includes("17 tracked items"), "architecture.html's '17 tracked items' prose is present");
 ok(P.actions.length === 17, "index.html's live ACTIONS array actually has 17 entries, matching architecture.html's claim", String(P.actions.length));
 // regression guard for the specific live bug this round caught and fixed: the #archSvg
@@ -9536,16 +9573,19 @@ console.log("== D56. GAO cost-estimate credibility checklist (research-backed up
   const wellDoc = rows.find((r) => r.characteristic === "Well-documented");
   ok(wellDoc.evidence.includes(String(P.kpis.length)), "Well-documented's evidence cites the real KPI count, not a hardcoded one");
   const accurate = rows.find((r) => r.characteristic === "Accurate");
-  // /stress-test finding (2026-08-27, independent reviewer): this checks the evidence string
-  // against a literal, not an independent recomputation -- flagged as tautological. It genuinely
-  // can't be recomputed live here: the real count only exists by executing pipeline/run_pipeline.py
-  // against DuckDB (many of its `check()` calls run inside per-package/per-month loops, so the
-  // total isn't statically countable from source either). This is the SAME accepted limitation
-  // already stated for architecture.html's identical figure (see this file's own D-section comment
-  // at line ~8110-8113) -- not a new, silent instance of it. Real accepted limitation, not a gap:
-  // a stale "65" would only be caught by the separate live venv run this project already does
-  // before every push (see docs/HANDOFF.md's own "independently re-run and verified this pass").
-  ok(accurate.evidence.includes("65 parity checks"), "Accurate's evidence cites the real, already-established SQL/DuckDB parity-check count (accepted limitation: text-presence only, not a live recomputation -- see comment)");
+  // /stress-test finding (2026-08-27, independent reviewer): this checked the evidence string
+  // against a literal, not an independent recomputation -- flagged as tautological. RESOLVED
+  // (2026-08-27, "resolve all limitations"): LIVE_PIPELINE_CHECKS (top of file) actually runs
+  // pipeline/run_pipeline.py through a local venv when one exists and reads its own real,
+  // structured checks{} count off the JSON artifact -- the same live source architecture.html's
+  // identical figure now uses (E.1 above). Falls back to the prior text-only check, loudly
+  // flagged as degraded (not silently), on a machine without that venv set up.
+  if (LIVE_PIPELINE_CHECKS) {
+    ok(accurate.evidence.includes(LIVE_PIPELINE_CHECKS.total + " parity checks") && LIVE_PIPELINE_CHECKS.failed === 0,
+      "Accurate's evidence cites a count that matches a LIVE run of pipeline/run_pipeline.py this session (resolved -- no longer a static-only assumption)", JSON.stringify(LIVE_PIPELINE_CHECKS));
+  } else {
+    ok(accurate.evidence.includes("65 parity checks"), "Accurate's evidence cites the real SQL/DuckDB parity-check count (degraded: no local pipeline/.venv found, text-presence check only -- see console note above)");
+  }
   const credible = rows.find((r) => r.characteristic === "Credible");
   ok(credible.evidence.includes(P.mc.n.toLocaleString("en-US")) && credible.evidence.includes(String(P.risks.length)), "Credible's evidence cites the real Monte Carlo run count and real risk-register size, not hardcoded numbers");
 

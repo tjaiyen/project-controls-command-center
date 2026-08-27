@@ -24,7 +24,10 @@ MONTHS = 22          # months elapsed, mirrors PROGRAM.monthsElapsed
 DATA_DATE = "2026-07-31"
 
 failures = []
+total_checks = 0
 def check(label, cond, detail=""):
+    global total_checks
+    total_checks += 1
     print(("PASS  " if cond else "FAIL  ") + label + (f"  ({detail})" if detail else ""))
     if not cond:
         failures.append(label)
@@ -158,6 +161,12 @@ check("guardrail: ac_delta >= 0 everywhere", ac_neg == 0, f"{ac_neg} negative ro
 check("guardrail: claim_month <= data date everywhere (no future-dated claims)", future_dated == 0, f"{future_dated} claims after {DATA_DATE}")
 
 # --- 6. Emit the proof artifact --------------------------------------------
+# checks{} added (/stress-test finding, 2026-08-27): index.html's own "65 parity checks" claim
+# (the GAO-credibility-checklist card, the architecture-diagram card) previously had no live
+# source to verify against inside stress.cjs -- only a hardcoded literal compared to another
+# hardcoded literal, a documented accepted limitation. This makes the real count a structured,
+# machine-readable field on the proof artifact stress.cjs can read after actually running this
+# script, closing that gap whenever a Python+DuckDB environment is available.
 out = {
     "data_date": DATA_DATE,
     "packages": by_id,
@@ -166,6 +175,11 @@ out = {
         "pv":  round(sum(by_id[p["id"]]["pv"] for p in PKGS), 2),
         "ev":  round(sum(by_id[p["id"]]["ev"] for p in PKGS), 2),
         "ac":  round(sum(by_id[p["id"]]["ac"] for p in PKGS), 2),
+    },
+    "checks": {
+        "total": total_checks,
+        "passed": total_checks - len(failures),
+        "failed": len(failures),
     },
 }
 (ROOT / "pipeline" / "output").mkdir(exist_ok=True)

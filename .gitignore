@@ -10,4 +10,5 @@ __pycache__/
 # never published to the public repo.
 otak-session-notes.md
 pipeline/output/
+pipeline/.venv/
 .private/
