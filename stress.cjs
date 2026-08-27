@@ -8747,5 +8747,33 @@ console.log("== U. Anchor-rail completeness for today's new sections (found live
   });
 }
 
+console.log("== V. UX/UI upgrade round (brainstorm-mode, 2026-08-26) ==");
+{
+  // #1: today's 6 new sections now use the same .stagger entrance animation every other card on
+  // the page uses -- a visual-consistency gap found live-browsing, not a functional bug.
+  // 3 are `.card` divs carrying the id directly; 3 are `<table>` elements wrapped in a `.tw`
+  // div that carries both the id-bearing table AND the class, one level up.
+  ["materialExposureCard", "carbonDisclosureCard", "auditLogTable"].forEach((id) => {
+    ok(new RegExp('class="[^"]*stagger[^"]*"[^>]*id="' + id + '"').test(indexSrc), id + "'s own element carries the .stagger class, matching every other card on the page");
+  });
+  ["laborMobTable", "subHealthTable", "ownerDecTable"].forEach((id) => {
+    ok(new RegExp('class="[^"]*stagger[^"]*"><table id="' + id + '"').test(indexSrc), id + "'s `.tw` wrapper carries the .stagger class, matching every other card on the page");
+  });
+
+  // #2: the 3 new registers now dual-code status with a real .ticon (matching GUARDS/ESCALATION's
+  // own convention), not color-pill-only -- reuses the existing bell(r)/checkmark(g) icons
+  // directly, adds one new clock glyph for amber, rather than inventing 3 near-duplicate sets.
+  ["r", "a", "g"].forEach((cls) => {
+    ok(P.severityIcon(cls).includes('class="ticon ' + cls + '"') && P.severityIcon(cls).includes("<svg"), "severityIcon('" + cls + "') returns a real .ticon-wrapped SVG, matching the GUARDS/ESCALATION icon convention");
+  });
+  ok(P.severityIcon("r").includes(P.escStatusIcon.firing.svg), "severityIcon reuses ESC_STATUS_ICON's real bell glyph for red, not a near-duplicate invented icon");
+  ok(P.severityIcon("g").includes(P.escStatusIcon.dormant.svg), "severityIcon reuses ESC_STATUS_ICON's real checkmark glyph for green, not a near-duplicate invented icon");
+
+  const ownerHtml = G.ownerDecTable._html, subHtml = G.subHealthTable._html, laborHtml = G.laborMobTable._html;
+  [ownerHtml, subHtml, laborHtml].forEach((html, i) => {
+    ok((html.match(/class="ticon [rag]"/g) || []).length > 0, ["ownerDecTable", "subHealthTable", "laborMobTable"][i] + " renders at least one real severity icon in its rendered rows, not just in source");
+  });
+}
+
 console.log("\n" + pass + " passed, " + fail + " failed");
 process.exit(fail ? 1 : 0);
