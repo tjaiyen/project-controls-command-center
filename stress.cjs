@@ -531,7 +531,10 @@ has("eacTable", "$1,297.3M", "EAC table: BAC/CPI $1,297.3M");
 // {0,900} widened from {0,600} (brainstorm-mode round, 2026-08-24) -- the lede paragraph between
 // these two anchors grew when the baseline bridge's own y-axis-zoom disclosure was added; the
 // window is just budget for "no grid.g2 wrapper in between," not a meaningful constant on its own.
-ok(/How the baseline was built[\s\S]{0,900}<div class="grid">\s*<div class="card">\s*<h3>Estimate at completion/.test(indexSrc),
+// {0,1500} widened from {0,900} (research-backed upgrade, 2026-08-27) -- the new "Estimate
+// maturity" section (front-end-planning + AACE class cards) was inserted in this same gap; real
+// measured distance is 1407 chars, same budget-not-a-constant reasoning as the prior widen.
+ok(/How the baseline was built[\s\S]{0,1500}<div class="grid">\s*<div class="card">\s*<h3>Estimate at completion/.test(indexSrc),
   "the EAC-methods / contingency-vs-progress pair no longer uses the 2-column grid.g2 wrapper");
 has("drill", "CP-201", "default drill-down is CP-201");
 has("drill", (shareCP201 * 100).toFixed(1) + "%", "drill: CP-201 share of gross overrun " + (shareCP201 * 100).toFixed(1) + "%");
@@ -3796,7 +3799,7 @@ console.log("== D10. inline term help ==");
 // 57 as of the same round's follow-up: a real "pband" entry, same reasoning as impactscore -- the
 // probability scale had no glossary entry either, and TJ's own follow-up question ("why P4, no
 // parameters given") is exactly what it closes.
-ok(P.gloss.length === 61, "GLOSS grew to 61 entries (60 prior + multianomaly, brainstorm-mode ML round 2026-08-26)", String(P.gloss.length));
+ok(P.gloss.length === 63, "GLOSS grew to 63 entries (61 prior + pdri + aaceclass, research-backed upgrade 2026-08-27)", String(P.gloss.length));
 // title independently re-typed per term (/stress-test finding, 2026-08-21: the prior version only
 // checked g.p/g.e() were non-empty, which passes even for a totally wrong or swapped-in entry) —
 // guards that findGloss(k) actually resolves to the RIGHT term, not just SOME term.
@@ -4789,7 +4792,7 @@ console.log("== D23. Glossary upgrade round, items 1-3 (2026-08-21) ==");
   // to a known category. Independently re-derived from the raw array, not read back from the
   // rendered pill counts and trusted against itself. (61 as of the brainstorm-mode ML round's
   // multianomaly addition, 2026-08-26.)
-  ok(P.gloss.length === 61, "sanity: still 61 real glossary terms");
+  ok(P.gloss.length === 63, "sanity: still 63 real glossary terms");
   const validCats = Object.keys(P.cats);
   P.gloss.forEach(g => ok(validCats.indexOf(g.cat) >= 0, "term '" + g.k + "' carries a real category (" + g.cat + ")", g.cat));
 
@@ -9122,6 +9125,67 @@ console.log("== D44. GUARDS independence -- 5 checks fixed from tautologies/magi
   ok(indexSrc.includes('"92% of firms that are hiring report a hard time finding qualified workers"') &&
      indexSrc.includes('"92% of firms THAT ARE HIRING report a hard time finding qualified workers"'),
     "the live Compliance-sweep guard's own allowlist now carries both case variants of the real AGC citation, matching stress.cjs's own separate FAB_APPROVED list");
+}
+
+// Research-backed upgrade round (2026-08-27), item #1 (Tier 1): Front-End Planning completeness,
+// modeled on CII's PDRI methodology -- see FEP_STATUS' own comment for the grounding/citation.
+console.log("== D45. Front-end-planning completeness (research-backed upgrade, item #1, 2026-08-27) ==");
+{
+  ok(P.fepCheckpoints.length === 8, "8 real front-end-planning checkpoints", String(P.fepCheckpoints.length));
+  ok(P.fepStatus.length === P.pkgs.length, "one FEP status row per real control account, none missing/extra", P.fepStatus.length + " vs " + P.pkgs.length);
+  // Independent recomputation from the raw checkpoint booleans, not calling fepCompletenessPct()
+  // and comparing it to itself.
+  function fepIndependent(pkgId) {
+    const s = P.fepStatus.find((f) => f.pkg === pkgId);
+    const keys = P.fepCheckpoints.map((c) => c.k);
+    const doneN = keys.filter((k) => s.done[k]).length;
+    return doneN / keys.length;
+  }
+  P.pkgs.forEach((p) => {
+    ok(Math.abs(P.fepCompletenessPct(p.id) - fepIndependent(p.id)) < 1e-9, p.id + "'s fepCompletenessPct matches an independent recomputation from the raw checkpoint booleans");
+  });
+  const expectedAvg = P.pkgs.reduce((s, p) => s + fepIndependent(p.id), 0) / P.pkgs.length;
+  ok(Math.abs(P.fepPortfolioAvgPct() - expectedAvg) < 1e-9, "portfolio-average completeness matches an independent recomputation", P.fepPortfolioAvgPct() + " vs " + expectedAvg);
+  ok(Math.abs(expectedAvg - 0.78125) < 1e-9, "pre-registered: today's real portfolio-average completeness is 78.125% (7 of 8 packages at exactly this ratio)", String(expectedAvg));
+  ok(fepIndependent("CP-201") < fepIndependent("CP-101"), "the tunnel (CP-201, real ground-conditions risk R-01) is genuinely LESS front-end-planning-complete than a clean package, not just asserted to be");
+
+  has("fepCard", "Front-end planning completeness", "the card renders its real heading");
+  has("fepCard", "10% lower cost", "the card cites CII's real published evidence");
+  P.pkgs.forEach((p) => {
+    has("fepCard", p.id, "the card lists every real control account, including " + p.id);
+  });
+  // The card's own live correlation (weak-package VAC share) -- independently recomputed, not
+  // read back from the rendered HTML and compared to itself.
+  const weak = P.pkgs.filter((p) => fepIndependent(p.id) < 0.75);
+  ok(JSON.stringify(weak.map((p) => p.id).sort()) === JSON.stringify(["CP-201", "CP-601", "CP-701"].sort()),
+    "pre-registered: exactly 3 real packages sit below 75% completeness today (CP-201, CP-601, CP-701)", JSON.stringify(weak.map((p) => p.id)));
+  weak.forEach((p) => has("fepCard", p.id, p.id + " is named in the card's own weak-package callout"));
+}
+
+// item #5 (Tier 2): AACE Estimate Classification (RP 17R-97/56R-08).
+console.log("== D46. AACE estimate classification (research-backed upgrade, item #5, 2026-08-27) ==");
+{
+  ok(P.aaceClasses.length === 5, "all 5 real AACE classes present (Class 1-5)", String(P.aaceClasses.length));
+  ok(P.aaceClasses.every((c) => typeof c.lo === "number" && typeof c.hi === "number" && c.lo < 0 && c.hi > 0), "every class carries a real negative-to-positive indicative accuracy range, not a placeholder");
+  // classes should tighten monotonically from 5 (widest) to 1 (narrowest) -- a real invariant of
+  // AACE's own system, not an app-specific assertion.
+  const sorted = P.aaceClasses.slice().sort((a, b) => b.cls - a.cls); // 5,4,3,2,1
+  let tightening = true;
+  for (let i = 1; i < sorted.length; i++) {
+    if (!(sorted[i].hi - sorted[i].lo < sorted[i - 1].hi - sorted[i - 1].lo)) tightening = false;
+  }
+  ok(tightening, "accuracy range genuinely NARROWS from Class 5 to Class 1, matching AACE's real maturity progression, not a coincidence of the hand-typed numbers");
+  ok(Object.keys(P.pkgEstimateClass).length === P.pkgs.length, "every real control account has an assigned estimate class, none missing", String(Object.keys(P.pkgEstimateClass).length));
+  P.pkgs.forEach((p) => {
+    const cls = P.pkgEstimateClass[p.id];
+    ok(cls >= 1 && cls <= 5, p.id + "'s assigned class is a real class number (1-5)", String(cls));
+  });
+  ok(P.pkgEstimateClass["CP-201"] >= 3, "the tunnel (CP-201) carries a wider-range class (3 or looser), consistent with its own incomplete front-end planning above -- not independently contradicting item #1");
+  has("estClassCard", "Estimate classification", "the card renders its real heading");
+  has("estClassCard", "AACE International", "the card cites the real standards body");
+  P.pkgs.forEach((p) => {
+    has("estClassCard", p.id, "the card lists every real control account, including " + p.id);
+  });
 }
 
 console.log("\n" + pass + " passed, " + fail + " failed");

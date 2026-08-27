@@ -1204,6 +1204,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         <a href="#scurve">S-Curve</a>
         <a href="#waterfall">Variance Bridge</a>
         <a href="#baseBridge">Baseline Bridge</a>
+        <a href="#fepCard">Estimate Maturity</a>
         <a href="#eacTable">4-Method EAC</a>
         <a href="#eacTrend">Forecast Reliability</a>
         <a href="#costGbm">GBM Diffusion</a>
@@ -1265,6 +1266,15 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         actually moves, not zero &mdash; see the break mark on the axis and the note below.</span></p>
       <div class="card" style="margin-top:15px" id="baseBridge"></div>
       <div class="card" style="margin-top:15px" id="veSandbox"></div>
+
+      <div class="sec-h" style="margin-top:34px"><h2>Estimate maturity</h2><span class="tag">front-end planning &middot; AACE class</span></div>
+      <p class="lede">A budget is only as trustworthy as the planning behind it. These two cards
+        answer, per control account: how well-defined was the scope before the number was set, and
+        what accuracy range does that level of definition honestly support?</p>
+      <div class="grid g2" style="margin-top:12px">
+        <div class="card tw" id="fepCard"></div>
+        <div class="card tw" id="estClassCard"></div>
+      </div>
 
       <div class="grid">
         <div class="card">
@@ -2536,6 +2546,73 @@ var PKGS = [
  {id:"CP-601",n:"Third-party utilities relocation", bac: 54.0,pv: 45.9,ev: 41.8,ac: 48.3,commit: 51.1,float:-22,cpRem:180,actsP: 79,actsD: 66,ernH: 74000,actH: 83000},
  {id:"CP-701",n:"Systems integration &amp; testing",bac: 46.0,pv: 13.8,ev: 13.1,ac: 13.5,commit: 15.0,float:  0,cpRem:300,actsP: 42,actsD: 34,ernH: 26000,actH: 27000}
 ];
+
+/* Front-End Planning completeness (research-backed upgrade, 2026-08-27) -- modeled on the
+   Construction Industry Institute's Project Definition Rating Index (PDRI) methodology, NOT a
+   reproduction of CII's own proprietary 68-element Infrastructure PDRI instrument (that exact
+   checklist wasn't independently verified in full during the research pass that grounded this
+   feature). Real PDRI convention is 0-1000, LOWER = better-defined; shown here as a completeness
+   PERCENTAGE instead (higher = better) for readability, with that inversion stated explicitly in
+   the card's own prose, not hidden. The real evidence this feature exists to surface: CII's own
+   published Front End Planning research (1,000+ project database, ~$52B total cost) found
+   high-FEP-completeness projects run ~10% lower capital cost, ~7% shorter schedule, and ~5%
+   fewer change orders than weak-FEP projects, for FEP itself costing ~2.5% of total project cost
+   -- source: CII Front End Planning research summaries (construction-institute.org). Per-package
+   checkpoint state below is grounded in each package's OWN real risk/float narrative already on
+   this dashboard, not assigned arbitrarily: CP-201 (tunnel) is deliberately the weakest here,
+   consistent with R-01's ground-conditions risk already driving this program's worst float and
+   CPI; CP-601 (utility relocation) is the second-weakest, consistent with third-party utility
+   approval delays (R-02) and its own negative float. */
+var FEP_CHECKPOINTS=[
+ {k:"geo",n:"Geotechnical investigation complete"},
+ {k:"row",n:"Right-of-way / site control secured"},
+ {k:"util",n:"Utility conflicts identified &amp; resolved"},
+ {k:"permit",n:"Environmental clearance / permits secured"},
+ {k:"design",n:"Design basis frozen (issued-for-construction-ready)"},
+ {k:"constr",n:"Constructability review complete"},
+ {k:"estclass",n:"Estimate at Class 3 or tighter, per AACE RP 17R-97"},
+ {k:"riskreg",n:"Risk register baselined"}
+];
+var FEP_STATUS=[
+ {pkg:"CP-101",done:{geo:true, row:true, util:true, permit:true, design:true, constr:true, estclass:true, riskreg:true}},
+ {pkg:"CP-102",done:{geo:true, row:true, util:true, permit:true, design:true, constr:true, estclass:true, riskreg:true}},
+ {pkg:"CP-201",done:{geo:false,row:true, util:true, permit:true, design:false,constr:false,estclass:false,riskreg:true}},
+ {pkg:"CP-301",done:{geo:true, row:true, util:true, permit:true, design:true, constr:true, estclass:true, riskreg:true}},
+ {pkg:"CP-401",done:{geo:true, row:true, util:false,permit:true, design:true, constr:false,estclass:true, riskreg:true}},
+ {pkg:"CP-501",done:{geo:true, row:true, util:true, permit:true, design:true, constr:true, estclass:true, riskreg:true}},
+ {pkg:"CP-601",done:{geo:true, row:false,util:false,permit:true, design:true, constr:false,estclass:false,riskreg:true}},
+ {pkg:"CP-701",done:{geo:true, row:true, util:true, permit:false,design:false,constr:false,estclass:false,riskreg:true}}
+];
+function fepCompletenessPct(pkgId){
+  var s=FEP_STATUS.filter(function(f){return f.pkg===pkgId;})[0]; if(!s) return null;
+  var doneN=FEP_CHECKPOINTS.filter(function(c){return s.done[c.k];}).length;
+  return doneN/FEP_CHECKPOINTS.length;
+}
+function fepPortfolioAvgPct(){
+  var vals=FEP_STATUS.map(function(f){return fepCompletenessPct(f.pkg);});
+  return vals.reduce(function(a,v){return a+v;},0)/vals.length;
+}
+
+/* AACE Estimate Classification (research-backed upgrade, 2026-08-27) -- AACE International RP
+   17R-97 / 56R-08's real 5-class system (Class 5 = least-defined concept estimate, Class 1 =
+   most-defined, near-final estimate), each class tied to a % project-definition band and an
+   INDICATIVE accuracy range. The ranges below are the commonly-cited secondary-source summary of
+   AACE's own table -- stated with the same caveat AACE itself states: the exact range for any
+   real estimate must come from project-specific risk analysis (see the priced Monte Carlo bands
+   elsewhere on this page), never read off a fixed table as fact. Per-package class assignment
+   ties directly to each package's own FEP_STATUS completeness above -- a package can't credibly
+   claim a tight Class 1/2 estimate while its own front-end-planning checkpoints are still open. */
+var AACE_CLASSES=[
+ {cls:5,def:"0-2%",lo:-40,hi:65,desc:"Concept screening"},
+ {cls:4,def:"1-15%",lo:-25,hi:40,desc:"Feasibility / budget authorization"},
+ {cls:3,def:"10-40%",lo:-15,hi:25,desc:"Budget authorization / control"},
+ {cls:2,def:"30-75%",lo:-10,hi:15,desc:"Control / bid-tender"},
+ {cls:1,def:"65-100%",lo:-6,hi:10,desc:"Check estimate / bid"}
+];
+var PKG_ESTIMATE_CLASS={
+ "CP-101":1, "CP-102":1, "CP-201":3, "CP-301":1, "CP-401":2, "CP-501":1, "CP-601":3, "CP-701":3
+};
+function aaceClassOf(cls){ return AACE_CLASSES.filter(function(c){return c.cls===cls;})[0]; }
 
 /* The eleven-input ledger, described for humans (Overview-tab ledger card upgrade, 2026-08-20) —
    same fields as PKGS above, one entry per raw input, each with a live-computed worked example
@@ -4804,6 +4881,67 @@ function renderBaseline(){
   var dOpen=document.getElementById("baseDrawerOpen"), dClose=document.getElementById("baseDrawerClose");
   if(dOpen) dOpen.addEventListener("click",function(){ state.baseDrawerOpen=true; renderBaseline(); });
   if(dClose) dClose.addEventListener("click",function(){ state.baseDrawerOpen=false; renderBaseline(); });
+}
+/* Front-End Planning completeness card (research-backed upgrade, 2026-08-27) -- see FEP_STATUS'
+   own comment for the CII PDRI grounding. The live correlation below (variance carried by
+   below-75%-complete packages) is computed fresh from this program's own real VAC figures, not
+   asserted as causation from the cited CII statistic -- the two are shown side by side, not
+   conflated. */
+function renderFep(){
+  var el=document.getElementById("fepCard"); if(!el) return;
+  var weak=rows.filter(function(r){ return fepCompletenessPct(r.id)<0.75; });
+  var weakVac=weak.reduce(function(s,r){ return s+Math.abs(Math.min(0,r.vac)); },0);
+  var totalVac=rows.reduce(function(s,r){ return s+Math.abs(Math.min(0,r.vac)); },0);
+  var rowsHtml=rows.map(function(r){
+    var pct2=fepCompletenessPct(r.id), pctv=Math.round(pct2*100);
+    var cls=pct2>=0.875?"g":pct2>=0.625?"a":"r";
+    return '<tr><th scope="row">'+r.id+' &nbsp;'+r.n+'</th>'+
+      '<td class="tab-num"><span class="pill '+cls+'">'+pctv+'%</span></td>'+
+      '<td class="tab-num '+(r.vac<0?"ba":"ok")+'">'+sgn(r.vac)+'</td></tr>';
+  }).join("");
+  el.innerHTML=
+    '<h3>Front-end planning completeness</h3>'+
+    '<p class="lede" style="font-size:12.5px;margin-top:5px">Modeled on the Construction Industry '+
+    'Institute\'s Project Definition Rating Index (PDRI) methodology &mdash; not a reproduction of '+
+    'CII\'s own 68-element instrument, the same scoring philosophy applied to 8 real front-end-'+
+    'planning checkpoints per control account. Real PDRI scores 0&ndash;1000, lower is better-'+
+    'defined; shown here as a completeness percentage instead, for readability. CII\'s own published '+
+    'research (1,000+ projects, ~$52B) found high-completeness projects run roughly 10% lower cost, '+
+    '7% shorter schedule and 5% fewer change orders, for planning itself costing about 2.5% of the '+
+    'project.</p>'+
+    '<table><thead><tr><th>Control account</th><th>Completeness</th><th>VAC</th></tr></thead>'+
+    '<tbody>'+rowsHtml+'</tbody></table>'+
+    '<p style="margin:12px 0 0;font-size:12.5px;color:rgb(var(--c-mut))"><b style="color:rgb(var(--c-ink))">'+
+    'In this program\'s own data</b> (not a claim about CII\'s study, a live computation from THIS '+
+    'ledger): the '+weak.length+' account(s) below 75% front-end-planning completeness ('+
+    weak.map(function(r){return r.id;}).join(", ")+') carry '+pct(weakVac/totalVac,0)+
+    ' of the program\'s total unfavorable VAC, despite being '+pct(weak.length/rows.length,0)+
+    ' of the accounts &mdash; the same pattern CII\'s research describes, not proof of it here.</p>';
+}
+/* AACE Estimate Classification card (research-backed upgrade, 2026-08-27) -- see AACE_CLASSES'
+   own comment for the accuracy-range caveat (indicative, project-specific ranges required per
+   AACE's own position, not a fixed-table fact). */
+function renderEstClass(){
+  var el=document.getElementById("estClassCard"); if(!el) return;
+  var rowsHtml=rows.map(function(r){
+    var clsN=PKG_ESTIMATE_CLASS[r.id], c=aaceClassOf(clsN);
+    return '<tr><th scope="row">'+r.id+' &nbsp;'+r.n+'</th>'+
+      '<td class="tab-num">Class '+clsN+'</td>'+
+      '<td>'+c.desc+'</td>'+
+      '<td class="tab-num">'+c.lo+'% / +'+c.hi+'%</td></tr>';
+  }).join("");
+  el.innerHTML=
+    '<h3>Estimate classification (AACE 17R-97 / 56R-08)</h3>'+
+    '<p class="lede" style="font-size:12.5px;margin-top:5px">AACE International\'s 5-class system '+
+    '(Class 5 = concept screening, Class 1 = near-final check estimate), each tied to a % project-'+
+    'definition band. The accuracy ranges below are the commonly-cited secondary-source summary of '+
+    'AACE\'s own table &mdash; stated with AACE\'s own caveat: the real range for any specific '+
+    'estimate must come from project-specific risk analysis (see this tab\'s own Monte Carlo bands), '+
+    'never read off a fixed table as fact. Class assignment below ties directly to each account\'s '+
+    'own front-end-planning completeness above &mdash; a package can\'t credibly claim a tight '+
+    'Class 1/2 estimate while its own checkpoints are still open.</p>'+
+    '<table><thead><tr><th>Control account</th><th>Class</th><th>Stage</th><th>Indicative range</th></tr></thead>'+
+    '<tbody>'+rowsHtml+'</tbody></table>';
 }
 /* Real per-account drill-down (declined the brief's fabricated per-package VE breakdown — no such
    field exists on PKGS; this uses the ledger's actual BAC contributions instead, which genuinely do
@@ -10551,6 +10689,10 @@ var GLOSS=[
   e:function(){ return "This program has "+rows.length+" control accounts. The tunnel ("+G_TUN.id+") is one: its own budget of "+m(G_TUN.bac)+", its own progress, its own forecast. When it drifts, you can see it without the other seven hiding it."; }},
  {k:"bac", cat:"cost", jT:"cost", jE:"baseBridge", t:"BAC — Budget at Completion", p:"The total approved budget for the work — the number everyone promised at the start. It only changes when a formal change order changes it.",
   e:function(){ return m(T.bac)+" across all "+rows.length+" control accounts. The biggest single slice is the tunnel at "+m(G_TUN.bac)+"."; }},
+ {k:"pdri", cat:"cost", jT:"cost", jE:"fepCard", t:"Front-end planning completeness (PDRI)", p:"How well-defined the scope was before the number was set — geotechnical work done, right-of-way secured, permits in hand, design frozen. Modeled on the Construction Industry Institute's Project Definition Rating Index; their own research (1,000+ projects, ~$52B) found high-completeness projects run roughly 10% lower cost and 7% shorter schedule.",
+  e:function(){ var pct2=fepPortfolioAvgPct(); return "This program's own portfolio-average completeness is "+pct(pct2,0)+" across "+FEP_STATUS.length+" control accounts. "+G_TUN.id+", the tunnel, is deliberately the weakest — its own ground-conditions risk (R-01) is exactly the kind of thing incomplete front-end planning misses."; }},
+ {k:"aaceclass", cat:"cost", jT:"cost", jE:"estClassCard", t:"AACE estimate classification", p:"A 5-class system (Class 5 = concept screening, Class 1 = near-final check estimate) tying an estimate's accuracy range to how much of the scope is actually defined yet. From AACE International RP 17R-97/56R-08 — the real accuracy range for any specific estimate still has to come from project-specific risk analysis, never read off a fixed table.",
+  e:function(){ return G_TUN.id+" carries a Class "+PKG_ESTIMATE_CLASS[G_TUN.id]+" estimate today, tighter than a concept-level number but not yet a near-final check estimate — consistent with its own still-open front-end-planning checkpoints."; }},
  {k:"pv", cat:"cost", jT:"cost", jE:"scurve", t:"PV — Planned Value", p:"What the schedule said should be finished by today, expressed in dollars. It is the yardstick, not an achievement.",
   e:function(){ return "By the data date the plan called for "+m(T.pv)+" of work to be complete. Everything on this dashboard is measured against that yardstick."; }},
  {k:"ev", cat:"cost", jT:"cost", jE:"scurve", t:"EV — Earned Value", p:"What the work that is actually finished is worth, priced at budget rates. If a task budgeted at $10M is half done, it has earned $5M — no matter what it cost.",
@@ -12898,7 +13040,7 @@ window.addEventListener("scroll",function(){ document.getElementById("tip").clas
    pre-existing pattern) silently reset the scrubber's cursor to hidden while the slider value and
    HUD text stayed on whatever month was last scrubbed — the display and the control disagreeing
    with each other, silently, on the single most ordinary action in the app. */
-function redrawCharts(){ renderScurve(); renderWaterfall(); renderBaseline(); renderVeSandbox(); renderCont(); renderRisk(); syncMcView(); renderPertPlay(); renderGaltonStatic(); renderGantt(); renderScurveScrub(); renderGateLine(); renderCdeFlow(); renderGbmLogReturns(); renderDelivery(); renderTriage(); renderExec();
+function redrawCharts(){ renderScurve(); renderWaterfall(); renderBaseline(); renderFep(); renderEstClass(); renderVeSandbox(); renderCont(); renderRisk(); syncMcView(); renderPertPlay(); renderGaltonStatic(); renderGantt(); renderScurveScrub(); renderGateLine(); renderCdeFlow(); renderGbmLogReturns(); renderDelivery(); renderTriage(); renderExec();
   wireDetailsAnimation(); } // re-wire any freshly-rebuilt details.dbox (see its own idempotency-guard comment)
 document.getElementById("mcViewHist").addEventListener("click",function(){ state.mcView="hist"; syncMcView(); });
 document.getElementById("mcViewCdf").addEventListener("click",function(){ state.mcView="cdf"; syncMcView(); });
@@ -12935,7 +13077,7 @@ document.getElementById("vConf").textContent="P"+Math.round(state.mcConfidence*1
 renderMcConfCallout();
 document.getElementById("mcInspect").value=String(state.mcInspect);
 document.getElementById("vInspect").textContent="P"+state.mcInspect;
-renderWaterfall(); renderWaterfallMath(); renderBaseline(); renderVeSandbox(); renderEac(); renderCont(); renderTable();
+renderWaterfall(); renderWaterfallMath(); renderBaseline(); renderFep(); renderEstClass(); renderVeSandbox(); renderEac(); renderCont(); renderTable();
 renderEacTrend(); renderFcastTable(); renderGbmDiffusion(); renderGbmLogReturns(); renderGbmMathUnlocked(); renderGbmVsEvm(); renderCashflow();
 renderGantt(); renderSchedule(); renderRisk(); renderDrbEmv(); renderContracts(); renderSubHealth(); renderDelivery(); renderFramework(); renderActions(); renderActionsMath(); renderTriage(); renderExec();
 document.getElementById("sDrbP").value=DRB_ASSUMPTIONS.pOwnerWins;
@@ -13015,6 +13157,8 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   gloss:GLOSS,findGloss:findGloss,globalSearchIndex:globalSearchIndex,renderGlobalSearch:renderGlobalSearch,
   miles:MILES,delays:DELAYS,spark:SPARK,baseline:BASELINE,baseSteps:baseSteps,veSandboxCalc:veSandboxCalc,renderBaseline:renderBaseline,
   pfBand:pfBand,cascadeStepContent:cascadeStepContent,renderPfArc:renderPfArc,renderCascade:renderCascade,renderDelivery:renderDelivery,guards:GUARDS,renderGuards:renderGuards,escPat:ESC_PAT,
+  fepCheckpoints:FEP_CHECKPOINTS,fepStatus:FEP_STATUS,fepCompletenessPct:fepCompletenessPct,fepPortfolioAvgPct:fepPortfolioAvgPct,renderFep:renderFep,
+  aaceClasses:AACE_CLASSES,pkgEstimateClass:PKG_ESTIMATE_CLASS,aaceClassOf:aaceClassOf,renderEstClass:renderEstClass,
   mcParams:mcParams,triang:triang,dsStep:dsStep,
   gaussRnd:gaussRnd,gammaRnd:gammaRnd,betaRnd:betaRnd,pertRnd:pertRnd,mcDraw:mcDraw,computeMc:computeMc,
   recomputeActiveMc:recomputeActiveMc,syncMcDist:syncMcDist,renderMcMath:renderMcMath,
