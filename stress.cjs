@@ -3802,7 +3802,7 @@ console.log("== D10. inline term help ==");
 // 57 as of the same round's follow-up: a real "pband" entry, same reasoning as impactscore -- the
 // probability scale had no glossary entry either, and TJ's own follow-up question ("why P4, no
 // parameters given") is exactly what it closes.
-ok(P.gloss.length === 68, "GLOSS grew to 68 entries (67 prior + ftascc, research-backed upgrade 2026-08-27)", String(P.gloss.length));
+ok(P.gloss.length === 69, "GLOSS grew to 69 entries (68 prior + envision, research-backed upgrade 2026-08-27)", String(P.gloss.length));
 // title independently re-typed per term (/stress-test finding, 2026-08-21: the prior version only
 // checked g.p/g.e() were non-empty, which passes even for a totally wrong or swapped-in entry) —
 // guards that findGloss(k) actually resolves to the RIGHT term, not just SOME term.
@@ -4795,7 +4795,7 @@ console.log("== D23. Glossary upgrade round, items 1-3 (2026-08-21) ==");
   // to a known category. Independently re-derived from the raw array, not read back from the
   // rendered pill counts and trusted against itself. (61 as of the brainstorm-mode ML round's
   // multianomaly addition, 2026-08-26.)
-  ok(P.gloss.length === 68, "sanity: still 68 real glossary terms");
+  ok(P.gloss.length === 69, "sanity: still 69 real glossary terms");
   const validCats = Object.keys(P.cats);
   P.gloss.forEach(g => ok(validCats.indexOf(g.cat) >= 0, "term '" + g.k + "' carries a real category (" + g.cat + ")", g.cat));
 
@@ -9325,6 +9325,27 @@ console.log("== D51. FTA Standard Cost Category realignment (research-backed upg
   has("ftaSccCard", m(T.bac), "the card's own reconciliation note states the real, live T.bac figure");
   ["Guideway", "Stations", "Sitework", "Systems"].forEach((name) => has("ftaSccCard", name, "the card lists the real category name " + name + " among its 10 rows"));
   has("ftaSccCard", "Not itemized in this ledger", "the card honestly states which categories aren't tracked, not backfilled with an invented number");
+}
+
+// item #7 (Tier 2): Envision rating structure -- see ENVISION_CATEGORIES' own comment for the
+// real ISI sourcing and the deliberate no-fabricated-score design.
+console.log("== D52. Envision rating structure (research-backed upgrade, item #7, 2026-08-27) ==");
+{
+  ok(P.envisionCategories.length === 5, "all 5 real Envision categories present", String(P.envisionCategories.length));
+  const totalCredits = P.envisionCategories.reduce((s, c) => s + c.credits, 0);
+  ok(totalCredits === 64, "pre-registered: the real total is 64 credits across all 5 categories", String(totalCredits));
+  const expectedCredits = { "Quality of Life": 14, "Leadership": 12, "Resource Allocation": 14, "Natural World": 14, "Climate & Risk": 10 };
+  P.envisionCategories.forEach((c) => {
+    ok(expectedCredits[c.name] === c.credits, c.name + "'s real credit count matches the published ISI structure", c.credits + " vs " + expectedCredits[c.name]);
+  });
+
+  has("envisionCard", "Envision", "the card renders its real heading");
+  has("envisionCard", "Institute for Sustainable Infrastructure", "the card names the real rating body");
+  has("envisionCard", "Sound Transit", "the card cites the real, on-brand Sound Transit benchmark");
+  has("envisionCard", "Federal Way Link", "the card names the real project that earned Envision Platinum");
+  has("envisionCard", "64", "the card states the real total credit count");
+  has("envisionCard", "Honest gap", "the card explicitly states no score is fabricated for this program, not silently omitted");
+  ok(!/\bscore\s*[:=]\s*\d/i.test(G.envisionCard._html), "no fabricated numeric self-assessment score appears anywhere in the card's own rendered HTML");
 }
 
 console.log("\n" + pass + " passed, " + fail + " failed");

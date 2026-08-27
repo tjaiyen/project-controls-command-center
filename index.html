@@ -1805,6 +1805,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         <a href="#arch">Pipeline DAG</a>
         <a href="#aiGuards">Integrity Gate</a>
         <a href="#carbonDisclosureCard">Carbon Disclosure</a>
+        <a href="#envisionCard">Envision Rating</a>
         <a href="#auditLogTable">Activity Log</a>
         <a href="#aiStatControl">Statistical Control</a>
         <a href="#aiEwmaControl">EWMA Chart</a>
@@ -1907,6 +1908,8 @@ join dim_control_account b using (package_id)</pre></div>
         today — a readiness tracker for a real, currently-narrower requirement that could extend
         or get adopted voluntarily, so reporting is never reconstructed from scratch at closeout.</p>
       <div class="card stagger" id="carbonDisclosureCard" style="margin-top:8px"></div>
+
+      <div class="card" style="margin-top:12px" id="envisionCard"></div>
 
       </details>
       <details class="sec-details" open>
@@ -10249,6 +10252,49 @@ function renderCaBuyCleanComparison(){
     'the real historical model for a federal numeric-threshold mechanism, not as a program to comply '+
     'with today.</p></div>';
 }
+/* Envision rating structure (research-backed upgrade, item #7, Tier 2, 2026-08-27) -- the real
+   Institute for Sustainable Infrastructure (ISI) framework, co-founded with Harvard's Zofnass
+   Program: 64 credits across 5 categories (Quality of Life 14, Leadership 12, Resource
+   Allocation 14, Natural World 14, Climate & Risk 10), 1,000 points, award tiers
+   Verified -> Bronze -> Silver -> Gold -> Platinum. Real, on-brand benchmark: Sound Transit's own
+   Federal Way Link Extension and Downtown Redmond Link Extension BOTH earned Envision Platinum --
+   ISI describes Federal Way Link as only the 7th transit project nationally to reach it.
+   Deliberately does NOT fabricate a score for this program: an Envision score requires actual
+   documented evidence submitted for third-party verification, which a synthetic demo program has
+   no real basis to claim. Shown as a real reference framework this program has not pursued a
+   formal assessment against, not an invented number -- the same honest-gap posture this dashboard
+   already takes elsewhere (the schedule-ownership disclosure, the GBM "too thin to trust" caveat). */
+var ENVISION_CATEGORIES=[
+ {name:"Quality of Life",credits:14},
+ {name:"Leadership",credits:12},
+ {name:"Resource Allocation",credits:14},
+ {name:"Natural World",credits:14},
+ {name:"Climate & Risk",credits:10}
+];
+function renderEnvision(){
+  var el=document.getElementById("envisionCard"); if(!el) return;
+  var totalCredits=ENVISION_CATEGORIES.reduce(function(s,c){return s+c.credits;},0);
+  el.innerHTML=
+    '<h3>Envision &mdash; the real infrastructure sustainability rating</h3>'+
+    '<p class="lede" style="font-size:12.5px;margin-top:5px">The Institute for Sustainable '+
+    'Infrastructure\'s real rating system: '+totalCredits+' credits across 5 categories, 1,000 '+
+    'points, awarded Verified &rarr; Bronze &rarr; Silver &rarr; Gold &rarr; Platinum by third-'+
+    'party verification. <b style="color:rgb(var(--c-ink))">Real, on-brand benchmark:</b> Sound '+
+    'Transit\'s own Federal Way Link Extension and Downtown Redmond Link Extension both earned '+
+    'Envision Platinum &mdash; ISI names Federal Way Link only the 7th transit project nationally '+
+    'to reach it.</p>'+
+    '<table><thead><tr><th>Category</th><th>Credits</th></tr></thead><tbody>'+
+    ENVISION_CATEGORIES.map(function(c){
+      return '<tr><td>'+c.name+'</td><td class="tab-num">'+c.credits+'</td></tr>';
+    }).join("")+
+    '</tbody><tfoot><tr><th scope="row">Total</th><td class="tab-num">'+totalCredits+'</td></tr></tfoot></table>'+
+    '<p style="margin:12px 0 0;font-size:12.5px;color:rgb(var(--c-mut))"><b style="color:rgb(var(--c-ink))">'+
+    'Honest gap, stated plainly:</b> this program has not pursued a formal Envision assessment, so '+
+    'no score is shown here &mdash; a real self-assessed score requires actual documented evidence '+
+    'this synthetic program has no basis to claim. The real structure above is shown as a reference '+
+    'framework, and Sound Transit\'s own 2 real Platinum awards are the aspirational benchmark for '+
+    'what a program at this scale can achieve, not a claim this one has.</p>';
+}
 
 /* Session activity/change-audit trail (brainstorm-mode round, 2026-08-26) — item #16. Real,
    current pressure: construction ransomware attacks rose 44% year-over-year in Q1 2026, with
@@ -11066,6 +11112,8 @@ var GLOSS=[
   e:function(){ var series=CPH_CELLS[0].weeks.map(function(w){return w.actual;}), e2=deriveEwma(series), flags=e2.points.filter(function(p2){return p2.flag;}).length;
     return "Run against the tunnel crew's own 6-week $/hr series: "+flags+" of "+e2.points.length+" weeks currently breach the dynamic control limit ("+
       (flags?"a real, live flag":"a genuine null result — the honest answer, not a manufactured anomaly")+"). &lambda;="+e2.lambda+", L="+e2.L+" are standard SPC parameter choices, not derived from this program's own history."; }},
+ {k:"envision", cat:"data", jT:"ai", jE:"envisionCard", t:"Envision (ISI infrastructure rating)", p:"The Institute for Sustainable Infrastructure's real rating system — 64 credits across 5 categories, 1,000 points, third-party-verified award tiers Verified through Platinum. Sound Transit's own Federal Way Link Extension and Downtown Redmond Link Extension both earned Envision Platinum — ISI names Federal Way Link only the 7th transit project nationally to reach it.",
+  e:function(){ var t=ENVISION_CATEGORIES.reduce(function(s,c){return s+c.credits;},0); return "The real structure: "+t+" credits across "+ENVISION_CATEGORIES.length+" categories. This program hasn't pursued a formal assessment, so no score is shown — Sound Transit's own 2 real Platinum awards are the aspirational benchmark, not a claim about this program."; }},
  {k:"ftascc", cat:"cost", jT:"cost", jE:"ftaSccCard", t:"FTA Standard Cost Categories (SCC)", p:"The real 10-category worksheet (Guideway & Track Elements, Stations, Support Facilities, Sitework, Systems, ROW, Vehicles, Professional Services, Unallocated Contingency, Finance Charges) FTA has required New Starts/Core Capacity/Small Starts sponsors to report capital costs against since 2005 — enabling apples-to-apples benchmarking across CIG-funded transit projects.",
   e:function(){ return "This program's own 8 real control accounts map to just 4 of the 10 categories (Guideway, Stations, Sitework, Systems); contingency has its own real figure under Unallocated Contingency, shown separately; the remaining 5 (Support Facilities, ROW, Vehicles, Professional Services, Finance Charges) aren't itemized in this ledger at that granularity, shown honestly rather than backfilled."; }},
  {k:"overruntaxonomy", cat:"risk", jT:"act", jE:"overrunTaxonomyCard", t:"Overrun-driver taxonomy & stakeholder attribution", p:"Two real, peer-reviewed classification schemes: Cantarelli/Flyvbjerg's 4-category overrun-explanation taxonomy (technical, economic, psychological, political) and ASCE's owner/design/contractor/external stakeholder-attribution study — applied to this program's own real root-caused actions, scoped only to the ones that are genuine strategic overrun drivers, not stretched to every open item.",
@@ -13357,7 +13405,7 @@ renderMcRiskFilter();
 document.getElementById("mcDistTri").setAttribute("aria-pressed", String(state.mcDist==="triangular"));
 document.getElementById("mcDistPert").setAttribute("aria-pressed", String(state.mcDist==="pert"));
 syncMcView(); renderMcMath(); renderPertPlay(); renderGaltonStatic(); renderScen(); renderPrint();
-renderArch(); renderGuards(); renderCarbonDisclosure(); renderAuditLog(); renderStatControl(); renderZscoreMath(); renderEwmaControl(); renderEwmaMath(); renderHotellingT2(); renderMultiAnomaly(); renderMultiAnomalyMath(); renderIngestGuards();
+renderArch(); renderGuards(); renderCarbonDisclosure(); renderEnvision(); renderAuditLog(); renderStatControl(); renderZscoreMath(); renderEwmaControl(); renderEwmaMath(); renderHotellingT2(); renderMultiAnomaly(); renderMultiAnomalyMath(); renderIngestGuards();
 renderGlossCatBar();
 renderGlossary("");
 renderDomainMap();
@@ -13430,6 +13478,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   caBuyCleanRebarCap:CA_BUY_CLEAN_REBAR_CAP,renderCaBuyCleanComparison:renderCaBuyCleanComparison,
   overrunTaxonomy:OVERRUN_TAXONOMY,overrunTaxonomyRow:overrunTaxonomyRow,renderOverrunTaxonomy:renderOverrunTaxonomy,
   ftaScc:FTA_SCC,sccBac:sccBac,renderFtaScc:renderFtaScc,
+  envisionCategories:ENVISION_CATEGORIES,renderEnvision:renderEnvision,
   mcParams:mcParams,triang:triang,dsStep:dsStep,
   gaussRnd:gaussRnd,gammaRnd:gammaRnd,betaRnd:betaRnd,pertRnd:pertRnd,mcDraw:mcDraw,computeMc:computeMc,
   recomputeActiveMc:recomputeActiveMc,syncMcDist:syncMcDist,renderMcMath:renderMcMath,
