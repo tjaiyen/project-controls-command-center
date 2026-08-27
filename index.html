@@ -9818,8 +9818,10 @@ function renderGuards(){
   var fails=res.filter(function(r){return !r.pass;}).length;
   var ledeCount=document.getElementById("guardCountLede");
   if(ledeCount) ledeCount.textContent=GUARDS.length; // was a hardcoded "27" in static prose — a
-    // /stress-test finding (2026-08-19): correct today (GUARDS.length is genuinely 27), but a
-    // magic number that would silently drift from the real count on the next edit to GUARDS.
+    // /stress-test finding (2026-08-19): correct THEN (GUARDS.length was 27 at the time), but a
+    // magic number that would silently drift from the real count on the next edit to GUARDS —
+    // and did (GUARDS.length is 29 as of 2026-08-26's QA/QC closure-gate addition), which is
+    // exactly why this line reads the array's own length instead of repeating a number here.
   document.getElementById("aiGuards").innerHTML=
    '<div class="gate"><b>Integrity gate &middot; '+GUARDS.length+' checks</b>'+
    '<span class="pill '+(fails?"r":"g")+'">'+(fails? fails+" FAILING":"GREEN — all "+GUARDS.length+" passing")+'</span></div>'+
@@ -9833,7 +9835,12 @@ function renderGuards(){
 function carbonReadinessPct(){
   var total=CARBON_DISCLOSURE.length*2; // 2 tracked fields per covered material (EPD, quantity)
   var done=CARBON_DISCLOSURE.reduce(function(s,c){ return s+(c.epdSubmitted?1:0)+(c.quantityReported?1:0); },0);
-  return done/total;
+  // total===0 (no covered materials at all) means nothing is outstanding to disclose -- 1 (fully
+  // ready), not a division by zero. Same guard idiom as derive()'s own cpli fallback above (a
+  // real ratio is undefined the instant there's nothing left to divide by, not NaN or "infinitely
+  // ready"); currently latent (CARBON_DISCLOSURE has 3 real entries), flagged by /stress-test,
+  // independent reviewer, 2026-08-27.
+  return total>0 ? done/total : 1;
 }
 function renderCarbonDisclosure(){
   var el=document.getElementById("carbonDisclosureCard");
@@ -11130,7 +11137,13 @@ var TAB_DRAWER={
   risk:{label:"Risk & Change", fam:["Risk","Change"]},
   del:{label:"Delivery", fam:["Delivery","Compliance"]},
   ai:{label:"AI & Data", q:"Can the numbers on every other tab be trusted?",
-      note:"Pipeline architecture, the SQL model, a live 29-check integrity gate, and control charts on the one series with genuine variance."},
+      // GUARDS.length-interpolated, not a hardcoded "29" (/stress-test finding, independent
+      // reviewer, 2026-08-27) -- every other user-facing mention of this count already reads the
+      // real array length; this was the one straggler still hand-typed, and the 2026-08-19 fix
+      // that converted the OTHER hardcoded "27" (see renderGuards()'s own comment above) already
+      // documented exactly this failure class. Evaluated once, at script load time, well after
+      // GUARDS itself is defined -- correct and sufficient since GUARDS never mutates length at runtime.
+      note:"Pipeline architecture, the SQL model, a live "+GUARDS.length+"-check integrity gate, and control charts on the one series with genuine variance."},
   fw:{label:"Operating Framework", q:"What governance does this program actually run on?",
       note:"Phase playbook, WBS/CBS/OBS/ABS mapping, phase-gate governance with a live Gate 5 hard stop, and the full KPI reference library."},
   act:{label:"Actions", q:"What's open, who owns it, and what's gone stale?",

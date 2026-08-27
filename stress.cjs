@@ -9026,5 +9026,14 @@ try {
   ok(indexSrc.includes('row.scrollIntoView({block:"center",behavior:"smooth"});'), "jumpToAction()'s own scrollIntoView is left untouched -- ACTIONS aren't inside any collapsible section, so it was never affected");
 }
 
+// #12 (/stress-test findings, independent reviewer, 2026-08-27): 2 small hardening fixes --
+// static checks since neither is triggerable with today's real, fixed data (the same class as
+// the item #4 chevron CSS check above: correctness confirmed by reading, not by exercising).
+{
+  ok(!indexSrc.includes('a live 29-check integrity gate, and control charts'), "the AI & Data tab drawer's note no longer hand-types the guard count as a literal \"29\"");
+  ok(indexSrc.includes('note:"Pipeline architecture, the SQL model, a live "+GUARDS.length+"-check integrity gate'), "the AI & Data tab drawer's note interpolates the real GUARDS.length instead, matching every other user-facing mention of this count");
+  ok(/return total>0 \? done\/total : 1;/.test(indexSrc), "carbonReadinessPct() guards its division by CARBON_DISCLOSURE.length*2 -- returns 1 (nothing outstanding), not NaN, if that register were ever emptied");
+}
+
 console.log("\n" + pass + " passed, " + fail + " failed");
 process.exit(fail ? 1 : 0);
