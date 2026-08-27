@@ -3802,7 +3802,7 @@ console.log("== D10. inline term help ==");
 // 57 as of the same round's follow-up: a real "pband" entry, same reasoning as impactscore -- the
 // probability scale had no glossary entry either, and TJ's own follow-up question ("why P4, no
 // parameters given") is exactly what it closes.
-ok(P.gloss.length === 70, "GLOSS grew to 70 entries (69 prior + icsra, research-backed upgrade 2026-08-27)", String(P.gloss.length));
+ok(P.gloss.length === 71, "GLOSS grew to 71 entries (70 prior + rcfcomparison, research-backed upgrade 2026-08-27)", String(P.gloss.length));
 // title independently re-typed per term (/stress-test finding, 2026-08-21: the prior version only
 // checked g.p/g.e() were non-empty, which passes even for a totally wrong or swapped-in entry) —
 // guards that findGloss(k) actually resolves to the RIGHT term, not just SOME term.
@@ -4795,7 +4795,7 @@ console.log("== D23. Glossary upgrade round, items 1-3 (2026-08-21) ==");
   // to a known category. Independently re-derived from the raw array, not read back from the
   // rendered pill counts and trusted against itself. (61 as of the brainstorm-mode ML round's
   // multianomaly addition, 2026-08-26.)
-  ok(P.gloss.length === 70, "sanity: still 70 real glossary terms");
+  ok(P.gloss.length === 71, "sanity: still 71 real glossary terms");
   const validCats = Object.keys(P.cats);
   P.gloss.forEach(g => ok(validCats.indexOf(g.cat) >= 0, "term '" + g.k + "' carries a real category (" + g.cat + ")", g.cat));
 
@@ -9377,6 +9377,28 @@ console.log("== D53. Integrated cost-schedule risk view (research-backed upgrade
   has("icsraCard", "AACE RP 57R-09", "the card cites the real standard, not a vague description");
   has("icsraCard", "not derivable", "the card honestly shows 'not derivable' for the 6 risks with no linked schedule data, not a fabricated number");
   has("icsraCard", "1 of 7", "pre-registered: exactly 1 of 7 real risks (R-01) shows a genuine joint cost+schedule hit today");
+}
+
+// item #10 (Tier 3): reference-class comparison band -- see referenceClassBandPosition's own
+// comment for why this deliberately does NOT fabricate a percentile distribution for Flyvbjerg's
+// single real average.
+console.log("== D54. Reference-class comparison band (research-backed upgrade, item #10, 2026-08-27) ==");
+{
+  const pos = P.referenceClassBandPosition();
+  const expectedRcfVal = T.bac * 1.45;
+  ok(Math.abs(pos.rcfVal - expectedRcfVal) < 1e-9, "the reference-class dollar figure matches an independent recomputation from the real RCF_MULT and T.bac", pos.rcfVal + " vs " + expectedRcfVal);
+  ok(Math.abs(pos.rcfVal - 1798.0) < 1e-6, "pre-registered: today's real reference-class figure is $1,798.0M (1.45 x the real $1,240.0M BAC)", String(pos.rcfVal));
+  ok(Math.abs(P.mc.p95 - 1317.8377574922056) < 1e-6, "pre-registered: today's real Monte Carlo P95 is ~$1,317.8M", String(P.mc.p95));
+  ok(pos.rcfVal > P.mc.p95, "the reference-class figure genuinely exceeds this program's own real P95 today");
+  ok(pos.band === "beyond this program's own P95", "pre-registered: the reference-class figure sits beyond this program's own P95 today", pos.band);
+
+  has("rcfComparisonCard", "Reference-class comparison", "the card renders its real heading");
+  has("rcfComparisonCard", m(T.bac), "the card states the real, live T.bac figure, not a hardcoded one");
+  has("rcfComparisonCard", m(pos.rcfVal), "the card states the real, live-computed reference-class dollar figure");
+  has("rcfComparisonCard", "not a documented percentile spread", "the card explicitly states it isn't inventing a distribution for the reference class, not silently implying one");
+  [["P10", P.mc.p10], ["P50", P.mc.p50], ["P80", P.mc.p80], ["P95", P.mc.p95]].forEach(([label, val]) => {
+    has("rcfComparisonCard", m(val), "the card's own table states the real Monte Carlo " + label + " figure");
+  });
 }
 
 console.log("\n" + pass + " passed, " + fail + " failed");

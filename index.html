@@ -1421,6 +1421,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
             <div id="mcOneRun" style="margin-top:10px"></div>
           </div>
         </details>
+        <div class="card tw" style="margin-top:15px" id="rcfComparisonCard"></div>
       </div>
 
       <div class="sec-h" style="margin-top:34px"><h2>Watch the distribution get built</h2><span class="tag">galton engine</span></div>
@@ -5891,6 +5892,49 @@ function mcBinCounts(){
     counts[Math.min(bins-1,Math.floor((v-lo)/bw))]++; });
   return {lo:lo,hi:hi,bins:bins,bw:bw,counts:counts};
 }
+/* Reference-class comparison card (research-backed upgrade, item #10, Tier 3, 2026-08-27) --
+   extends the existing single RCF_MULT marker (Flyvbjerg's real +45% rail-project average
+   overrun, already drawn on the Monte Carlo chart above) into a real comparison against THIS
+   program's own simulated percentile band. Deliberately does NOT fabricate a percentile
+   distribution for the reference class itself -- Flyvbjerg's own published figure is a single
+   average, not a documented P10/P50/P80/P95 spread, and inventing one would misrepresent the
+   citation. What's built instead is honest and useful: showing where that one real external data
+   point falls relative to this program's own real, already-computed Monte Carlo band (MC.p10/
+   p50/p80/p95), not a second, invented distribution standing in for the reference class. */
+function referenceClassBandPosition(){
+  var rcfVal=T.bac*RCF_MULT;
+  var band;
+  if(rcfVal<MC.p10) band="below this program's own P10";
+  else if(rcfVal<MC.p50) band="between this program's own P10 and P50";
+  else if(rcfVal<MC.p80) band="between this program's own P50 and P80";
+  else if(rcfVal<MC.p95) band="between this program's own P80 and P95";
+  else band="beyond this program's own P95";
+  return {rcfVal:rcfVal,band:band};
+}
+function renderRcfComparison(){
+  var el=document.getElementById("rcfComparisonCard"); if(!el) return;
+  var pos=referenceClassBandPosition();
+  el.innerHTML=
+    '<h3>Reference-class comparison, not just a single marker</h3>'+
+    '<p class="lede" style="font-size:12.5px;margin-top:5px">Flyvbjerg\'s real, cited rail-project '+
+    'average overrun (+45%, already the dashed marker on the histogram above) applied to this '+
+    'program\'s own '+m(T.bac)+' budget puts the reference-class figure at <b style="color:rgb(var(--c-ink))">'+
+    m(pos.rcfVal)+'</b>. That single external data point is not a distribution &mdash; Flyvbjerg\'s '+
+    'own published figure is an average, not a documented percentile spread, so this deliberately '+
+    'does not invent one. What it CAN honestly show: where that one real number falls against this '+
+    'program\'s own real, already-simulated forecast band.</p>'+
+    '<table><thead><tr><th>Percentile</th><th>This program\'s own Monte Carlo</th></tr></thead><tbody>'+
+    [["P10",MC.p10],["P50",MC.p50],["P80",MC.p80],["P95",MC.p95]].map(function(r){
+      return '<tr><th scope="row">'+r[0]+'</th><td class="tab-num">'+m(r[1])+'</td></tr>';
+    }).join("")+
+    '<tr style="border-top:2px solid rgb(var(--c-accent) / .4)"><th scope="row">Reference class (+45%)</th>'+
+    '<td class="tab-num" style="color:rgb(var(--c-info))">'+m(pos.rcfVal)+'</td></tr>'+
+    '</tbody></table>'+
+    '<p style="margin:12px 0 0;font-size:12.5px;color:rgb(var(--c-mut))">The reference-class figure '+
+    'sits <b style="color:rgb(var(--c-ink))">'+pos.band+'</b> today &mdash; a real comparison between '+
+    'an external caution and this program\'s own internal forecast, not two numbers asserted side '+
+    'by side with no relationship stated.</p>';
+}
 function renderMc(){
   var W=980,H=260,PL=64,PR=18,PT=18,PB=40;
   var bc=mcBinCounts(), lo=bc.lo, hi=bc.hi, bins=bc.bins, bw=bc.bw, counts=bc.counts;
@@ -6194,6 +6238,7 @@ function syncMcView(){
   document.getElementById("mcViewCdf").setAttribute("aria-pressed", String(state.mcView==="cdf"));
   if(state.mcView==="cdf") renderMcCdf(); else renderMc();
   renderMcRcf();
+  renderRcfComparison();
   document.getElementById("mcOpQ").innerHTML = opQuestionBox("mc",
     "What's the realistic range of the final number — not just one point estimate?",
     "The "+activeMc.n+"-run simulation puts P10&ndash;P80 at "+m(activeMc.p10)+"&ndash;"+m(activeMc.p80)+
@@ -11162,6 +11207,8 @@ var GLOSS=[
   e:function(){ var series=CPH_CELLS[0].weeks.map(function(w){return w.actual;}), e2=deriveEwma(series), flags=e2.points.filter(function(p2){return p2.flag;}).length;
     return "Run against the tunnel crew's own 6-week $/hr series: "+flags+" of "+e2.points.length+" weeks currently breach the dynamic control limit ("+
       (flags?"a real, live flag":"a genuine null result — the honest answer, not a manufactured anomaly")+"). &lambda;="+e2.lambda+", L="+e2.L+" are standard SPC parameter choices, not derived from this program's own history."; }},
+ {k:"rcfcomparison", cat:"cost", jT:"cost", jE:"rcfComparisonCard", t:"Reference-class comparison band", p:"Flyvbjerg's real, cited rail-project average overrun (+45%) is a single published average, not a documented percentile spread — this deliberately doesn't invent one. Instead it shows where that one real external number falls against this program's own real, already-simulated Monte Carlo percentile band (P10/P50/P80/P95), an honest comparison rather than two numbers asserted with no stated relationship.",
+  e:function(){ var pos=referenceClassBandPosition(); return "Today, the reference-class figure ("+m(pos.rcfVal)+") sits "+pos.band+" of this program's own real forecast."; }},
  {k:"icsra", cat:"risk", jT:"risk", jE:"icsraCard", t:"ICSRA — Integrated Cost-Schedule Risk Analysis", p:"AACE International RP 57R-09's real methodology: risk drivers propagate into BOTH cost and schedule together, rather than being analyzed on two separate tornado charts. A full ICSRA is a resource-loaded CPM Monte Carlo simulation — this dashboard pairs each risk's real priced exposure with its linked package's real float instead, an honestly-scoped, real-data version, not a claimed full simulation.",
   e:function(){ var ranked=RISKS.map(function(k){return Object.assign({},k,{schedExp:riskScheduleExposure(k)});}); var joint=ranked.filter(function(r){return r.schedExp!==null&&r.schedExp<0;}).length; return joint+" of "+ranked.length+" real risks hit both cost AND schedule today — a risk that's expensive but schedule-neutral doesn't show up here, by design."; }},
  {k:"envision", cat:"data", jT:"ai", jE:"envisionCard", t:"Envision (ISI infrastructure rating)", p:"The Institute for Sustainable Infrastructure's real rating system — 64 credits across 5 categories, 1,000 points, third-party-verified award tiers Verified through Platinum. Sound Transit's own Federal Way Link Extension and Downtown Redmond Link Extension both earned Envision Platinum — ISI names Federal Way Link only the 7th transit project nationally to reach it.",
@@ -13532,6 +13579,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   ftaScc:FTA_SCC,sccBac:sccBac,renderFtaScc:renderFtaScc,
   envisionCategories:ENVISION_CATEGORIES,renderEnvision:renderEnvision,
   riskScheduleExposure:riskScheduleExposure,renderIcsra:renderIcsra,
+  referenceClassBandPosition:referenceClassBandPosition,renderRcfComparison:renderRcfComparison,
   mcParams:mcParams,triang:triang,dsStep:dsStep,
   gaussRnd:gaussRnd,gammaRnd:gammaRnd,betaRnd:betaRnd,pertRnd:pertRnd,mcDraw:mcDraw,computeMc:computeMc,
   recomputeActiveMc:recomputeActiveMc,syncMcDist:syncMcDist,renderMcMath:renderMcMath,
