@@ -9672,8 +9672,16 @@ var GUARDS=[
  {n:"Bottom-up EAC equals the sum of package forecasts", run:function(){
    var s=PKGS.reduce(function(a,p){return a+p.bac/(p.ev/p.ac);},0);
    return [Math.abs(s-T.eac)<1e-6, m(s)];}},
- {n:"VAC equals BAC minus EAC", run:function(){
-   return [Math.abs((T.bac-T.eac)-T.vac)<1e-9, sgn(T.vac)];}},
+ {n:"VAC equals BAC minus EAC, recomputed from raw inputs", run:function(){
+   // Fixed 2026-08-27 (/stress-test finding, independent reviewer, HIGH): T.vac IS DEFINED as
+   // T.bac-T.eac (index.html's own T derivation) -- the old version of this check re-subtracted
+   // the exact same two fields from themselves, a pure identity that could never fail regardless
+   // of any real bug in bac/eac/vac. Now independently re-derives BOTH bac and eac from PKGS
+   // directly (the same reduce this array's own "Portfolio BAC..." and "Bottom-up EAC..." checks
+   // above already use), so this is now a genuinely self-contained, independent re-derivation.
+   var bac=PKGS.reduce(function(a,p){return a+p.bac;},0);
+   var eac=PKGS.reduce(function(a,p){return a+p.bac/(p.ev/p.ac);},0);
+   return [Math.abs((bac-eac)-T.vac)<1e-9, sgn(T.vac)];}},
  {n:"Curve invariant: EV never exceeds PV, AC never below EV, every month", run:function(){
    var ok=true,i;
    for(i=0;i<pvA.length;i++) if(evA[i]>pvA[i]+1e-9||acA[i]<evA[i]-1e-9) ok=false;
@@ -9681,11 +9689,28 @@ var GUARDS=[
  {n:"Risk exposure equals the sum of band × cost", run:function(){
    var s=RISKS.reduce(function(a,k){return a+P_BAND[k.p]*k.cost;},0);
    return [Math.abs(s-T.riskExposure)<1e-9, m(s)];}},
- {n:"Contingency: drawn plus remaining equals authorized", run:function(){
-   return [Math.abs(PROGRAM.contingencyDrawn+T.contRemaining-PROGRAM.contingency)<1e-9,
-     m(PROGRAM.contingencyDrawn)+" + "+m(T.contRemaining)];}},
- {n:"Fronted cash equals actual cost minus grant drawdowns", run:function(){
-   return [Math.abs((T.ac-PROGRAM.fundDrawn)-45.6)<0.05, m(T.ac-PROGRAM.fundDrawn)];}},
+ {n:"Contingency drawn never exceeds the authorized amount", run:function(){
+   // Fixed 2026-08-27 (/stress-test finding, independent reviewer, HIGH): T.contRemaining IS
+   // DEFINED as PROGRAM.contingency-PROGRAM.contingencyDrawn (index.html's own T derivation), so
+   // the old "drawn + remaining = authorized" check was checking a+(c-a)=c -- a pure algebraic
+   // identity, true for ANY values, never able to catch a real bug. PROGRAM.contingency and
+   // PROGRAM.contingencyDrawn are themselves the raw, hand-authored source constants here (no
+   // deeper independent layer exists to re-derive them from), so the honest fix isn't a re-
+   // derivation -- it's testing an actual business-rule invariant instead: drawn contingency can
+   // never exceed what was authorized. A real data-entry error (drawn > authorized) is exactly
+   // the class of mistake worth catching; the old tautology could never have caught it either.
+   return [PROGRAM.contingencyDrawn<=PROGRAM.contingency,
+     m(PROGRAM.contingencyDrawn)+" drawn of "+m(PROGRAM.contingency)+" authorized"];}},
+ {n:"Fronted cash (actual cost minus grant drawdowns) is never negative", run:function(){
+   // Fixed 2026-08-27 (/stress-test finding, independent reviewer, MED): the old check compared
+   // T.ac-PROGRAM.fundDrawn to a hand-typed constant (45.6) -- correct today, but a frozen
+   // snapshot that would need manual updating on the next real edit to T.ac or fundDrawn, and
+   // gave false confidence of independence (comparing a live figure to a stale expectation isn't
+   // the same as re-deriving it from a separate source). Reframed as the actual invariant this
+   // relationship is supposed to protect: the agency can never have reimbursed MORE than was
+   // genuinely spent -- a negative fronted-cash figure would mean exactly that, a real data-
+   // integrity problem, not a rounding drift a magic number would eventually stop catching.
+   return [T.ac-PROGRAM.fundDrawn>=0, m(T.ac-PROGRAM.fundDrawn)];}},
  {n:"Reported CPLI is the true driving-path minimum", run:function(){
    var mn=Math.min.apply(null,PKGS.map(function(p){return (p.cpRem+p.float)/p.cpRem;}));
    return [Math.abs(mn-T.cpli)<1e-9, idx(mn)];}},
@@ -9695,12 +9720,18 @@ var GUARDS=[
  {n:"Estimate-to-budget bridge reconciles to the control-account total", run:function(){
    var s=BASELINE.reduce(function(a,b){return a+b.v;},0);
    return [Math.abs(s-T.bac)<1e-9, m(s)+" = "+m(T.bac)];}},
- {n:"Change pricing defense reconciles: settled plus defended equals proposed", run:function(){
-   var ok=Math.abs((PROGRAM.coApprovedValue+(PROGRAM.coProposedApproved-PROGRAM.coApprovedValue))
-                    -PROGRAM.coProposedApproved)<1e-9 &&
-          Math.abs((PROGRAM.coPendingValue+(PROGRAM.coProposedPending-PROGRAM.coPendingValue))
-                    -PROGRAM.coProposedPending)<1e-9;
-   return [ok, m(PROGRAM.coProposedApproved)+" / "+m(PROGRAM.coProposedPending)];}},
+ {n:"Change pricing defense never settles ABOVE what was originally proposed", run:function(){
+   // Fixed 2026-08-27 (/stress-test finding, independent reviewer, HIGH): the old check computed
+   // a+(b-a)-b for two separate pairs -- a pure algebraic identity, true for ANY values of a and
+   // b, unconditionally, that could never fail regardless of any real bug. What "settled plus
+   // defended equals proposed" actually MEANS (per the "defense" framing this dashboard's own
+   // change-pricing narrative uses elsewhere, e.g. apSave/pdSave in renderChange()): the settled/
+   // approved amount is the ORIGINAL proposed ask minus whatever the defense negotiated away, so
+   // it can never be settled HIGHER than what was proposed. That's a real, testable invariant --
+   // this is what the guard now actually checks, not an identity.
+   var ok=PROGRAM.coApprovedValue<=PROGRAM.coProposedApproved &&
+          PROGRAM.coPendingValue<=PROGRAM.coProposedPending;
+   return [ok, m(PROGRAM.coApprovedValue)+" ≤ "+m(PROGRAM.coProposedApproved)+" / "+m(PROGRAM.coPendingValue)+" ≤ "+m(PROGRAM.coProposedPending)];}},
  {n:"Delay register ties to package float: D-01 ↔ CP-601, D-02 ↔ CP-201", run:function(){
    var f601=PKGS.filter(function(p){return p.id==="CP-601";})[0].float;
    var f201=PKGS.filter(function(p){return p.id==="CP-201";})[0].float;
@@ -9735,7 +9766,23 @@ var GUARDS=[
    // block's own source text, comments included — the fragment-assembly above exists for
    // exactly that reason, so any new comment near this guard must stay clear of the bare
    // trigger substrings too, not just the rendered prose.)
-   var approved=["Oracle Primavera P6","cover larger and design-build","not years running P6"];
+   // Fixed 2026-08-27 (/stress-test finding: this specific guard genuinely FAILED on the real,
+   // live page -- found by actually executing all 29 guards in a browser, not by reading code.
+   // stress.cjs's own FAB_APPROVED list (a SEPARATE sweep over indexSrc) already carried both
+   // case variants of the real, approved AGC workforce-survey citation used on the labor-
+   // availability card below (added 2026-08-26, the fabrication-sweep false-trip fix earlier this
+   // session) -- but this LIVE guard's own allowlist was never updated to match, so it stayed
+   // permanently red on the deployed page. Node's stress.cjs run could never catch this itself:
+   // this guard reads document.body.textContent, and the stub's documentStub has no `body`
+   // property at all, so `t=""` and the guard trivially passes there regardless of what the real
+   // page actually contains -- a structural blind spot, not a coincidence.
+   // (Same self-tripping trap this guard's own fragment-assembly already exists to avoid, hit
+   // while writing THIS very comment on the first attempt: a partial quote of the approved phrase
+   // still carries the bare trigger substring even inside an explanatory comment near the guard --
+   // fixed by describing the citation instead of quoting any fragment of it here.)
+   var approved=["Oracle Primavera P6","cover larger and design-build","not years running P6",
+     "92% of firms that are hiring report a hard time finding qualified workers",
+     "92% of firms THAT ARE HIRING report a hard time finding qualified workers"];
    var stripped=approved.reduce(function(a,p){return a.split(p).join("");},t);
    return [!rx.test(stripped), "live text scanned"];}},
  {n:"Monte Carlo reproducible: fresh run with the fixed seed lands on the same P50", run:function(){
@@ -9751,9 +9798,17 @@ var GUARDS=[
    sims.sort(function(a,b){return a-b;});
    var p50=sims[Math.floor(0.5*sims.length)];
    return [Math.abs(p50-MC.p50)<1e-9, m(p50)];}},
- {n:"Milestone KPI equals the contractual revenue-service slip", run:function(){
+ {n:"Milestone KPI equals the contractual revenue-service slip, recomputed from its own dates", run:function(){
+   // Fixed 2026-08-27 (/stress-test finding, independent reviewer): k.raw() IS DEFINED as
+   // MILES[MILES.length-1].d (index.html's own msv KPI entry) -- the old version of this check
+   // compared that value to itself, a pure identity that could never fail regardless of any real
+   // bug. Now independently re-derives the slip from the milestone's own base/forecast date
+   // strings (not from the array's own pre-computed `d` field) AND confirms the last entry is
+   // genuinely the named contractual milestone, not just whichever row happens to sit last.
    var k=KPIS.filter(function(x){return x.id==="msv";})[0];
-   return [k.raw()===MILES[MILES.length-1].d, days(k.raw())];}},
+   var rs=MILES[MILES.length-1];
+   var recomputedD=Math.round((new Date(rs.fc)-new Date(rs.base))/86400000);
+   return [rs.n==="Revenue service"&&recomputedD===rs.d&&k.raw()===rs.d, days(k.raw())+" ("+rs.n+")"];}},
  {n:"Every control account is covered by exactly one contract — no gaps, no overlaps", run:function(){
    var counts={}; CONTRACTS.forEach(function(c){ c.pkgs.forEach(function(id){ counts[id]=(counts[id]||0)+1; }); });
    var ok=PKGS.every(function(p){ return counts[p.id]===1; }) && Object.keys(counts).length===PKGS.length;

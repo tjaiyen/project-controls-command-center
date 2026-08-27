@@ -8201,7 +8201,12 @@ const SAN = /mawl|dagir|izlid|kiji|minirva|glare|milr/i;
 const FAB_APPROVED = ["not years running P6", "design-build procurement, schedule analysis",
   "Oracle Primavera P6", "cover larger and design-build",
   "92% of firms <em>that are hiring</em> report a hard time finding qualified workers",
-  "92% of firms THAT ARE HIRING report a hard time finding qualified workers"];
+  "92% of firms THAT ARE HIRING report a hard time finding qualified workers",
+  // 5th variant added 2026-08-27 (/stress-test finding, self-tripped while fixing the LIVE
+  // Compliance-sweep guard's own out-of-sync allowlist): the live guard's `approved` array in
+  // index.html carries the AGC citation as a plain JS string literal, no <em> tags at all -- a
+  // third distinct rendering of the same real citation this sweep needs its own exception for.
+  "92% of firms that are hiring report a hard time finding qualified workers"];
 // archSrc added to this sweep (/stress-test finding, 2026-08-23) — it was read into the harness
 // and used elsewhere (E.1 section) but never actually swept for fabrication/sanitization; a latent
 // gap, not an active failure (re-verified clean above before adding it here).
@@ -9033,6 +9038,90 @@ try {
   ok(!indexSrc.includes('a live 29-check integrity gate, and control charts'), "the AI & Data tab drawer's note no longer hand-types the guard count as a literal \"29\"");
   ok(indexSrc.includes('note:"Pipeline architecture, the SQL model, a live "+GUARDS.length+"-check integrity gate'), "the AI & Data tab drawer's note interpolates the real GUARDS.length instead, matching every other user-facing mention of this count");
   ok(/return total>0 \? done\/total : 1;/.test(indexSrc), "carbonReadinessPct() guards its division by CARBON_DISCLOSURE.length*2 -- returns 1 (nothing outstanding), not NaN, if that register were ever emptied");
+}
+
+// #13 (/stress-test findings, independent reviewer, 2026-08-27, HIGH): 4 of the 29 GUARDS checks
+// were pure algebraic tautologies -- comparing a value to itself via a+(b-a)-b or T.x-T.x, unable
+// to fail regardless of any real bug -- and 1 more compared to a hand-typed magic number that
+// would silently need manual updates. Fixed all 5 to either genuinely independent re-derivations
+// (VAC, milestone slip) or real business-rule invariants (contingency, change pricing, fronted
+// cash). PROVING they now have real detection power -- not just "currently passes" -- by
+// corrupting the exact input each one is supposed to protect, confirming the guard's OWN .run()
+// flips to FAIL, then restoring and reconfirming PASS. This is the direct, mechanical answer to
+// "was this guard ever independent" that reading the code alone can't fully settle.
+console.log("== D44. GUARDS independence -- 5 checks fixed from tautologies/magic-numbers to real detection (/stress-test finding, independent reviewer, 2026-08-27) ==");
+{
+  function findGuard(name) {
+    const g = P.guards.find((x) => x.n === name);
+    if (!g) throw new Error("guard not found: " + name);
+    return g;
+  }
+
+  {
+    const g = findGuard("VAC equals BAC minus EAC, recomputed from raw inputs");
+    ok(g.run()[0] === true, "sanity: VAC guard passes on real, uncorrupted data");
+    const orig = T.vac;
+    T.vac = orig + 1;
+    ok(g.run()[0] === false, "VAC guard now genuinely catches a corrupted T.vac -- proves it re-derives independently from PKGS, not comparing T.vac to itself");
+    T.vac = orig;
+    ok(g.run()[0] === true, "restored: VAC guard passes again after undoing the corruption");
+  }
+  {
+    const g = findGuard("Contingency drawn never exceeds the authorized amount");
+    ok(g.run()[0] === true, "sanity: contingency guard passes on real data");
+    const orig = P.program.contingencyDrawn;
+    P.program.contingencyDrawn = P.program.contingency + 1;
+    ok(g.run()[0] === false, "contingency guard now genuinely catches drawn exceeding authorized -- a real invariant, not a+(c-a)=c");
+    P.program.contingencyDrawn = orig;
+    ok(g.run()[0] === true, "restored");
+  }
+  {
+    const g = findGuard("Change pricing defense never settles ABOVE what was originally proposed");
+    ok(g.run()[0] === true, "sanity: change-pricing guard passes on real data");
+    const orig = P.program.coApprovedValue;
+    P.program.coApprovedValue = P.program.coProposedApproved + 1;
+    ok(g.run()[0] === false, "change-pricing guard now genuinely catches settling above the proposed amount");
+    P.program.coApprovedValue = orig;
+    ok(g.run()[0] === true, "restored");
+  }
+  {
+    const g = findGuard("Fronted cash (actual cost minus grant drawdowns) is never negative");
+    ok(g.run()[0] === true, "sanity: fronted-cash guard passes on real data");
+    const orig = P.program.fundDrawn;
+    P.program.fundDrawn = T.ac + 1;
+    ok(g.run()[0] === false, "fronted-cash guard now genuinely catches over-reimbursement -- a real invariant, not a frozen magic number");
+    P.program.fundDrawn = orig;
+    ok(g.run()[0] === true, "restored");
+  }
+  {
+    const g = findGuard("Milestone KPI equals the contractual revenue-service slip, recomputed from its own dates");
+    ok(g.run()[0] === true, "sanity: msv guard passes on real data");
+    const rs = P.miles[P.miles.length - 1];
+    const origD = rs.d;
+    rs.d = origD + 1;
+    ok(g.run()[0] === false, "msv guard now genuinely catches a d field that disagrees with its own base/forecast dates -- was k.raw()===k.raw() before");
+    rs.d = origD;
+    ok(g.run()[0] === true, "restored");
+  }
+}
+
+// #14 (/stress-test finding, 2026-08-27, HIGH): the "Compliance sweep" GUARDS check genuinely
+// FAILED on the real, deployed page -- caught by actually running all 29 guards in a live browser
+// (P.guards[i].run() for each), not by reading code. Its own `approved` allowlist strips known-
+// good citations (Oracle Primavera P6, design-build procurement) before scanning for banned
+// fragment-assembled terms; the real AGC workforce-survey citation this dashboard added
+// 2026-08-26 (labor-availability card) was allowlisted in stress.cjs's own, SEPARATE
+// FAB_APPROVED sweep at that time, but this live guard's own allowlist was never updated to
+// match -- so it stayed permanently red on the deployed page. Node's stress.cjs run could never
+// catch this itself: the guard reads document.body.textContent, and this file's documentStub
+// carries no `body` property at all, so the guard's own `t=(document.body&&...)||""` always
+// resolves to an empty string here, trivially passing regardless of what the real page contains
+// -- a structural blind spot this static check can't close either, which is exactly why this was
+// found by executing the real page in a browser instead.
+{
+  ok(indexSrc.includes('"92% of firms that are hiring report a hard time finding qualified workers"') &&
+     indexSrc.includes('"92% of firms THAT ARE HIRING report a hard time finding qualified workers"'),
+    "the live Compliance-sweep guard's own allowlist now carries both case variants of the real AGC citation, matching stress.cjs's own separate FAB_APPROVED list");
 }
 
 console.log("\n" + pass + " passed, " + fail + " failed");
