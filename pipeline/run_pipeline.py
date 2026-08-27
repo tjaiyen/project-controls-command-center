@@ -83,10 +83,16 @@ cols = [d[0] for d in con.description]
 by_id = {r[0]: dict(zip(cols, r)) for r in ledger}
 
 # --- 4. Equality proof: SQL ledger vs the dashboard's own numbers ----------
+# Tolerance tightened 2026-08-27 (/stress-test finding, independent reviewer): the real diffs are
+# pure floating-point noise (~2.8e-14, empirically measured), not the ~0.05 the old 0.051
+# tolerance implied was an acceptable margin -- that was ~1.8 billion times looser than the actual
+# reconstruction error, silently able to mask a real ~$50K/field drift. 1e-6 matches this file's
+# own eac-recomputed tolerance below and comfortably covers the real noise floor with a wide but
+# honest safety margin.
 for p in PKGS:
     q = by_id[p["id"]]
     for k in ("pv", "ev", "ac"):
-        check(f"{p['id']} {k}: SQL == dashboard", abs(q[k] - p[k]) < 0.051,
+        check(f"{p['id']} {k}: SQL == dashboard", abs(q[k] - p[k]) < 1e-6,
               f"sql={q[k]:.2f} js={p[k]:.2f}")
     check(f"{p['id']} spi recomputed", abs(q["spi"] - p["ev"] / p["pv"]) < 1e-9)
     check(f"{p['id']} cpi recomputed", abs(q["cpi"] - p["ev"] / p["ac"]) < 1e-9)
