@@ -30,7 +30,7 @@ anywhere in this repository. The method is the content, not the numbers.
 
 | | |
 |---|---|
-| Primary file | `index.html` — 13,054 lines, one file, no build step |
+| Primary file | `index.html` — 13,738 lines, one file, no build step |
 | Top-level JS functions | 397 (fresh `grep -cE "^\s*function [a-zA-Z_]" index.html`, this pass) |
 | Tabs | 13, grouped into 5 altitudes on the tab rail (Executive · Program Performance · Field & Assurance · Governance & Execution · Reference) |
 | KPIs (with formula/threshold/phase/source/play each) | 20 |
@@ -39,19 +39,19 @@ anywhere in this repository. The method is the content, not the numbers.
 | Ingestion-validation checks (`INGEST_GUARDS`) | 2 |
 | SQL/DuckDB parity checks (`pipeline/run_pipeline.py`) | 65, independently re-run and verified this pass (installed `duckdb` into a throwaway venv, ran fresh) |
 | Escalation-matrix rules (`ESCALATION`) | 12, each with a named owner, a clock, and (added 2026-08-26) a stated rationale for why its threshold sits where it does |
-| Glossary terms (each with a live-computed worked example) | 61 |
+| Glossary terms (each with a live-computed worked example) | 73 |
 | Actions/RAID register items | 17 (6 Issue, 10 Task, 1 Decision) |
 | Control accounts / packages | 8 |
 | Contracts | 6 |
 | Risks | 7 (added R-07, extreme-weather exposure, 2026-08-26) |
 | Delay events | 4 |
 | Other 2026-08-26 proactive-mechanism additions (§8) | `OWNER_DECISIONS` (3), `SUB_HEALTH` (3), `LABOR_MOBILIZATION` (3), `CARBON_DISCLOSURE` (3), `AUDIT_LOG` (session-only, unbounded fact — see §8) |
-| `stress.cjs` test assertions | 3,568, all passing |
+| `stress.cjs` test assertions | 3,790, all passing |
 | `worker/smoketest.js` assertions (Ask AI backend, §10) | 25, all passing — a 3rd, independent test harness, Node-only, no real network/Cloudflare runtime |
 | Companion pages | `otak.html` (fit brief, 449 lines), `architecture.html` (static pipeline map, 598 lines) |
 | Companion backend (never deployed — see §10) | `worker/` — a Cloudflare Worker for the Ask AI feature; `ASK_AI_WORKER_URL` in `index.html` is still the `REPLACE-ME` placeholder |
 | Hosting | GitHub Pages, served directly from `main`, zero build |
-| Git history | 206 commits |
+| Git history | 218 commits |
 
 Current EVM tie-out (verify live in the browser console via `__PCC__.totals`, or `node verify.cjs`):
 
@@ -114,7 +114,7 @@ in this repo (GitHub Pages serves the static files directly from `main` with no 
 ## 4. Architecture & stack
 
 **Static HTML, one file, zero dependencies.** `index.html` is CSS (inline `<style>`) + markup +
-one `<script>` block containing a single IIFE with 397 top-level functions (fresh count, this
+one `<script>` block containing a single IIFE with 420 top-level functions (fresh count, this
 pass — see §2's note on the prior 176-vs-204 mismatch). No framework, no
 bundler, no CDN, no `npm install`. Opening the file directly in a browser (`file://`) or serving it
 with any static file server works identically — the repo's own convention for local testing is
@@ -254,7 +254,7 @@ pass found is no longer true — flagged, not fixed here, since it's a code comm
 | 10 | **Actions** (`act`) | A RAID/CAPA register with proactive staleness detection, owner accountability rollup, a worked-math accordion for `actionStatus()`'s threshold logic. |
 | 11 | **Attention & Triage** (`triage`) | Cross-cutting "what needs a human right now" view — every firing escalation rule, stale RAID item, near-term deadline, and pre-breach condition, pulled live from the same registers every other tab reads (no duplicated data). |
 | 12 | **Data Strategy** (`data`) | A real-world plan for connecting scattered, multi-system data — ISO 19650 CDE staging architecture as an interactive flow diagram (§8), a 4-tile IDS guardrail status grid with a genuinely live 2-check ingestion-validation panel embedded in it, automated guardrails, a discrepancy-resolution decision flow folded into that same diagram, a Category/Trigger/Routing proactive-error-recovery table, a Dual-Stack Parity card citing this program's own real, live CPI against the actual SQL that independently re-derives it. |
-| 13 | **Glossary** (`gloss`) | 61 terms, each with a live-computed worked example, a real category (5 domains — Cost & EVM, Schedule & CPM, Risk/Commercial & Governance, Field Telemetry & Quality, Data Strategy & Architecture — with a live pill filter), and a real "See it live" cross-tab jump button — the same content the inline "i" help icons pull from site-wide. Filterable by search AND category together, and reachable from anywhere via a bare `/` keypress. |
+| 13 | **Glossary** (`gloss`) | 73 terms, each with a live-computed worked example, a real category (5 domains — Cost & EVM, Schedule & CPM, Risk/Commercial & Governance, Field Telemetry & Quality, Data Strategy & Architecture — with a live pill filter), and a real "See it live" cross-tab jump button — the same content the inline "i" help icons pull from site-wide. Filterable by search AND category together, and reachable from anywhere via a bare `/` keypress. |
 
 Plus, outside the tab body: **Presentation Mode** (a scripted 2-set walkthrough with presenter
 notes), an **11-stop guided Tour**, a **printable executive brief**, light/dark **Theme** toggle,
@@ -488,7 +488,7 @@ key — `index.html` is fully static/public and can never hold it. Guardrails, m
 
 ## 11. Testing & verification
 
-**`stress.cjs`** (3,568 assertions, all passing) — stubs the DOM, loads `index.html`'s script
+**`stress.cjs`** (3,790 assertions, all passing) — stubs the DOM, loads `index.html`'s script
 verbatim into that stub, and exercises it exactly like a user would: every tab switch, every
 filter, every drawer, every slider drag, every keyboard interaction. 92 labeled sections (fresh
 `grep -c 'console.log("=='` count, this pass):
@@ -1669,6 +1669,35 @@ carried over from memory or an earlier pass:
   round); AGC's real 2025 statistic is "92% of firms **that are hiring**," not "92% of firms"
   (corrected before shipping). This pass touched no `PKGS`/`derive()` logic; `node verify.cjs`
   tie-out is unchanged from the last real ledger-affecting change (R-07's commit).
+- **2026-08-27 — full `/stress-test` pass on the whole dashboard.** Own review + 2 independent
+  fresh-context reviewers. Real findings, all fixed: the live "Compliance sweep" GUARDS check had
+  been genuinely FAILING on the deployed page since the prior round (a real AGC citation
+  allowlisted in `stress.cjs`'s own sweep but never in this LIVE guard's matching allowlist —
+  `node stress.cjs` could never catch it, since its DOM stub has no `document.body` at all); 4 of
+  29 GUARDS checks were pure algebraic tautologies (fixed to genuine re-derivations or real
+  business-rule invariants, each proven by corrupting the exact input and watching the guard flip
+  to FAIL); a dead branch in `subHealthTier()`; a keyboard-unreachable global-search dropdown; a
+  ~1.8-billion-times-too-loose SQL/dashboard parity tolerance in `pipeline/run_pipeline.py`.
+  `stress.cjs` 3,536→3,568.
+- **2026-08-27, same day — 12-item deep-research build.** TJ asked for a deep-research pass
+  ("run a deep research to identify best strategies that backed peer review") on project-controls
+  best practices for large-scale heavy civil/transportation infrastructure — 4 parallel research
+  agents (AACE/PMI/EVM standards; sustainability frameworks; AI/predictive tech; real transit
+  megaproject case studies), then chose "All 12" of the proposed items. Every item traces to a
+  real, cited, independently-verified source — AACE International RP 17R-97/56R-08/57R-09, CII's
+  PDRI, a real Automation in Construction paper (Hotelling's T² for correlated EVM metrics), the
+  Washington State Auditor's real Sound Transit findings, California's real Buy Clean Act GWP
+  caps (with the comparable federal program correctly flagged as rescinded/defunded in 2025), the
+  real Cantarelli/Flyvbjerg overrun-taxonomy and ASCE stakeholder-attribution papers, FTA's real
+  Standard Cost Category worksheet, the real Envision (ISI) rating structure, FHWA's real LCCA
+  methodology, and GAO's real cost-estimate credibility framework (GAO-20-195G). Every fabrication
+  risk was resolved toward honesty over completeness — PDRI's exact 68-element checklist wasn't
+  reproduced verbatim, Envision's score was left unfabricated (a real gap, stated plainly), LCCA
+  was applied to a real rail-industry decision with explicitly illustrative inputs rather than
+  invented pavement data. `stress.cjs` 3,568→3,790, `index.html` 12,936→13,738 lines, functions
+  397→420, git 200→218 commits, glossary 61→73 terms. `GUARDS` (29) and `RISKS` (7) unchanged —
+  every item added a leading indicator/comparison/checklist, none touched `PKGS`/`derive()`
+  logic; `node verify.cjs` tie-out unchanged throughout both rounds.
 
 Generated 2026-08-20, against the tip of the eleven-input-ledger-card engagement round; extended
 2026-08-21 for the six-KPI-families card round, again 2026-08-21 for the Data Strategy tab UI/UX
