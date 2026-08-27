@@ -8773,6 +8773,37 @@ console.log("== V. UX/UI upgrade round (brainstorm-mode, 2026-08-26) ==");
   [ownerHtml, subHtml, laborHtml].forEach((html, i) => {
     ok((html.match(/class="ticon [rag]"/g) || []).length > 0, ["ownerDecTable", "subHealthTable", "laborMobTable"][i] + " renders at least one real severity icon in its rendered rows, not just in source");
   });
+
+  // #3: back-to-top + scroll-progress. The live-browser check for this specific feature is
+  // structurally blocked in this session (this Browser pane's document.hidden=true suspends real
+  // scroll, same limitation already hit and accepted for ResizeObserver/IntersectionObserver
+  // earlier this session) -- verified here instead, where scroll inputs can be controlled
+  // directly and precisely, which is arguably the stronger check for pure arithmetic anyway.
+  ok(Math.abs(P.bttCircumference - 2 * Math.PI * 19) < 1e-9, "BTT_CIRCUMFERENCE matches the real SVG ring's r=19 geometry (2*PI*19), not a hand-typed approximation", P.bttCircumference.toFixed(4));
+  // Build an isolated stub documentElement for this one calculation check -- global.document
+  // itself was already narrowed to a minimal {getElementById} shape by section T's own fix
+  // above (this file's own multi-runPage() pattern leaves global.document pointing at whatever
+  // stub ran most recently by this point in file execution); route documentElement reads through
+  // that same G-backed object without disturbing anything else.
+  // The stub's own classList (makeEl(), top of this file) is a permanent no-op -- add/remove/
+  // toggle do nothing, contains() always returns false -- an accepted, documented harness
+  // limitation (same class of gap as canvas/ResizeObserver elsewhere in this file), so the
+  // "show"/hidden class toggle itself can't be verified here; the dashoffset MATH can, and is
+  // the part most likely to hide a real bug (an off-by-one in the percentage, a wrong sign).
+  const savedDocEl = global.document.documentElement;
+  global.document.documentElement = { scrollTop: 0, scrollHeight: 10000, clientHeight: 1000 };
+  global.window.pageYOffset = undefined;
+  P.updateBackToTop();
+  ok(bttProgress().style.strokeDashoffset === P.bttCircumference.toFixed(2), "at scrollTop=0, the progress ring shows 0% (full dashoffset = full circumference)", bttProgress().style.strokeDashoffset);
+  global.document.documentElement.scrollTop = 4500; // halfway through a 10000-1000=9000 scrollable range
+  P.updateBackToTop();
+  const expectHalfOffset = (P.bttCircumference * 0.5).toFixed(2);
+  ok(bttProgress().style.strokeDashoffset === expectHalfOffset, "at 50% scrolled, the ring's dashoffset is independently recomputed to exactly half the circumference", bttProgress().style.strokeDashoffset + " vs expected " + expectHalfOffset);
+  global.document.documentElement.scrollTop = 9000; // fully scrolled
+  P.updateBackToTop();
+  ok(bttProgress().style.strokeDashoffset === "0.00", "fully scrolled, the ring's dashoffset reaches exactly 0 (100% progress)", bttProgress().style.strokeDashoffset);
+  global.document.documentElement = savedDocEl; // restore, don't leak into any later code
+  function bttProgress(){ return G.bttProgress; }
 }
 
 console.log("\n" + pass + " passed, " + fail + " failed");

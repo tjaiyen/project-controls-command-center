@@ -477,6 +477,18 @@ h4{font-size:.86rem;margin:0 0 5px}
 .rcRoot{display:block;margin-top:4px;font-size:11.8px;color:rgb(var(--c-mut))}
 @keyframes jumpFlash{0%,100%{background:transparent}30%{background:rgb(var(--c-accent) / .18)}}
 .jump-flash{animation:jumpFlash 1.5s ease-out}
+/* Back-to-top + scroll-progress (UX upgrade round, 2026-08-26, item #3) */
+#backToTop{position:fixed;right:18px;bottom:18px;width:44px;height:44px;border-radius:50%;
+  background:rgb(var(--c-elev));border:1px solid var(--c-line);cursor:pointer;padding:0;
+  display:flex;align-items:center;justify-content:center;z-index:40;
+  box-shadow:0 2px 10px rgb(0 0 0 / .22);opacity:0;pointer-events:none;
+  transition:opacity .2s ease}
+#backToTop.show{opacity:1;pointer-events:auto}
+#backToTop svg:first-child{position:absolute;inset:0;width:44px;height:44px}
+.btt-track{stroke:var(--c-line)}
+.btt-progress{stroke:rgb(var(--c-accent));transition:stroke-dashoffset .1s linear}
+.btt-arrow{position:relative;width:16px;height:16px;color:rgb(var(--c-ink))}
+#backToTop:hover,#backToTop:focus-visible{border-color:rgb(var(--c-accent))}
 .ok{color:var(--c-pill-g)} .wa{color:var(--c-pill-a)} .ba{color:var(--c-pill-r)}
 
 /* tables */
@@ -898,6 +910,15 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
 
 <div class="wrap" id="main">
 
+  <!-- Tab-badge policy, stated explicitly (UX upgrade round, 2026-08-26, item #9): a `.cnt`
+       badge on a tab button means either that tab's OWN native register count (#cntAct, #cntOver)
+       or a single named governance state (#cntGate5, Gate 5 blocked/clear) -- never a duplicated
+       "how many things across every register need attention" count. Schedule and Risk & Change
+       deliberately do NOT get a badge for today's new overdue-able items (labor shortfall,
+       material exposure, subcontractor health) even though those items are real and can fire --
+       Attention & Triage is the one canonical "what needs a human right now" surface
+       (generateTriageQueue()'s own comment already says "not a second system of record"), and a
+       second, competing badge on the item's home tab would be exactly that: a second system. -->
   <div class="tabs" id="tabs" role="tablist" aria-label="Command center sections">
     <span class="tab-group-label" aria-hidden="true">Executive</span>
     <button role="tab" id="t-over"  aria-controls="p-over"  aria-selected="true" tabindex="0" aria-keyshortcuts="1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><rect x="2" y="2" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="2" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="2" y="9" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="9" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>Overview<span class="cnt" id="cntOver">20</span></button>
@@ -2379,6 +2400,22 @@ join dim_control_account b using (package_id)</pre></div>
   </section>
 
   <div id="printBrief" aria-hidden="true"></div>
+
+  <!-- Back-to-top + scroll-progress (UX upgrade round, 2026-08-26, item #3) -- AI & Data alone is
+       now 10 sections / ~6,800px tall after today's additions. activateTab() already resets
+       scroll to 0 on every TAB switch; this serves the distinct case of scrolling back up WITHIN
+       one long tab without leaving it (which would lose reading position and re-trigger every
+       render). Hidden until scrolled past a real threshold, not shown always. -->
+  <button type="button" id="backToTop" aria-label="Back to top">
+    <svg viewBox="0 0 44 44" aria-hidden="true">
+      <circle class="btt-track" cx="22" cy="22" r="19" fill="none" stroke-width="2.5"/>
+      <circle class="btt-progress" id="bttProgress" cx="22" cy="22" r="19" fill="none" stroke-width="2.5"
+        stroke-dasharray="119.4" stroke-dashoffset="119.4" transform="rotate(-90 22 22)"/>
+    </svg>
+    <svg class="btt-arrow" viewBox="0 0 16 16" aria-hidden="true">
+      <polyline points="4,9.5 8,5.5 12,9.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </button>
 
   <footer>
     <p><b>Synthetic illustrative data throughout.</b> Program, packages, milestones, risks and change log
@@ -11593,6 +11630,26 @@ themeBtn.addEventListener("click",function(){
 document.getElementById("presentBtn").addEventListener("click",function(){
   if(state.presenting) exitPresent(); else enterPresent();
 });
+// Back-to-top + scroll-progress (UX upgrade round, 2026-08-26, item #3) -- one real circumference
+// constant drives both the dasharray (set here, not trusted from the static SVG attribute, so
+// there's exactly one source of truth for the ring's own geometry) and every offset update below.
+var BTT_CIRCUMFERENCE=2*Math.PI*19;
+var backToTopBtn=document.getElementById("backToTop"), bttProgress=document.getElementById("bttProgress");
+if(bttProgress){ bttProgress.style.strokeDasharray=BTT_CIRCUMFERENCE.toFixed(2); bttProgress.style.strokeDashoffset=BTT_CIRCUMFERENCE.toFixed(2); }
+function updateBackToTop(){
+  if(!backToTopBtn) return;
+  var doc=document.documentElement;
+  var scrolled=window.pageYOffset||doc.scrollTop||0;
+  var max=(doc.scrollHeight-doc.clientHeight)||1; // guard against a zero-height stub/short page
+  var pct=Math.max(0,Math.min(1,scrolled/max));
+  backToTopBtn.classList.toggle("show",scrolled>400);
+  if(bttProgress) bttProgress.style.strokeDashoffset=(BTT_CIRCUMFERENCE*(1-pct)).toFixed(2);
+}
+if(backToTopBtn){
+  window.addEventListener("scroll",updateBackToTop,{passive:true});
+  backToTopBtn.addEventListener("click",function(){ window.scrollTo({top:0,behavior:"smooth"}); });
+  updateBackToTop();
+}
 document.getElementById("shortcutsBtn").addEventListener("click",function(){
   if(shortcutsOpen()) closeShortcuts(); else openShortcuts();
 });
@@ -12636,6 +12693,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   carbonDisclosure:CARBON_DISCLOSURE,carbonReadinessPct:carbonReadinessPct,renderCarbonDisclosure:renderCarbonDisclosure,
   auditLogData:AUDIT_LOG,auditLog:auditLog,renderAuditLog:renderAuditLog,
   escStatusIcon:ESC_STATUS_ICON,severityIcon:severityIcon,
+  updateBackToTop:updateBackToTop,bttCircumference:BTT_CIRCUMFERENCE,
   renderExec:renderExec,execCp201Share:execCp201Share,execFundingGap:execFundingGap,execTopActions:execTopActions,execTranslate:EXEC_TRANSLATE,
   execDrawerContent:execDrawerContent,execFaq:EXEC_FAQ,
   buildAskAiSnapshot:buildAskAiSnapshot,renderAskAiGate:renderAskAiGate,renderAskAiPanel:renderAskAiPanel,
