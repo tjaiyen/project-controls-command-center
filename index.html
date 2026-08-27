@@ -7038,6 +7038,7 @@ function renderPrint(){
   var lateM=MILES.filter(function(k){return k.d>0;});
   var topR=RISKS.map(function(k){return Object.assign({},k,{exp:P_BAND[k.p]*k.cost});})
                 .sort(function(a,b){return b.exp-a.exp;}).slice(0,3);
+  var pw=changeWatchSnapshot();
   document.getElementById("printBrief").innerHTML=
     '<h1>Executive brief &mdash; '+PROGRAM.name+'</h1>'+
     '<div>Data date '+PROGRAM.dataDate+' &middot; '+pct(T.pct)+' complete &middot; '+PROGRAM.corridor.replace(/&[a-z]+;/g," ")+' &middot; synthetic illustrative data</div>'+
@@ -7053,6 +7054,18 @@ function renderPrint(){
     pct(MC.pBust,0)+' of simulated completions exceed budget plus remaining contingency (P50 '+m(MC.p50)+').</p>'+
     '<h2>Escalations firing ('+f.length+')</h2><table><tr><th>Trigger</th><th>Owner</th><th>Action</th><th>Clock</th></tr>'+
     f.map(function(r){return '<tr><td>'+r[0]+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td><td>'+r[3]+'</td></tr>';}).join("")+'</table>'+
+    // Proactive watch (UX upgrade round item #7, 2026-08-26) -- the brief was 10 features stale
+    // before this: today's 4 new registers (labor mobilization, subcontractor health, owner
+    // decisions, carbon disclosure) and the material-escalation exposure card rendered on-screen
+    // but never reached this print-only summary. Every figure below is read from the SAME
+    // functions those on-screen cards already call (changeWatchSnapshot(),
+    // materialUnabsorbedExposure()) -- no new computation invented for print.
+    '<h2>Proactive watch</h2><table><tr><th>Signal</th><th>Status</th></tr>'+
+    '<tr><td>Labor trades short on lead time</td><td>'+pw.laborMobShort+' of '+LABOR_MOBILIZATION.length+'</td></tr>'+
+    '<tr><td>Subcontractor watch items needing attention</td><td>'+pw.subHealthFiring+' of '+SUB_HEALTH.length+'</td></tr>'+
+    '<tr><td>Owner/agency decisions overdue</td><td>'+pw.ownerDecOverdue+' of '+OWNER_DECISIONS.length+'</td></tr>'+
+    '<tr><td>Unabsorbed material-escalation exposure (R-04)</td><td>'+m(materialUnabsorbedExposure())+'</td></tr>'+
+    '<tr><td>Carbon disclosure readiness</td><td>'+pct(pw.carbonReady,0)+'</td></tr></table>'+
     '<h2>Top risks</h2><table><tr><th>ID</th><th>Risk</th><th>Exposure</th><th>Owner</th></tr>'+
     topR.map(function(k){return '<tr><td>'+k.id+'</td><td>'+k.n+'</td><td>'+m(k.exp)+'</td><td>'+k.own+'</td></tr>';}).join("")+'</table>'+
     '<h2>Milestones</h2><p style="margin:0">'+lateM.length+' of '+MILES.length+' late; revenue service '+

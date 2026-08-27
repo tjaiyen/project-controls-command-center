@@ -8844,6 +8844,29 @@ console.log("== V. UX/UI upgrade round (brainstorm-mode, 2026-08-26) ==");
   ok(expected.ownerDecOverdue === 3, "pre-registered: all 3 real owner decisions are currently overdue", String(expected.ownerDecOverdue));
   ok(expected.subHealthFiring === 2, "pre-registered: 2 of 3 real sub-health items are currently firing (1 red, 1 amber; the on-cycle green is excluded)", String(expected.subHealthFiring));
   ok(expected.laborMobShort === 2, "pre-registered: 2 of 3 real labor trades are short on confirmed lead time (CP-201, CP-301)", String(expected.laborMobShort));
+
+  // #7: printable executive brief extended to cover today's 4 new registers + the material-
+  // exposure card (UX upgrade round, 2026-08-26) -- found live-checking the brief: it was 10
+  // features stale, silently omitting every proactive-prevention mechanism built earlier today.
+  // Expected values reuse the SAME independent recomputation (cwSnapshotIndependent()) and
+  // register lengths as item #5's own check above, not the app's own renderPrint() output
+  // checked against itself.
+  has("printBrief", "Proactive watch", "print brief carries the new proactive-watch section (item #7)");
+  has("printBrief", "Labor trades short on lead time</td><td>" + expected.laborMobShort + " of " + P.laborMobilization.length,
+    "print brief's labor-mobilization count matches the independent recomputation, with the real register length");
+  has("printBrief", "Subcontractor watch items needing attention</td><td>" + expected.subHealthFiring + " of " + P.subHealth.length,
+    "print brief's subcontractor-watch count matches the independent recomputation, with the real register length");
+  has("printBrief", "Owner/agency decisions overdue</td><td>" + expected.ownerDecOverdue + " of " + P.ownerDecisions.length,
+    "print brief's owner-decisions-overdue count matches the independent recomputation, with the real register length");
+  // Material exposure: recomputed from the real published index figures (22.5% steel YoY,
+  // 3.5% baseline) and R-04's real priced cost, not by calling P.materialUnabsorbedExposure()
+  // and comparing it to itself.
+  const r04 = P.risks.find((r) => r.id === "R-04");
+  const unabsorbedShare = Math.max(0, 22.5 - 3.5) / 22.5;
+  const expectedExposure = r04.cost * unabsorbedShare;
+  ok(Math.abs(P.materialUnabsorbedExposure() - expectedExposure) < 1e-6, "materialUnabsorbedExposure() matches an independent recomputation from R-04's real cost and the real published index figures", P.materialUnabsorbedExposure() + " vs expected " + expectedExposure);
+  has("printBrief", "Unabsorbed material-escalation exposure", "print brief carries the material-escalation exposure line");
+  ok(!G.printBrief._html.includes("$NaN"), "print brief's material-exposure figure formatted cleanly, not NaN");
 }
 
 console.log("\n" + pass + " passed, " + fail + " failed");
