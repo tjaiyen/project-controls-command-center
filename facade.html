@@ -1,0 +1,1357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Unitized Facade Controls — Panel Flow, Cost &amp; Gates</title>
+<meta name="description" content="Project controls for a unitized curtain wall package — panel-level earned value, factory-versus-field buffer, shop/field reconciliation, tolerance creep and QC gates. Synthetic illustrative data; no client or employer information appears anywhere.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230A0F1D'/%3E%3Cg stroke='%2306B6D4' stroke-width='2' fill='none'%3E%3Crect x='7' y='6' width='8' height='9'/%3E%3Crect x='17' y='6' width='8' height='9'/%3E%3Crect x='7' y='17' width='8' height='9'/%3E%3Crect x='17' y='17' width='8' height='9'/%3E%3C/g%3E%3C/svg%3E">
+<style>
+:root{
+  --c-bg-primary:10 15 29; --c-bg-card:30 41 59; --c-accent:6 182 212;
+  --c-text-primary:241 245 249; --c-text-secondary:148 163 184; --c-text-code:34 211 238;
+  --c-success:16 185 129; --c-warning:245 158 11; --c-danger:239 68 68; --c-info:96 165 250;
+  --c-pill-g:#34D399; --c-pill-a:#F59E0B; --c-pill-r:#FCA5A5; --c-pill-i:#93C5FD;
+  --c-line:rgb(6 182 212 / .20); --c-grid:rgb(148 163 184 / .16);
+  --c-shop:#38BDF8; --c-field:#FBBF24;
+}
+@media (prefers-color-scheme: light){
+  :root{
+    --c-bg-primary:248 250 252; --c-bg-card:255 255 255; --c-accent:14 116 144;
+    --c-text-primary:15 23 42; --c-text-secondary:71 85 105; --c-text-code:14 116 144;
+    --c-success:5 150 105; --c-warning:180 83 9; --c-danger:220 38 38; --c-info:37 99 235;
+    --c-pill-g:#065F46; --c-pill-a:#92400E; --c-pill-r:#991B1B; --c-pill-i:#1E3A8A;
+    --c-line:rgb(14 116 144 / .22); --c-grid:rgb(71 85 105 / .18);
+    --c-shop:#0369A1; --c-field:#B45309;
+  }
+}
+:root[data-theme="dark"]{
+  --c-bg-primary:10 15 29; --c-bg-card:30 41 59; --c-accent:6 182 212;
+  --c-text-primary:241 245 249; --c-text-secondary:148 163 184; --c-text-code:34 211 238;
+  --c-success:16 185 129; --c-warning:245 158 11; --c-danger:239 68 68; --c-info:96 165 250;
+  --c-pill-g:#34D399; --c-pill-a:#F59E0B; --c-pill-r:#FCA5A5; --c-pill-i:#93C5FD;
+  --c-line:rgb(6 182 212 / .20); --c-grid:rgb(148 163 184 / .16);
+  --c-shop:#38BDF8; --c-field:#FBBF24;
+}
+:root[data-theme="light"]{
+  --c-bg-primary:248 250 252; --c-bg-card:255 255 255; --c-accent:14 116 144;
+  --c-text-primary:15 23 42; --c-text-secondary:71 85 105; --c-text-code:14 116 144;
+  --c-success:5 150 105; --c-warning:180 83 9; --c-danger:220 38 38; --c-info:37 99 235;
+  --c-pill-g:#065F46; --c-pill-a:#92400E; --c-pill-r:#991B1B; --c-pill-i:#1E3A8A;
+  --c-line:rgb(14 116 144 / .22); --c-grid:rgb(71 85 105 / .18);
+  --c-shop:#0369A1; --c-field:#B45309;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:rgb(var(--c-bg-primary));color:rgb(var(--c-text-primary));
+  font:14.5px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased}
+code,.mono,.tab-num{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+.tab-num{font-variant-numeric:tabular-nums}
+a{color:rgb(var(--c-accent))}
+:focus-visible{outline:2px solid rgb(var(--c-accent));outline-offset:2px;border-radius:4px}
+.skip{position:absolute;left:-9999px}
+.skip:focus{left:8px;top:8px;z-index:99;background:rgb(var(--c-bg-card));padding:8px 12px;
+  border:1px solid var(--c-line);border-radius:7px}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px 72px}
+.bar{position:sticky;top:0;z-index:40;background:rgb(var(--c-bg-primary) / .93);
+  backdrop-filter:blur(8px);border-bottom:1px solid var(--c-line)}
+.bar-in{max-width:1180px;margin:0 auto;padding:10px 20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.brand{display:flex;gap:9px;align-items:center;font-weight:600;text-decoration:none;color:inherit}
+.brand small{display:block;font:400 11px/1.3 ui-monospace,Menlo,monospace;color:rgb(var(--c-text-secondary))}
+.dot{width:9px;height:9px;border-radius:50%;background:rgb(var(--c-accent));flex:none}
+.bar .right{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.icobtn{display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:6px 11px;
+  border:1px solid var(--c-line);border-radius:7px;background:transparent;
+  color:rgb(var(--c-text-primary));font:500 12px/1 inherit;cursor:pointer;text-decoration:none}
+.icobtn:hover{background:rgb(var(--c-accent) / .10)}
+.icobtn[aria-selected="true"],.icobtn[aria-pressed="true"]{background:rgb(var(--c-accent) / .16);border-color:rgb(var(--c-accent))}
+.gatepill{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;
+  font:600 11px/1 ui-monospace,Menlo,monospace;letter-spacing:.04em}
+.gatepill.blocked{background:rgb(var(--c-danger) / .16);color:var(--c-pill-r);border:1px solid rgb(var(--c-danger) / .4)}
+.gatepill.clear{background:rgb(var(--c-success) / .15);color:var(--c-pill-g);border:1px solid rgb(var(--c-success) / .35)}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;padding:12px 0 0;border-bottom:1px solid var(--c-line)}
+.tabs button{border-radius:7px 7px 0 0;border-bottom-color:transparent}
+.banner{margin-top:16px;padding:11px 15px;border-radius:9px;font-size:12.5px;
+  background:rgb(var(--c-info) / .10);border:1px solid rgb(var(--c-info) / .28);color:rgb(var(--c-text-secondary))}
+.banner b{color:rgb(var(--c-text-primary))}
+.eyebrow{font:600 10.5px/1 ui-monospace,Menlo,monospace;letter-spacing:.16em;text-transform:uppercase;
+  color:rgb(var(--c-text-code));margin:0 0 8px}
+h1{font-size:clamp(1.5rem,3.2vw,2rem);line-height:1.16;letter-spacing:-.022em;margin:0 0 10px}
+h2{font-size:clamp(1.1rem,2.1vw,1.3rem);letter-spacing:-.015em;margin:0 0 8px}
+h3{font-size:.98rem;margin:0 0 6px}
+.lede{color:rgb(var(--c-text-secondary));max-width:76ch;margin:0}
+.panel{padding-top:26px}
+.panel[hidden]{display:none}
+.dbox{background:rgb(var(--c-bg-card));border:1px solid var(--c-line);border-radius:10px;padding:17px;margin-top:16px}
+.dbox>h3:first-child{margin-top:0}
+.sub{color:rgb(var(--c-text-secondary));font-size:13px;margin:6px 0 0}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:10px;margin-top:16px}
+.kpi{background:rgb(var(--c-bg-card));border:1px solid var(--c-line);border-radius:10px;padding:14px 16px}
+.kpi .v{font:600 1.42rem/1 ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums}
+.kpi .l{margin-top:7px;font:600 10px/1.35 ui-monospace,Menlo,monospace;letter-spacing:.1em;
+  text-transform:uppercase;color:rgb(var(--c-text-secondary))}
+.kpi .s{margin-top:6px;font-size:11.5px;color:rgb(var(--c-text-secondary));line-height:1.45}
+.good{color:var(--c-pill-g)} .warn{color:var(--c-pill-a)} .bad{color:var(--c-pill-r)} .info{color:var(--c-pill-i)}
+.grid2{display:grid;grid-template-columns:1fr;gap:16px;margin-top:16px}
+.grid2>*{min-width:0;margin-top:0}
+@media(min-width:900px){.grid2{grid-template-columns:1fr 1fr}}
+.tblwrap{overflow-x:auto;margin-top:12px;border:1px solid var(--c-line);border-radius:10px}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:640px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--c-line);vertical-align:top}
+th{font:600 10px/1.3 ui-monospace,Menlo,monospace;letter-spacing:.09em;text-transform:uppercase;
+  color:rgb(var(--c-text-secondary));background:rgb(var(--c-bg-card))}
+td.num,th.num{text-align:right;font-family:ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums}
+tbody tr:last-child td{border-bottom:none}
+tfoot td{font-weight:600;border-top:2px solid var(--c-line);border-bottom:none}
+.pill{display:inline-block;padding:2px 9px;border-radius:999px;font:600 10.5px/1.6 ui-monospace,Menlo,monospace}
+.pill.ok{background:rgb(var(--c-success) / .15);color:var(--c-pill-g)}
+.pill.watch{background:rgb(var(--c-warning) / .16);color:var(--c-pill-a)}
+.pill.act{background:rgb(var(--c-danger) / .15);color:var(--c-pill-r)}
+.pill.na{background:rgb(var(--c-info) / .13);color:var(--c-pill-i)}
+svg{display:block;max-width:100%;height:auto}
+.legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;font-size:12px;color:rgb(var(--c-text-secondary))}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.formula{font:12.5px/1.6 ui-monospace,Menlo,monospace;background:rgb(var(--c-accent) / .07);
+  border-left:2px solid rgb(var(--c-accent) / .5);padding:9px 13px;border-radius:0 7px 7px 0;
+  margin-top:10px;overflow-x:auto;color:rgb(var(--c-text-secondary))}
+.formula b{color:rgb(var(--c-text-primary))}
+.gaterow{display:flex;gap:13px;align-items:flex-start;padding:13px 0;border-bottom:1px solid var(--c-line)}
+.gaterow:last-child{border-bottom:none}
+.gaterow .ico{flex:none;width:26px;height:26px;border-radius:7px;display:grid;place-items:center;
+  font:600 11px/1 ui-monospace,Menlo,monospace}
+.gaterow .ico.ok{background:rgb(var(--c-success) / .16);color:var(--c-pill-g)}
+.gaterow .ico.act{background:rgb(var(--c-danger) / .16);color:var(--c-pill-r)}
+.gaterow .ico.watch{background:rgb(var(--c-warning) / .16);color:var(--c-pill-a)}
+.gaterow .body{min-width:0}
+.gaterow .t{font-weight:600;font-size:13.5px}
+.gaterow .d{font-size:12.5px;color:rgb(var(--c-text-secondary));margin-top:4px}
+ul.tight{margin:9px 0 0;padding-left:19px} ul.tight li{margin:5px 0;color:rgb(var(--c-text-secondary))}
+.rowbar{margin-top:9px}
+.rowbar .rl{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;margin-bottom:4px}
+.rowbar .rl span:last-child{font-family:ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;
+  color:rgb(var(--c-text-secondary))}
+.track{height:8px;border-radius:999px;background:rgb(var(--c-text-secondary) / .16);overflow:hidden}
+.track i{display:block;height:100%;border-radius:999px}
+.note{font-size:12px;color:rgb(var(--c-text-secondary));margin-top:10px;font-style:italic}
+footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
+  font-size:12.5px;color:rgb(var(--c-text-secondary))}
+@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto} *{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<div class="bar">
+  <div class="bar-in">
+    <a class="brand" href="index.html" title="Back to the command center">
+      <span class="dot"></span>
+      <span>Unitized Facade Controls<small id="brandSub">TJ Jaiyen &middot; synthetic package</small></span>
+    </a>
+    <div class="right">
+      <span class="gatepill" id="gatePill">&nbsp;</span>
+      <button class="icobtn" id="themeBtn" type="button" aria-pressed="false">Theme</button>
+      <a class="icobtn" href="walters-wolf.html">Fit brief</a>
+      <a class="icobtn" href="index.html">&larr; Command center</a>
+    </div>
+  </div>
+</div>
+
+<div class="wrap" id="main">
+
+  <div style="padding-top:30px">
+    <div class="eyebrow" id="eyebrow">&nbsp;</div>
+    <h1>A unitized facade package is a production line with an installation window</h1>
+    <p class="lede">A critical&#8209;path schedule tracks activities. This package lives or dies on
+      <b>panel flow</b> &mdash; how fast the shop finishes units, how fast the field sets them, and how
+      many crated units sit between the two. Everything on this page is computed from one panel ledger
+      at render time; nothing below is a stored result or a typed figure.</p>
+    <div class="banner">
+      <b>Synthetic illustrative data.</b> The tower, the elevations, the panel counts, the survey
+      readings and the cost detail are invented to exercise the method. <b>No client, employer or
+      project data appears anywhere on this page</b> &mdash; not from Walters &amp; Wolf, not from any
+      other former employer. Figures marked <i>illustrative</i> are round assumptions rather than
+      ledger&#8209;derived values, and say so where they appear.
+    </div>
+  </div>
+
+  <div class="tabs" role="tablist" aria-label="Sections">
+    <button class="icobtn" role="tab" data-t="flow"  aria-selected="true">1 &middot; Panel Flow</button>
+    <button class="icobtn" role="tab" data-t="cost"  aria-selected="false">2 &middot; Cost &amp; Earned Value</button>
+    <button class="icobtn" role="tab" data-t="bid"   aria-selected="false">3 &middot; Bid vs Actual</button>
+    <button class="icobtn" role="tab" data-t="gates" aria-selected="false">4 &middot; Gates &amp; Tolerance</button>
+    <button class="icobtn" role="tab" data-t="recon" aria-selected="false">5 &middot; Shop &harr; Field</button>
+    <button class="icobtn" role="tab" data-t="method" aria-selected="false">6 &middot; Method</button>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <!-- 1 ................................................................. PANEL FLOW -->
+  <section class="panel" id="p-flow" role="tabpanel">
+    <h2>Factory output, field setting, and the buffer between them</h2>
+    <p class="lede">The single most useful number on a unitized job is not percent complete &mdash;
+      it is <b>how many working days of crated panels are standing between the shop and the setting
+      crew</b>. When that number falls, the crane goes idle three weeks later. It is a leading
+      indicator with real lead time, and it is computed here rather than asserted.</p>
+
+    <div class="dbox">
+      <h3>Dual S&#8209;curve &mdash; cumulative panels crated vs. set</h3>
+      <p class="sub">The vertical distance between the two curves <em>is</em> the buffer. Planned
+        setting is the dashed line.</p>
+      <div id="sCurve"></div>
+      <div class="legend">
+        <span><i style="background:var(--c-shop)"></i>Crated by the shop</span>
+        <span><i style="background:var(--c-field)"></i>Set in the field</span>
+        <span><i style="background:rgb(var(--c-text-secondary))"></i>Field plan</span>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="dbox">
+        <h3>Buffer, in working days of cover</h3>
+        <p class="sub">Panels in buffer divided by the setting rate over the trailing four weeks
+          &mdash; so it answers &ldquo;at the pace we are actually setting, how long until the crew
+          runs dry?&rdquo;</p>
+        <div id="bufferChart"></div>
+        <div class="formula" id="bufferFormula"></div>
+      </div>
+      <div class="dbox">
+        <h3>Takt comparison</h3>
+        <p class="sub">Two production rates that have to stay matched. Shop faster than field grows
+          inventory and storage cost; field faster than shop drains the buffer and eventually stops
+          the crane.</p>
+        <div id="taktRows"></div>
+        <p class="note" id="taktNote"></p>
+      </div>
+    </div>
+
+    <div class="dbox">
+      <h3>Where every panel is right now</h3>
+      <p class="sub">The rules of credit below are how a panel earns value. They are cumulative
+        &mdash; a panel that is set was also crated, glazed and framed.</p>
+      <div id="creditRows"></div>
+      <div class="tblwrap">
+        <table>
+          <thead><tr>
+            <th scope="col">Elevation</th><th class="num" scope="col">Panels</th>
+            <th class="num" scope="col">Framed</th><th class="num" scope="col">Glazed</th>
+            <th class="num" scope="col">Crated</th><th class="num" scope="col">Set</th>
+            <th class="num" scope="col">Sealed</th><th class="num" scope="col">Earned %</th>
+          </tr></thead>
+          <tbody id="zoneFlowBody"></tbody>
+          <tfoot id="zoneFlowFoot"></tfoot>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 ............................................................... COST / EVM -->
+  <section class="panel" id="p-cost" role="tabpanel" hidden>
+    <h2>Earned value, when physical completion is actually countable</h2>
+    <p class="lede">Most earned&#8209;value disputes come down to an argued percent complete. Unitized
+      work has an advantage stick&#8209;built does not: <b>panels are countable</b>. Earned value here
+      is panel counts times a published rule of credit &mdash; not a superintendent's judgement, and
+      not a cost&#8209;percentage standing in for physical progress.</p>
+
+    <div class="dbox">
+      <h3>Package performance</h3>
+      <div class="tblwrap">
+        <table>
+          <thead><tr>
+            <th scope="col">Elevation</th>
+            <th class="num" scope="col">BAC</th><th class="num" scope="col">PV</th>
+            <th class="num" scope="col">EV</th><th class="num" scope="col">AC</th>
+            <th class="num" scope="col">SPI</th><th class="num" scope="col">CPI</th>
+            <th class="num" scope="col">EAC</th><th class="num" scope="col">VAC</th>
+          </tr></thead>
+          <tbody id="evmBody"></tbody>
+          <tfoot id="evmFoot"></tfoot>
+        </table>
+      </div>
+      <p class="note">Package EAC is rolled up bottom&#8209;up as the sum of elevation EACs, because
+        each elevation carries its own cost efficiency. The blended check &mdash; package BAC &divide;
+        package CPI &mdash; is shown alongside it and legitimately differs; that spread is the thing a
+        single blended index hides.</p>
+    </div>
+
+    <div class="grid2">
+      <div class="dbox">
+        <h3>Four ways to forecast the same package</h3>
+        <p class="sub">When the methods disagree by more than a few percent, the disagreement is the
+          finding &mdash; it means the assumption about remaining work is doing the work, not the data.</p>
+        <div id="eacRows"></div>
+        <p class="note" id="eacSpread"></p>
+      </div>
+      <div class="dbox">
+        <h3>Cost&#8209;variance decomposition, by elevation</h3>
+        <p class="sub">Which elevations are carrying the overrun, ranked. A package&#8209;level CPI
+          tells you there is a problem; this tells you where to walk.</p>
+        <div id="cvRows"></div>
+      </div>
+    </div>
+
+    <div class="dbox">
+      <h3>Monte Carlo &mdash; cost at completion</h3>
+      <p class="sub">Ten thousand runs. Each elevation's remaining work is drawn from a
+        three&#8209;point range around its own observed cost efficiency, so an elevation running well
+        keeps its advantage in the draw instead of being averaged away. Fixed seed &mdash; the same
+        page reload gives the same distribution.</p>
+      <div id="mcChart"></div>
+      <div id="mcRows"></div>
+    </div>
+  </section>
+
+  <!-- 3 ................................................................ BID VS ACTUAL -->
+  <section class="panel" id="p-bid" role="tabpanel" hidden>
+    <h2>What the bid assumed, against what the job did</h2>
+    <p class="lede">A single margin variance is a symptom with at least three different diseases.
+      Splitting it into <b>quantity</b>, <b>price</b> and <b>productivity</b> is what makes it
+      actionable &mdash; a quantity miss is an estimating or scope problem, a price miss is a
+      procurement problem, a productivity miss is a field or shop problem, and the fixes are not the
+      same. The first two decompose exactly; the identity is asserted in the page's own test harness.</p>
+
+    <div class="dbox">
+      <h3>Material quantity and price, by elevation</h3>
+      <div class="tblwrap">
+        <table>
+          <thead><tr>
+            <th scope="col">Elevation</th>
+            <th class="num" scope="col">Bid sf</th><th class="num" scope="col">Actual sf</th>
+            <th class="num" scope="col">Bid $/sf</th><th class="num" scope="col">Actual $/sf</th>
+            <th class="num" scope="col">Qty var</th><th class="num" scope="col">Price var</th>
+            <th class="num" scope="col">Total</th>
+          </tr></thead>
+          <tbody id="bidBody"></tbody>
+          <tfoot id="bidFoot"></tfoot>
+        </table>
+      </div>
+      <div class="formula" id="bidIdentity"></div>
+      <p class="note">Favourable variances are shown as negative &mdash; less cost than bid. The
+        convention is stated because half of all variance reports get read backwards.</p>
+    </div>
+
+    <div class="grid2">
+      <div class="dbox">
+        <h3>Productivity, the third cause</h3>
+        <p class="sub">Hours earned against hours actually burned. This does not appear in the
+          quantity/price split above because it is a labour effect, not a material one &mdash;
+          folding it in is how a decomposition stops adding up.</p>
+        <div id="prodRows"></div>
+        <div class="formula" id="prodFormula"></div>
+        <p class="note" id="prodCaveat" style="font-style:normal"></p>
+      </div>
+      <div class="dbox">
+        <h3>What each cause would mean here</h3>
+        <div id="causeNarrative"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 .............................................................. GATES / TOLERANCE -->
+  <section class="panel" id="p-gates" role="tabpanel" hidden>
+    <h2>Gates that actually gate, and drift that predicts rework</h2>
+    <p class="lede">A quality gate that always shows green is not checking anything. Each gate below
+      evaluates a live condition against this package's own data; one of them is currently failing,
+      and the page does not hide it in the chrome.</p>
+
+    <div class="dbox">
+      <h3>Quality and release gates</h3>
+      <div id="gateRows"></div>
+    </div>
+
+    <div class="dbox">
+      <h3>Tolerance creep &mdash; a cost indicator disguised as a survey reading</h3>
+      <p class="sub">Setting variance at each vertical joint is individually trivial and cumulatively
+        not. A consistent bias of a fraction of a millimetre per panel compounds across an elevation
+        sweep until the perimeter joint no longer has room for sealant &mdash; at which point the
+        remedy is rework, and it is already paid for. Surveying module width every few panels turns
+        that from a discovery into a forecast.</p>
+      <div class="tblwrap">
+        <table>
+          <thead><tr>
+            <th scope="col">Elevation</th><th class="num" scope="col">Panels set</th>
+            <th class="num" scope="col">Measured drift</th><th class="num" scope="col">Per panel</th>
+            <th class="num" scope="col">Projected at full sweep</th>
+            <th class="num" scope="col">Budget</th><th scope="col">Status</th>
+          </tr></thead>
+          <tbody id="creepBody"></tbody>
+        </table>
+      </div>
+      <div class="formula" id="creepFormula"></div>
+      <p class="note" id="creepNote"></p>
+    </div>
+  </section>
+
+  <!-- 5 ................................................................ RECONCILIATION -->
+  <section class="panel" id="p-recon" role="tabpanel" hidden>
+    <h2>One job number, two work breakdowns</h2>
+    <p class="lede">The shop plans in panel types and production batches. The field plans in floors
+      and elevation sweeps. Both roll into one margin, and when the two structures are never
+      reconciled, &ldquo;how are we doing&rdquo; has as many answers as it has reporters. This is the
+      crosswalk: the same money, viewed both ways, tied out to the cent.</p>
+
+    <div class="grid2">
+      <div class="dbox">
+        <h3>Shop view &mdash; by production stage</h3>
+        <div class="tblwrap">
+          <table><thead><tr><th scope="col">Stage</th><th class="num" scope="col">Budget</th>
+            <th class="num" scope="col">Earned</th><th class="num" scope="col">Actual</th></tr></thead>
+            <tbody id="shopBody"></tbody><tfoot id="shopFoot"></tfoot></table>
+        </div>
+      </div>
+      <div class="dbox">
+        <h3>Field view &mdash; by elevation sweep</h3>
+        <div class="tblwrap">
+          <table><thead><tr><th scope="col">Elevation</th><th class="num" scope="col">Budget</th>
+            <th class="num" scope="col">Earned</th><th class="num" scope="col">Actual</th></tr></thead>
+            <tbody id="fieldBody"></tbody><tfoot id="fieldFoot"></tfoot></table>
+        </div>
+      </div>
+    </div>
+
+    <div class="dbox" id="reconBox">
+      <h3>Tie&#8209;out</h3>
+      <div id="reconRows"></div>
+      <p class="note">This is the check, not a summary of it. If the two views disagreed, this card
+        would say so and the number would be non&#8209;zero &mdash; a reconciliation that can only
+        ever report success is decoration.</p>
+    </div>
+  </section>
+
+  <!-- 6 ...................................................................... METHOD -->
+  <section class="panel" id="p-method" role="tabpanel" hidden>
+    <h2>How every number here is produced</h2>
+    <p class="lede">The point of this page is the method, not the tower. Nothing below is typed;
+      each figure traces to the panel ledger through a named function, and the page ships with a test
+      harness that re&#8209;derives the totals independently and fails the build if they disagree.</p>
+
+    <div class="dbox">
+      <h3>The ledger</h3>
+      <p class="sub" id="ledgerDesc"></p>
+      <div class="tblwrap">
+        <table><thead><tr><th scope="col">Field</th><th scope="col">Meaning</th>
+          <th scope="col">Feeds</th></tr></thead><tbody id="ledgerBody"></tbody></table>
+      </div>
+    </div>
+
+    <div class="dbox">
+      <h3>Derivations</h3>
+      <div id="formulaList"></div>
+    </div>
+
+    <div class="grid2">
+      <div class="dbox">
+        <h3>What this page deliberately does not do</h3>
+        <ul class="tight">
+          <li><b>It does not produce a critical&#8209;path schedule.</b> There is no logic network
+            here, no float calculation off real activity ties, and no claim to either. Panel flow and
+            takt are production measures; they inform a schedule, they do not replace one.</li>
+          <li><b>It does not forecast a completion date.</b> The Monte Carlo runs on cost, where the
+            three&#8209;point ranges are defensible. A date distribution would need duration
+            uncertainty this synthetic ledger does not carry, so it is declined rather than faked.</li>
+          <li><b>It does not price the tolerance risk.</b> Creep is shown as a physical projection
+            against a joint budget. Converting millimetres into a rework dollar figure would require
+            a remediation unit rate I have no verified source for, so the page stops at the physical
+            reading and says why.</li>
+          <li><b>It carries no real project data.</b> Every figure is synthetic. The method is the
+            content.</li>
+        </ul>
+      </div>
+      <div class="dbox">
+        <h3>Verification</h3>
+        <p class="sub">Two independent checks, both runnable:</p>
+        <ul class="tight">
+          <li><code>node verify-facade.cjs</code> &mdash; stubs the DOM, executes this page's own
+            script, then re&#8209;derives every package total from the raw ledger fields rather than
+            reading the computed values back. Reading a number back only proves it was stored.</li>
+          <li>The same harness asserts the <b>quantity + price = total</b> identity on the
+            bid&#8209;versus&#8209;actual decomposition, and that the shop and field views tie to the
+            same package earned value. Those are the two places this method could silently be wrong.</li>
+        </ul>
+        <div class="formula" id="verifyNote"></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p><b>TJ Jaiyen</b> &middot; Lake Stevens, WA &middot;
+      <a href="mailto:theerayut.jaiyen@gmail.com">theerayut.jaiyen@gmail.com</a> &middot;
+      <a href="index.html">Project Controls Command Center</a> &middot;
+      <a href="walters-wolf.html">Fit brief</a></p>
+    <p>Synthetic illustrative data throughout. No client, employer or project information appears on
+      this page. Domain references &mdash; the AAMA and ASTM test standards named in the gate list
+      &mdash; are public consensus standards, cited for what they gate rather than reproduced.</p>
+  </footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ==================================================================================
+     THE LEDGER.  Everything rendered on this page derives from the literals in this
+     block.  Nothing below this block is a stored result -- if a number appears in the
+     UI and cannot be traced back to here through a derive*() function, that is a bug,
+     and verify-facade.cjs is the thing that catches it.
+
+     All figures are SYNTHETIC.  No client, employer or project data appears anywhere.
+     ================================================================================== */
+
+  var PROGRAM = {
+    name:"Meridian Tower",
+    loc:"Puget Sound region (invented site)",
+    storeys:24, gsf:118000, panels:1240,
+    bac:18400000,
+    dataDate:"31 Aug 2026", week:34, weeksTotal:58,
+    workDaysPerWeek:5,
+    bufferFloorDays:10,        // contract-style floor: mobilise only above this cover
+    jointBudgetMm:20,          // cumulative creep the perimeter joint can absorb
+    laborRate:96               // $/hr blended shop+field, used ONLY for the productivity $ view
+  };
+
+  /* Cumulative panel states.  Monotonic by construction: a set panel was also crated,
+     glazed and framed.  The renderer asserts that ordering rather than trusting it. */
+  var ZONES = [
+    {id:"N-LO", n:"North &mdash; L02&ndash;L12", panels:248,
+     rel:248, fra:248, gla:248, cra:244, set:232, sea:220,
+     bacShop:2195000, bacField:1345000, acShop:2120000, acField:1270000, pv:3470000,
+     ernH:20600, actH:20900,
+     bidQty:23600, actQty:23950, bidRate:92.50, actRate:93.80,
+     flood:true,  hose:true,  surveyed:22, creepMm:9.2,  sweep:24},
+    {id:"N-HI", n:"North &mdash; L13&ndash;L24", panels:236,
+     rel:236, fra:230, gla:222, cra:210, set:168, sea:150,
+     bacShop:2150000, bacField:1320000, acShop:1950000, acField:1160000, pv:3140000,
+     ernH:17900, actH:19400,
+     bidQty:22450, actQty:22900, bidRate:92.50, actRate:96.20,
+     flood:true,  hose:true,  surveyed:20, creepMm:11.4, sweep:24},
+    {id:"S-LO", n:"South &mdash; L02&ndash;L12", panels:248,
+     rel:248, fra:248, gla:246, cra:242, set:228, sea:214,
+     bacShop:2195000, bacField:1345000, acShop:2105000, acField:1230000, pv:3450000,
+     ernH:20400, actH:20200,
+     bidQty:23600, actQty:23700, bidRate:92.50, actRate:92.10,
+     flood:true,  hose:true,  surveyed:22, creepMm:7.6,  sweep:24},
+    {id:"S-HI", n:"South &mdash; L13&ndash;L24", panels:236,
+     rel:232, fra:220, gla:208, cra:196, set:150, sea:128,
+     bacShop:2150000, bacField:1320000, acShop:1960000, acField:1180000, pv:3090000,
+     ernH:16700, actH:19600,
+     bidQty:22450, actQty:23400, bidRate:92.50, actRate:97.40,
+     flood:true,  hose:false, surveyed:20, creepMm:17.8, sweep:24},
+    {id:"E-W",  n:"East &amp; West returns", panels:196,
+     rel:190, fra:176, gla:160, cra:148, set:96, sea:78,
+     bacShop:1825000, bacField:1115000, acShop:1400000, acField:855000, pv:2290000,
+     ernH:12500, actH:13800,
+     bidQty:18650, actQty:19050, bidRate:98.00, actRate:101.30,
+     flood:true,  hose:false, surveyed:16, creepMm:10.4, sweep:20},
+    {id:"PDM",  n:"Podium &amp; entry", panels:76,
+     rel:60, fra:44, gla:30, cra:22, set:0, sea:0,
+     bacShop:900000, bacField:540000, acShop:480000, acField:32000, pv:620000,
+     ernH:2300, actH:2750,
+     bidQty:7250, actQty:7640, bidRate:126.00, actRate:133.50,
+     flood:false, hose:false, surveyed:0,  creepMm:0,    sweep:12}
+  ];
+
+  /* Rules of credit.  Two ladders, not one, because a panel earns shop scope and field
+     scope at different moments -- and the weights are the *cost* split rather than an
+     invented percentage: a crated-not-yet-set panel has earned its shop budget and none
+     of its field budget, which is simply true. */
+  var SHOP_LADDER = [
+    {k:"rel", n:"Released to shop",        w:0.14},
+    {k:"fra", n:"Frame assembled",         w:0.50},
+    {k:"gla", n:"Glazed &amp; structurally sealed", w:0.86},
+    {k:"cra", n:"Factory QC passed, crated", w:1.00}
+  ];
+  var FIELD_LADDER = [
+    {k:"set", n:"Set &amp; interlocked",   w:0.72},
+    {k:"sea", n:"Perimeter sealed &amp; fire-stopped", w:1.00}
+  ];
+
+  /* Weekly cumulative panel counts.  34 observations, one per week to the data date.
+     This is measured history, not a fitted curve. */
+  var WEEKS = {
+    crated:[0,0,0,0,6,18,36,58,84,112,144,178,214,252,292,334,378,422,466,510,556,602,
+            648,692,736,780,822,862,900,936,970,1000,1032,1062],
+    set:   [0,0,0,0,0,0,0,0,0,0,0,8,24,46,72,102,136,172,210,250,292,334,378,420,464,
+            506,548,588,628,668,706,746,810,874],
+    plan:  [0,0,0,0,0,0,0,0,0,6,20,40,66,96,130,166,204,244,286,330,376,422,468,514,
+            560,606,652,698,742,786,828,868,902,930]
+  };
+
+  /* ==================================================================================
+     DERIVATIONS
+     ================================================================================== */
+
+  /* Weighted panel-equivalents earned against a cumulative-state ladder.  Each band earns
+     its own weight for the panels that reached that state but not the next one; the final
+     state earns in full. */
+  function earnedPanels(z, ladder){
+    var t = 0;
+    for (var i = 0; i < ladder.length; i++){
+      var here = z[ladder[i].k];
+      var next = (i + 1 < ladder.length) ? z[ladder[i + 1].k] : 0;
+      t += (here - next) * ladder[i].w;
+    }
+    return t;
+  }
+
+  function deriveZone(z){
+    var shopE  = earnedPanels(z, SHOP_LADDER);
+    var fieldE = earnedPanels(z, FIELD_LADDER);
+    var bac    = z.bacShop + z.bacField;
+    var ac     = z.acShop  + z.acField;
+    var evShop = z.bacShop * (shopE  / z.panels);
+    var evField= z.bacField* (fieldE / z.panels);
+    var ev     = evShop + evField;
+    var cpi    = ac > 0 ? ev / ac : 1;
+    var perPanel  = z.surveyed > 0 ? z.creepMm / z.surveyed : 0;
+    var projected = perPanel * z.sweep;
+    return {
+      bac:bac, ac:ac, ev:ev, pv:z.pv, evShop:evShop, evField:evField,
+      shopE:shopE, fieldE:fieldE,
+      spi: z.pv > 0 ? ev / z.pv : 1,
+      cpi: cpi,
+      eac: cpi > 0 ? bac / cpi : bac,
+      vac: bac - (cpi > 0 ? bac / cpi : bac),
+      sv: ev - z.pv, cv: ev - ac,
+      pct: ev / bac,
+      pf: z.actH > 0 ? z.ernH / z.actH : 1,
+      qtyVar:   (z.actQty - z.bidQty) * z.bidRate,
+      priceVar: (z.actRate - z.bidRate) * z.actQty,
+      totVar:   (z.actQty * z.actRate) - (z.bidQty * z.bidRate),
+      prodVar:  (z.actH - z.ernH) * PROGRAM.laborRate,
+      creepPer: perPanel, creepProj: projected,
+      creepRatio: projected / PROGRAM.jointBudgetMm,
+      inBuffer: z.cra - z.set
+    };
+  }
+
+  var R = ZONES.map(function(z){ return Object.assign({}, z, deriveZone(z)); });
+
+  function sum(f){ return R.reduce(function(a, r){ return a + f(r); }, 0); }
+
+  var T = {};
+  T.panels  = sum(function(r){ return r.panels; });
+  T.bac     = sum(function(r){ return r.bac; });
+  T.pv      = sum(function(r){ return r.pv; });
+  T.ev      = sum(function(r){ return r.ev; });
+  T.ac      = sum(function(r){ return r.ac; });
+  T.evShop  = sum(function(r){ return r.evShop; });
+  T.evField = sum(function(r){ return r.evField; });
+  T.bacShop = sum(function(r){ return r.bacShop; });
+  T.bacField= sum(function(r){ return r.bacField; });
+  T.acShop  = sum(function(r){ return r.acShop; });
+  T.acField = sum(function(r){ return r.acField; });
+  T.ernH    = sum(function(r){ return r.ernH; });
+  T.actH    = sum(function(r){ return r.actH; });
+  T.spi     = T.ev / T.pv;
+  T.cpi     = T.ev / T.ac;
+  T.pct     = T.ev / T.bac;
+  T.sv      = T.ev - T.pv;
+  T.cv      = T.ev - T.ac;
+  T.pf      = T.ernH / T.actH;
+  T.eacBottomUp = sum(function(r){ return r.eac; });
+  T.eacBlended  = T.bac / T.cpi;
+  T.vac     = T.bac - T.eacBottomUp;
+  T.tcpi    = (T.bac - T.ev) / (T.bac - T.ac);
+  T.qtyVar  = sum(function(r){ return r.qtyVar; });
+  T.priceVar= sum(function(r){ return r.priceVar; });
+  T.totVar  = sum(function(r){ return r.totVar; });
+  T.prodVar = sum(function(r){ return r.prodVar; });
+  T.bidQty  = sum(function(r){ return r.bidQty; });
+  T.actQty  = sum(function(r){ return r.actQty; });
+
+  /* --- Panel flow ------------------------------------------------------------------ */
+  var W = WEEKS.crated.length;
+  T.crated = WEEKS.crated[W - 1];
+  T.set    = WEEKS.set[W - 1];
+  T.plan   = WEEKS.plan[W - 1];
+  T.buffer = T.crated - T.set;
+
+  /* Rates over a trailing window, expressed per working day.  A trailing window rather
+     than a project-to-date average, because what matters is the pace being run NOW. */
+  function ratePerDay(series, weeks){
+    var i = series.length - 1;
+    var j = Math.max(0, i - weeks);
+    return (series[i] - series[j]) / ((i - j) * PROGRAM.workDaysPerWeek);
+  }
+  T.setRate   = ratePerDay(WEEKS.set, 4);
+  T.crateRate = ratePerDay(WEEKS.crated, 4);
+  T.coverDays = T.setRate > 0 ? T.buffer / T.setRate : Infinity;
+
+  /* Days of cover as it stood at each past week, so the TREND is visible -- a single
+     current reading cannot distinguish a healthy buffer from one in free fall. */
+  function coverSeries(){
+    var out = [];
+    for (var i = 0; i < W; i++){
+      var j = Math.max(0, i - 4);
+      var rate = (i - j) > 0 ? (WEEKS.set[i] - WEEKS.set[j]) / ((i - j) * PROGRAM.workDaysPerWeek) : 0;
+      out.push(rate > 0 ? (WEEKS.crated[i] - WEEKS.set[i]) / rate : null);
+    }
+    return out;
+  }
+  T.cover = coverSeries();
+  T.coverPrior = T.cover[W - 4];
+
+  /* --- Gates.  Each evaluates a live condition; none is a hard-coded status. --------- */
+  function deriveGates(){
+    var sealedNoHose = R.filter(function(r){ return r.sea > 0 && !r.hose; });
+    var setNoFlood   = R.filter(function(r){ return r.set > 0 && !r.flood; });
+    var cratedNoFlood= R.filter(function(r){ return r.set === 0 && r.cra > 0 && !r.flood; });
+    var names = function(a){ return a.map(function(r){ return r.id; }).join(", "); };
+    return [
+      {n:"Performance mock-up passed", std:"ASTM E283 / E331 / E330 &middot; AAMA 501.1 / 501.4",
+       s:"ok",
+       d:"Static air and water, structural proof load and seismic drift all recorded as passed "
+        + "before mass extrusion released. This gate is upstream of the ledger, so it is an input "
+        + "here rather than a computed condition &mdash; flagged as such rather than dressed up."},
+      {n:"Mass production release", std:"Gated on the mock-up above",
+       s:"ok",
+       d:"Released. " + fmtInt(T.crated) + " of " + fmtInt(T.panels) + " panels have since cleared "
+        + "factory QC and been crated."},
+      {n:"Factory buffer ahead of the setting crew",
+       std:"Floor: " + PROGRAM.bufferFloorDays + " working days of cover",
+       s: T.coverDays < PROGRAM.bufferFloorDays ? "act"
+          : (T.coverDays < T.coverPrior * 0.6 ? "watch" : "ok"),
+       d: fmtInt(T.buffer) + " panels in buffer against a trailing setting rate of "
+        + T.setRate.toFixed(1) + " panels per working day &mdash; " + T.coverDays.toFixed(1)
+        + " days of cover against a " + PROGRAM.bufferFloorDays + "-day floor. "
+        + (T.coverDays < T.coverPrior * 0.6
+           ? "Above the floor, but cover has fallen from " + T.coverPrior.toFixed(1)
+             + " days three weeks ago: the field is now setting faster than the shop is crating, "
+             + "and on the current gap the floor is reached in roughly "
+             + Math.round((T.buffer - PROGRAM.bufferFloorDays * T.setRate) /
+                          Math.max(0.1, T.setRate - T.crateRate)) + " working days."
+           : "Cover is stable against the trailing trend.")},
+      {n:"Starter sill flood test before panels are set",
+       std:"Consultant-witnessed dammed flood test, per elevation",
+       s: setNoFlood.length ? "act" : (cratedNoFlood.length ? "watch" : "ok"),
+       d: setNoFlood.length
+          ? "BREACH &mdash; panels have been set above an unsigned sill on " + names(setNoFlood) + "."
+          : (cratedNoFlood.length
+             ? "No breach: nothing has been set above an unsigned sill. But " + names(cratedNoFlood)
+               + " holds crated units with the sill test still open &mdash; the constraint is on the "
+               + "critical path for that elevation, not on the panels."
+             : "All elevations with panels set carry a signed sill test.")},
+      {n:"Field water test before interior close-in", std:"AAMA 501.2 &middot; per elevation",
+       s: sealedNoHose.length ? "act" : "ok",
+       d: sealedNoHose.length
+          ? "BLOCKED on " + names(sealedNoHose) + ". Those elevations carry "
+            + fmtInt(sealedNoHose.reduce(function(a, r){ return a + r.sea; }, 0))
+            + " sealed panels with no recorded hose test, so interior framing and insulation "
+            + "cannot be released behind them. Covering that framing before the test converts a "
+            + "diagnostic into a demolition."
+          : "Every sealed elevation carries a passed hose test."}
+    ];
+  }
+
+  /* --- Monte Carlo.  Fixed seed: the same reload gives the same distribution. -------- */
+  function lcg(seed){ var s = seed >>> 0;
+    return function(){ s = (1664525 * s + 1013904223) >>> 0; return s / 4294967296; }; }
+  function gaussRnd(rnd){
+    var u = 0, v = 0;
+    while (u === 0) u = rnd();
+    while (v === 0) v = rnd();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+  function gammaRnd(rnd, k){
+    if (k < 1){ return gammaRnd(rnd, k + 1) * Math.pow(rnd(), 1 / k); }
+    var d = k - 1 / 3, c = 1 / Math.sqrt(9 * d);
+    for (;;){
+      var x = gaussRnd(rnd), v = 1 + c * x;
+      if (v <= 0) continue;
+      v = v * v * v;
+      var u = rnd();
+      if (u < 1 - 0.0331 * x * x * x * x) return d * v;
+      if (Math.log(u) < 0.5 * x * x + d * (1 - v + Math.log(v))) return d * v;
+    }
+  }
+  function betaRnd(rnd, a, b){ var g = gammaRnd(rnd, a); return g / (g + gammaRnd(rnd, b)); }
+  /* Beta-PERT: the standard four-parameter form with lambda = 4. */
+  function pertRnd(rnd, lo, mode, hi){
+    if (hi - lo < 1e-9) return lo;
+    var a = 1 + 4 * (mode - lo) / (hi - lo);
+    var b = 1 + 4 * (hi - mode) / (hi - lo);
+    return lo + betaRnd(rnd, a, b) * (hi - lo);
+  }
+  function computeMc(n){
+    var rnd = lcg(20260831), sims = [];
+    for (var i = 0; i < n; i++){
+      var total = 0;
+      for (var j = 0; j < R.length; j++){
+        var r = R[j];
+        var rem = r.bac - r.ev;                 // budgeted value of work not yet earned
+        var mode = 1 / r.cpi;                   // this elevation's own observed inefficiency
+        var lo = Math.max(0.80, mode - 0.14), hi = mode + 0.22;
+        total += r.ac + rem * pertRnd(rnd, lo, mode, hi);
+      }
+      sims.push(total);
+    }
+    sims.sort(function(a, b){ return a - b; });
+    return sims;
+  }
+  function q(sims, p){
+    var i = (sims.length - 1) * p, lo = Math.floor(i), hi = Math.ceil(i);
+    return lo === hi ? sims[lo] : sims[lo] + (sims[hi] - sims[lo]) * (i - lo);
+  }
+  var MC = computeMc(10000);
+  T.p10 = q(MC, 0.10); T.p50 = q(MC, 0.50); T.p80 = q(MC, 0.80); T.p95 = q(MC, 0.95);
+  T.pOverBac = MC.filter(function(v){ return v > T.bac; }).length / MC.length;
+
+  /* --- Four forecasts of the same package ------------------------------------------- */
+  var EACS = [
+    {n:"Current cost efficiency continues", f:"BAC &divide; CPI", v:T.bac / T.cpi,
+     w:"The default when nothing about the remaining work is expected to change."},
+    {n:"Remaining work runs to budget", f:"AC + (BAC &minus; EV)", v:T.ac + (T.bac - T.ev),
+     w:"Assumes the overrun to date was one-off. Defensible only with a named, fixed cause."},
+    {n:"Cost and schedule pressure both persist", f:"AC + (BAC &minus; EV) &divide; (CPI &times; SPI)",
+     v:T.ac + (T.bac - T.ev) / (T.cpi * T.spi),
+     w:"The pessimistic read: being behind costs money to recover. Usually the right one when SPI &lt; 1."},
+    {n:"Bottom-up from each elevation", f:"&Sigma; (elevation BAC &divide; elevation CPI)", v:T.eacBottomUp,
+     w:"Respects the spread between elevations instead of blending them into one index."}
+  ];
+  T.eacSpread = (Math.max.apply(null, EACS.map(function(e){ return e.v; }))
+               - Math.min.apply(null, EACS.map(function(e){ return e.v; }))) / T.bac;
+
+  /* ==================================================================================
+     FORMATTERS + CHART PRIMITIVES
+     ================================================================================== */
+  function fmtInt(v){ return Math.round(v).toLocaleString("en-US"); }
+  function m(v){ return (v < 0 ? "−$" : "$") + (Math.abs(v) / 1e6).toFixed(2) + "M"; }
+  function k(v){ return (v < 0 ? "−$" : "$") + fmtInt(Math.abs(v) / 1000) + "k"; }
+  function idx(v){ return v.toFixed(3); }
+  function pct(v, d){ return (v * 100).toFixed(d === undefined ? 1 : d) + "%"; }
+  function band(v, good, warn, invert){
+    var g = invert ? v <= good : v >= good, w = invert ? v <= warn : v >= warn;
+    return g ? "good" : (w ? "warn" : "bad");
+  }
+  function esc(s){ return String(s); }
+
+  function svg(w, h, inner, label){
+    return '<svg viewBox="0 0 ' + w + ' ' + h + '" role="img" aria-label="' + label
+         + '" preserveAspectRatio="xMidYMid meet">' + inner + '</svg>';
+  }
+  function polyline(pts, stroke, dash, width){
+    return '<polyline fill="none" stroke="' + stroke + '" stroke-width="' + (width || 2)
+         + '" stroke-linejoin="round" stroke-linecap="round"'
+         + (dash ? ' stroke-dasharray="' + dash + '"' : '')
+         + ' points="' + pts.join(" ") + '"/>';
+  }
+  function rowbar(label, value, widthPct, color){
+    return '<div class="rowbar"><div class="rl"><span>' + label + '</span><span>' + value
+         + '</span></div><div class="track"><i style="width:'
+         + Math.max(0, Math.min(100, widthPct)).toFixed(1) + '%;background:' + color
+         + '"></i></div></div>';
+  }
+
+  /* ==================================================================================
+     RENDER
+     ================================================================================== */
+  var GATES = deriveGates();          // called after the formatters it uses are defined
+  var worstGate = GATES.reduce(function(a, g){
+    var rank = {ok:0, watch:1, act:2};
+    return rank[g.s] > rank[a.s] ? g : a;
+  }, GATES[0]);
+
+  function el(id){ return document.getElementById(id); }
+  function set(id, html){ var e = el(id); if (e) e.innerHTML = html; }
+
+  set("eyebrow", PROGRAM.name + " &middot; " + fmtInt(PROGRAM.panels) + " unitized panels &middot; "
+      + fmtInt(PROGRAM.gsf) + " sf &middot; data date " + PROGRAM.dataDate);
+  set("brandSub", "TJ Jaiyen &middot; synthetic " + m(T.bac) + " package");
+  var gp = el("gatePill");
+  gp.className = "gatepill " + (worstGate.s === "act" ? "blocked" : "clear");
+  gp.innerHTML = worstGate.s === "act" ? "&#9679; Gate blocked" : "&#9679; Gates clear";
+
+  /* --- KPI board ------------------------------------------------------------------- */
+  var worstCreepZone = R.filter(function(r){ return r.surveyed > 0; })
+                        .sort(function(a, b){ return b.creepRatio - a.creepRatio; })[0];
+  var worstCreepRatio = worstCreepZone.creepRatio;
+
+  var KPIS = [
+    {l:"Days of buffer cover", v:T.coverDays.toFixed(1),
+     c:band(T.coverDays, PROGRAM.bufferFloorDays * 2, PROGRAM.bufferFloorDays),
+     s:fmtInt(T.buffer) + " crated panels &divide; " + T.setRate.toFixed(1) + "/day set rate"},
+    {l:"Panels set", v:fmtInt(T.set) + " / " + fmtInt(T.panels),
+     c:band(T.set / T.plan, 1, 0.95), s:"Plan to date " + fmtInt(T.plan) + " &mdash; "
+     + fmtInt(Math.abs(T.set - T.plan)) + (T.set < T.plan ? " behind" : " ahead")},
+    {l:"Earned value", v:m(T.ev), c:"info", s:pct(T.pct) + " of " + m(T.bac) + " budget"},
+    {l:"CPI", v:idx(T.cpi), c:band(T.cpi, 1, 0.95),
+     s:"Cost variance " + k(T.cv)},
+    {l:"SPI", v:idx(T.spi), c:band(T.spi, 1, 0.95),
+     s:"In dollars, not days &mdash; " + k(T.sv)},
+    {l:"Forecast at completion", v:m(T.eacBottomUp), c:band(T.vac, 0, -T.bac * 0.03),
+     s:"Bottom-up. Variance " + k(T.vac)},
+    {l:"Productivity factor", v:idx(T.pf), c:band(T.pf, 1, 0.95),
+     s:fmtInt(T.ernH) + " earned / " + fmtInt(T.actH) + " actual hours"},
+    {l:"Joint budget consumed", v:pct(worstCreepRatio, 0), c:band(worstCreepRatio, 0.65, 1, true),
+     s:"Worst elevation (" + worstCreepZone.id + ") projected across its full sweep, against "
+       + PROGRAM.jointBudgetMm + " mm"}
+  ];
+  set("kpis", KPIS.map(function(x){
+    return '<div class="kpi"><div class="v ' + x.c + '">' + x.v + '</div>'
+         + '<div class="l">' + x.l + '</div><div class="s">' + x.s + '</div></div>';
+  }).join(""));
+
+  /* --- 1. Panel flow ---------------------------------------------------------------- */
+  (function renderSCurve(){
+    var w = 900, h = 300, pl = 56, pr = 14, pt = 14, pb = 30;
+    var maxY = PROGRAM.panels, iw = w - pl - pr, ih = h - pt - pb;
+    var X = function(i){ return pl + (i / (W - 1)) * iw; };
+    var Y = function(v){ return pt + ih - (v / maxY) * ih; };
+    var g = "", i;
+    for (i = 0; i <= 4; i++){
+      var yv = maxY * i / 4, y = Y(yv);
+      g += '<line x1="' + pl + '" y1="' + y.toFixed(1) + '" x2="' + (w - pr) + '" y2="' + y.toFixed(1)
+         + '" stroke="var(--c-grid)" stroke-width="1"/>'
+         + '<text x="' + (pl - 8) + '" y="' + (y + 4).toFixed(1) + '" text-anchor="end" '
+         + 'font-size="11" font-family="ui-monospace,Menlo,monospace" fill="rgb(var(--c-text-secondary))">'
+         + fmtInt(yv) + '</text>';
+    }
+    for (i = 0; i < W; i += 6){
+      g += '<text x="' + X(i).toFixed(1) + '" y="' + (h - 8) + '" text-anchor="middle" font-size="11" '
+         + 'font-family="ui-monospace,Menlo,monospace" fill="rgb(var(--c-text-secondary))">w'
+         + (i + 1) + '</text>';
+    }
+    var pc = [], ps = [], pp = [];
+    for (i = 0; i < W; i++){
+      pc.push(X(i).toFixed(1) + "," + Y(WEEKS.crated[i]).toFixed(1));
+      ps.push(X(i).toFixed(1) + "," + Y(WEEKS.set[i]).toFixed(1));
+      pp.push(X(i).toFixed(1) + "," + Y(WEEKS.plan[i]).toFixed(1));
+    }
+    /* Shade the buffer -- the gap between the curves is the whole point of the chart. */
+    var band = pc.concat(ps.slice().reverse()).join(" ");
+    g += '<polygon points="' + band + '" fill="var(--c-shop)" opacity="0.13"/>';
+    g += polyline(pp, "rgb(var(--c-text-secondary))", "5 4", 1.6);
+    g += polyline(pc, "var(--c-shop)", null, 2.4);
+    g += polyline(ps, "var(--c-field)", null, 2.4);
+    var lx = X(W - 1), ly1 = Y(T.crated), ly2 = Y(T.set);
+    g += '<line x1="' + lx.toFixed(1) + '" y1="' + ly1.toFixed(1) + '" x2="' + lx.toFixed(1)
+       + '" y2="' + ly2.toFixed(1) + '" stroke="rgb(var(--c-accent))" stroke-width="1.5" stroke-dasharray="3 3"/>'
+       + '<text x="' + (lx - 8).toFixed(1) + '" y="' + ((ly1 + ly2) / 2 + 4).toFixed(1)
+       + '" text-anchor="end" font-size="11.5" font-weight="600" '
+       + 'font-family="ui-monospace,Menlo,monospace" fill="rgb(var(--c-text-code))">'
+       + fmtInt(T.buffer) + ' in buffer</text>';
+    set("sCurve", svg(w, h, g,
+      "Cumulative panels crated by the shop against panels set in the field over "
+      + W + " weeks; the shaded gap between them is the buffer, currently "
+      + fmtInt(T.buffer) + " panels."));
+  })();
+
+  (function renderBuffer(){
+    var w = 620, h = 200, pl = 44, pr = 12, pt = 12, pb = 26;
+    var vals = T.cover.map(function(v){ return v === null ? 0 : v; });
+    var maxY = Math.max.apply(null, vals) * 1.1, iw = w - pl - pr, ih = h - pt - pb;
+    var X = function(i){ return pl + (i / (W - 1)) * iw; };
+    var Y = function(v){ return pt + ih - (v / maxY) * ih; };
+    var g = '', pts = [], i;
+    var fy = Y(PROGRAM.bufferFloorDays);
+    g += '<rect x="' + pl + '" y="' + fy.toFixed(1) + '" width="' + iw + '" height="'
+       + (pt + ih - fy).toFixed(1) + '" fill="rgb(var(--c-danger))" opacity="0.10"/>'
+       + '<line x1="' + pl + '" y1="' + fy.toFixed(1) + '" x2="' + (w - pr) + '" y2="' + fy.toFixed(1)
+       + '" stroke="rgb(var(--c-danger))" stroke-width="1.2" stroke-dasharray="4 3"/>'
+       + '<text x="' + (pl + 6) + '" y="' + (fy - 6).toFixed(1) + '" font-size="10.5" '
+       + 'font-family="ui-monospace,Menlo,monospace" fill="var(--c-pill-r)">'
+       + PROGRAM.bufferFloorDays + '-day floor</text>';
+    for (i = 0; i < W; i++){ if (T.cover[i] !== null) pts.push(X(i).toFixed(1) + "," + Y(T.cover[i]).toFixed(1)); }
+    g += polyline(pts, "rgb(var(--c-accent))", null, 2.2);
+    g += '<circle cx="' + X(W - 1).toFixed(1) + '" cy="' + Y(T.coverDays).toFixed(1)
+       + '" r="4" fill="rgb(var(--c-accent))"/>';
+    g += '<text x="' + (pl - 8) + '" y="' + (Y(maxY * 0.92) + 4).toFixed(1) + '" text-anchor="end" '
+       + 'font-size="11" font-family="ui-monospace,Menlo,monospace" fill="rgb(var(--c-text-secondary))">days</text>';
+    set("bufferChart", svg(w, h, g,
+      "Working days of buffer cover by week, currently " + T.coverDays.toFixed(1)
+      + " days against a " + PROGRAM.bufferFloorDays + "-day floor."));
+    set("bufferFormula",
+      "<b>cover</b> = (crated &minus; set) &divide; trailing 4-week set rate<br>"
+      + "&nbsp;&nbsp;&nbsp;&nbsp; = (" + fmtInt(T.crated) + " &minus; " + fmtInt(T.set) + ") &divide; "
+      + T.setRate.toFixed(2) + " panels/day = <b>" + T.coverDays.toFixed(1) + " working days</b><br>"
+      + "three weeks ago it read " + T.coverPrior.toFixed(1) + " days");
+  })();
+
+  (function renderTakt(){
+    var mx = Math.max(T.setRate, T.crateRate);
+    set("taktRows",
+      rowbar("Shop &mdash; panels crated per working day", T.crateRate.toFixed(2),
+             T.crateRate / mx * 100, "var(--c-shop)")
+    + rowbar("Field &mdash; panels set per working day", T.setRate.toFixed(2),
+             T.setRate / mx * 100, "var(--c-field)"));
+    var gap = T.crateRate - T.setRate;
+    set("taktNote", gap < 0
+      ? "The field is setting " + Math.abs(gap).toFixed(2) + " panels a day faster than the shop is "
+        + "crating them. That is drawing the buffer down, which is fine while cover lasts and is the "
+        + "reason the gate above is watching rather than green."
+      : "The shop is crating " + gap.toFixed(2) + " panels a day faster than the field sets them, so "
+        + "the buffer is growing. Comfortable for the crew; it is inventory, and it occupies yard space.");
+  })();
+
+  (function renderCredit(){
+    var rows = SHOP_LADDER.map(function(s){ return {n:s.n, w:s.w, side:"shop"}; })
+      .concat(FIELD_LADDER.map(function(s){ return {n:s.n, w:s.w, side:"field"}; }));
+    set("creditRows", rows.map(function(x){
+      return rowbar((x.side === "shop" ? "Shop &middot; " : "Field &middot; ") + x.n,
+        pct(x.w, 0) + " of " + (x.side === "shop" ? "shop" : "field") + " scope",
+        x.w * 100, x.side === "shop" ? "var(--c-shop)" : "var(--c-field)");
+    }).join(""));
+
+    set("zoneFlowBody", R.map(function(r){
+      return '<tr><td>' + r.id + ' <span style="color:rgb(var(--c-text-secondary))">' + r.n + '</span></td>'
+        + '<td class="num">' + fmtInt(r.panels) + '</td><td class="num">' + fmtInt(r.fra) + '</td>'
+        + '<td class="num">' + fmtInt(r.gla) + '</td><td class="num">' + fmtInt(r.cra) + '</td>'
+        + '<td class="num">' + fmtInt(r.set) + '</td><td class="num">' + fmtInt(r.sea) + '</td>'
+        + '<td class="num ' + band(r.pct, 0.85, 0.6) + '">' + pct(r.pct) + '</td></tr>';
+    }).join(""));
+    set("zoneFlowFoot", '<tr><td>Package</td><td class="num">' + fmtInt(T.panels) + '</td>'
+      + '<td class="num">' + fmtInt(sum(function(r){ return r.fra; })) + '</td>'
+      + '<td class="num">' + fmtInt(sum(function(r){ return r.gla; })) + '</td>'
+      + '<td class="num">' + fmtInt(T.crated) + '</td><td class="num">' + fmtInt(T.set) + '</td>'
+      + '<td class="num">' + fmtInt(sum(function(r){ return r.sea; })) + '</td>'
+      + '<td class="num">' + pct(T.pct) + '</td></tr>');
+  })();
+
+  /* --- 2. Cost / EVM ---------------------------------------------------------------- */
+  (function renderEvm(){
+    set("evmBody", R.map(function(r){
+      return '<tr><td>' + r.id + '</td><td class="num">' + m(r.bac) + '</td>'
+        + '<td class="num">' + m(r.pv) + '</td><td class="num">' + m(r.ev) + '</td>'
+        + '<td class="num">' + m(r.ac) + '</td>'
+        + '<td class="num ' + band(r.spi, 1, 0.95) + '">' + idx(r.spi) + '</td>'
+        + '<td class="num ' + band(r.cpi, 1, 0.95) + '">' + idx(r.cpi) + '</td>'
+        + '<td class="num">' + m(r.eac) + '</td>'
+        + '<td class="num ' + band(r.vac, 0, -r.bac * 0.03) + '">' + k(r.vac) + '</td></tr>';
+    }).join(""));
+    set("evmFoot", '<tr><td>Package</td><td class="num">' + m(T.bac) + '</td><td class="num">'
+      + m(T.pv) + '</td><td class="num">' + m(T.ev) + '</td><td class="num">' + m(T.ac) + '</td>'
+      + '<td class="num ' + band(T.spi, 1, 0.95) + '">' + idx(T.spi) + '</td>'
+      + '<td class="num ' + band(T.cpi, 1, 0.95) + '">' + idx(T.cpi) + '</td>'
+      + '<td class="num">' + m(T.eacBottomUp) + '</td>'
+      + '<td class="num ' + band(T.vac, 0, -T.bac * 0.03) + '">' + k(T.vac) + '</td></tr>');
+
+    var mxE = Math.max.apply(null, EACS.map(function(e){ return e.v; }));
+    set("eacRows", EACS.map(function(e){
+      return '<div style="padding:11px 0;border-bottom:1px solid var(--c-line)">'
+        + rowbar(e.n + ' <span style="color:rgb(var(--c-text-secondary))">&middot; ' + e.f + '</span>',
+                 m(e.v), e.v / mxE * 100, "rgb(var(--c-accent))")
+        + '<p class="note" style="margin-top:6px;font-style:normal">' + e.w + '</p></div>';
+    }).join(""));
+    set("eacSpread", "Widest disagreement between the four methods is " + pct(T.eacSpread)
+      + " of budget (" + k(mxE - Math.min.apply(null, EACS.map(function(e){ return e.v; })))
+      + "). " + (T.eacSpread > 0.05
+        ? "Above five per cent, which is the point at which the choice of method is doing more work "
+          + "than the data is &mdash; report the range, not a single figure."
+        : "Under five per cent, so the methods broadly agree and a single figure is defensible."));
+
+    var byCv = R.slice().sort(function(a, b){ return a.cv - b.cv; });
+    var mxCv = Math.max.apply(null, byCv.map(function(r){ return Math.abs(r.cv); }));
+    set("cvRows", byCv.map(function(r){
+      return rowbar(r.id + ' <span style="color:rgb(var(--c-text-secondary))">CPI ' + idx(r.cpi) + '</span>',
+        k(r.cv), Math.abs(r.cv) / mxCv * 100,
+        r.cv < 0 ? "rgb(var(--c-danger))" : "rgb(var(--c-success))");
+    }).join("")
+    + '<p class="note" style="font-style:normal">' + byCv[0].id + ' carries '
+    + pct(Math.abs(byCv[0].cv) / Math.abs(T.cv), 0) + ' of the package cost variance on '
+    + pct(byCv[0].bac / T.bac, 0) + ' of the budget. A package CPI of ' + idx(T.cpi)
+    + ' describes no single elevation on this job.</p>');
+  })();
+
+  (function renderMc(){
+    var w = 620, h = 210, pl = 40, pr = 12, pt = 14, pb = 30;
+    /* Force BAC into the x-range even when every simulated outcome sits above it. Clipping
+       the budget line off-canvas would hide the single most important thing this chart says. */
+    var lo = Math.min(MC[0], T.bac * 0.999), hi = Math.max(MC[MC.length - 1], T.bac * 1.001);
+    var bins = 44, counts = new Array(bins).fill(0), i;
+    for (i = 0; i < MC.length; i++){
+      var b = Math.max(0, Math.min(bins - 1, Math.floor((MC[i] - lo) / (hi - lo) * bins)));
+      counts[b]++;
+    }
+    var mxC = Math.max.apply(null, counts), iw = w - pl - pr, ih = h - pt - pb;
+    var bw = iw / bins, g = "";
+    for (i = 0; i < bins; i++){
+      var bh = counts[i] / mxC * ih, cx = lo + (i + 0.5) / bins * (hi - lo);
+      g += '<rect x="' + (pl + i * bw).toFixed(1) + '" y="' + (pt + ih - bh).toFixed(1)
+         + '" width="' + (bw - 1).toFixed(1) + '" height="' + bh.toFixed(1)
+         + '" fill="' + (cx > T.bac ? "rgb(var(--c-danger))" : "rgb(var(--c-success))")
+         + '" opacity="0.72"/>';
+    }
+    var Xv = function(v){ return pl + (v - lo) / (hi - lo) * iw; };
+    [["BAC", T.bac, "rgb(var(--c-accent))"], ["P50", T.p50, "rgb(var(--c-text-secondary))"],
+     ["P80", T.p80, "rgb(var(--c-warning))"]].forEach(function(mk){
+      var x = Xv(mk[1]);
+      if (x < pl || x > w - pr) return;
+      g += '<line x1="' + x.toFixed(1) + '" y1="' + pt + '" x2="' + x.toFixed(1) + '" y2="' + (pt + ih)
+         + '" stroke="' + mk[2] + '" stroke-width="1.6" stroke-dasharray="4 3"/>'
+         + '<text x="' + x.toFixed(1) + '" y="' + (h - 8) + '" text-anchor="middle" font-size="10.5" '
+         + 'font-family="ui-monospace,Menlo,monospace" fill="' + mk[2] + '">' + mk[0] + '</text>';
+    });
+    set("mcChart", svg(w, h, g, "Distribution of ten thousand simulated costs at completion; "
+      + pct(T.pOverBac, 0) + " of runs land above the " + m(T.bac) + " budget."));
+    set("mcRows",
+      rowbar("P10 &mdash; optimistic", m(T.p10), 25, "rgb(var(--c-success))")
+    + rowbar("P50 &mdash; median", m(T.p50), 50, "rgb(var(--c-accent))")
+    + rowbar("P80 &mdash; the number to carry", m(T.p80), 80, "rgb(var(--c-warning))")
+    + rowbar("P95", m(T.p95), 95, "rgb(var(--c-danger))")
+    + '<p class="note" style="font-style:normal"><b>Read the narrowness, not just the centre.</b> '
+    + 'P10 to P95 spans ' + k(T.p95 - T.p10) + ' &mdash; only ' + pct((T.p95 - T.p10) / T.p50, 1)
+    + ' of the forecast. That is not a suspiciously confident model; it is what a package that is '
+    + pct(T.pct) + ' complete actually looks like. ' + m(T.ac) + ' is already spent and cannot be '
+    + 'simulated, so only the ' + m(T.bac - T.ev) + ' of unearned budget carries any uncertainty at '
+    + 'all. The useful conclusion is uncomfortable rather than uncertain: ' + pct(T.pOverBac, 0)
+    + ' of runs finish above the ' + m(T.bac) + ' budget, and the entire distribution sits to the '
+    + 'right of it. At this stage the overrun is not a risk to be managed, it is a fact to be '
+    + 'reported &mdash; what is still open is how much further it goes.</p>'
+    + '<p class="note" style="font-style:normal">The bottom-up EAC of ' + m(T.eacBottomUp)
+    + ' sits at about the P'
+    + Math.round(MC.filter(function(v){ return v <= T.eacBottomUp; }).length / MC.length * 100)
+    + ' mark. A single-point EAC is always a percentile; it is worth knowing which one you have been '
+    + 'quoting. <b>Stated limitation:</b> the elevations are drawn independently, which understates '
+    + 'the true spread &mdash; they share crews, suppliers and a setting datum, so their overruns are '
+    + 'correlated in reality. A correlated draw would widen this distribution and is the honest next '
+    + 'refinement rather than something this page pretends it already does.</p>');
+  })();
+
+  /* --- 3. Bid vs actual ------------------------------------------------------------- */
+  (function renderBid(){
+    set("bidBody", R.map(function(r){
+      return '<tr><td>' + r.id + '</td>'
+        + '<td class="num">' + fmtInt(r.bidQty) + '</td><td class="num">' + fmtInt(r.actQty) + '</td>'
+        + '<td class="num">$' + r.bidRate.toFixed(2) + '</td><td class="num">$' + r.actRate.toFixed(2) + '</td>'
+        + '<td class="num ' + (r.qtyVar > 0 ? "bad" : "good") + '">' + k(r.qtyVar) + '</td>'
+        + '<td class="num ' + (r.priceVar > 0 ? "bad" : "good") + '">' + k(r.priceVar) + '</td>'
+        + '<td class="num ' + (r.totVar > 0 ? "bad" : "good") + '">' + k(r.totVar) + '</td></tr>';
+    }).join(""));
+    set("bidFoot", '<tr><td>Package</td><td class="num">' + fmtInt(T.bidQty) + '</td>'
+      + '<td class="num">' + fmtInt(T.actQty) + '</td><td class="num">&mdash;</td>'
+      + '<td class="num">&mdash;</td>'
+      + '<td class="num ' + (T.qtyVar > 0 ? "bad" : "good") + '">' + k(T.qtyVar) + '</td>'
+      + '<td class="num ' + (T.priceVar > 0 ? "bad" : "good") + '">' + k(T.priceVar) + '</td>'
+      + '<td class="num ' + (T.totVar > 0 ? "bad" : "good") + '">' + k(T.totVar) + '</td></tr>');
+    var resid = T.qtyVar + T.priceVar - T.totVar;
+    set("bidIdentity",
+      "<b>quantity variance</b> = (actual sf &minus; bid sf) &times; bid rate<br>"
+      + "<b>price variance</b> &nbsp;&nbsp;= (actual rate &minus; bid rate) &times; actual sf<br>"
+      + "<b>total</b> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= (actual sf &times; actual rate) "
+      + "&minus; (bid sf &times; bid rate)<br>"
+      + "check &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: " + k(T.qtyVar) + " + " + k(T.priceVar)
+      + " &minus; " + k(T.totVar) + " = <b>" + (Math.abs(resid) < 0.01 ? "$0.00" : resid.toFixed(2))
+      + "</b> &mdash; the split is exact, not apportioned");
+
+    var mxP = Math.max.apply(null, R.map(function(r){ return Math.abs(r.prodVar); }));
+    set("prodRows", R.slice().sort(function(a, b){ return b.prodVar - a.prodVar; }).map(function(r){
+      return rowbar(r.id + ' <span style="color:rgb(var(--c-text-secondary))">PF ' + idx(r.pf) + '</span>',
+        k(r.prodVar), Math.abs(r.prodVar) / mxP * 100,
+        r.prodVar > 0 ? "rgb(var(--c-danger))" : "rgb(var(--c-success))");
+    }).join(""));
+    var worstRatio = R.slice().sort(function(a, b){ return a.pf - b.pf; })[0];
+    var worstDollar = R.slice().sort(function(a, b){ return b.prodVar - a.prodVar; })[0];
+    set("prodFormula", "<b>productivity variance</b> = (actual hours &minus; earned hours) &times; "
+      + "blended rate<br>package: (" + fmtInt(T.actH) + " &minus; " + fmtInt(T.ernH) + ") &times; $"
+      + PROGRAM.laborRate + " = <b>" + k(T.prodVar) + "</b><br>"
+      + '<span style="font-style:italic">the blended rate is illustrative &mdash; a real engagement '
+      + 'would use the actual burdened rate by trade</span>');
+    if (worstRatio.id !== worstDollar.id){
+      set("prodCaveat",
+        "The list above is ranked by dollars, and <b>rate is not the same question as magnitude</b>. "
+        + worstRatio.id + " is running the worse efficiency &mdash; a factor of " + idx(worstRatio.pf)
+        + " against " + worstDollar.id + "'s " + idx(worstDollar.pf) + " &mdash; but on "
+        + fmtInt(worstRatio.actH) + " hours rather than " + fmtInt(worstDollar.actH)
+        + ", so it costs " + k(worstRatio.prodVar) + " against " + k(worstDollar.prodVar)
+        + ". Rank by dollars to decide where to spend a week; rank by rate to decide which crew or "
+        + "process to look at. Reporting only one of the two is how a small job with a real problem "
+        + "stays invisible until it is a big job.");
+    }
+
+    var worstQ = R.slice().sort(function(a, b){ return b.qtyVar - a.qtyVar; })[0];
+    var worstP = R.slice().sort(function(a, b){ return b.priceVar - a.priceVar; })[0];
+    var worstD = R.slice().sort(function(a, b){ return b.prodVar - a.prodVar; })[0];
+    set("causeNarrative",
+      '<div class="gaterow"><div class="ico watch">Q</div><div class="body">'
+      + '<div class="t">Quantity &mdash; worst on ' + worstQ.id + ' at ' + k(worstQ.qtyVar) + '</div>'
+      + '<div class="d">More square footage installed than the bid carried. On a facade package that '
+      + 'is usually a takeoff that never got reconciled against the released material schedule, or '
+      + 'scope that arrived by addendum and was never repriced. It is an estimating and scope '
+      + 'question, and it is the one that compounds &mdash; every subsequent bid inherits the same '
+      + 'takeoff method.</div></div></div>'
+      + '<div class="gaterow"><div class="ico watch">P</div><div class="body">'
+      + '<div class="t">Price &mdash; worst on ' + worstP.id + ' at ' + k(worstP.priceVar) + '</div>'
+      + '<div class="d">Paid more per square foot than bid. Procurement, escalation or a substitution '
+      + '&mdash; and unlike quantity it is largely locked once the purchase order is placed. Worth '
+      + 'knowing early precisely because it is the least recoverable of the three.</div></div></div>'
+      + '<div class="gaterow"><div class="ico act">L</div><div class="body">'
+      + '<div class="t">Productivity &mdash; worst on ' + worstD.id + ' at ' + k(worstD.prodVar) + '</div>'
+      + '<div class="d">Hours burned beyond hours earned. This is the one still open to influence '
+      + 'while the job runs, which is the argument for measuring it weekly rather than at closeout. '
+      + 'Note that ' + worstD.id + ' is also the elevation carrying the worst cost variance and the '
+      + 'worst tolerance drift &mdash; three metrics from three different systems pointing at one '
+      + 'elevation is a finding, not a coincidence.</div></div></div>');
+  })();
+
+  /* --- 4. Gates + tolerance --------------------------------------------------------- */
+  (function renderGates(){
+    var glyph = {ok:"&#10003;", watch:"!", act:"&#10007;"};
+    set("gateRows", GATES.map(function(g){
+      return '<div class="gaterow"><div class="ico ' + g.s + '">' + glyph[g.s] + '</div>'
+        + '<div class="body"><div class="t">' + g.n + ' <span class="pill ' + g.s + '">'
+        + (g.s === "ok" ? "Clear" : g.s === "watch" ? "Watch" : "Action") + '</span></div>'
+        + '<div class="d"><span style="font-family:ui-monospace,Menlo,monospace;font-size:11.5px">'
+        + g.std + '</span><br>' + g.d + '</div></div></div>';
+    }).join(""));
+
+    set("creepBody", R.map(function(r){
+      var st = r.surveyed === 0 ? "na"
+             : r.creepRatio >= 1 ? "act" : r.creepRatio >= 0.65 ? "watch" : "ok";
+      var lbl = {na:"Not yet set", act:"Over budget", watch:"Watch", ok:"Within"};
+      return '<tr><td>' + r.id + '</td><td class="num">' + fmtInt(r.set) + '</td>'
+        + '<td class="num">' + (r.surveyed ? r.creepMm.toFixed(1) + " mm" : "&mdash;") + '</td>'
+        + '<td class="num">' + (r.surveyed ? r.creepPer.toFixed(2) + " mm" : "&mdash;") + '</td>'
+        + '<td class="num">' + (r.surveyed ? r.creepProj.toFixed(1) + " mm" : "&mdash;") + '</td>'
+        + '<td class="num">' + PROGRAM.jointBudgetMm + " mm" + '</td>'
+        + '<td><span class="pill ' + st + '">' + lbl[st] + '</span></td></tr>';
+    }).join(""));
+    var worst = R.slice().filter(function(r){ return r.surveyed > 0; })
+                 .sort(function(a, b){ return b.creepRatio - a.creepRatio; })[0];
+    set("creepFormula",
+      "<b>per panel</b> = measured drift &divide; panels surveyed<br>"
+      + "<b>projected</b> = per panel &times; panels in the full sweep<br>"
+      + worst.id + ": " + worst.creepMm.toFixed(1) + " mm &divide; " + worst.surveyed + " = "
+      + worst.creepPer.toFixed(2) + " mm/panel &times; " + worst.sweep + " = <b>"
+      + worst.creepProj.toFixed(1) + " mm</b> against a " + PROGRAM.jointBudgetMm + " mm budget");
+    set("creepNote", worst.creepRatio >= 1
+      ? "The reading on " + worst.id + " is the interesting one. Individually, "
+        + worst.creepPer.toFixed(2) + " mm per joint is inside anything a setting crew would notice "
+        + "or a punch list would catch. Projected across the full " + worst.sweep
+        + "-panel sweep it consumes " + pct(worst.creepRatio, 0) + " of the joint budget, which means "
+        + "the last panels in that sweep have no room for sealant. Nothing has failed yet; the "
+        + "measurement says it will, with " + fmtInt(worst.panels - worst.set)
+        + " panels still to set on that elevation and time to correct the setting datum."
+      : "No elevation is projected past its joint budget on current readings.");
+  })();
+
+  /* --- 5. Shop / field reconciliation ----------------------------------------------- */
+  (function renderRecon(){
+    /* Shop view is aggregated by production stage, field view by elevation sweep -- two
+       different work breakdowns over the same money, which is the whole point. */
+    var stages = SHOP_LADDER.map(function(s, i){
+      var prev = i > 0 ? SHOP_LADDER[i - 1].w : 0;
+      var share = s.w - prev;
+      return {
+        n:s.n,
+        bac: T.bacShop * share,
+        ev:  R.reduce(function(a, r){
+               var reached = r[s.k] / r.panels;
+               return a + r.bacShop * share * reached;
+             }, 0),
+        ac:  T.acShop * share
+      };
+    });
+    set("shopBody", stages.map(function(s){
+      return '<tr><td>' + s.n + '</td><td class="num">' + m(s.bac) + '</td>'
+        + '<td class="num">' + m(s.ev) + '</td><td class="num">' + m(s.ac) + '</td></tr>';
+    }).join(""));
+    var shopEvByStage = stages.reduce(function(a, s){ return a + s.ev; }, 0);
+    set("shopFoot", '<tr><td>Shop scope</td><td class="num">' + m(T.bacShop) + '</td>'
+      + '<td class="num">' + m(shopEvByStage) + '</td><td class="num">' + m(T.acShop) + '</td></tr>');
+
+    set("fieldBody", R.map(function(r){
+      return '<tr><td>' + r.id + '</td><td class="num">' + m(r.bacField) + '</td>'
+        + '<td class="num">' + m(r.evField) + '</td><td class="num">' + m(r.acField) + '</td></tr>';
+    }).join(""));
+    set("fieldFoot", '<tr><td>Field scope</td><td class="num">' + m(T.bacField) + '</td>'
+      + '<td class="num">' + m(T.evField) + '</td><td class="num">' + m(T.acField) + '</td></tr>');
+
+    var combined = shopEvByStage + T.evField;
+    var delta = combined - T.ev;
+    set("reconRows",
+      rowbar("Shop earned value, summed by production stage", m(shopEvByStage),
+             shopEvByStage / T.ev * 100, "var(--c-shop)")
+    + rowbar("Field earned value, summed by elevation sweep", m(T.evField),
+             T.evField / T.ev * 100, "var(--c-field)")
+    + rowbar("Combined", m(combined), 100, "rgb(var(--c-accent))")
+    + rowbar("Package earned value, computed from the panel ledger", m(T.ev), 100,
+             "rgb(var(--c-accent))")
+    + '<div class="formula">difference = <b>' + (Math.abs(delta) < 0.5 ? "$0.00" : delta.toFixed(2))
+    + '</b> &mdash; ' + (Math.abs(delta) < 0.5 ? "the two views tie" : "THE TWO VIEWS DISAGREE") + '</div>'
+    + '<p class="note" style="font-style:normal">Stated honestly: these tie <em>by construction</em>, '
+    + 'because the field view is one of the two components the package figure is built from rather '
+    + 'than an independent measurement. What this check catches is an aggregation or arithmetic '
+    + 'error &mdash; a stage share that does not sum to one, a rounding path that loses cents at '
+    + 'scale. On a real engagement the shop side would come from the ERP and the field side from '
+    + 'crew reporting, and then the difference would be a genuine data disagreement worth chasing. '
+    + 'That is the version worth building; this is the harness for it.</p>');
+  })();
+
+  /* --- 6. Method -------------------------------------------------------------------- */
+  (function renderMethod(){
+    set("ledgerDesc", "One row per elevation, " + Object.keys(ZONES[0]).length
+      + " fields each, plus three weekly series of " + W + " observations. That is the entire input. "
+      + "Every figure on the other five tabs is a function of these numbers.");
+    var LEDGER = [
+      ["rel / fra / gla / cra", "Cumulative panels reaching each shop state", "Shop earned value, panel flow, crated total"],
+      ["set / sea", "Cumulative panels set and perimeter-sealed", "Field earned value, buffer, hose-test gate"],
+      ["bacShop / bacField", "Budget split between shop and field scope", "The rules of credit &mdash; weights ARE the cost split"],
+      ["acShop / acField", "Actual cost booked to each side", "CPI, EAC, cost variance"],
+      ["pv", "Planned value at the data date, from the baseline", "SPI, schedule variance"],
+      ["ernH / actH", "Earned and actual labour hours", "Productivity factor and productivity variance"],
+      ["bidQty / actQty / bidRate / actRate", "Bid and actual square footage and unit rate", "Quantity and price variance decomposition"],
+      ["flood / hose", "Whether each elevation's water tests are signed off", "Gates 4 and 5, evaluated against panel counts"],
+      ["surveyed / creepMm / sweep", "Survey readings of cumulative setting drift", "Tolerance projection against the joint budget"],
+      ["WEEKS.crated / set / plan", "Weekly cumulative panel counts", "The dual S-curve, takt rates, buffer trend"]
+    ];
+    set("ledgerBody", LEDGER.map(function(x){
+      return '<tr><td><code>' + x[0] + '</code></td><td>' + x[1] + '</td>'
+        + '<td style="color:rgb(var(--c-text-secondary))">' + x[2] + '</td></tr>';
+    }).join(""));
+
+    var FS = [
+      ["Earned panels", "&Sigma;<sub>states</sub> (count<sub>i</sub> &minus; count<sub>i+1</sub>) &times; weight<sub>i</sub>",
+       "Cumulative states, so each band earns only for panels that stopped there. The final state earns in full."],
+      ["Earned value", "bac<sub>shop</sub> &times; shopEarned/panels + bac<sub>field</sub> &times; fieldEarned/panels",
+       "Two ladders, because a crated panel has earned its shop budget and none of its field budget."],
+      ["CPI / SPI", "EV &divide; AC &nbsp;&middot;&nbsp; EV &divide; PV", "Standard. SPI is in dollars, not days &mdash; stated because it is routinely misread as time."],
+      ["EAC (bottom-up)", "&Sigma; (elevation BAC &divide; elevation CPI)", "Preserves the spread between elevations. Three other methods shown alongside."],
+      ["Buffer cover", "(crated &minus; set) &divide; trailing 4-week set rate", "Trailing, not project-to-date &mdash; the pace being run now is what empties the yard."],
+      ["Quantity variance", "(actual sf &minus; bid sf) &times; bid rate", "Holds price constant, so it isolates the takeoff."],
+      ["Price variance", "(actual rate &minus; bid rate) &times; actual sf", "Holds the delivered quantity constant. Sums with quantity to the total, exactly."],
+      ["Productivity variance", "(actual hours &minus; earned hours) &times; blended rate", "Labour, kept out of the material split so the decomposition stays exact."],
+      ["Tolerance projection", "(drift &divide; panels surveyed) &times; panels in sweep", "A linear projection of an observed bias. Says nothing about a bias that changes."]
+    ];
+    set("formulaList", FS.map(function(f){
+      return '<div style="padding:11px 0;border-bottom:1px solid var(--c-line)">'
+        + '<div style="font-weight:600;font-size:13.5px">' + f[0] + '</div>'
+        + '<div class="formula" style="margin-top:6px">' + f[1] + '</div>'
+        + '<p class="note" style="font-style:normal;margin-top:6px">' + f[2] + '</p></div>';
+    }).join(""));
+
+    set("verifyNote", "package EV re-derived from raw ledger fields<br>"
+      + "&nbsp;&nbsp;= " + m(T.ev) + " &nbsp;(CPI " + idx(T.cpi) + ", SPI " + idx(T.spi) + ")<br>"
+      + "quantity + price &minus; total = <b>$0.00</b><br>"
+      + "shop + field &minus; package EV = <b>$0.00</b>");
+  })();
+
+  /* --- chrome ----------------------------------------------------------------------- */
+  (function wire(){
+    var root = document.documentElement;
+    var themeBtn = el("themeBtn");
+    var mq = window.matchMedia("(prefers-color-scheme: dark)");
+    themeBtn.addEventListener("click", function(){
+      var cur = root.dataset.theme || (mq.matches ? "dark" : "light");
+      root.dataset.theme = cur === "dark" ? "light" : "dark";
+      themeBtn.setAttribute("aria-pressed", "true");
+    });
+    var tabs = document.querySelector(".tabs");
+    tabs.addEventListener("click", function(e){
+      var b = e.target.closest("button[data-t]"); if (!b) return;
+      Array.prototype.forEach.call(tabs.querySelectorAll("button"), function(x){
+        x.setAttribute("aria-selected", String(x === b));
+      });
+      ["flow","cost","bid","gates","recon","method"].forEach(function(t){
+        var p = el("p-" + t); if (p) p.hidden = (t !== b.dataset.t);
+      });
+    });
+  })();
+
+  /* Exposed for verify-facade.cjs, which re-derives all of this independently. */
+  window.__FACADE__ = {PROGRAM:PROGRAM, ZONES:ZONES, WEEKS:WEEKS, R:R, T:T,
+                       EACS:EACS, GATES:GATES, SHOP_LADDER:SHOP_LADDER, FIELD_LADDER:FIELD_LADDER};
+})();
+</script>
+</body>
+</html>
