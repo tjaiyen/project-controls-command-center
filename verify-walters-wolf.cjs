@@ -51,5 +51,21 @@ const BANNED = [
 ];
 for (const [re, why] of BANNED) ok(!re.test(flat), 'no ' + why);
 
+/* Cross-document consistency, not just internal correctness. This page's "Where I'd start" and
+   "operation specifically" sections are static hand-authored HTML -- nothing in the DOM stub above
+   touches them, so this harness had ZERO coverage of a real defect found in the 2026-09-02
+   stress-test pass: this page kept an entirely superseded version of Option A (still named
+   "Bid-to-Actual Margin Reconciliation", assuming an ERP exists) for 97 minutes after PROPOSAL.md
+   was rewritten to drop that assumption. A harness that never looks at a section can't catch drift
+   in it. These checks close that hole -- they pin the CURRENT offer names/claims directly against
+   the page source, so a future edit to one document without the other fails loudly here instead of
+   silently. */
+ok(/Estimating History Assembly/.test(flat), 'Option A is named "Estimating History Assembly" (current)');
+ok(!/Bid(-|&#8209;)to(-|&#8209;)Actual Margin Reconciliation/.test(flat), 'Option A is NOT the superseded "Bid-to-Actual Margin Reconciliation" name (entity-tolerant match)');
+ok(/The shared substrate/.test(flat), 'Option B is named "The shared substrate" (current)');
+ok(!/the actuals live in the ERP/.test(flat), 'no longer asserts an ERP exists (the 2026-09-02 finding)');
+ok(!/Read access to whatever holds actual cost today/.test(flat), 'no longer asks for ERP/job-cost read access as a precondition');
+ok(/Estimating re-derives price it already paid for once/.test(flat), 'the "estimating re-derives price" leak (current 6th item) is present');
+
 console.log(fail ? '\nFAILED ' + fail : '\nall ok');
 process.exit(fail ? 1 : 0);
