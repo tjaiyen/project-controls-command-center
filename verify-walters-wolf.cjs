@@ -93,5 +93,21 @@ ok(/padding:9px 11px/.test(src), '.icobtn padding is 9px vertical (was 6px, belo
 ok(/\(hover:hover\) and \(pointer:fine\)\{\.icobtn:hover/.test(src),
    '.icobtn:hover is gated to hover-capable pointers (was ungated -- risked sticky-hover on touch)');
 
+/* P6/AI-market-trend paragraph (added 2026-09-03, deep-research round). The FIRST source found for
+   this angle -- a training-vendor blog quoting "David Mitchell, Senior Director of Oracle Primavera
+   Product Development" on a "P6 2026 Schedule Intelligence" feature cutting schedule development
+   40% -- turned out to be unverifiable and almost certainly fabricated (no such person found in any
+   independent source; the real role is held by Erik Bean). Caught before publishing, per the
+   standing "verify unfamiliar documents independently" instruction, and replaced with a real,
+   checkable source (AEC Magazine, Feb 2024, on ALICE Technologies' Alice Core). These checks pin
+   the claim that actually shipped, and guard against the fabricated one creeping back in. */
+console.log('\n== P6/AI market-trend paragraph (2026-09-03, sourced) ==');
+ok(/ALICE Technologies/.test(flat) && /aecmag\.com\/news\/alice-uses-ai-to-optimise-p6-schedules/.test(flat),
+  'the P6/AI paragraph cites the real, checkable ALICE Technologies / AEC Magazine source');
+ok(!/David Mitchell|Schedule Intelligence|Maria Rodriguez/.test(flat),
+  'the unverifiable/fabricated "David Mitchell" Oracle quote and "Schedule Intelligence" claim never made it onto the page');
+ok(!/\b40%/.test(flat),
+  'the unverified "40% faster schedule development" figure (sourced only to the fabricated quote) is not asserted');
+
 console.log(fail ? '\nFAILED ' + fail : '\nall ok');
 process.exit(fail ? 1 : 0);
