@@ -84,5 +84,10 @@ console.log('\n== UI-design review fixes (2026-09-02) ==');
 ok(/font:16px\/1\.6 -apple-system/.test(src), 'base body font is 16px (was 14.5px, below the review checklist minimum)');
 ok(/min-height:44px/.test(src), 'the shared .icobtn touch target is 44px (was 34px) -- fixes the nav bar AND the filter buttons, which share this class');
 
+console.log('\n== Design-critique fixes (2026-09-02) ==');
+ok(/padding:9px 11px/.test(src), '.icobtn padding is 9px vertical (was 6px, below the 0.75rem guideline)');
+ok(/\(hover:hover\) and \(pointer:fine\)\{\.icobtn:hover/.test(src),
+   '.icobtn:hover is gated to hover-capable pointers (was ungated -- risked sticky-hover on touch)');
+
 console.log(fail ? '\nFAILED ' + fail : '\nall ok');
 process.exit(fail ? 1 : 0);

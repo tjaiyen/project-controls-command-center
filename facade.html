@@ -62,10 +62,10 @@ a{color:rgb(var(--c-accent))}
 .brand small{display:block;font:400 11px/1.3 ui-monospace,Menlo,monospace;color:rgb(var(--c-text-secondary))}
 .dot{width:9px;height:9px;border-radius:50%;background:rgb(var(--c-accent));flex:none}
 .bar .right{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.icobtn{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:6px 11px;
+.icobtn{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:9px 11px;
   border:1px solid var(--c-line);border-radius:7px;background:transparent;
   color:rgb(var(--c-text-primary));font:500 12px/1 inherit;cursor:pointer;text-decoration:none}
-.icobtn:hover{background:rgb(var(--c-accent) / .10)}
+@media (hover:hover) and (pointer:fine){.icobtn:hover{background:rgb(var(--c-accent) / .10)}}
 .icobtn[aria-selected="true"],.icobtn[aria-pressed="true"]{background:rgb(var(--c-accent) / .16);border-color:rgb(var(--c-accent))}
 .gatepill{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;
   font:600 11px/1 ui-monospace,Menlo,monospace;letter-spacing:.04em}
@@ -89,10 +89,25 @@ h3{font-size:.98rem;margin:0 0 6px}
 .sub{color:rgb(var(--c-text-secondary));font-size:13px;margin:6px 0 0}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:10px;margin-top:16px}
 .kpi{background:rgb(var(--c-bg-card));border:1px solid var(--c-line);border-radius:10px;padding:14px 16px}
+.kpi{position:relative}
 .kpi .v{font:600 1.42rem/1 ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums}
 .kpi .l{margin-top:7px;font:600 10px/1.35 ui-monospace,Menlo,monospace;letter-spacing:.1em;
-  text-transform:uppercase;color:rgb(var(--c-text-secondary))}
+  text-transform:uppercase;color:rgb(var(--c-text-secondary));display:flex;align-items:center;gap:5px}
 .kpi .s{margin-top:6px;font-size:11.5px;color:rgb(var(--c-text-secondary));line-height:1.45}
+.kpi .help{all:unset;flex:none;width:15px;height:15px;border-radius:50%;border:1px solid var(--c-line);
+  display:inline-grid;place-items:center;font:600 9px/1 ui-monospace,Menlo,monospace;
+  color:rgb(var(--c-text-secondary));cursor:pointer;position:relative}
+/* invisible hit-area expander -- same fix, same reason, as index.html's .help-ic::before:
+   the visible glyph stays 15px so it doesn't crowd the KPI label, but the real tappable area
+   grows to 44px (/ui-design review finding, 2026-09-02). */
+.kpi .help::before{content:"";position:absolute;top:50%;left:50%;width:44px;height:44px;
+  transform:translate(-50%,-50%)}
+.kpi .help[aria-expanded="true"]{background:rgb(var(--c-accent) / .16);border-color:rgb(var(--c-accent));
+  color:rgb(var(--c-text-code))}
+@media (hover:hover) and (pointer:fine){.kpi .help:hover{border-color:rgb(var(--c-accent))}}
+.kpi .def{margin-top:6px;padding-top:6px;border-top:1px dashed var(--c-line);font-size:11.5px;
+  color:rgb(var(--c-text-secondary));line-height:1.5}
+.kpi .def[hidden]{display:none}
 .good{color:var(--c-pill-g)} .warn{color:var(--c-pill-a)} .bad{color:var(--c-pill-r)} .info{color:var(--c-pill-i)}
 .grid2{display:grid;grid-template-columns:1fr;gap:16px;margin-top:16px}
 .grid2>*{min-width:0;margin-top:0}
@@ -876,9 +891,13 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
      + fmtInt(Math.abs(T.set - T.plan)) + (T.set < T.plan ? " behind" : " ahead")},
     {l:"Earned value", v:m(T.ev), c:"info", s:pct(T.pct) + " of " + m(T.bac) + " budget"},
     {l:"CPI", v:idx(T.cpi), c:band(T.cpi, 1, 0.95),
-     s:"Cost variance " + k(T.cv)},
+     s:"Cost variance " + k(T.cv),
+     def:"Cost Performance Index &mdash; earned value &divide; actual cost. 1.00 means every dollar "
+       + "spent bought a dollar of planned work; below 1.00 means it bought less."},
     {l:"SPI", v:idx(T.spi), c:band(T.spi, 1, 0.95),
-     s:"In dollars, not days &mdash; " + k(T.sv)},
+     s:"In dollars, not days &mdash; " + k(T.sv),
+     def:"Schedule Performance Index &mdash; earned value &divide; planned value. Measured in dollars "
+       + "of work claimed, not calendar days, which is why it can move without the finish date moving."},
     {l:"Forecast at completion", v:m(T.eacBottomUp), c:band(T.vac, 0, -T.bac * 0.03),
      s:"Bottom-up. Variance " + k(T.vac)},
     {l:"Productivity factor", v:idx(T.pf), c:band(T.pf, 1, 0.95),
@@ -887,10 +906,24 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
      s:"Worst elevation (" + worstCreepZone.id + ") projected across its full sweep, against "
        + PROGRAM.jointBudgetMm + " mm"}
   ];
-  set("kpis", KPIS.map(function(x){
+  set("kpis", KPIS.map(function(x, i){
+    var help = x.def
+      ? '<button type="button" class="help" aria-expanded="false" aria-controls="kpiDef' + i
+        + '" title="What is ' + x.l + '?">?</button>'
+      : "";
+    var def = x.def
+      ? '<div class="def" id="kpiDef' + i + '" hidden>' + x.def + '</div>'
+      : "";
     return '<div class="kpi"><div class="v ' + x.c + '">' + x.v + '</div>'
-         + '<div class="l">' + x.l + '</div><div class="s">' + x.s + '</div></div>';
+         + '<div class="l">' + x.l + help + '</div><div class="s">' + x.s + '</div>' + def + '</div>';
   }).join(""));
+  el("kpis").addEventListener("click", function(e){
+    var b = e.target.closest(".help"); if (!b) return;
+    var def = document.getElementById(b.getAttribute("aria-controls"));
+    var open = b.getAttribute("aria-expanded") === "true";
+    b.setAttribute("aria-expanded", String(!open));
+    if (def) def.hidden = open;
+  });
 
   /* --- 1. Panel flow ---------------------------------------------------------------- */
   (function renderSCurve(){

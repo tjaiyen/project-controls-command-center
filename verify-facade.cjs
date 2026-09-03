@@ -206,5 +206,15 @@ ok(/ArrowRight[\s\S]{0,400}ArrowLeft/.test(src) || /ArrowLeft[\s\S]{0,400}ArrowR
    'the tablist handles ArrowLeft/ArrowRight (WAI-ARIA tabs pattern, not click-only)');
 ok(/Home[\s\S]{0,200}End/.test(src) || /"Home"/.test(src), 'the tablist handles Home/End');
 
+console.log('\n== K. Design-critique fixes (2026-09-02) ==');
+ok(/padding:9px 11px/.test(src), '.icobtn padding is 9px vertical (was 6px, below the 0.75rem guideline)');
+ok(/\(hover:hover\) and \(pointer:fine\)\{\.icobtn:hover/.test(src),
+   '.icobtn:hover is gated to hover-capable pointers (was ungated -- risked sticky-hover on touch)');
+ok(/class="help"/.test(src), 'CPI/SPI KPI tiles carry an inline help toggle');
+ok(/Cost Performance Index/.test(src) && /Schedule Performance Index/.test(src),
+   'the help toggles carry real definitions, not placeholder text');
+ok(/\.kpi \.help::before\{content:""/.test(src),
+   'the help toggle has the same 44px invisible hit-area expander as .help-ic in index.html (visual glyph stays small, real tap target does not)');
+
 console.log(fail ? '\nFAILED — ' + fail + ' check(s)' : '\nall ok');
 process.exit(fail ? 1 : 0);
