@@ -581,5 +581,66 @@ ok(snap5.risks.every(r => r.costed === false ? (r.cost === null && r.exposure ==
    'every uncosted risk in the snapshot carries null cost/exposure, never a coerced 0 or guessed number that could be mistaken for a real figure');
 ok(snap5.totals.riskExposure === T.riskExposure, 'snapshot.totals.riskExposure matches the real T.riskExposure');
 
+// R-01's 3-weeks-ago probability delta -- re-run the SAME Gate 3 formula independently against
+// T.coverPrior (as "current") and T.cover[W-8] (as ITS 3-weeks-prior reference), rather than reading
+// r01.pPast back. This is the one risk with a real historical series behind it (T.cover); the other
+// five must NOT carry a pPast at all -- faking a trend for them would be the finding here.
+const W_ = WEEKS.crated.length;
+const pastIdx = W_ - 8;
+const expectedPastStatus = pastIdx >= 0 && T.cover[pastIdx] !== null && T.coverPrior !== null
+  ? (T.coverPrior < PROGRAM.bufferFloorDays ? 'act' : (T.coverPrior < T.cover[pastIdx] * 0.6 ? 'watch' : 'ok'))
+  : null;
+const expectedPPast = expectedPastStatus === 'act' ? 'High' : expectedPastStatus === 'watch' ? 'Medium' : expectedPastStatus === 'ok' ? 'Low' : null;
+ok(r01.pPast === expectedPPast, 'R-01.pPast is independently re-derived from T.cover[W-8]/T.coverPrior via the SAME Gate-3 threshold formula, not read back', r01.pPast + ' vs expected ' + expectedPPast);
+['R-02', 'R-03', 'R-04', 'R-05', 'R-06'].forEach(id => {
+  const r = RISKS.find(x => x.id === id);
+  ok(r.pPast === undefined, id + ' carries NO pPast -- honestly has no comparable stored history, not a faked trend');
+});
+const riskBodyHtml = els.riskBody ? els.riskBody.innerHTML : '';
+if (expectedPPast === r01.p) {
+  ok(/unchanged, 3wk/.test(riskBodyHtml), 'when R-01\'s probability has not moved in 3 weeks, the UI renders "(unchanged, 3wk)", not a same-value arrow', expectedPPast + '==' + r01.p);
+} else {
+  ok(riskBodyHtml.includes('(' + expectedPPast + ' &rarr; ' + r01.p + ', 3wk)'), 'when R-01\'s probability HAS moved, the UI renders the real "(from &rarr; to, 3wk)" delta text', expectedPPast + ' -> ' + r01.p);
+}
+ok(riskBodyHtml.match(/3wk/g).length === 1, 'exactly one risk row (R-01) shows a 3-week delta -- the five uncomparable risks show none', (riskBodyHtml.match(/3wk/g) || []).length);
+
+// Monthly-close narrative starter -- pinned Ask AI button, same pattern as the schedule-risk starter.
+ok(/id="askAiNarrativeBtn"/.test(src), 'the pinned "Draft this month\'s variance narrative" starter exists');
+ok(/Draft this month's cost and schedule variance narrative/.test(src), 'the narrative starter fills the SAME real prompt text it submits, not a placeholder');
+ok(/var narrativeBtn = el\("askAiNarrativeBtn"\)/.test(src) && /if \(narrativeBtn\) narrativeBtn\.addEventListener\("click"/.test(src), 'the narrative button is actually wired to a click handler, not just present in markup');
+ok(/outward actions never autonomous/.test(src), 'the narrative button\'s own comment states the never-autonomous design constraint explicitly, not just implicitly');
+
+console.log('\n== T. Estimating-history pipeline guide (2026-09-03) ==');
+ok(/pipelineStages/.test(src) && /pipelineTieIn/.test(src), 'the pipeline guide section is wired');
+ok(Array.isArray(F.PIPELINE_STAGES) && F.PIPELINE_STAGES.length === 4, 'the guide documents exactly the 4 real stages (intake/extraction/classification/dataset+memo), not a placeholder', F.PIPELINE_STAGES ? F.PIPELINE_STAGES.length : 'undefined');
+// The one claim in this static-prose section with a real number behind it: the live cross-reference
+// into the Bid vs Actual totals. Re-derived independently, same discipline as every computed metric
+// on this page, even though the section around it is otherwise hand-written guidance.
+const tieInText = els.pipelineTieIn ? els.pipelineTieIn.innerHTML : '';
+const fmtK = v => (v < 0 ? '−$' : '$') + Math.round(Math.abs(v) / 1000).toLocaleString('en-US') + 'k';
+ok(tieInText.includes(fmtK(T.qtyVar)) && tieInText.includes(fmtK(T.priceVar)) && tieInText.includes(fmtK(T.totVar)),
+   'the pipeline guide\'s cross-reference into the Bid vs Actual tab cites the REAL live qtyVar/priceVar/totVar, not hand-typed example numbers', fmtK(T.qtyVar) + '/' + fmtK(T.priceVar) + '/' + fmtK(T.totVar));
+ok(/claude -p/.test(src) && /Batch API/.test(src) && /prompt caching/.test(src), 'the guide names the actual mechanisms (headless Claude Code, Batch API, prompt caching), not vague hand-waving');
+ok(/deliberate go\/no-go/.test(src), 'the guide flags the real-spend transition point explicitly, consistent with this session\'s own cost-discipline practice');
+
+console.log('\n== U. AACE lifecycle map (2026-09-03) ==');
+ok(/aaceFunctions/.test(src) && /aaceTieIn/.test(src), 'the AACE lifecycle map section is wired');
+const AF = F.AACE_FUNCTIONS;
+ok(Array.isArray(AF) && AF.length === 5, 'AACE_FUNCTIONS carries exactly the 5 real AACE core functions, not a placeholder', AF ? AF.length : 'undefined');
+const builtRows = AF.filter(f => f[2] === 'ok');
+const notBuiltRows = AF.filter(f => f[2] === 'na');
+ok(builtRows.length === 4 && notBuiltRows.length === 1, 'exactly 4 functions are marked built and exactly 1 (value engineering) is marked not-built', 'ok=' + builtRows.length + ' na=' + notBuiltRows.length);
+ok(!!notBuiltRows[0] && notBuiltRows[0][0] === 'Value engineering', 'the one not-built function is specifically Value engineering, not a different function silently dropped', notBuiltRows[0] ? notBuiltRows[0][0] : 'none');
+const aaceFunctionsHtml = els.aaceFunctions ? els.aaceFunctions.innerHTML : '';
+ok(aaceFunctionsHtml.includes(fmtK(T.qtyVar)) && aaceFunctionsHtml.includes(fmtK(T.priceVar)) && aaceFunctionsHtml.includes(fmtK(T.totVar)),
+   'the cost-estimating row cites the SAME live qtyVar/priceVar/totVar as the pipeline guide above, not a re-typed copy');
+ok(aaceFunctionsHtml.includes(T.coverPrior.toFixed(1) + ' days'), 'the planning & scheduling row cites the real live T.coverPrior buffer-cover figure, not a hand-typed example', T.coverPrior.toFixed(1));
+ok(aaceFunctionsHtml.includes(fmtK(T.rateVar)), 'the cost & schedule control row cites the real live T.rateVar figure');
+ok(aaceFunctionsHtml.includes(fmtK(T.riskExposure)), 'the risk management row cites the real live T.riskExposure figure, matching the Risk Register tab exactly');
+ok((aaceFunctionsHtml.match(/pill ok/g) || []).length === 4, 'exactly 4 rows render the "built" pill');
+ok((aaceFunctionsHtml.match(/pill na/g) || []).length === 1, 'exactly 1 row renders the "not built" pill');
+ok(/Value engineering[\s\S]{0,400}deliberately not built/.test(src), 'the page states explicitly, in prose near the VE section, that VE automation was a deliberate exclusion, not an oversight');
+ok(/Why nothing here runs on its own/.test(src) && /starts cold every time/.test(src), 'the "why nothing runs on its own" section names the real cold-start-per-run constraint, not a vague autonomy claim');
+
 console.log(fail ? '\nFAILED — ' + fail + ' check(s)' : '\nall ok');
 process.exit(fail ? 1 : 0);

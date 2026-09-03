@@ -790,6 +790,70 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
     </div>
 
     <div class="dbox">
+      <h3>Automating this &mdash; the CSI 08 44 13 estimating&#8209;history pipeline</h3>
+      <p class="sub">The Bid vs Actual tab is what this looks like once a package's quantity, price
+        and productivity variance are already in one queryable place. This section is the guide for
+        how that place gets built from a real company's own scattered bid/quote/PO history &mdash;
+        Claude Code as the build tool and the orchestrator, not a new system the company has to buy
+        or migrate to first.</p>
+      <p class="note" id="pipelineTieIn" style="font-style:normal"></p>
+
+      <div id="pipelineStages"></div>
+
+      <h3 style="margin-top:16px;font-size:13px">Running it</h3>
+      <ul class="tight">
+        <li><b>Claude Code, headless</b> (<code>claude -p</code>, <code>--output-format json</code>,
+          <code>--bare</code> for a clean scripted run) &mdash; a shell script loops the intake
+          folder, no terminal open, no one watching. The fastest path to something working, and
+          where to start.</li>
+        <li><b>Claude Agent SDK</b> &mdash; a small standalone Python/TypeScript program, worth the
+          extra build time once this is running for a third or fourth client rather than a script
+          run by hand each time.</li>
+      </ul>
+
+      <h3 style="margin-top:16px;font-size:13px">Where the real spend starts</h3>
+      <p class="sub">This job is inherently a batch job &mdash; nobody is waiting live on document
+        #47 of 80 &mdash; so the <b>Batch API</b> (50% off standard token pricing) is the obvious
+        default, and it stacks with <b>prompt caching</b> on the extraction schema, which is
+        identical across every document. At Haiku&#8209;tier pricing with both stacked, processing
+        60&ndash;80 historical bid documents lands well under $50 in API spend &mdash; the $4,000
+        &ndash;8,000 price is for the judgement and review work around it, not the tokens. This is
+        also the point where a real, separately&#8209;metered pipeline actually runs against a
+        client's documents &mdash; worth a deliberate go/no-go before the first live run, not
+        something to fire off silently.</p>
+    </div>
+
+    <div class="dbox">
+      <h3>The whole lifecycle &mdash; AACE's five functions, and what's actually built</h3>
+      <p class="sub">The pipeline above only covers estimating. AACE International's Total Cost
+        Management framework names five core project&#8209;controls functions; this section maps each
+        one to what already exists on this page, then says plainly which one was deliberately left
+        alone.</p>
+      <p class="note" id="aaceTieIn" style="font-style:normal"></p>
+
+      <div id="aaceFunctions"></div>
+
+      <h3 style="margin-top:16px;font-size:13px">Why nothing here runs on its own</h3>
+      <p class="sub">Every automation idea behind the four built rows above was reframed the same way
+        before it went anywhere near this page: a person still triggers it. A scheduled Claude Code
+        run starts cold every time &mdash; no memory of the last run carries forward, so whatever it
+        needs has to be re&#8209;derived from the real ledger, not guessed at. And anything the model
+        produces that could read as a decision &mdash; a variance narrative, a risk call &mdash; gets
+        queued for a person to read and send, never sent on its own. The two pinned Ask AI questions on
+        the Risk and Cost &amp; EV tabs are what that looks like in practice: a one&#8209;click prompt,
+        an answer mechanically checked against this page's own numbers before it renders, and a human
+        still deciding whether it goes in the actual monthly report.</p>
+
+      <h3 style="margin-top:16px;font-size:13px">Value engineering &mdash; deliberately not built</h3>
+      <p class="sub">VE is a design/constructability judgment call &mdash; can this detail hold up for
+        less, does this substitution still meet the spec &mdash; not a reconciliation of numbers that
+        already exist somewhere. That makes it a different kind of work than the other four functions,
+        which are all fundamentally "does the data already tell the truth, assembled correctly."
+        Forcing an automation angle onto VE just for completeness would be the wrong call, so this page
+        doesn't try.</p>
+    </div>
+
+    <div class="dbox">
       <h3>Ask AI <span class="pill na" style="margin-left:2px">AI &middot; experimental</span></h3>
       <p class="sub">Free-text questions about this package, answered by Claude reading only the real
         numbers on this page &mdash; never its own outside knowledge. Every claim in the answer is
@@ -1666,9 +1730,22 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
     var fieldAsc = MONTHLY.filter(function(m){ return m.hField > 0 && m.cphField !== null; })
       .every(function(m, i, arr){ return i === 0 || m.cphField >= arr[i - 1].cphField; });
 
+    /* R-01's 3-weeks-ago probability -- re-running the SAME Gate 3 formula (deriveGates(), above)
+       against the reading it would have used 3 weeks earlier: T.coverPrior (=T.cover[W-4]) as the
+       "current" cover, T.cover[W-8] as ITS OWN 3-weeks-prior reference. This is the one risk in the
+       register with a real weekly historical series (T.cover) behind it, which is why only this one
+       gets a delta -- the other five have no comparable stored history to compute one from, stated
+       honestly rather than faking a trend for them too. */
+    var pastCoverPriorIdx = W - 8;
+    var pastBufferStatus = pastCoverPriorIdx >= 0 && T.cover[pastCoverPriorIdx] !== null && T.coverPrior !== null
+      ? (T.coverPrior < PROGRAM.bufferFloorDays ? "act" : (T.coverPrior < T.cover[pastCoverPriorIdx] * 0.6 ? "watch" : "ok"))
+      : null;
+    var r01PPast = pastBufferStatus === "act" ? "High" : pastBufferStatus === "watch" ? "Medium" : pastBufferStatus === "ok" ? "Low" : null;
+
     return [
       {id:"R-01", n:"Setting-crew stoppage from buffer depletion", elev:null,
        p: bufferGate.s === "act" ? "High" : bufferGate.s === "watch" ? "Medium" : "Low",
+       pPast: r01PPast,
        impact:"Schedule -- stops the crane, cascades to every elevation still setting",
        costed:true,
        cost: daysToBreach !== null ? dailyFieldLaborCost * daysToBreach : dailyFieldLaborCost * 5,
@@ -2598,8 +2675,17 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
     set("riskBody", RISKS.map(function(r){
       var pClass = r.p === "High" ? "act" : r.p === "Medium" ? "watch" : "ok";
       var elevLinkHtml = r.elev ? " " + elevLink(r.elev) : "";
+      // R-01 is the one risk with a real weekly historical series behind it (T.cover), so it's the
+      // one entry that gets an honest trend delta -- shown only where it exists, not faked for the
+      // other five.
+      var deltaHtml = "";
+      if (r.pPast !== undefined && r.pPast !== null){
+        deltaHtml = r.pPast === r.p
+          ? ' <span style="font-size:10.5px;color:rgb(var(--c-text-secondary))">(unchanged, 3wk)</span>'
+          : ' <span style="font-size:10.5px;color:var(--c-pill-a)">(' + r.pPast + ' &rarr; ' + r.p + ', 3wk)</span>';
+      }
       return '<tr><td>' + r.id + ' &mdash; ' + r.n + elevLinkHtml + '</td>'
-        + '<td><span class="pill ' + pClass + '">' + r.p + '</span></td>'
+        + '<td><span class="pill ' + pClass + '">' + r.p + '</span>' + deltaHtml + '</td>'
         + '<td style="font-size:12px">' + r.impact + '</td>'
         + '<td class="num">' + (r.costed ? k(r.cost) : "&mdash;") + '</td>'
         + '<td class="num">' + (r.costed ? k(r.exposure) : "&mdash;") + '</td>'
@@ -2770,6 +2856,62 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
       + "&nbsp;&nbsp;= " + m(T.ev) + " &nbsp;(CPI " + idx(T.cpi) + ", SPI " + idx(T.spi) + ")<br>"
       + "quantity + price &minus; total = <b>$0.00</b><br>"
       + "shop + field &minus; package EV = <b>$0.00</b>");
+  })();
+
+  /* Estimating-history pipeline guide (2026-09-03) -- pure written methodology, not a computed
+     metric, so this stays static prose with a couple of LIVE cross-references into the real Bid vs
+     Actual figures rather than hand-typed example numbers -- the same "nothing is typed" ethos as
+     everything else on this page, applied to a section that is otherwise a how-to guide. */
+  var PIPELINE_STAGES = [
+    ["1. Intake", "A folder convention per client/job, every source file hashed on arrival so a re-run never double-processes the same document.", "Plumbing -- Claude Code writes this in an afternoon, no API cost."],
+    ["2. Extraction", "Every PDF/scan sent to Claude directly -- native multimodal vision, not a bolt-on OCR pass, so it reads text, tables AND layout in one shot. Forced into a fixed schema via tool-use: {vendor, date, job, description, qty, unit, unit_price, total, source_doc, quote_or_po} -- the same shape for all 60-80 differently-formatted vendor quotes.", "The one stage genuinely worth Claude's document understanding, not classical OCR."],
+    ["3. Classification", "Each line item mapped to a CSI 08 44 13 sub-code (extrusions / IGUs / spandrel / gaskets / anchors / labour). Mostly a lookup table built from the first client's data -- Claude is only in the loop for the genuinely ambiguous items, which keeps this stage cheap.", "A lookup table plus a narrow model call, not a second full pass."],
+    ["4. Dataset + memo", "Loaded into DuckDB -- the three real queries (price trend by product over time, quote-vs-PO drift by vendor, same-product price inconsistency) are each a handful of lines of SQL. Claude only drafts prose from the QUERY RESULTS, never re-reads the raw documents to write the memo -- every number in it traces to a re-runnable query.", "DuckDB-first, same discipline as this ledger's own re-derivation harness."]
+  ];
+  (function renderPipelineGuide(){
+    set("pipelineTieIn", "This package's own Bid vs Actual tab -- " + k(T.qtyVar) + " quantity variance, "
+      + k(T.priceVar) + " price variance, " + k(T.totVar) + " total, tied out exactly -- is what Stage 4's "
+      + "queries produce from a real client's historical bids. The pipeline below is how that table gets "
+      + "built the first time, from documents that start out in nobody's queryable format.");
+    set("pipelineStages", PIPELINE_STAGES.map(function(s){
+      return '<div style="padding:11px 0;border-bottom:1px solid var(--c-line)">'
+        + '<div style="font-weight:600;font-size:13.5px">' + s[0] + '</div>'
+        + '<p class="sub" style="margin-top:4px">' + s[1] + '</p>'
+        + '<p class="note" style="font-style:normal;margin-top:4px">' + s[2] + '</p></div>';
+    }).join(""));
+  })();
+
+  /* AACE lifecycle map (2026-09-03) -- same "live tie-in, not hand-typed" rule as the pipeline guide
+     above: each row's evidence is a real T value from this exact ledger, not an example number. Status
+     is "ok" (built) for four functions and "na" (deliberately not built) for the fifth -- see the
+     row's own note for why, mirroring the honesty pattern already used for the CPM/P6 limitation
+     elsewhere on this page rather than a fifth fabricated automation angle. */
+  var AACE_FUNCTIONS = [
+    ["Cost estimating", "Building the price basis before work starts -- unit rates, quantities, historical benchmarks.", "ok",
+      function(){ return "The pipeline above, plus the Bid vs Actual tab's own decomposition -- " + k(T.qtyVar)
+        + " quantity variance, " + k(T.priceVar) + " price variance, " + k(T.totVar) + " total, tied out exactly."; }],
+    ["Planning &amp; scheduling", "Sequencing the work and setting the pace against a plan.", "ok",
+      function(){ return "The dual S-curve on the Cost &amp; EV tab -- factory takt vs. field-setting takt -- with "
+        + T.coverPrior.toFixed(1) + " days of buffer cover between them as the headline leading indicator, not a P6 finish date."; }],
+    ["Cost &amp; schedule control", "Comparing plan to actual as work happens, catching drift early.", "ok",
+      function(){ return "Monthly cost-per-hour tracking, decomposed into rate vs. efficiency variance -- "
+        + k(T.rateVar) + " of this period's variance is rate, not productivity -- plus a pinned starter question that drafts the narrative from those same numbers."; }],
+    ["Risk management", "Identifying what could still go wrong and pricing the exposure.", "ok",
+      function(){ return "The Risk Register tab -- six real signals, " + k(T.riskExposure) + " priced where a real cost basis exists, with a schedule-risk starter question of its own."; }],
+    ["Value engineering", "Trading design/spec choices against cost without giving up function.", "na",
+      function(){ return "A design/constructability judgment call, not a data-reconciliation problem -- see below."; }]
+  ];
+  (function renderAaceFunctions(){
+    set("aaceTieIn", "Four of the five rows below trace to a live number on this exact page -- not an "
+      + "illustrative figure, the same total the Bid vs Actual, Cost &amp; EV and Risk Register tabs "
+      + "already show.");
+    set("aaceFunctions", AACE_FUNCTIONS.map(function(f){
+      return '<div style="padding:11px 0;border-bottom:1px solid var(--c-line)">'
+        + '<div style="font-weight:600;font-size:13.5px">' + f[0]
+        + ' <span class="pill ' + f[2] + '" style="margin-left:4px">' + (f[2] === "ok" ? "built" : "not built") + '</span></div>'
+        + '<p class="sub" style="margin-top:4px">' + f[1] + '</p>'
+        + '<p class="note" style="font-style:normal;margin-top:4px">' + f[3]() + '</p></div>';
+    }).join(""));
   })();
 
   /* --- Glossary + quiz (features #6/#7) -- every entry's "worked" text is built from the SAME
@@ -3032,6 +3174,8 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
         + (askAi.busy ? " disabled" : "") + '>Summarize this package&rsquo;s health &rarr;</button>'
       + '<button type="button" class="btn" id="askAiScheduleBtn" style="border-color:rgb(var(--c-warning));font-weight:600;margin-left:8px"'
         + (askAi.busy ? " disabled" : "") + '>What&rsquo;s driving schedule risk right now? &rarr;</button>'
+      + '<button type="button" class="btn" id="askAiNarrativeBtn" style="border-color:rgb(var(--c-field));font-weight:600;margin-left:8px"'
+        + (askAi.busy ? " disabled" : "") + '>Draft this month&rsquo;s variance narrative &rarr;</button>'
       + askAiStartersHtml()
       + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">'
         + '<input class="gsearch" id="askAiInput" type="text" style="flex:1;min-width:220px" '
@@ -3068,6 +3212,19 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
     if (scheduleBtn) scheduleBtn.addEventListener("click", function(){
       var i = el("askAiInput");
       if (i){ i.value = "What's actually driving schedule risk right now, and how urgent is each thing?"; submitAskAi(); }
+    });
+    /* Monthly-close narrative agent, honestly scoped (project-controls lifecycle research,
+       2026-09-03): drafts prose from the SAME computed numbers the Cost & EV / Bid vs Actual /
+       Risk Register tabs already render -- never re-reads a source document to write it, and every
+       claim it states still goes through the same mechanical fact-check as every other question.
+       In a real recurring deployment this is the piece that would run on a schedule (Claude Code's
+       own cron/scheduled-task primitives) and queue its output for review -- never auto-send a
+       report. Nothing here does that; it stays a manually-triggered, opt-in question like the rest
+       of Ask AI, consistent with this page's "outward actions never autonomous" discipline. */
+    var narrativeBtn = el("askAiNarrativeBtn");
+    if (narrativeBtn) narrativeBtn.addEventListener("click", function(){
+      var i = el("askAiInput");
+      if (i){ i.value = "Draft this month's cost and schedule variance narrative -- what moved, by how much, and why."; submitAskAi(); }
     });
   }
   function submitAskAi(){
@@ -3286,7 +3443,8 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
   window.__FACADE__ = {PROGRAM:PROGRAM, ZONES:ZONES, WEEKS:WEEKS, R:R, T:T,
                        EACS:EACS, GATES:GATES, SHOP_LADDER:SHOP_LADDER, FIELD_LADDER:FIELD_LADDER,
                        RFIS:RFIS, CHANGE_ORDERS:CHANGE_ORDERS, RFI_ROWS:RFI_ROWS, CO_ROWS:CO_ROWS,
-                       MONTHLY:MONTHLY, RISKS:RISKS, P_BAND:P_BAND,
+                       MONTHLY:MONTHLY, RISKS:RISKS, P_BAND:P_BAND, PIPELINE_STAGES:PIPELINE_STAGES,
+                       AACE_FUNCTIONS:AACE_FUNCTIONS,
                        buildFacadeAskAiSnapshot:buildFacadeAskAiSnapshot, askAiConfigured:askAiConfigured,
                        askAiState:askAi, escHtml:escHtml, getAskAiWorkerUrl:function(){ return ASK_AI_WORKER_URL; }};
 })();
