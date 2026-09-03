@@ -425,5 +425,55 @@ ok(/function walkEnd\(\)\{[\s\S]{0,50}el\("walkOverlay"\)\.hidden = true;[\s\S]{
 ok(!/tables are re-rendered on tab switch/.test(src),
    'the stale/inaccurate comment claiming tables re-render on tab switch is gone (none of the render*() functions ever run more than once; delegation is for covering many elevLink() call sites with one handler, not for surviving re-renders that do not happen)');
 
+console.log('\n== Q. Shop/field productivity split (2026-09-03) ==');
+// Backward compatibility: blended ernH/actH/pf must be UNCHANGED from before the split (the raw
+// ZONES literals were designed so ernHShop+ernHField / actHShop+actHField sum to the exact old
+// totals -- this is the check that promise actually holds, not just an assertion it should).
+ZONES.forEach(z => ok((z.ernHShop + z.ernHField) > 0 && (z.actHShop + z.actHField) > 0,
+  z.id + ': has real, positive shop+field hours on both sides'));
+ok(T.ernH === 90400 && T.actH === 96650, 'package blended earned/actual hours are UNCHANGED from before the shop/field split (90,400 / 96,650) -- the raw literals were designed to preserve this exactly', T.ernH + '/' + T.actH);
+ok(near(T.pf, 90400 / 96650), 'package blended PF is unchanged from before the split', T.pf.toFixed(4));
+
+// Re-derive pfShop/pfField/prodVarShop/prodVarField from raw ZONES literals independently.
+const rawErnHShop = ZONES.reduce((a, z) => a + z.ernHShop, 0);
+const rawActHShop = ZONES.reduce((a, z) => a + z.actHShop, 0);
+const rawErnHField = ZONES.reduce((a, z) => a + z.ernHField, 0);
+const rawActHField = ZONES.reduce((a, z) => a + z.actHField, 0);
+ok(near(T.pfShop, rawErnHShop / rawActHShop), 'T.pfShop re-derived from raw ernHShop/actHShop sums matches', T.pfShop.toFixed(4));
+ok(near(T.pfField, rawErnHField / rawActHField), 'T.pfField re-derived from raw ernHField/actHField sums matches', T.pfField.toFixed(4));
+const rawProdVarShop = ZONES.reduce((a, z) => a + (z.actHShop - z.ernHShop) * PROGRAM.laborRateShop, 0);
+const rawProdVarField = ZONES.reduce((a, z) => a + (z.actHField - z.ernHField) * PROGRAM.laborRateField, 0);
+ok(T.prodVarShop === rawProdVarShop, 'T.prodVarShop re-derived from raw hours x PROGRAM.laborRateShop matches exactly', T.prodVarShop);
+ok(T.prodVarField === rawProdVarField, 'T.prodVarField re-derived from raw hours x PROGRAM.laborRateField matches exactly', T.prodVarField);
+ok(T.prodVar === T.prodVarShop + T.prodVarField, 'T.prodVar is EXACTLY the sum of the shop and field halves, not a separately-computed blended-rate figure (the old formula and the new split-rate formula would legitimately differ -- this asserts the page reports the more accurate split sum, not a stale blended one)');
+ok(PROGRAM.laborRateShop !== PROGRAM.laborRateField, 'shop and field genuinely use two different rates, not the same number under two names', PROGRAM.laborRateShop + ' vs ' + PROGRAM.laborRateField);
+ZONES.forEach(z => {
+  const r = R.find(x => x.id === z.id);
+  ok(near(r.pfShop, z.ernHShop / z.actHShop), z.id + ': per-elevation pfShop matches raw ernHShop/actHShop');
+  ok(near(r.pfField, z.ernHField / z.actHField), z.id + ': per-elevation pfField matches raw ernHField/actHField');
+  ok(r.prodVarShop === (z.actHShop - z.ernHShop) * PROGRAM.laborRateShop, z.id + ': per-elevation prodVarShop re-derived matches');
+  ok(r.prodVarField === (z.actHField - z.ernHField) * PROGRAM.laborRateField, z.id + ': per-elevation prodVarField re-derived matches');
+});
+
+// Hours tie-out (mirrors the $ EV tie-out already tested above).
+ok(T.ernHShop + T.ernHField === T.ernH, 'earned hours tie: shop + field === package blended, exactly');
+ok(T.actHShop + T.actHField === T.actH, 'actual hours tie: shop + field === package blended, exactly');
+
+// UI wiring.
+ok(/id="prodShopFieldRows"/.test(src) && /id="prodShopFieldNote"/.test(src), 'the Bid vs Actual tab renders a shop-vs-field productivity split box');
+ok(/id="reconHoursRows"/.test(src), 'the Shop↔Field tab renders an hours tie-out, matching the existing $ tie-out treatment');
+ok(/Shop PF ' \+ idx\(r\.pfShop\)/.test(src), 'the elevation drawer shows per-elevation Shop PF / Field PF, not just the blended figure');
+const snap3 = F.buildFacadeAskAiSnapshot();
+['pfShop', 'pfField', 'prodVarShop', 'prodVarField', 'ernHShop', 'actHShop', 'ernHField', 'actHField']
+  .forEach(k => ok(snap3.totals[k] === T[k], 'snapshot.totals.' + k + ' is wired to the real T.' + k));
+ok(snap3.elevations.every(e => typeof e.pfShop === 'number' && typeof e.pfField === 'number'),
+  'every elevation in the Ask AI snapshot carries its own pfShop/pfField, not just the package totals');
+
+// Cross-domain finding must still hold with the split-rate prodVar (re-run explicitly, not just
+// trusted from Section G above, since prodVar's VALUE changed with this feature -- ~600,000 blended
+// to 633,250 split-rate -- and a coincidental preservation is worth confirming, not assuming).
+const worstProdVAfterSplit = R.slice().sort((a, b) => b.prodVar - a.prodVar)[0].id;
+ok(worstProdVAfterSplit === 'S-HI', 'S-HI is still the package\'s worst elevation on productivity dollars after the split-rate recalculation (was true with the old blended rate too -- confirmed still true, not assumed)', worstProdVAfterSplit);
+
 console.log(fail ? '\nFAILED — ' + fail + ' check(s)' : '\nall ok');
 process.exit(fail ? 1 : 0);

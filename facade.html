@@ -499,6 +499,9 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
         <div id="prodRows"></div>
         <div class="formula" id="prodFormula"></div>
         <p class="note" id="prodCaveat" style="font-style:normal"></p>
+        <h3 style="margin-top:16px;font-size:13px">Shop vs. field &mdash; two different labour pools</h3>
+        <div id="prodShopFieldRows"></div>
+        <p class="note" id="prodShopFieldNote" style="font-style:normal"></p>
       </div>
       <div class="dbox">
         <h3>What each cause would mean here</h3>
@@ -650,6 +653,15 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
       <p class="note">This is the check, not a summary of it. If the two views disagreed, this card
         would say so and the number would be non&#8209;zero &mdash; a reconciliation that can only
         ever report success is decoration.</p>
+    </div>
+
+    <div class="dbox">
+      <h3>Hours tie&#8209;out &mdash; the same treatment, for labour</h3>
+      <p class="sub">Cost has carried a shop/field split since this page shipped. Hours never did,
+        which meant one blended Productivity Factor could hide a shop crew running fine while field
+        bled hours, or the reverse. Same construction as the $ tie&#8209;out above, same honesty
+        about what it actually proves.</p>
+      <div id="reconHoursRows"></div>
     </div>
   </section>
 
@@ -845,7 +857,12 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
     bufferCeilingDays:30,      // 3x the floor -- above this, cash is idling in the yard, not just
                                // the shop running fast; see the WIP-cap box on the Panel Flow tab
     jointBudgetMm:20,          // cumulative creep the perimeter joint can absorb
-    laborRate:96,              // $/hr blended shop+field, used ONLY for the productivity $ view
+    // Split shop/field, replacing a single blended $96/hr (2026-09-03) -- the Method tab used to
+    // carry this as a stated limitation ("a real engagement would use the actual burdened rate by
+    // trade"); illustrative values, but now genuinely two rates, not one. Field runs higher than
+    // shop for the reasons real unitized crews do: travel/per-diem, elevated-work premium, and
+    // crane-time coordination overhead the in-house shop rate never carries.
+    laborRateShop:85, laborRateField:125,
     retainagePct:0.075,        // 7.5% -- commonly-observed private-work average (CMiC/Procore); a
                                // model input, not this package's actual contract rate, stated as such
     nisDesignRate:0.008        // 8 lites per 1,000 -- the tempered-glass industry's own spontaneous-
@@ -867,42 +884,42 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
      rel:248, fra:248, gla:248, cra:244, set:232, sea:220,
      qcFirstPass:234, qcRework:10, hoseVolMl:0, breaks:1,
      bacShop:2195000, bacField:1345000, acShop:2120000, acField:1270000, pv:3470000,
-     ernH:20600, actH:20900,
+     ernHShop:13500, actHShop:13700, ernHField:7100, actHField:7200,
      bidQty:23600, actQty:23950, bidRate:92.50, actRate:93.80,
      flood:true,  hose:true,  surveyed:22, creepMm:9.2,  sweep:24},
     {id:"N-HI", n:"North &mdash; L13&ndash;L24", panels:236,
      rel:236, fra:230, gla:222, cra:210, set:168, sea:150,
      qcFirstPass:196, qcRework:14, hoseVolMl:6.5, breaks:3,
      bacShop:2150000, bacField:1320000, acShop:1950000, acField:1160000, pv:3140000,
-     ernH:17900, actH:19400,
+     ernHShop:11800, actHShop:12500, ernHField:6100, actHField:6900,
      bidQty:22450, actQty:22900, bidRate:92.50, actRate:96.20,
      flood:true,  hose:true,  surveyed:20, creepMm:11.4, sweep:24},
     {id:"S-LO", n:"South &mdash; L02&ndash;L12", panels:248,
      rel:248, fra:248, gla:246, cra:242, set:228, sea:214,
      qcFirstPass:233, qcRework:9, hoseVolMl:0, breaks:1,
      bacShop:2195000, bacField:1345000, acShop:2105000, acField:1230000, pv:3450000,
-     ernH:20400, actH:20200,
+     ernHShop:13400, actHShop:13300, ernHField:7000, actHField:6900,
      bidQty:23600, actQty:23700, bidRate:92.50, actRate:92.10,
      flood:true,  hose:true,  surveyed:22, creepMm:7.6,  sweep:24},
     {id:"S-HI", n:"South &mdash; L13&ndash;L24", panels:236,
      rel:232, fra:220, gla:208, cra:196, set:150, sea:128,
      qcFirstPass:172, qcRework:24, hoseVolMl:null, breaks:2,
      bacShop:2150000, bacField:1320000, acShop:1960000, acField:1180000, pv:3090000,
-     ernH:16700, actH:19600,
+     ernHShop:11000, actHShop:12800, ernHField:5700, actHField:6800,
      bidQty:22450, actQty:23400, bidRate:92.50, actRate:97.40,
      flood:true,  hose:false, surveyed:20, creepMm:17.8, sweep:24},
     {id:"E-W",  n:"East &amp; West returns", panels:196,
      rel:190, fra:176, gla:160, cra:148, set:96, sea:78,
      qcFirstPass:137, qcRework:11, hoseVolMl:null, breaks:0,
      bacShop:1825000, bacField:1115000, acShop:1400000, acField:855000, pv:2290000,
-     ernH:12500, actH:13800,
+     ernHShop:8200, actHShop:9000, ernHField:4300, actHField:4800,
      bidQty:18650, actQty:19050, bidRate:98.00, actRate:101.30,
      flood:true,  hose:false, surveyed:16, creepMm:10.4, sweep:20},
     {id:"PDM",  n:"Podium &amp; entry", panels:76,
      rel:60, fra:44, gla:30, cra:22, set:0, sea:0,
      qcFirstPass:21, qcRework:1, hoseVolMl:null, breaks:0,
      bacShop:900000, bacField:540000, acShop:480000, acField:32000, pv:620000,
-     ernH:2300, actH:2750,
+     ernHShop:1600, actHShop:1900, ernHField:700, actHField:850,
      bidQty:7250, actQty:7640, bidRate:126.00, actRate:133.50,
      flood:false, hose:false, surveyed:0,  creepMm:0,    sweep:12}
   ];
@@ -983,6 +1000,14 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
                                                               // not yet set -- see CFMA/NetSuite WIP
                                                               // "underbilling" framing in the derived
                                                               // Cash tied up in the shop box
+    // Shop/field productivity, split (2026-09-03) -- mirrors the bacShop/bacField cost split that
+    // already existed; ernH/actH/pf/prodVar below are recomputed as sums of the split, so every
+    // existing package-level reader of them is unaffected. See PROGRAM.laborRateShop/laborRateField.
+    var ernH = z.ernHShop + z.ernHField, actH = z.actHShop + z.actHField;
+    var pfShop = z.actHShop > 0 ? z.ernHShop / z.actHShop : 1;
+    var pfField = z.actHField > 0 ? z.ernHField / z.actHField : 1;
+    var prodVarShop = (z.actHShop - z.ernHShop) * PROGRAM.laborRateShop;
+    var prodVarField = (z.actHField - z.ernHField) * PROGRAM.laborRateField;
     return {
       bac:bac, ac:ac, ev:ev, pv:z.pv, evShop:evShop, evField:evField,
       shopE:shopE, fieldE:fieldE,
@@ -992,11 +1017,14 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
       vac: bac - (cpi > 0 ? bac / cpi : bac),
       sv: ev - z.pv, cv: ev - ac,
       pct: ev / bac,
-      pf: z.actH > 0 ? z.ernH / z.actH : 1,
+      ernH:ernH, actH:actH,
+      pf: actH > 0 ? ernH / actH : 1,
+      pfShop:pfShop, pfField:pfField,
       qtyVar:   (z.actQty - z.bidQty) * z.bidRate,
       priceVar: (z.actRate - z.bidRate) * z.actQty,
       totVar:   (z.actQty * z.actRate) - (z.bidQty * z.bidRate),
-      prodVar:  (z.actH - z.ernH) * PROGRAM.laborRate,
+      prodVarShop:prodVarShop, prodVarField:prodVarField,
+      prodVar:  prodVarShop + prodVarField,
       creepPer: perPanel, creepProj: projected,
       creepRatio: projected / PROGRAM.jointBudgetMm,
       inBuffer: z.cra - z.set,
@@ -1036,6 +1064,13 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
   T.sv      = T.ev - T.pv;
   T.cv      = T.ev - T.ac;
   T.pf      = T.ernH / T.actH;
+  // Shop/field productivity split (2026-09-03) -- package-level rollup of the per-elevation split.
+  T.ernHShop = sum(function(r){ return r.ernHShop; });
+  T.actHShop = sum(function(r){ return r.actHShop; });
+  T.ernHField= sum(function(r){ return r.ernHField; });
+  T.actHField= sum(function(r){ return r.actHField; });
+  T.pfShop  = T.actHShop > 0 ? T.ernHShop / T.actHShop : 1;
+  T.pfField = T.actHField > 0 ? T.ernHField / T.actHField : 1;
   T.eacBottomUp = sum(function(r){ return r.eac; });
   T.eacBlended  = T.bac / T.cpi;
   T.vac     = T.bac - T.eacBottomUp;
@@ -1043,6 +1078,8 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
   T.qtyVar  = sum(function(r){ return r.qtyVar; });
   T.priceVar= sum(function(r){ return r.priceVar; });
   T.totVar  = sum(function(r){ return r.totVar; });
+  T.prodVarShop  = sum(function(r){ return r.prodVarShop; });
+  T.prodVarField = sum(function(r){ return r.prodVarField; });
   T.prodVar = sum(function(r){ return r.prodVar; });
   T.bidQty  = sum(function(r){ return r.bidQty; });
   T.actQty  = sum(function(r){ return r.actQty; });
@@ -1428,10 +1465,12 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
       + '<p class="formula" style="margin-top:6px">BAC ' + m(r.bac) + ' &middot; EV ' + m(r.ev)
       + ' &middot; AC ' + m(r.ac) + '<br>SPI ' + idx(r.spi) + ' &middot; CPI ' + idx(r.cpi)
       + ' &middot; VAC ' + k(r.vac) + '<br>FPY ' + pct(r.fpy) + ' &middot; break rate ' + pct(r.breakRate, 2)
+      + '<br>Shop PF ' + idx(r.pfShop) + ' &middot; Field PF ' + idx(r.pfField)
       + '<br>flood ' + (r.flood ? "signed" : "open") + ' &middot; hose ' + (r.hose ? "passed" : "open")
       + '</p></div></div>'
       + '<p class="note" style="font-style:normal;margin-top:10px">Quantity var ' + k(r.qtyVar)
       + ' &middot; price var ' + k(r.priceVar) + ' &middot; productivity var ' + k(r.prodVar)
+      + ' (shop ' + k(r.prodVarShop) + ' / field ' + k(r.prodVarField) + ')'
       + (r.surveyed ? ' &middot; creep projected ' + r.creepProj.toFixed(1) + ' mm' : '') + '</p>';
     el("elevDrawer").hidden = false;
     document.documentElement.style.overflow = "hidden";
@@ -2077,11 +2116,31 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
     })();
     var worstRatio = R.slice().sort(function(a, b){ return a.pf - b.pf; })[0];
     var worstDollar = R.slice().sort(function(a, b){ return b.prodVar - a.prodVar; })[0];
-    set("prodFormula", "<b>productivity variance</b> = (actual hours &minus; earned hours) &times; "
-      + "blended rate<br>package: (" + fmtInt(T.actH) + " &minus; " + fmtInt(T.ernH) + ") &times; $"
-      + PROGRAM.laborRate + " = <b>" + k(T.prodVar) + "</b><br>"
-      + '<span style="font-style:italic">the blended rate is illustrative &mdash; a real engagement '
-      + 'would use the actual burdened rate by trade</span>');
+    set("prodFormula", "<b>productivity variance</b> = shop (actual &minus; earned hours &times; $"
+      + PROGRAM.laborRateShop + "/hr) + field (actual &minus; earned hours &times; $" + PROGRAM.laborRateField + "/hr)<br>"
+      + "package: (" + fmtInt(T.actHShop) + " &minus; " + fmtInt(T.ernHShop) + ") &times; $" + PROGRAM.laborRateShop
+      + " + (" + fmtInt(T.actHField) + " &minus; " + fmtInt(T.ernHField) + ") &times; $" + PROGRAM.laborRateField
+      + " = <b>" + k(T.prodVar) + "</b><br>"
+      + '<span style="font-style:italic">two real rates now, not one blended -- illustrative values, '
+      + 'but this closes the exact gap this page used to name as a stated limitation</span>');
+
+    /* Feature: shop vs. field hours (2026-09-03) -- mirrors the $ split (bacShop/bacField) that
+       already existed for cost; hours never had the same treatment before this, so one blended
+       Productivity Factor could hide a shop crew running fine while field bled hours, or the
+       reverse. */
+    set("prodShopFieldRows",
+      rowbar("Shop &mdash; PF " + idx(T.pfShop), k(T.prodVarShop),
+        Math.abs(T.prodVarShop) / Math.max(Math.abs(T.prodVarShop), Math.abs(T.prodVarField)) * 100,
+        T.prodVarShop > 0 ? "rgb(var(--c-danger))" : "rgb(var(--c-success))")
+      + rowbar("Field &mdash; PF " + idx(T.pfField), k(T.prodVarField),
+        Math.abs(T.prodVarField) / Math.max(Math.abs(T.prodVarShop), Math.abs(T.prodVarField)) * 100,
+        T.prodVarField > 0 ? "rgb(var(--c-danger))" : "rgb(var(--c-success))"));
+    set("prodShopFieldNote",
+      (Math.abs(T.prodVarField) > Math.abs(T.prodVarShop) ? "Field" : "Shop") + " is driving more of "
+      + "the package's productivity variance in dollars (" + k(Math.max(Math.abs(T.prodVarShop), Math.abs(T.prodVarField)))
+      + " vs. " + k(Math.min(Math.abs(T.prodVarShop), Math.abs(T.prodVarField))) + ") &mdash; the two "
+      + "sides are different labour pools with different rates and different drivers, so this is "
+      + "where to actually look, not the blended PF tile alone.");
     if (worstRatio.id !== worstDollar.id){
       set("prodCaveat",
         "The list above is ranked by dollars, and <b>rate is not the same question as magnitude</b>. "
@@ -2332,6 +2391,27 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
     + 'cost -- an ERP if one exists, a shop spreadsheet if it does not -- and the field side from '
     + 'crew reporting, and then the difference would be a genuine data disagreement worth chasing. '
     + 'That is the version worth building; this is the harness for it.</p>');
+
+    /* Hours tie-out (2026-09-03) -- the $ tie-out above has always existed; hours never had the
+       matching treatment, which is the exact gap this whole feature closes. Same construction, same
+       honesty about what "ties" here actually proves. */
+    var earnedHDelta = (T.ernHShop + T.ernHField) - T.ernH;
+    var actualHDelta = (T.actHShop + T.actHField) - T.actH;
+    set("reconHoursRows",
+      rowbar("Shop hours &mdash; earned / actual", fmtInt(T.ernHShop) + " / " + fmtInt(T.actHShop),
+             T.actHShop / Math.max(T.actHShop, T.actHField) * 100, "var(--c-shop)")
+    + rowbar("Field hours &mdash; earned / actual", fmtInt(T.ernHField) + " / " + fmtInt(T.actHField),
+             T.actHField / Math.max(T.actHShop, T.actHField) * 100, "var(--c-field)")
+    + rowbar("Combined", fmtInt(T.ernHShop + T.ernHField) + " / " + fmtInt(T.actHShop + T.actHField), 100,
+             "rgb(var(--c-accent))")
+    + rowbar("Package hours, computed from the panel ledger", fmtInt(T.ernH) + " / " + fmtInt(T.actH), 100,
+             "rgb(var(--c-accent))")
+    + '<div class="formula">earned-hours difference = <b>' + fmtInt(earnedHDelta)
+    + '</b> &middot; actual-hours difference = <b>' + fmtInt(actualHDelta) + '</b> &mdash; '
+    + ((Math.abs(earnedHDelta) < 0.5 && Math.abs(actualHDelta) < 0.5) ? "the two views tie" : "THE TWO VIEWS DISAGREE") + '</div>'
+    + '<p class="note" style="font-style:normal">Package PF (' + idx(T.pf) + ') vs. Shop PF ('
+    + idx(T.pfShop) + ') vs. Field PF (' + idx(T.pfField) + ') &mdash; the blended figure is a real number, '
+    + 'it just answers a coarser question than either side answers on its own.</p>');
   })();
 
   /* Feature #9 -- consolidates every real external citation already scattered across the other
@@ -2374,7 +2454,7 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
       ["bacShop / bacField", "Budget split between shop and field scope", "The rules of credit &mdash; weights ARE the cost split"],
       ["acShop / acField", "Actual cost booked to each side", "CPI, EAC, cost variance, unbilled factory value"],
       ["pv", "Planned value at the data date, from the baseline", "SPI, schedule variance"],
-      ["ernH / actH", "Earned and actual labour hours", "Productivity factor and productivity variance"],
+      ["ernHShop / actHShop / ernHField / actHField", "Earned and actual labour hours, split shop vs. field", "Shop/field productivity factor and productivity variance"],
       ["bidQty / actQty / bidRate / actRate", "Bid and actual square footage and unit rate", "Quantity and price variance decomposition"],
       ["flood / hose", "Whether each elevation's water tests are signed off", "Gates 4 and 5, evaluated against panel counts"],
       ["surveyed / creepMm / sweep", "Survey readings of cumulative setting drift", "Tolerance projection against the joint budget"],
@@ -2397,7 +2477,7 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
       ["Buffer cover", "(crated &minus; set) &divide; trailing 4-week set rate", "Trailing, not project-to-date &mdash; the pace being run now is what empties the yard."],
       ["Quantity variance", "(actual sf &minus; bid sf) &times; bid rate", "Holds price constant, so it isolates the takeoff."],
       ["Price variance", "(actual rate &minus; bid rate) &times; actual sf", "Holds the delivered quantity constant. Sums with quantity to the total, exactly."],
-      ["Productivity variance", "(actual hours &minus; earned hours) &times; blended rate", "Labour, kept out of the material split so the decomposition stays exact."],
+      ["Productivity variance", "shop (actual &minus; earned hours &times; shop rate) + field (actual &minus; earned hours &times; field rate)", "Labour, kept out of the material split so the decomposition stays exact. Shop and field are two different rates, not one blended -- a real gap this page used to name and now closes."],
       ["Tolerance projection", "(drift &divide; panels surveyed) &times; panels in sweep", "A linear projection of an observed bias. Says nothing about a bias that changes."],
       ["First-Pass Yield", "qcFirstPass &divide; crated", "Lean-manufacturing metric applied at the one shop QC checkpoint this ledger has data for."],
       ["Baseline Execution Index", "set &divide; plan (from the weekly series)", "DCMA 14-Point Assessment metric #14 &mdash; the one DCMA point this panel-count ledger can run without a real activity network."],
@@ -2558,7 +2638,10 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
         unbilledFactoryValue:T.unbilledFactoryValue,
         retainagePct:PROGRAM.retainagePct, retainageHeld:T.retainageHeld, billedToDate:T.billedToDate,
         rfiAvgDays:T.rfiAvgDays, rfiOpenCount:T.rfiOpenCount, rfiOpenMaxDays:T.rfiOpenMaxDays,
-        coApprovedValue:T.coApprovedValue, coRatePct:T.coRatePct, coUnpricedExposure:T.coUnpricedExposure
+        coApprovedValue:T.coApprovedValue, coRatePct:T.coRatePct, coUnpricedExposure:T.coUnpricedExposure,
+        // added 2026-09-03 -- shop/field productivity split, mirroring the cost split's own totals.
+        ernHShop:T.ernHShop, actHShop:T.actHShop, ernHField:T.ernHField, actHField:T.actHField,
+        pfShop:T.pfShop, pfField:T.pfField, prodVarShop:T.prodVarShop, prodVarField:T.prodVarField
       },
       elevations: R.map(function(r){
         return {id:r.id, name:deent(r.n), panels:r.panels,
@@ -2567,7 +2650,8 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
           pctEarned:r.pct, flood:r.flood, hose:r.hose,
           qtyVar:r.qtyVar, priceVar:r.priceVar, prodVar:r.prodVar, totVar:r.totVar,
           creepPerPanelMm:r.creepPer, creepProjectedMm:r.creepProj, creepRatio:r.creepRatio,
-          fpy:r.fpy, breakRate:r.breakRate, unbilledFactoryValue:r.unbilledFactoryValue};
+          fpy:r.fpy, breakRate:r.breakRate, unbilledFactoryValue:r.unbilledFactoryValue,
+          pfShop:r.pfShop, pfField:r.pfField, prodVarShop:r.prodVarShop, prodVarField:r.prodVarField};
       }),
       // GATES[i].n is that gate's NAME (not a number) -- remapped to {n:<1-based position>,
       // name, status, detail} to match the shape facade_get_gate/list_facade_gates expect.
