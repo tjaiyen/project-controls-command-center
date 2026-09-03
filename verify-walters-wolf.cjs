@@ -67,5 +67,18 @@ ok(!/the actuals live in the ERP/.test(flat), 'no longer asserts an ERP exists (
 ok(!/Read access to whatever holds actual cost today/.test(flat), 'no longer asks for ERP/job-cost read access as a precondition');
 ok(/Estimating re-derives price it already paid for once/.test(flat), 'the "estimating re-derives price" leak (current 6th item) is present');
 
+/* Market-backdrop card (added 2026-09-02, sourced from independently-verified public market data --
+   see feedback discussion). Same static-section blind spot as above: nothing in the DOM stub touches
+   this card, so pin its load-bearing figures directly so a future edit can't quietly drop or corrupt
+   a cited number. Kept deliberately narrow -- no strategy recommendation is asserted here, only that
+   the sourced facts are present, because the card itself takes no position on which market the branch
+   should build into. */
+ok(/35\.8%/.test(flat), 'Seattle office vacancy stat (35.8%, Kidder Mathews Q2 2026) is present');
+ok(/10,903 MW/.test(flat), 'CBRE data-center inventory stat (10,903 MW, H1 2026) is present');
+ok(/kidder\.com\/market-reports/.test(flat), 'Kidder Mathews source link is present');
+ok(/cbre\.com\/insights\/books\/north-america-data-center-trends-h1-2026/.test(flat), 'CBRE H1 2026 source link is present');
+ok(/grantpudqtep\.org/.test(flat), 'Grant PUD QTEP source link is present');
+ok(!/should (pivot|retool|reposition)|we recommend|the recommended path/i.test(flat), 'market-backdrop card stays descriptive -- no strategy recommendation asserted on a public page');
+
 console.log(fail ? '\nFAILED ' + fail : '\nall ok');
 process.exit(fail ? 1 : 0);
