@@ -19,7 +19,7 @@ const askAiLib = require(DIR + "worker/lib.js"); // pure guardrail logic, same r
   // Worker entry (worker/index.js) uses — one source of truth, not a copy re-typed for testing.
 
 // Live SQL/DuckDB parity-check count (/stress-test finding, 2026-08-27, "resolve all
-// limitations"): index.html and architecture.html both quote a bare "65 parity checks" literal --
+// limitations"): index.html and architecture.html both quote a bare "66 parity checks" literal --
 // previously an accepted, permanent limitation, since that count only exists by actually
 // executing pipeline/run_pipeline.py against DuckDB, which this harness never did. Resolved by
 // attempting a real, offline run through a local venv (pipeline/.venv, gitignored -- create once
@@ -36,7 +36,7 @@ function livePipelineCheckCount() {
   // `SKIP_LIVE_PIPELINE=1 node stress.cjs` skips it (loudly, same as the other degraded paths),
   // falling back to the text-presence-only check.
   if (process.env.SKIP_LIVE_PIPELINE) {
-    console.log("  [degraded] SKIP_LIVE_PIPELINE set — skipping the live SQL/DuckDB parity-check verification by request. The '65 parity checks' assertions below fall back to a text-presence-only check.");
+    console.log("  [degraded] SKIP_LIVE_PIPELINE set — skipping the live SQL/DuckDB parity-check verification by request. The '66 parity checks' assertions below fall back to a text-presence-only check.");
     return null;
   }
   // Accepted, stated gap (/stress-test finding, independent reviewer, 2026-08-27): this assumes a
@@ -46,7 +46,7 @@ function livePipelineCheckCount() {
   // rule calls a lie of omission when left unstated. Stated here, not silently left as unknown.
   const venvPy = DIR + "pipeline/.venv/bin/python3";
   if (!fs.existsSync(venvPy)) {
-    console.log("  [degraded] pipeline/.venv not found — skipping the live SQL/DuckDB parity-check verification (run `python3 -m venv pipeline/.venv && pipeline/.venv/bin/pip install duckdb` once to enable it, or set SKIP_LIVE_PIPELINE=1 to silence this note). The '65 parity checks' assertions below fall back to a text-presence-only check.");
+    console.log("  [degraded] pipeline/.venv not found — skipping the live SQL/DuckDB parity-check verification (run `python3 -m venv pipeline/.venv && pipeline/.venv/bin/pip install duckdb` once to enable it, or set SKIP_LIVE_PIPELINE=1 to silence this note). The '66 parity checks' assertions below fall back to a text-presence-only check.");
     return null;
   }
   try {
@@ -8179,7 +8179,7 @@ console.log("== E.1. architecture.html sync ==");
 ok(archSrc.includes("20 metrics, 6 families") && archSrc.includes("20 metrics across cost, schedule, risk, change, delivery, and compliance."),
   "architecture.html's '20 metrics' prose is present in both the diagram box and the legend table");
 ok(P.kpis.length === 20, "index.html's live KPIS array actually has 20 entries, matching architecture.html's claim", String(P.kpis.length));
-ok(archSrc.includes("29 live checks (browser)") && archSrc.includes("29 browser checks plus a separate 65-check SQL pipeline"),
+ok(archSrc.includes("29 live checks (browser)") && archSrc.includes("29 browser checks plus a separate 66-check SQL pipeline"),
   "architecture.html's '29 checks' prose is present in both the diagram box and the legend table -- 28->29, brainstorm-mode round, 2026-08-26 (item #3's QA/QC closure gate)");
 ok(P.guards.length === 29, "index.html's live GUARDS array actually has 29 entries, matching architecture.html's claim", String(P.guards.length));
 // 64 -> 65 (docs-currency /stress-test round, 2026-08-26): the temporal-fence guardrail added to
@@ -8191,8 +8191,8 @@ if (LIVE_PIPELINE_CHECKS) {
   ok(archSrc.includes("+ " + LIVE_PIPELINE_CHECKS.total + "-check SQL pipeline") && LIVE_PIPELINE_CHECKS.failed === 0,
     "architecture.html's SQL-pipeline check count matches a LIVE run of pipeline/run_pipeline.py this session (resolved -- no longer a static-only assumption)", JSON.stringify(LIVE_PIPELINE_CHECKS));
 } else {
-  ok(archSrc.includes("+ 65-check SQL pipeline"),
-    "architecture.html cites the 65-check SQL pipeline figure (degraded: no local pipeline/.venv found, text-presence check only -- see console note above)");
+  ok(archSrc.includes("+ 66-check SQL pipeline"),
+    "architecture.html cites the 66-check SQL pipeline figure (degraded: no local pipeline/.venv found, text-presence check only -- see console note above)");
 }
 ok(archSrc.includes("17 tracked items"), "architecture.html's '17 tracked items' prose is present");
 ok(P.actions.length === 17, "index.html's live ACTIONS array actually has 17 entries, matching architecture.html's claim", String(P.actions.length));
@@ -9635,7 +9635,7 @@ console.log("== D56. GAO cost-estimate credibility checklist (research-backed up
     ok(accurate.evidence.includes(LIVE_PIPELINE_CHECKS.total + " parity checks") && LIVE_PIPELINE_CHECKS.failed === 0,
       "Accurate's evidence cites a count that matches a LIVE run of pipeline/run_pipeline.py this session (resolved -- no longer a static-only assumption)", JSON.stringify(LIVE_PIPELINE_CHECKS));
   } else {
-    ok(accurate.evidence.includes("65 parity checks"), "Accurate's evidence cites the real SQL/DuckDB parity-check count (degraded: no local pipeline/.venv found, text-presence check only -- see console note above)");
+    ok(accurate.evidence.includes("66 parity checks"), "Accurate's evidence cites the real SQL/DuckDB parity-check count (degraded: no local pipeline/.venv found, text-presence check only -- see console note above)");
   }
   const credible = rows.find((r) => r.characteristic === "Credible");
   ok(credible.evidence.includes(P.mc.n.toLocaleString("en-US")) && credible.evidence.includes(String(P.risks.length)), "Credible's evidence cites the real Monte Carlo run count and real risk-register size, not hardcoded numbers");

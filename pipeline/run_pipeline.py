@@ -32,6 +32,18 @@ def check(label, cond, detail=""):
     if not cond:
         failures.append(label)
 
+# --- 0. DATA_DATE consistency guardrail (/stress-test finding, 2026-09-02) -
+# MODEL is executed verbatim (see MODEL.read_text() below) and hardcodes its own
+# `date '...'` literal to stay genuinely dbt-style, rather than templating it in from Python --
+# but that means this Python DATA_DATE and the SQL file's own literal are two independent sources
+# of truth that could silently drift if one is edited without the other. This does not eliminate
+# that (the fix would compromise the "reads like a real dbt file" design goal), but it makes any
+# drift fail loudly here, in the very first check, instead of silently producing a ledger built
+# against the wrong data-date while the "no future-dated claims" guardrail below keeps passing.
+check(f"pipeline/models/fct_control_account.sql's date literal matches DATA_DATE ({DATA_DATE})",
+      f"date '{DATA_DATE}'" in MODEL.read_text(),
+      "update BOTH the SQL file's literal and this script's DATA_DATE together")
+
 # --- 1. Parse the dashboard's ledger straight out of index.html ------------
 src = INDEX.read_text()
 pkg_re = re.compile(

@@ -24,6 +24,23 @@ function ok(cond, label) {
   if (cond) { pass++; } else { fail++; console.error("FAIL: " + label); }
 }
 
+// Regression test for a real bug (/stress-test finding, 2026-09-02, independent reviewer +
+// direct probing): sanitizeAnswer() used a plain text.split(claim).join(...), which matches a
+// claim as an inner SUBSTRING of any larger number too -- an unverified "1.2" was corrupting a
+// separately real, verified "$91.2M" into "$9[unverified]M". Fixed with digit-boundary lookaround
+// in worker/lib.js; this pins the exact repro so it can't silently regress. Unit-level, not
+// end-to-end, because the bug lives entirely in the pure sanitizeAnswer() function.
+(function testSanitizeAnswerDoesNotCorruptSubstringNumbers() {
+  const lib = require("./lib.js");
+  const text = "Contingency remaining is $91.2M. Meanwhile the risk score is 1.2 which I made up.";
+  const claims = lib.extractNumericClaims(text);
+  const { unverified } = lib.verifyClaims(claims, [91.2], "");
+  const sanitized = lib.sanitizeAnswer(text, unverified);
+  ok(sanitized.includes("$91.2M"), "sanitizeAnswer preserves a verified number even when an unverified claim is its substring ('1.2' inside '91.2')");
+  ok(sanitized.includes("[unverified] which I made up"), "sanitizeAnswer still strips the genuinely fabricated claim");
+  ok(!sanitized.includes("$9[unverified]M"), "the verified $91.2M is not corrupted into $9[unverified]M");
+})();
+
 function makeFakeKv() {
   const store = new Map();
   return {

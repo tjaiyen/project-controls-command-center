@@ -12,3 +12,13 @@ otak-session-notes.md
 pipeline/output/
 pipeline/.venv/
 .private/
+
+# Any local Python virtualenv, wherever it's created (/stress-test finding, 2026-09-02):
+# .venv_stress_verify/ (58MB, DuckDB stdlib bindings) was relying SOLELY on its own
+# auto-generated internal .gitignore (a `*` rule every `python -m venv` writes) to stay out of
+# this PUBLIC repo's history -- nothing at the repo-root level actually covered it. That's fragile:
+# any venv tool that doesn't self-ignore, or a `git add -f`, would land 58MB of binaries in public
+# git history. Covers this one explicitly, plus any future differently-named venv.
+.venv_stress_verify/
+.venv/
+venv/
