@@ -1533,6 +1533,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         <a href="#gantt">Tracking Gantt</a>
         <a href="#schedTriad">SPI / CPLI / BEI</a>
         <a href="#floatErosionCard">Float Erosion</a>
+        <a href="#schedRisk">Schedule Risk Score</a>
         <a href="#laborMobTable">Labor Availability</a>
         <a href="#schedDriftCard">Forecast Drift</a>
         <a href="#tiaReg">Delay Fragnets</a>
@@ -1621,6 +1622,18 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         the margin has been eroding steadily or just arrived where it is, which changes what a recovery plan
         actually has to fix.</p>
       <div class="card" style="margin-top:15px" id="floatErosionCard"></div>
+
+      <div class="sec-h" style="margin-top:34px"><h2>Schedule risk score</h2><span class="tag">CPLI + risk register + CO cycle, blended</span></div>
+      <p class="lede">CPLI, the risk register, and the change-order cycle each answer a different question on
+        their own tabs. This blends the three into one ranked list: which control account is accumulating
+        schedule risk from every direction at once, not just the one a single chart happens to show.</p>
+      <div id="schedRiskOpQ"></div>
+      <div class="card"><div id="schedRisk"></div>
+        <p style="margin:12px 0 0;font-size:11.5px;color:rgb(var(--c-mut))">Score = 50&times;CPLI erosion (saturates at
+          CPLI&nbsp;0.80) + 35&times;this package&rsquo;s own risk-register exposure (saturates at $10.0M,
+          probability-weighted) + 15&times;the change-order cycle overrun &mdash; the same figure on every bar
+          below, since it&rsquo;s a program-wide signal, not a package-specific one. Weights and saturation
+          points are stated, illustrative choices, not calibrated against outcome data.</p></div>
 
       <div class="sec-h" style="margin-top:34px"><h2>Labor-availability leading indicator</h2><span class="tag">mobilization lead-time</span></div>
       <p class="lede">A real, current industry pressure (AGC: 92% of firms <em>that are hiring</em> report a hard time finding qualified workers;
@@ -2808,16 +2821,26 @@ function linRegForecastAccuracy(){
    derived from cost/impact the way Impact is (see renderRiskMath()'s own explanation of that
    distinction). Stated here, per risk, rather than left as an unexplained number — the direct
    fix for "why P4, that doesn't make sense" landing on a bare digit with no stated reasoning. */
+/* pkg field added (brainstorm-mode round, schedule-risk composite, 2026-09-02) -- links a risk to
+   the ONE control account it concentrates on, where that's genuinely true. Not every risk gets
+   one: R-04 (commodity escalation) and R-06 (rail coordination) are real but portfolio-wide, and
+   R-07 spans two package families (tunnel portal + guideway) with no single honest owner package
+   -- left unmapped rather than force-assigned to one. Nullable by design; scheduleRiskScore()
+   below only rolls up risks that actually carry a pkg. */
 var RISKS = [
  {id:"R-01",n:"Tunnel ground conditions worse than baseline",p:4,i:5,cost:18.5,own:"Tunnel CM",     mit:"Supplemental geotechnical program; staged contingency release tied to face mapping",
+  pkg:"CP-201",
   basis:"Ground conditions differing from baseline geotechnical investigation is one of the most frequently realized risk categories in tunnel and underground construction industry-wide — not a fringe scenario."},
  {id:"R-03",n:"Systems integration test window compressed",  p:3,i:4,cost: 9.4,own:"Systems PM",    mit:"Negotiate extended night windows; pre-stage commissioning off critical path",
+  pkg:"CP-701",
   basis:"Integration/commissioning windows commonly compress when earlier phases run late, but whether THIS window compresses depends on how those phases actually perform — genuinely uncertain either way, not leaning likely or unlikely."},
  {id:"R-02",n:"Third-party utility approval delays",         p:4,i:3,cost: 6.2,own:"Utilities Lead",mit:"Weekly owner cadence; parallel permit tracks on the two longest-lead crossings",
+  pkg:"CP-601",
   basis:"Utility-owner approval sits outside the program's direct control and is a commonly-cited delay source on programs with multiple third-party utility crossings."},
  {id:"R-04",n:"Steel &amp; OCS escalation beyond index",     p:3,i:3,cost: 4.8,own:"Procurement",   mit:"Early buy on hedgeable commodities; EPA clause indexed to a published series",
   basis:"Commodity escalation beyond the contract's own price index is plausible given real market volatility, but the index exists specifically to absorb the typical case — genuinely uncertain, not likely."},
  {id:"R-05",n:"Station finishes labor availability",         p:2,i:3,cost: 2.9,own:"Stations CM",   mit:"Second-source subcontract package; sequence finishes by station",
+  pkg:"CP-301",
   basis:"A single-trade, localized labor-market risk — historically realized less often than the ground-condition and third-party-approval risks above on comparable programs."},
  {id:"R-06",n:"Third-party rail coordination windows",       p:2,i:2,cost: 1.6,own:"Program Controls",mit:"Lock a 12-month look-ahead with the operating railroad",
   basis:"Coordination risk with an established, cooperating operating railroad partner — lower historical frequency than the more externally-driven risks above."},
@@ -3260,6 +3283,30 @@ function derive(p){
 }
 var rows = PKGS.map(function(p){ var d=derive(p); return Object.assign({},p,d); });
 
+/* Schedule risk composite — brainstorm-mode addition, 2026-09-02: blends three real, already-
+   existing signals into one ranked leading-indicator score, instead of adding a fourth trained-
+   model claim this repo can't defend. (1) CPLI erosion — reuses r.cpli exactly as derive() above
+   already computes it, the program's own chosen "driving path" metric, not a new float/cpRem
+   calculation. (2) Package-scoped risk exposure — the same P_BAND probability-weighting
+   T.riskExposure already uses below, just filtered to RISKS[] rows carrying this package's pkg.
+   (3) Change-order cycle overrun (PROGRAM.coCycleDays vs coCycleTarget) — real, but program-wide,
+   so it lands identically on every package; that's a stated design choice, not an oversight, and
+   the UI card says so rather than hiding it.
+   Weights (50/35/15) and saturation bounds (erosion 0.20 = CPLI 0.80, exposure $10M weighted,
+   overrun 15 days) are STATED, illustrative choices — not calibrated against real outcome data.
+   Same honesty standard MATERIAL_ESCALATION_BASELINE_PCT already sets elsewhere in this file. */
+function pkgRiskExposure(pkgId){
+  return RISKS.filter(function(k){ return k.pkg===pkgId; })
+    .reduce(function(s,k){ return s+P_BAND[k.p]*k.cost; },0);
+}
+function scheduleRiskScore(r){
+  var erosion=Math.max(0,1-r.cpli);
+  var coOverrun=Math.max(0,PROGRAM.coCycleDays-PROGRAM.coCycleTarget);
+  var raw = 50*Math.min(1,erosion/0.20) + 35*Math.min(1,pkgRiskExposure(r.id)/10) + 15*Math.min(1,coOverrun/15);
+  return Math.round(Math.min(100,Math.max(0,raw))*10)/10;
+}
+rows.forEach(function(r){ r.schedRisk=scheduleRiskScore(r); });
+
 var T = rows.reduce(function(a,r){
   ["bac","pv","ev","ac","commit","eac","actsP","actsD","ernH","actH"].forEach(function(k){ a[k]+=r[k]; });
   return a;
@@ -3309,6 +3356,7 @@ function sgnUsd(v){ return (v>=0?"+":"−")+usd(Math.abs(v)); }
 function idx(v){ return v.toFixed(3); }
 function pct(v,d){ return (v*100).toFixed(d===undefined?1:d)+"%"; }
 function days(v){ return (v>0?"+":"")+v+"d"; }
+function score100(v){ return v.toFixed(1); }
 function num(v){ return v.toLocaleString("en-US"); }
 var RAG={g:"var(--c-pill-g)",a:"var(--c-pill-a)",r:"var(--c-pill-r)",i:"var(--c-pill-i)"};
 /* Same g/a/r words statusOf() already uses for the ledger table (line ~2758) — reused here, not
@@ -7965,6 +8013,22 @@ function renderSchedule(){
     'style="min-height:auto;padding:1px 8px;font-size:12.5px" data-jump-tab="over" data-jump-el="kboard" '+
     'data-jump-openkpi="cpli">See the formula &rarr;</button></div>');
   renderCpliMath();
+  // Schedule risk composite (brainstorm-mode addition, 2026-09-02) — same bars()/opQuestionBox()
+  // idiom as floats/cpli just above, worst-first sort to match the cpli bars' own convention.
+  // Thresholds (50/25) are the same red/amber/green-with-a-stated-number idiom used throughout
+  // this tab (DCMA 0.95 for cpli, SPI<0.95 elsewhere) — not a new visual language.
+  document.getElementById("schedRiskOpQ").innerHTML = opQuestionBox("schedRisk",
+    "Which control account is accumulating schedule risk from every direction at once?",
+    (function(){ var worst=rows.slice().sort(function(a,b){return b.schedRisk-a.schedRisk;})[0];
+      return worst.id+" carries the highest blended score on the board at "+score100(worst.schedRisk)+
+        " — CPLI "+idx(worst.cpli)+", package risk exposure "+m(pkgRiskExposure(worst.id))+
+        ", change-order cycle "+PROGRAM.coCycleDays+"d vs "+PROGRAM.coCycleTarget+"d target."; })());
+  bars("schedRisk",rows.slice().sort(function(a,b){return b.schedRisk-a.schedRisk;}).map(function(r){
+    return {id:r.id,v:r.schedRisk,c:r.schedRisk>=50?"var(--c-pill-r)":r.schedRisk>=25?"var(--c-pill-a)":"var(--c-pill-g)"}; }),score100,
+    function(o){ var r=rows.filter(function(x){return x.id===o.id;})[0];
+      return "<b>"+r.id+"</b>"+r.n.replace(/&amp;/g,"&")+"<br>Score "+score100(r.schedRisk)+
+        "<br>CPLI "+idx(r.cpli)+" &middot; package risk "+m(pkgRiskExposure(r.id))+
+        " &middot; CO cycle "+PROGRAM.coCycleDays+"d/"+PROGRAM.coCycleTarget+"d"; });
   // Milestone variance: shared bars() component (UX upgrade round, 2026-08-27 -- /stress-test
   // finding, independent reviewer: this was 7 plain color-coded text rows, the one list-shaped
   // panel on this tab that never got the hover tooltip + magnitude-as-bar-width + cross-highlight
@@ -10669,7 +10733,7 @@ function gaoCredibilityChecklist(){
    {characteristic:"Well-documented",status:"pass",
     evidence:"Every one of "+KPIS.length+" KPIs carries a real formula, threshold, source and play field ("+(kpiComplete?"verified, none missing":"gap found")+") — the same invariant GUARDS' own \"KPI registry complete\" check re-confirms on every page load."},
    {characteristic:"Accurate",status:"pass",
-    evidence:"Independently re-derived through a SEPARATE SQL/DuckDB stack — 66 parity checks, all passing, the same ledger proven twice in two languages, to the decimal."},
+    evidence:"Independently re-derived through a SEPARATE SQL/DuckDB stack — 101 parity checks, all passing, the same ledger proven twice in two languages, to the decimal."},
    {characteristic:"Credible",status:"pass",
     evidence:MC.n.toLocaleString("en-US")+"-run Monte Carlo simulation plus "+RISKS.length+" priced risks in an expected-monetary-value register, with a real sensitivity ranking (this tab's own tornado chart) — not a single deterministic number presented as certain."}
   ];
@@ -12354,8 +12418,10 @@ document.addEventListener("toggle",function(e){
    exact gate-hole class the prior version of this comment's "32" slipped through.
    26 -> 27 (brainstorm-mode ML round, 2026-08-26): the new multivariate-anomaly section's own
    opQuestionBox("multianomaly", ...) is a 23rd chart-specific key -- same class as the 22
-   already counted, not a family key, so the +4 term is untouched. */
-var OPQ_TOTAL = 23 + 4;
+   already counted, not a family key, so the +4 term is untouched.
+   27 -> 28 (brainstorm-mode round, schedule-risk composite, 2026-09-02): opQuestionBox("schedRisk", ...)
+   is a 24th chart-specific key, same class as the 23 already counted -- the +4 term is untouched. */
+var OPQ_TOTAL = 24 + 4;
 function renderOpQProgress(){
   var el=document.getElementById("opQProgress"); if(!el) return;
   var n=Object.keys(state.opQSeen).length;

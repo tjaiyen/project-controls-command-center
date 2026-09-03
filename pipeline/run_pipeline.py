@@ -20,6 +20,7 @@ import duckdb
 ROOT = Path(__file__).resolve().parent.parent
 INDEX = ROOT / "index.html"
 MODEL = ROOT / "pipeline" / "models" / "fct_control_account.sql"
+SCHED_MODEL = ROOT / "pipeline" / "models" / "fct_schedule_risk.sql"
 MONTHS = 22          # months elapsed, mirrors PROGRAM.monthsElapsed
 DATA_DATE = "2026-07-31"
 
@@ -48,12 +49,44 @@ check(f"pipeline/models/fct_control_account.sql's date literal matches DATA_DATE
 src = INDEX.read_text()
 pkg_re = re.compile(
     r'\{id:"(?P<id>CP-\d+)".*?bac:\s*(?P<bac>[\d.]+),\s*pv:\s*(?P<pv>[\d.]+),\s*'
-    r'ev:\s*(?P<ev>[\d.]+),\s*ac:\s*(?P<ac>[\d.]+)', re.S)
+    r'ev:\s*(?P<ev>[\d.]+),\s*ac:\s*(?P<ac>[\d.]+).*?float:\s*(?P<float>-?\d+),'
+    r'cpRem:\s*(?P<cpRem>\d+)', re.S)
 PKGS = [m.groupdict() for m in pkg_re.finditer(src)]
 check("parsed 8 control accounts from index.html", len(PKGS) == 8, f"got {len(PKGS)}")
 for p in PKGS:
     for k in ("bac", "pv", "ev", "ac"):
         p[k] = float(p[k])
+    for k in ("float", "cpRem"):
+        p[k] = int(p[k])
+
+# --- 1b. Parse the risk register and change-order cycle inputs -------------
+# (schedule-risk composite, 2026-09-02) — capture each risk object's own body up to its closing
+# brace (these are flat literals, no nested `{`), then parse fields from within that one block —
+# avoids a chained field-order regex silently drifting onto the WRONG risk's pkg if an unrelated
+# field (mit/basis) sits between cost and pkg in the source, as it genuinely does here.
+risk_block_re = re.compile(r'\{id:"(R-\d+)".*?\}', re.S)
+risks_start = src.index("var RISKS")
+risks_end = src.index("];", risks_start)   # the array's own closing bracket, not a magic window
+RISKS_PY = []
+for block_m in risk_block_re.finditer(src[risks_start:risks_end]):
+    block = block_m.group(0)
+    p_m = re.search(r'\bp:\s*(\d)', block)
+    cost_m = re.search(r'\bcost:\s*([\d.]+)', block)
+    pkg_m = re.search(r'\bpkg:"(CP-\d+)"', block)
+    RISKS_PY.append({"id": block_m.group(1), "p": int(p_m.group(1)), "cost": float(cost_m.group(1)),
+                      "pkg": pkg_m.group(1) if pkg_m else None})
+check("parsed 7 risks from index.html RISKS[]", len(RISKS_PY) == 7, f"got {len(RISKS_PY)}")
+mapped = [r for r in RISKS_PY if r["pkg"]]
+check("4 risks carry a pkg mapping (R-01/R-02/R-03/R-05)", len(mapped) == 4, f"got {len(mapped)}")
+check("mapped risks are exactly R-01/R-02/R-03/R-05",
+      sorted(r["id"] for r in mapped) == ["R-01", "R-02", "R-03", "R-05"],
+      f"got {sorted(r['id'] for r in mapped)}")
+
+co_re = re.search(r'coCycleDays:\s*(\d+),\s*coCycleTarget:\s*(\d+)', src)
+check("parsed PROGRAM.coCycleDays/coCycleTarget from index.html", co_re is not None)
+CO_CYCLE_DAYS, CO_CYCLE_TARGET = (int(co_re.group(1)), int(co_re.group(2))) if co_re else (0, 0)
+
+P_BAND = {1: 0.10, 2: 0.30, 3: 0.50, 4: 0.70, 5: 0.90}  # must match index.html's P_BAND verbatim
 
 # --- 2. Deterministic synthesis of raw monthly claims ----------------------
 # Bell-shaped spend curve (same family as the dashboard's S-curve weights).
@@ -88,14 +121,26 @@ check("synthesized 176 raw claim rows (8 accounts x 22 months)", len(rows) == 17
 
 # --- 3. Build the ledger in SQL --------------------------------------------
 con = duckdb.connect(":memory:")
-con.execute("create table dim_control_account(package_id varchar primary key, package_name varchar, bac double)")
+con.execute("create table dim_control_account(package_id varchar primary key, package_name varchar, bac double, "
+            "float_days integer, cp_remaining_days integer)")
 con.execute("create table stg_progress_claims(claim_id varchar, package_id varchar, claim_month date, pv_delta double, ev_delta double, ac_delta double)")
-con.executemany("insert into dim_control_account values (?,?,?)",
-                [(p["id"], p["id"], p["bac"]) for p in PKGS])
+con.executemany("insert into dim_control_account values (?,?,?,?,?)",
+                [(p["id"], p["id"], p["bac"], p["float"], p["cpRem"]) for p in PKGS])
 con.executemany("insert into stg_progress_claims values (?,?,?,?,?,?)", rows)
 ledger = con.execute(MODEL.read_text()).fetchall()
 cols = [d[0] for d in con.description]
 by_id = {r[0]: dict(zip(cols, r)) for r in ledger}
+
+# --- 3b. Schedule-risk composite: build risk register + program tables, run the model -------
+con.execute("create table stg_risk_register(id varchar, p integer, cost double, pkg varchar)")
+con.executemany("insert into stg_risk_register values (?,?,?,?)",
+                [(r["id"], r["p"], r["cost"], r["pkg"]) for r in RISKS_PY])
+con.execute("create table dim_program(co_cycle_days integer, co_cycle_target_days integer)")
+con.execute("insert into dim_program values (?,?)", (CO_CYCLE_DAYS, CO_CYCLE_TARGET))
+sched_ledger = con.execute(SCHED_MODEL.read_text()).fetchall()
+sched_cols = [d[0] for d in con.description]
+sched_by_id = {r[0]: dict(zip(sched_cols, r)) for r in sched_ledger}
+check("fct_schedule_risk returned 8 rows", len(sched_ledger) == 8, f"got {len(sched_ledger)}")
 
 # --- 4. Equality proof: SQL ledger vs the dashboard's own numbers ----------
 # Tolerance tightened 2026-08-27 (/stress-test finding, independent reviewer): the real diffs are
@@ -113,17 +158,57 @@ for p in PKGS:
     check(f"{p['id']} cpi recomputed", abs(q["cpi"] - p["ev"] / p["ac"]) < 1e-9)
     check(f"{p['id']} eac recomputed", abs(q["eac"] - p["bac"] / (p["ev"] / p["ac"])) < 1e-6)
 
+# --- 4b. Schedule-risk score: SQL vs. an independent Python re-implementation --------------
+# A DIFFERENT KIND of proof than section 4 above, stated plainly: float/cpRem/RISKS/coCycle are
+# themselves base-level inputs in this dataset (nothing finer-grained exists to synthesize them
+# from, same honest limitation the "other 12 DCMA checks" comment in index.html already states),
+# so there is no raw-claims reconstruction to run here. What this DOES prove: the SQL model's
+# arithmetic matches a hand-written, independent Python implementation of the identically-stated
+# formula (weights 50/35/15, saturation bounds 0.20/$10M/15d) — a formula-equivalence check, not
+# a data-reconstruction check. Not a substitute for section 4's proof; a different, real one.
+def py_schedule_risk_raw(pkg_id, float_days, cp_rem):
+    cpli = (cp_rem + float_days) / cp_rem if cp_rem > 0 else 1.0
+    erosion = max(0.0, 1.0 - cpli)
+    risk_exp = sum(P_BAND[r["p"]] * r["cost"] for r in RISKS_PY if r["pkg"] == pkg_id)
+    co_overrun = max(0, CO_CYCLE_DAYS - CO_CYCLE_TARGET)
+    raw = 50 * min(1, erosion / 0.20) + 35 * min(1, risk_exp / 10) + 15 * min(1, co_overrun / 15)
+    return min(100, max(0, raw))
+
+for p in PKGS:
+    py_raw = py_schedule_risk_raw(p["id"], p["float"], p["cpRem"])
+    sql_raw = sched_by_id[p["id"]]["schedule_risk_score_raw"]
+    # Real arithmetic equivalence — compared BEFORE rounding, since DuckDB's round() and Python's
+    # round() break an exact .x5 tie (CP-701 hits one, at 31.45) with different, equally valid
+    # rules. Widening the post-round tolerance would have masked that instead of explaining it.
+    check(f"{p['id']} schedule_risk_score_raw: SQL == independent Python", abs(sql_raw - py_raw) < 1e-9,
+          f"sql={sql_raw} py={py_raw}")
+    # The rounded, on-screen value must still land within 0.05 of the raw score in BOTH
+    # implementations — proves round() didn't silently do something else entirely, without
+    # demanding the two languages break the same half-way tie the same direction.
+    sql_rounded = sched_by_id[p["id"]]["schedule_risk_score"]
+    py_rounded = round(py_raw, 1)
+    # 0.05 + 1e-9: an exact .x5 tie (CP-701's raw is 31.45) sits precisely at the 0.05 boundary,
+    # and 31.45 has no exact binary float representation, so a strict <= 0.05 spuriously fails on
+    # float noise around 5e-16 -- same class of epsilon this file already applies at 1e-6/1e-9
+    # elsewhere, not a loosened tolerance masking a real gap.
+    check(f"{p['id']} schedule_risk_score (SQL, rounded) within 0.05 of raw",
+          abs(sql_rounded - sql_raw) <= 0.05 + 1e-9, f"rounded={sql_rounded} raw={sql_raw}")
+    check(f"{p['id']} schedule_risk_score (Python, rounded) within 0.05 of raw",
+          abs(py_rounded - py_raw) <= 0.05 + 1e-9, f"rounded={py_rounded} raw={py_raw}")
+
 # --- 5. Guardrail checks in SQL (the same invariants schema.yml declares) --
 # Materialize the model so the guardrails test the artifact, not the query.
 # Every test schema.yml declares gets a real check here — a /stress-test pass (2026-08-21) found
 # only 4 of schema.yml's declared tests were actually implemented (and one of those 4 had a
 # mislabeled check() string, "ev <= pv" printed for what was actually an ev<=bac test — fixed
 # below too), silently understating what README/HANDOFF's "enforces the guardrails in
-# models/schema.yml" claim promised. All 15 checks below map 1:1 to a schema.yml test declaration.
+# models/schema.yml" claim promised. All 21 checks below map 1:1 to a schema.yml test declaration.
 # (/stress-test finding, 2026-08-22: this comment itself still said "10" after later rounds grew
 # the real count to 14 — the exact class of drift this comment already exists to warn against.
-# 2026-08-26: grew to 15 with the claim_month temporal-fence check below -- update this count
-# again the next time a check is added, or this becomes the same stale-number bug it warns about.)
+# 2026-08-26: grew to 15 with the claim_month temporal-fence check below.
+# 2026-09-02: grew to 21 with the 6 fct_schedule_risk/stg_risk_register guardrails below (schema.yml's
+# schedule-risk block) -- update this count again the next time a check is added, or this becomes
+# the same stale-number bug it warns about.)
 con.execute("create table fct_control_account as " + MODEL.read_text())
 
 # fct_control_account model-level invariants (schema.yml's 3 dbt_utils.expression_is_true tests)
@@ -172,6 +257,21 @@ check("guardrail: ev_delta >= 0 everywhere", ev_neg == 0, f"{ev_neg} negative ro
 check("guardrail: ac_delta >= 0 everywhere", ac_neg == 0, f"{ac_neg} negative rows")
 check("guardrail: claim_month <= data date everywhere (no future-dated claims)", future_dated == 0, f"{future_dated} claims after {DATA_DATE}")
 
+# fct_schedule_risk + stg_risk_register guardrails (schema.yml's schedule-risk block, 2026-09-02)
+con.execute("create table fct_schedule_risk as select * from " + f"({SCHED_MODEL.read_text()})")
+score_bad = con.execute("select count(*) from fct_schedule_risk where schedule_risk_score not between 0 and 100").fetchone()[0]
+sr_dup    = con.execute("select count(*) - count(distinct package_id) from fct_schedule_risk").fetchone()[0]
+sr_null   = con.execute("select count(*) from fct_schedule_risk where package_id is null").fetchone()[0]
+risk_dup  = con.execute("select count(*) - count(distinct id) from stg_risk_register").fetchone()[0]
+risk_p_bad = con.execute("select count(*) from stg_risk_register where p not between 1 and 5").fetchone()[0]
+risk_cost_neg = con.execute("select count(*) from stg_risk_register where cost < 0").fetchone()[0]
+check("guardrail: schedule_risk_score within [0, 100]", score_bad == 0, f"{score_bad} violations")
+check("guardrail: fct_schedule_risk.package_id unique", sr_dup == 0, f"{sr_dup} duplicates")
+check("guardrail: fct_schedule_risk.package_id not null", sr_null == 0, f"{sr_null} nulls")
+check("guardrail: stg_risk_register.id unique", risk_dup == 0, f"{risk_dup} duplicates")
+check("guardrail: stg_risk_register.p within [1, 5]", risk_p_bad == 0, f"{risk_p_bad} violations")
+check("guardrail: stg_risk_register.cost >= 0 everywhere", risk_cost_neg == 0, f"{risk_cost_neg} negative rows")
+
 # --- 6. Emit the proof artifact --------------------------------------------
 # checks{} added (/stress-test finding, 2026-08-27): index.html's own "65 parity checks" claim
 # (the GAO-credibility-checklist card, the architecture-diagram card) previously had no live
@@ -188,6 +288,7 @@ out = {
         "ev":  round(sum(by_id[p["id"]]["ev"] for p in PKGS), 2),
         "ac":  round(sum(by_id[p["id"]]["ac"] for p in PKGS), 2),
     },
+    "schedule_risk": sched_by_id,
     "checks": {
         "total": total_checks,
         "passed": total_checks - len(failures),

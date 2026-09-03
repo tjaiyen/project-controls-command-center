@@ -48,3 +48,25 @@ models:
           - not_null
           - dbt_expectations.expect_column_values_to_be_between:
               min_value: 1        # every control account carries budget
+
+  - name: stg_risk_register
+    columns:
+      - name: id
+        tests: [unique, not_null]
+      - name: p
+        tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 1
+              max_value: 5        # ordinal probability band, matches index.html's P_BAND keys
+      - name: cost
+        tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0        # priced exposure never negative
+
+  - name: fct_schedule_risk
+    tests:
+      - dbt_utils.expression_is_true:
+          expression: "schedule_risk_score between 0 and 100"
+    columns:
+      - name: package_id
+        tests: [unique, not_null]

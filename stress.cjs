@@ -5020,8 +5020,10 @@ console.log("== D25. whole-repo /stress-test round -- pipeline comment + dead CS
   const realCheckCount = (pipelineSrc.match(/check\("guardrail/g) || []).length;
   // 2026-08-26: grew 14 -> 15 with the real claim_month temporal-fence guardrail (harvested from a
   // pasted external blueprint, after fact-checking it -- see pipeline/run_pipeline.py's own comment).
-  ok(realCheckCount === 15, "sanity: the pipeline really does have 15 real guardrail checks", String(realCheckCount));
-  ok(pipelineSrc.indexOf("All 15 checks below") >= 0, "the pipeline's own comment states the real, current check count, not a stale earlier one");
+  // 2026-09-02: grew 15 -> 21 with the fct_schedule_risk/stg_risk_register guardrails (schedule-risk
+  // composite addition).
+  ok(realCheckCount === 21, "sanity: the pipeline really does have 21 real guardrail checks", String(realCheckCount));
+  ok(pipelineSrc.indexOf("All 21 checks below") >= 0, "the pipeline's own comment states the real, current check count, not a stale earlier one");
   ok(indexSrc.indexOf(".inf{color:var(--c-pill-i)}") === -1, "the dead .inf CSS rule (zero markup/JS usages, confirmed by a full-file word-boundary sweep) has been removed");
   ok(indexSrc.indexOf("--c-pill-i") >= 0, "the underlying --c-pill-i token itself is still used elsewhere (.pill.i/.ticon.i/RAG.i) -- only the unused .inf shorthand was dead, not the color");
 }
@@ -8179,7 +8181,9 @@ console.log("== E.1. architecture.html sync ==");
 ok(archSrc.includes("20 metrics, 6 families") && archSrc.includes("20 metrics across cost, schedule, risk, change, delivery, and compliance."),
   "architecture.html's '20 metrics' prose is present in both the diagram box and the legend table");
 ok(P.kpis.length === 20, "index.html's live KPIS array actually has 20 entries, matching architecture.html's claim", String(P.kpis.length));
-ok(archSrc.includes("29 live checks (browser)") && archSrc.includes("29 browser checks plus a separate 66-check SQL pipeline"),
+// 66-check -> 101-check (schedule-risk composite, 2026-09-02) -- kept in sync with the
+// LIVE_PIPELINE_CHECKS-driven checks above rather than left as a stale static literal.
+ok(archSrc.includes("29 live checks (browser)") && archSrc.includes("29 browser checks plus a separate 101-check SQL pipeline"),
   "architecture.html's '29 checks' prose is present in both the diagram box and the legend table -- 28->29, brainstorm-mode round, 2026-08-26 (item #3's QA/QC closure gate)");
 ok(P.guards.length === 29, "index.html's live GUARDS array actually has 29 entries, matching architecture.html's claim", String(P.guards.length));
 // 64 -> 65 (docs-currency /stress-test round, 2026-08-26): the temporal-fence guardrail added to
@@ -8317,8 +8321,12 @@ ok(!/https?:\/\/(?!tjaiyen\.github\.io|github\.com\/tjaiyen|linkedin\.com|www\.w
 ok(!/twelve[\s-]?input/i.test(indexSrc) && !/twelve[\s-]?input/i.test(fs.readFileSync(DIR + "README.md", "utf8")),
   "no stale 'twelve input(s)' claim anywhere");
 {
+  // schedRisk added to the exclude list (schedule-risk composite, 2026-09-02): it's a DERIVED
+  // field (computed from cpli/RISKS/PROGRAM by scheduleRiskScore(), same as spi/cpi/eac/etc.
+  // already excluded here), not a 12th raw input -- the 11-raw-inputs invariant is correctly
+  // unchanged by this addition, not bumped.
   const pkgKeys = Object.keys(P.rows[0]).filter(k => !["id", "n", "spi", "cpi", "eac", "vac", "sv", "cv",
-    "pct", "cpli", "bei", "pf", "commitRatio"].includes(k));
+    "pct", "cpli", "bei", "pf", "commitRatio", "schedRisk"].includes(k));
   ok(pkgKeys.length === 11, "control-account ledger record genuinely carries 11 raw inputs",
     pkgKeys.join(","));
 }
@@ -9889,6 +9897,52 @@ console.log("== D60. Estimate Maturity cards stacked, not side-by-side (TJ's own
     "the 2-column grid.g2 wrapper is genuinely gone from this specific section, not just relabeled");
   has("fepCard", "Front-end planning completeness", "fepCard still renders its real heading after the wrapper change");
   has("estClassCard", "Estimate classification", "estClassCard still renders its real heading after the wrapper change");
+}
+
+console.log("== D61. Schedule risk composite (brainstorm-mode addition, 2026-09-02) ==");
+{
+  // Real coverage for the new feature itself, not just the stale-count fixes it forced elsewhere.
+  const bad = P.rows.filter(r => !(r.schedRisk >= 0 && r.schedRisk <= 100));
+  ok(bad.length === 0, "every row's schedRisk is within [0, 100]", bad.map(r => r.id + "=" + r.schedRisk).join(","));
+  ok(P.rows.every(r => typeof r.schedRisk === "number" && isFinite(r.schedRisk)),
+    "every row carries a real, finite schedRisk (scheduleRiskScore() ran for all 8 packages)");
+  const worst = P.rows.slice().sort((a, b) => b.schedRisk - a.schedRisk)[0];
+  ok(worst.id === "CP-201", "CP-201 (negative float + the largest priced, package-mapped risk) scores highest",
+    worst.id + "=" + worst.schedRisk);
+  // Package risk exposure only rolls up risks that carry a pkg -- packages with none score the
+  // same identical floor (the CO-cycle term alone), proving the "no risk mapped" case isn't
+  // silently inflated or zeroed.
+  const unmapped = P.rows.filter(r => ["CP-101", "CP-102", "CP-401", "CP-501"].includes(r.id));
+  const floorVals = new Set(unmapped.map(r => r.schedRisk));
+  ok(floorVals.size === 1, "the 4 packages with no risk-register mapping and healthy CPLI all share one identical floor score",
+    [...floorVals].join(","));
+
+  has("schedRisk", "CP-201", "the schedule-risk bars render CP-201's row");
+  has("schedRiskOpQ", "accumulating schedule risk from every direction", "the schedule-risk operational question renders");
+  ok(/href="#schedRisk">Schedule Risk Score<\/a>/.test(indexSrc), "the Schedule tab's jump-to-section nav includes the new anchor");
+  ok(/50&times;CPLI erosion/.test(indexSrc) && /35&times;this package/.test(indexSrc) && /15&times;the change-order cycle/.test(indexSrc),
+    "the schedule-risk card's caption states all three weighted terms, not just the number");
+  ok(/Weights and saturation[\s\S]{0,40}points are stated, illustrative choices/.test(indexSrc),
+    "the schedule-risk card explicitly discloses its weights/bounds are illustrative, not calibrated");
+
+  // pkg mapping: 4 risks mapped, 3 deliberately left portfolio-wide (R-04/R-06/R-07) -- both
+  // halves asserted, not just the presence of the mapped ones.
+  ["CP-201", "CP-601", "CP-701", "CP-301"].forEach(pkg =>
+    ok(new RegExp('pkg:"' + pkg + '"').test(indexSrc), "RISKS[] carries a pkg:\"" + pkg + "\" mapping"));
+  ["R-04", "R-06", "R-07"].forEach(id => {
+    const block = (indexSrc.match(new RegExp('\\{id:"' + id + '"[\\s\\S]*?\\}', "")) || [""])[0];
+    ok(!/pkg:"/.test(block), id + " is deliberately left unmapped (portfolio-wide/multi-package risk)");
+  });
+
+  // Pipeline files exist and are non-trivial (content-level pipeline correctness is
+  // run_pipeline.py's own job, re-verified live via LIVE_PIPELINE_CHECKS above -- this just
+  // confirms the model/schema files this session added are actually present and real).
+  const schedSql = fs.readFileSync(DIR + "pipeline/models/fct_schedule_risk.sql", "utf8");
+  ok(schedSql.includes("schedule_risk_score") && schedSql.includes("dim_control_account"),
+    "pipeline/models/fct_schedule_risk.sql exists and defines the composite score");
+  const schemaYml = fs.readFileSync(DIR + "pipeline/models/schema.yml", "utf8");
+  ok(schemaYml.includes("fct_schedule_risk") && schemaYml.includes("stg_risk_register"),
+    "schema.yml declares guardrail tests for both new models");
 }
 
 console.log("\n" + pass + " passed, " + fail + " failed");
