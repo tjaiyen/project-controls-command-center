@@ -1,0 +1,48 @@
+name: test
+
+# Runs this repo's own four test harnesses on every push and PR. Added 2026-09-02 (/stress-test
+# finding): the README's "3,997 tests passing / 65 independent SQL parity checks / provably
+# identical" credibility claims had no automated gate behind them -- a broken commit could reach
+# `main` (and the live GitHub Pages site) without the suite ever running. This closes that gap
+# with the same commands `docs/HANDOFF.md` already documents as the manual verification path.
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Enables the live SQL/DuckDB parity-check path in stress.cjs (see stress.cjs's own
+      # livePipelineCheckCount() comment) instead of letting it silently degrade to a
+      # text-presence-only check -- CI is exactly the place that should run the real thing.
+      - name: Set up pipeline venv
+        run: |
+          python3 -m venv pipeline/.venv
+          pipeline/.venv/bin/pip install duckdb
+
+      - name: node verify.cjs
+        run: node verify.cjs
+
+      - name: node verify-facade.cjs
+        run: node verify-facade.cjs
+
+      - name: node verify-walters-wolf.cjs
+        run: node verify-walters-wolf.cjs
+
+      - name: node stress.cjs
+        run: node stress.cjs
+
+      - name: node worker/smoketest.js
+        run: node worker/smoketest.js

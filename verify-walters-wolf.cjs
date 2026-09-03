@@ -59,7 +59,11 @@ for (const [re, why] of BANNED) ok(!re.test(flat), 'no ' + why);
    was rewritten to drop that assumption. A harness that never looks at a section can't catch drift
    in it. These checks close that hole -- they pin the CURRENT offer names/claims directly against
    the page source, so a future edit to one document without the other fails loudly here instead of
-   silently. */
+   silently.
+   (PROPOSAL.md itself lives outside this repo -- vault working material, never published here --
+   so it won't resolve if you go looking for it in this tree; the incident and the fix are what
+   matter and both are fully described above. /stress-test finding, 2026-09-02: flagged so a future
+   reader isn't left chasing a file that was never meant to be here.) */
 ok(/Estimating History Assembly/.test(flat), 'Option A is named "Estimating History Assembly" (current)');
 ok(!/Bid(-|&#8209;)to(-|&#8209;)Actual Margin Reconciliation/.test(flat), 'Option A is NOT the superseded "Bid-to-Actual Margin Reconciliation" name (entity-tolerant match)');
 ok(/The shared substrate/.test(flat), 'Option B is named "The shared substrate" (current)');

@@ -47,8 +47,8 @@ anywhere in this repository. The method is the content, not the numbers.
 | Delay events | 4 |
 | Other 2026-08-26 proactive-mechanism additions (§8) | `OWNER_DECISIONS` (3), `SUB_HEALTH` (3), `LABOR_MOBILIZATION` (3), `CARBON_DISCLOSURE` (3), `AUDIT_LOG` (session-only, unbounded fact — see §8) |
 | `stress.cjs` test assertions | 3,997, all passing |
-| `worker/smoketest.js` assertions (Ask AI backend, §10) | 25, all passing — a 3rd, independent test harness, Node-only, no real network/Cloudflare runtime |
-| Companion pages | `otak.html` (fit brief, 449 lines), `architecture.html` (static pipeline map, 598 lines) |
+| `worker/smoketest.js` assertions (Ask AI backend, §10) | 28, all passing — a 3rd, independent test harness, Node-only, no real network/Cloudflare runtime |
+| Companion pages | `otak.html` (fit brief, 449 lines), `architecture.html` (static pipeline map, 598 lines), `walters-wolf.html` (second-audience fit brief) + `facade.html` (unitized curtain-wall controls dashboard) — added 2026-09-02 on `feat/walters-wolf-fit-brief`, not yet merged to `main`; see their own `README.md` rows and `verify-walters-wolf.cjs`/`verify-facade.cjs` harnesses (not written up in §13 yet — flagged in §18) |
 | Companion backend (never deployed — see §10) | `worker/` — a Cloudflare Worker for the Ask AI feature; `ASK_AI_WORKER_URL` in `index.html` is still the `REPLACE-ME` placeholder |
 | Hosting | GitHub Pages, served directly from `main`, zero build |
 | Git history | 218 commits |
@@ -106,16 +106,22 @@ docs/
 .private/, otak-session-notes.md   gitignored — internal research notes, never published
 ```
 
-Nothing else exists. No `node_modules`, no `package.json`, no bundler config, no CI workflow file
-in this repo (GitHub Pages serves the static files directly from `main` with no build step).
+No `node_modules`, no `package.json`, no bundler config (GitHub Pages serves the static files
+directly from `main` with no build step). `.github/workflows/test.yml` (added 2026-09-02,
+/stress-test finding: the four harnesses above had no automated gate — a broken commit could reach
+`main` without any of them ever running) runs `verify.cjs`, `verify-facade.cjs`,
+`verify-walters-wolf.cjs`, `stress.cjs`, and `worker/smoketest.js` on every push/PR, with a real
+`pipeline/.venv` set up in CI so the live SQL/DuckDB parity check runs for real there too, not the
+degraded text-only fallback.
 
 ---
 
 ## 4. Architecture & stack
 
 **Static HTML, one file, zero dependencies.** `index.html` is CSS (inline `<style>`) + markup +
-one `<script>` block containing a single IIFE with 420 top-level functions (fresh count, this
-pass — see §2's note on the prior 176-vs-204 mismatch). No framework, no
+one `<script>` block containing a single IIFE with 432 top-level functions (§2's table has the
+current count — this line previously drifted behind it, /stress-test finding, 2026-09-02; see
+§2's note on the prior 176-vs-204 mismatch). No framework, no
 bundler, no CDN, no `npm install`. Opening the file directly in a browser (`file://`) or serving it
 with any static file server works identically — the repo's own convention for local testing is
 `python3 -m http.server` from the repo root.
@@ -254,7 +260,7 @@ pass found is no longer true — flagged, not fixed here, since it's a code comm
 | 10 | **Actions** (`act`) | A RAID/CAPA register with proactive staleness detection, owner accountability rollup, a real cost-overrun-driver taxonomy (Cantarelli/Flyvbjerg's 4-category technical/economic/psychological/political framework plus ASCE stakeholder attribution, applied to this program's own 3 real root-caused actions), a worked-math accordion for `actionStatus()`'s threshold logic. |
 | 11 | **Attention & Triage** (`triage`) | Cross-cutting "what needs a human right now" view — every firing escalation rule, stale RAID item, near-term deadline, and pre-breach condition, pulled live from the same registers every other tab reads (no duplicated data). |
 | 12 | **Data Strategy** (`data`) | A real-world plan for connecting scattered, multi-system data — ISO 19650 CDE staging architecture as an interactive flow diagram (§8), a 4-tile IDS guardrail status grid with a genuinely live 2-check ingestion-validation panel embedded in it, automated guardrails, a discrepancy-resolution decision flow folded into that same diagram, a Category/Trigger/Routing proactive-error-recovery table, a Dual-Stack Parity card citing this program's own real, live CPI against the actual SQL that independently re-derives it. |
-| 13 | **Glossary** (`gloss`) | 73 terms, each with a live-computed worked example, a real category (5 domains — Cost & EVM, Schedule & CPM, Risk/Commercial & Governance, Field Telemetry & Quality, Data Strategy & Architecture — with a live pill filter), and a real "See it live" cross-tab jump button — the same content the inline "i" help icons pull from site-wide. Filterable by search AND category together, and reachable from anywhere via a bare `/` keypress. |
+| 13 | **Glossary** (`gloss`) | 76 terms, each with a live-computed worked example, a real category (5 domains — Cost & EVM, Schedule & CPM, Risk/Commercial & Governance, Field Telemetry & Quality, Data Strategy & Architecture — with a live pill filter), and a real "See it live" cross-tab jump button — the same content the inline "i" help icons pull from site-wide. Filterable by search AND category together, and reachable from anywhere via a bare `/` keypress. |
 
 Plus, outside the tab body: **Presentation Mode** (a scripted 2-set walkthrough with presenter
 notes), an **11-stop guided Tour**, a **printable executive brief**, light/dark **Theme** toggle,
@@ -779,6 +785,14 @@ Named explicitly, not silently dropped — from the most recent engagement/inter
     markup, `index.html:901-916`) puts `exec` (Executive Command) second, while the JS array lists
     it last. Surfaced, not silently fixed — this is a code comment/possible-latent-bug question,
     out of scope for a documentation pass (coding-discipline.md).
+14. **§13 (Companion pages) and §3's file-by-file layout still don't cover `walters-wolf.html` or
+    `facade.html`** — added 2026-09-02 on `feat/walters-wolf-fit-brief`, six days after this file's
+    last full pass, and this document (which bills itself as "a complete technical blueprint of
+    everything in this repository") never picked them up (found by an independent /stress-test
+    reviewer: `git grep -i "walters\|facade" docs/HANDOFF.md` returned zero hits before this note).
+    §2's table and this section's own bullet list have a stopgap one-line mention each; the real
+    fix is a proper §13 entry per page (design, harness count, known limitations) the next time
+    this file gets a full resync — deferred, not silently dropped.
 
 ---
 
