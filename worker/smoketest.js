@@ -337,6 +337,37 @@ async function run() {
     ok(sentBody.tools.some(t => t.name === "get_totals"), "a request with no `dashboard` field still gets the original PROGRAM_TOOLS (index.html's existing behavior is unchanged)");
     ok(!sentBody.tools.some(t => t.name.indexOf("facade_") === 0), "and never the facade tool set, by default");
   }
+  // 15. Risk register tools (2026-09-03) -- the "AI scheduling" copilot is scoped to READING the
+  // real risk register, never generating a schedule or a date forecast. Proves facade_get_risk and
+  // list_facade_risks actually dispatch, including the honest null-cost case (a risk this page has
+  // no verified dollar basis for must come back as null, never a guessed number).
+  {
+    const env = makeEnv();
+    const riskSnapshot = Object.assign(makeFacadeSnapshot(), {
+      risks: [
+        {id: "R-01", name: "Setting-crew stoppage from buffer depletion", elevation: null, probability: "Medium", impact: "Schedule", costed: true, cost: 595016, exposure: 238006, costNote: "field crew idle cost", owner: "Field superintendent", mitigation: "Add shop capacity."},
+        {id: "R-02", name: "Tolerance creep rework on S-HI", elevation: "S-HI", probability: "High", impact: "Quality/rework", costed: false, cost: null, exposure: null, costNote: "not priced -- no verified remediation unit rate", owner: "QC manager", mitigation: "Correct the setting datum."},
+      ],
+    });
+    let callCount = 0;
+    const realFetch = global.fetch;
+    global.fetch = async (url, opts) => {
+      if (!String(url).includes("anthropic.com")) return realFetch(url, opts);
+      callCount++;
+      if (callCount === 1) return new Response(JSON.stringify({content: [{type: "tool_use", id: "t1", name: "facade_get_risk", input: {id: "R-02"}}], usage: {input_tokens: 30, output_tokens: 5}}), {status: 200});
+      return new Response(JSON.stringify({content: [{type: "text", text: "R-02 is a High-probability quality risk, not priced."}], usage: {input_tokens: 40, output_tokens: 10}}), {status: 200});
+    };
+    const res = await worker.fetch(new Request("https://worker.example/ask", {method: "POST", headers: {Origin: ORIGIN}, body: JSON.stringify({question: "What's R-02?", snapshot: riskSnapshot, dashboard: "facade"})}), env);
+    global.fetch = realFetch;
+    ok(res.status === 200, "a facade_get_risk round trip succeeds");
+    const body = await res.json();
+    ok(body.toolCalls[0].result.id === "R-02" && body.toolCalls[0].result.probability === "High", "facade_get_risk returns the real risk object by id, not an 'unknown tool' error", JSON.stringify(body.toolCalls[0].result));
+    ok(body.toolCalls[0].result.cost === null && body.toolCalls[0].result.exposure === null, "an honestly-unpriced risk comes back with null cost/exposure, never a guessed dollar figure");
+    const lib = require("./lib.js");
+    const listResult = lib.callTool("list_facade_risks", {}, riskSnapshot, "facade");
+    ok(Array.isArray(listResult) && listResult.length === 2 && listResult[0].id === "R-01" && listResult[0].exposure === 238006,
+      "list_facade_risks returns id/name/probability/exposure for every risk", JSON.stringify(listResult));
+  }
 
   console.log("\n" + pass + " passed, " + fail + " failed");
   process.exit(fail ? 1 : 0);

@@ -521,5 +521,65 @@ const snap4 = F.buildFacadeAskAiSnapshot();
     'snapshot.totals.' + k + ' is wired to a real value, not omitted', snap4.totals[k]));
 ok(Array.isArray(snap4.monthlyCph) && snap4.monthlyCph.length === 8, 'the Ask AI snapshot carries the full monthly CPH series, not just the latest reading');
 
+console.log('\n== S. Risk register + AI scheduling copilot (2026-09-03) ==');
+const { RISKS, P_BAND } = F;
+ok(Array.isArray(RISKS) && RISKS.length === 6, 'RISKS carries 6 real entries, not a placeholder', RISKS.length);
+ok(new Set(RISKS.map(r => r.id)).size === 6, 'every risk has a unique id');
+
+// Probability is a LIVE read of the SAME threshold the source gate/flag already computes -- assert
+// against the real GATES/CO_ROWS/R state, not a second copy of the logic.
+const bufferGate = GATES[2], hoseGate = GATES[4];
+const r01 = RISKS.find(r => r.id === 'R-01');
+ok(r01.p === (bufferGate.s === 'act' ? 'High' : bufferGate.s === 'watch' ? 'Medium' : 'Low'),
+   'R-01 probability matches GATES[2] (buffer gate) live status, not a hard-coded band', r01.p + ' vs gate=' + bufferGate.s);
+const r03 = RISKS.find(r => r.id === 'R-03');
+ok(r03.p === (hoseGate.s === 'act' ? 'High' : T.hoseNearMissRate > 0 ? 'Medium' : 'Low'),
+   'R-03 probability matches GATES[4] (hose gate) live status', r03.p + ' vs gate=' + hoseGate.s);
+const worstCreepZoneR = R.filter(r => r.surveyed > 0).sort((a, b) => b.creepRatio - a.creepRatio)[0];
+const r02 = RISKS.find(r => r.id === 'R-02');
+ok(r02.elev === worstCreepZoneR.id, 'R-02 is genuinely attached to the real worst-creep elevation, not a fixed id', r02.elev);
+ok(r02.p === (worstCreepZoneR.creepRatio >= 1 ? 'High' : worstCreepZoneR.creepRatio >= 0.65 ? 'Medium' : 'Low'),
+   'R-02 probability matches the SAME creepRatio thresholds the Gates tab already uses');
+
+// Costed risks: cost is a raw, already-tested figure elsewhere on the page, not a new invention.
+ok(r01.costed === true && r01.cost > 0, 'R-01 (buffer depletion) is priced with a real positive figure');
+const r04 = RISKS.find(r => r.id === 'R-04');
+ok(r04.costed === true && r04.cost === T.coUnpricedExposure, 'R-04\'s cost is EXACTLY T.coUnpricedExposure, the same live figure the Bid vs Actual tab already reports, not a re-derived or invented number', r04.cost);
+const r05 = RISKS.find(r => r.id === 'R-05');
+ok(r05.costed === true && r05.cost === T.rateVar, 'R-05\'s cost is EXACTLY T.rateVar, the same live figure the Cost & EV tab already reports', r05.cost);
+
+// Uncosted risks stay honestly uncosted -- exposure is exactly 0, not a guessed placeholder.
+['R-02', 'R-03', 'R-06'].forEach(id => {
+  const r = RISKS.find(x => x.id === id);
+  ok(r.costed === false && r.exposure === 0, id + ' is honestly uncosted (no verified dollar basis) -- exposure is exactly 0, not a guessed placeholder', 'costed=' + r.costed + ' exposure=' + r.exposure);
+});
+
+// Exposure math and package rollup, re-derived independently.
+RISKS.forEach(r => {
+  const expectedExposure = r.costed ? P_BAND[r.p] * r.cost : 0;
+  ok(near(r.exposure, expectedExposure), r.id + ': exposure = P_BAND[probability] x cost, re-derived independently matches', r.exposure.toFixed(2) + ' vs ' + expectedExposure.toFixed(2));
+});
+const rawRiskExposure = RISKS.reduce((a, r) => a + r.exposure, 0);
+ok(near(T.riskExposure, rawRiskExposure), 'T.riskExposure is exactly the sum of all 6 risks\' exposure, re-derived independently', T.riskExposure.toFixed(2));
+ok(T.riskExposure > 700000 && T.riskExposure < 800000, 'the risk exposure total is a real, sane figure in the expected order of magnitude, not a runaway or near-zero number', T.riskExposure);
+
+// UI wiring.
+ok(/id="tab-risk"/.test(src) && /id="p-risk"/.test(src), 'the Risk Register tab exists');
+ok(/id="riskBody"/.test(src) && /id="riskExposureRow"/.test(src), 'the risk table and exposure summary are wired');
+const tabIdsMatch = src.match(/var TAB_IDS = \[([^\]]+)\]/);
+ok(!!tabIdsMatch && tabIdsMatch[1].includes('"risk"'), 'TAB_IDS includes "risk" so the tab-switcher actually hides/shows it');
+
+// AI scheduling copilot -- read-only tools only, no schedule-generation surface.
+ok(/id="askAiScheduleBtn"/.test(src), 'the pinned "What\'s driving schedule risk right now?" starter exists');
+ok(/facade_get_risk/.test(src) && /list_facade_risks/.test(src), 'the new risk-register tools are referenced in facade.html\'s own snapshot/comment surface');
+const libSrc = fs.readFileSync(require('path').join(__dirname, 'worker', 'lib.js'), 'utf8');
+ok(/name: "facade_get_risk"/.test(libSrc) && /name: "list_facade_risks"/.test(libSrc), 'worker/lib.js actually declares both new tools, not just facade.html referencing them');
+ok(!/facade_(create|update|delete|set)_risk/.test(libSrc), 'no write-capable risk tool exists -- this stays read-only, same contract as every other facade_* tool');
+const snap5 = F.buildFacadeAskAiSnapshot();
+ok(Array.isArray(snap5.risks) && snap5.risks.length === 6, 'the Ask AI snapshot carries the full risk register, not a summary of it');
+ok(snap5.risks.every(r => r.costed === false ? (r.cost === null && r.exposure === null) : typeof r.cost === 'number'),
+   'every uncosted risk in the snapshot carries null cost/exposure, never a coerced 0 or guessed number that could be mistaken for a real figure');
+ok(snap5.totals.riskExposure === T.riskExposure, 'snapshot.totals.riskExposure matches the real T.riskExposure');
+
 console.log(fail ? '\nFAILED — ' + fail + ' check(s)' : '\nall ok');
 process.exit(fail ? 1 : 0);

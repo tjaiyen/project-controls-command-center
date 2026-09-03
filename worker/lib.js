@@ -70,6 +70,12 @@ var FACADE_TOOLS = [
   {name: "facade_get_mc_stats", description: "Get the real Monte Carlo cost-at-completion summary (P10/P50/P80/P95, probability of exceeding budget).",
     input_schema: {type: "object", properties: {}}},
   {name: "facade_get_bid_variance", description: "Get the real package-level bid-to-actual variance, decomposed into quantity, price, and productivity components.",
+    input_schema: {type: "object", properties: {}}},
+  // added 2026-09-03 -- the risk register. Read-only, same as every other facade_* tool: this can
+  // never write to the register or invent a risk that isn't already in the real snapshot.
+  {name: "facade_get_risk", description: "Get one risk register entry's real probability, impact, dollar cost/exposure (where a verified basis exists), owner, and mitigation by id (e.g. 'R-01').",
+    input_schema: {type: "object", properties: {id: {type: "string"}}, required: ["id"]}},
+  {name: "list_facade_risks", description: "List every risk register entry's id, name, probability band, and dollar exposure (null where this page has no verified cost basis for that risk -- never guess one).",
     input_schema: {type: "object", properties: {}}}
 ];
 
@@ -145,6 +151,8 @@ function callFacadeTool(name, args, snapshot) {
     case "facade_get_eac_methods": return snapshot.eacMethods || {error: "no EAC methods in snapshot"};
     case "facade_get_mc_stats": return snapshot.mc || {error: "no mc stats in snapshot"};
     case "facade_get_bid_variance": return snapshot.bidVariance || {error: "no bid variance in snapshot"};
+    case "facade_get_risk": return (snapshot.risks || []).find(function (r) { return r.id === args.id; }) || {error: "unknown risk id: " + args.id};
+    case "list_facade_risks": return (snapshot.risks || []).map(function (r) { return {id: r.id, name: r.name, probability: r.probability, exposure: r.exposure}; });
     default: return {error: "unknown tool: " + name};
   }
 }

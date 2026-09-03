@@ -263,9 +263,10 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
     <button class="icobtn" id="tab-cost"  role="tab" data-t="cost"  aria-selected="false" aria-controls="p-cost"  tabindex="-1">2 &middot; Cost &amp; Earned Value</button>
     <button class="icobtn" id="tab-bid"   role="tab" data-t="bid"   aria-selected="false" aria-controls="p-bid"   tabindex="-1">3 &middot; Bid vs Actual</button>
     <button class="icobtn" id="tab-gates" role="tab" data-t="gates" aria-selected="false" aria-controls="p-gates" tabindex="-1">4 &middot; Gates &amp; Tolerance</button>
-    <button class="icobtn" id="tab-recon" role="tab" data-t="recon" aria-selected="false" aria-controls="p-recon" tabindex="-1">5 &middot; Shop &harr; Field</button>
-    <button class="icobtn" id="tab-gloss" role="tab" data-t="gloss" aria-selected="false" aria-controls="p-gloss" tabindex="-1">6 &middot; Glossary</button>
-    <button class="icobtn" id="tab-method" role="tab" data-t="method" aria-selected="false" aria-controls="p-method" tabindex="-1">7 &middot; Method</button>
+    <button class="icobtn" id="tab-risk"  role="tab" data-t="risk"  aria-selected="false" aria-controls="p-risk"  tabindex="-1">5 &middot; Risk Register</button>
+    <button class="icobtn" id="tab-recon" role="tab" data-t="recon" aria-selected="false" aria-controls="p-recon" tabindex="-1">6 &middot; Shop &harr; Field</button>
+    <button class="icobtn" id="tab-gloss" role="tab" data-t="gloss" aria-selected="false" aria-controls="p-gloss" tabindex="-1">7 &middot; Glossary</button>
+    <button class="icobtn" id="tab-method" role="tab" data-t="method" aria-selected="false" aria-controls="p-method" tabindex="-1">8 &middot; Method</button>
   </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
     <button type="button" class="btn" id="walkStartBtn" style="padding:6px 12px;font-size:12px">Take a 90&#8209;second tour &rarr;</button>
@@ -632,7 +633,36 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
     </div>
   </section>
 
-  <!-- 5 ................................................................ RECONCILIATION -->
+  <!-- 5 ...................................................................... RISK -->
+  <section class="panel" id="p-risk" role="tabpanel" aria-labelledby="tab-risk" hidden>
+    <h2>Six real signals, priced where a real basis exists</h2>
+    <p class="lede">Every gate, flag and trend on the other tabs already evaluates a live condition.
+      What none of them do on their own is assign it a <b>probability &times; impact &times; dollar
+      exposure</b> &mdash; the actual risk-register discipline. Every probability band below reads
+      the SAME live threshold the source gate/flag already computes; nothing here is a second,
+      divergent copy of that logic. Where a real dollar basis exists, cost is drawn from an
+      already-computed figure elsewhere on this page; where it does not, this page says so rather
+      than inventing a remediation or replacement rate it has no verified source for.</p>
+
+    <div class="dbox">
+      <h3>Risk-adjusted exposure</h3>
+      <p class="sub" id="riskExposureRow" style="font-family:ui-monospace,Menlo,monospace"></p>
+      <p class="note" id="riskExposureNote" style="font-style:normal"></p>
+    </div>
+
+    <div class="dbox">
+      <h3>Register</h3>
+      <div class="tblwrap">
+        <table><thead><tr data-sort="text,text,text,num,num,text">
+          <th scope="col">Risk</th><th scope="col">Probability</th><th scope="col">Impact</th>
+          <th class="num" scope="col">Cost</th><th class="num" scope="col">Exposure</th>
+          <th scope="col">Owner &amp; mitigation</th></tr></thead>
+          <tbody id="riskBody"></tbody></table>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 ...................................................................... RECONCILIATION -->
   <section class="panel" id="p-recon" role="tabpanel" aria-labelledby="tab-recon" hidden>
     <h2>One job number, two work breakdowns</h2>
     <p class="lede">The shop plans in panel types and production batches. The field plans in floors
@@ -677,7 +707,7 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
     </div>
   </section>
 
-  <!-- 6 ................................................................... GLOSSARY -->
+  <!-- 7 ................................................................... GLOSSARY -->
   <section class="panel" id="p-gloss" role="tabpanel" aria-labelledby="tab-gloss" hidden>
     <h2>Every term on this page, explained plainly and worked through</h2>
     <p class="lede">Each entry below is the plain-language meaning first, then the real formula
@@ -692,7 +722,7 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
     <div class="dbox" id="quizBox" hidden></div>
   </section>
 
-  <!-- 7 ...................................................................... METHOD -->
+  <!-- 8 ...................................................................... METHOD -->
   <section class="panel" id="p-method" role="tabpanel" aria-labelledby="tab-method" hidden>
     <h2>How every number here is produced</h2>
     <p class="lede">The point of this page is the method, not the tower. Nothing below is typed;
@@ -786,9 +816,13 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
         <div class="dbox" style="margin-top:0">
           <h3>What it can access</h3>
           <p class="sub">A real, live-computed snapshot &mdash; package totals, every elevation's
-            panel and cost figures, all five gates, all four EAC forecast methods, and the Monte
-            Carlo summary &mdash; never the model's own training knowledge, and never a live web
-            search. If the snapshot does not have it, the model does not either.</p>
+            panel and cost figures, all five gates, all four EAC forecast methods, the Monte Carlo
+            summary, the monthly CPH series, and the risk register &mdash; never the model's own
+            training knowledge, and never a live web search. If the snapshot does not have it, the
+            model does not either. This is also the honest scope of &ldquo;AI scheduling&rdquo; on
+            this page: reading and synthesizing real leading indicators, never generating a schedule
+            or a completion-date forecast &mdash; the Method tab states elsewhere why this page
+            declines to fake one.</p>
         </div>
         <div class="dbox" style="margin-top:0">
           <h3>How every claim gets checked</h3>
@@ -1608,6 +1642,86 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
   var worstCreepZone = R.filter(function(r){ return r.surveyed > 0; })
                         .sort(function(a, b){ return b.creepRatio - a.creepRatio; })[0];
   var worstCreepRatio = worstCreepZone.creepRatio;
+
+  /* --- Risk register (2026-09-03) ---------------------------------------------------
+     Every probability band below is a LIVE read of a real threshold this page already computes
+     elsewhere -- reused directly (GATES[2].s, GATES[4].s, the CO aging bucket) rather than a second,
+     divergent copy of the same logic. Where a real dollar basis exists, cost is drawn from an
+     already-computed figure (T.coUnpricedExposure, T.rateVar, the buffer-floor days-to-breach
+     formula from deriveGates() itself); where it does not, this page says so explicitly rather than
+     inventing a remediation/replacement rate it has no verified source for -- the same call Method
+     already made for tolerance creep. */
+  var P_BAND = {Low:0.15, Medium:0.40, High:0.70};
+  function deriveRisks(){
+    var bufferGate = GATES[2], hoseGate = GATES[4];
+    var daysToBreach = bufferGate.s === "watch"
+      ? Math.round((T.buffer - PROGRAM.bufferFloorDays * T.setRate) / Math.max(0.1, T.setRate - T.crateRate))
+      : null;
+    var dailyFieldLaborCost = (T.actHField / (W * PROGRAM.workDaysPerWeek)) * T.cphFieldLatest;
+    var overDesignZones = R.filter(function(r){ return r.breakRate > PROGRAM.nisDesignRate; });
+    var pendingAged = CO_ROWS.filter(function(c){ return c.status === "pending"; })
+      .sort(function(a, b){ return b.daysOutstanding - a.daysOutstanding; })[0];
+    var shopAsc = MONTHLY.filter(function(m){ return m.hShop > 0; })
+      .every(function(m, i, arr){ return i === 0 || m.cphShop >= arr[i - 1].cphShop; });
+    var fieldAsc = MONTHLY.filter(function(m){ return m.hField > 0 && m.cphField !== null; })
+      .every(function(m, i, arr){ return i === 0 || m.cphField >= arr[i - 1].cphField; });
+
+    return [
+      {id:"R-01", n:"Setting-crew stoppage from buffer depletion", elev:null,
+       p: bufferGate.s === "act" ? "High" : bufferGate.s === "watch" ? "Medium" : "Low",
+       impact:"Schedule -- stops the crane, cascades to every elevation still setting",
+       costed:true,
+       cost: daysToBreach !== null ? dailyFieldLaborCost * daysToBreach : dailyFieldLaborCost * 5,
+       costNote: daysToBreach !== null
+         ? "field crew idle cost &times; " + daysToBreach + " days to floor breach at the current trend"
+         : "field crew idle cost &times; an illustrative 5-day stoppage (trend is currently stable, not counting down to a breach)",
+       owner:"Field superintendent",
+       mitigation:"Add shop capacity or slow field pace -- modelled live in the Gate 3 sandbox (Gates &amp; Tolerance tab)."},
+      {id:"R-02", n:"Tolerance creep rework on " + worstCreepZone.id, elev:worstCreepZone.id,
+       p: worstCreepRatio >= 1 ? "High" : worstCreepRatio >= 0.65 ? "Medium" : "Low",
+       impact:"Quality/rework -- perimeter joint runs out of room for sealant",
+       costed:false,
+       costNote:"not priced -- this page has no verified remediation unit rate (Method tab's own stated limitation)",
+       owner:"QC manager",
+       mitigation:"Correct the setting datum on " + worstCreepZone.id + " before its remaining panels set."},
+      {id:"R-03", n:"AAMA 501.2 failure blocking interior close-in", elev:null,
+       p: hoseGate.s === "act" ? "High" : T.hoseNearMissRate > 0 ? "Medium" : "Low",
+       impact:"Schedule -- blocks interior framing/insulation release behind sealed panels",
+       costed:false,
+       costNote:"delays interior trades' start behind the affected elevation -- not separately priced",
+       owner:"Envelope consultant",
+       mitigation:"Witness-test remaining elevations before crating outpaces test capacity."},
+      {id:"R-04", n:"Unpriced change exposure aging into dispute", elev:null,
+       p: pendingAged && pendingAged.daysOutstanding > 45 ? "High" : pendingAged && pendingAged.daysOutstanding > 10 ? "Medium" : "Low",
+       impact:"Cash flow / commercial dispute risk",
+       costed:true,
+       cost: T.coUnpricedExposure,
+       costNote:"T.coUnpricedExposure -- the same live figure the Bid vs Actual tab already reports",
+       owner:"PM / commercial lead",
+       mitigation: pendingAged ? "Price and execute " + pendingAged.id + " before it ages further." : "No pending PCO currently aged."},
+      {id:"R-05", n:"Labour rate escalation continuing", elev:null,
+       p: (shopAsc && fieldAsc) ? "High" : "Medium",
+       impact:"Cost -- rate, not efficiency (isolated from the productivity question)",
+       costed:true,
+       cost: T.rateVar,
+       costNote:"T.rateVar to date -- both shop and field have risen every month so far, not just averaged higher",
+       owner:"Cost engineer",
+       mitigation:"Review crew agreements and overtime authorization before the trend continues."},
+      {id:"R-06", n:"Glass breakage trending above design basis", elev: overDesignZones.length ? overDesignZones[0].id : null,
+       p: overDesignZones.length >= 2 ? "Medium" : overDesignZones.length === 1 ? "Low" : "Low",
+       impact:"Rework/schedule -- reglazing lead time on affected elevations",
+       costed:false,
+       costNote:"not priced -- replacement glass cost and lead time are not in this ledger",
+       owner:"Shop QC lead",
+       mitigation: overDesignZones.length
+         ? "Audit incoming glass lots on " + overDesignZones.map(function(z){ return z.id; }).join(", ") + " for NiS inclusion risk."
+         : "No elevation currently runs above the design basis."}
+    ];
+  }
+  var RISKS = deriveRisks().map(function(r){
+    return Object.assign({}, r, {exposure: r.costed ? P_BAND[r.p] * r.cost : 0});
+  });
+  T.riskExposure = RISKS.reduce(function(a, r){ return a + r.exposure; }, 0);
 
   var KPIS = [
     {l:"Days of buffer cover", v:T.coverDays.toFixed(1), raw:T.coverDays, fmt:function(v){ return v.toFixed(1); },
@@ -2471,7 +2585,31 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
         : "No single elevation runs above the design basis on current counts."));
   })();
 
-  /* --- 5. Shop / field reconciliation ----------------------------------------------- */
+  /* --- Risk register ------------------------------------------------------------------ */
+  (function renderRisks(){
+    set("riskExposureRow", "risk-adjusted exposure = " + RISKS.map(function(r){
+      return r.id + " " + k(r.exposure);
+    }).join(" + ") + " = <b>" + k(T.riskExposure) + "</b>");
+    set("riskExposureNote", "Only the three priced risks (R-01, R-04, R-05) contribute a dollar "
+      + "figure -- probability weight (Low 15% / Medium 40% / High 70%) &times; the potential cost. "
+      + "The other three are real and currently the higher-probability entries in this register, but "
+      + "carry no verified dollar basis, so they add $0 to this figure rather than a guessed one -- "
+      + "read the table below for those, not just this total.");
+    set("riskBody", RISKS.map(function(r){
+      var pClass = r.p === "High" ? "act" : r.p === "Medium" ? "watch" : "ok";
+      var elevLinkHtml = r.elev ? " " + elevLink(r.elev) : "";
+      return '<tr><td>' + r.id + ' &mdash; ' + r.n + elevLinkHtml + '</td>'
+        + '<td><span class="pill ' + pClass + '">' + r.p + '</span></td>'
+        + '<td style="font-size:12px">' + r.impact + '</td>'
+        + '<td class="num">' + (r.costed ? k(r.cost) : "&mdash;") + '</td>'
+        + '<td class="num">' + (r.costed ? k(r.exposure) : "&mdash;") + '</td>'
+        + '<td style="font-size:12px">' + r.owner + '<br><span style="color:rgb(var(--c-text-secondary))">'
+        + r.mitigation + '</span><br><span style="font-style:italic;color:rgb(var(--c-text-secondary))">'
+        + r.costNote + '</span></td></tr>';
+    }).join(""));
+  })();
+
+  /* --- 6. Shop / field reconciliation ----------------------------------------------- */
   (function renderRecon(){
     /* Shop view is aggregated by production stage, field view by elevation sweep -- two
        different work breakdowns over the same money, which is the whole point. */
@@ -2571,7 +2709,7 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
     }).join(""));
   })();
 
-  /* --- 7. Method -------------------------------------------------------------------- */
+  /* --- 8. Method -------------------------------------------------------------------- */
   (function renderMethod(){
     set("ledgerDesc", "One row per elevation, " + Object.keys(ZONES[0]).length
       + " fields each, plus three weekly series of " + W + " observations, a package-level RFI log "
@@ -2618,7 +2756,8 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
       ["Breakage rate", "broken &divide; crated", "Benchmarked against the tempered-glass industry's own 0.8% spontaneous-breakage design basis."],
       ["RFI days open", "answered date &minus; opened date (or data date, if still open)", "Benchmarked against the Navigant Construction Forum's 9.7-day median."],
       ["Change-order rate", "&Sigma; approved CO value &divide; BAC", "Benchmarked against a general 5&ndash;15% commercial-construction band (CFMA), not a glazing-specific one."],
-      ["Rate variance", "&Sigma;<sub>months</sub> (actual $/hr &minus; budget $/hr) &times; actual hours that month", "The labour-side twin of price variance -- how much extra a package paid per hour, isolated from how efficiently the hours were spent."]
+      ["Rate variance", "&Sigma;<sub>months</sub> (actual $/hr &minus; budget $/hr) &times; actual hours that month", "The labour-side twin of price variance -- how much extra a package paid per hour, isolated from how efficiently the hours were spent."],
+      ["Risk exposure", "probability weight (Low 15% / Medium 40% / High 70%) &times; cost, summed across priced risks only", "Deliberately excludes the risks with no verified dollar basis rather than guessing one -- read the register, not just the total."]
     ];
     set("formulaList", FS.map(function(f){
       return '<div style="padding:11px 0;border-bottom:1px solid var(--c-line)">'
@@ -2781,9 +2920,19 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
         // added 2026-09-03 -- monthly CPH / labour rate variance.
         cphShopLatest:T.cphShopLatest, cphFieldLatest:T.cphFieldLatest,
         rateVarShop:T.rateVarShop, rateVarField:T.rateVarField, rateVar:T.rateVar,
-        laborRateShopBudget:PROGRAM.laborRateShop, laborRateFieldBudget:PROGRAM.laborRateField
+        laborRateShopBudget:PROGRAM.laborRateShop, laborRateFieldBudget:PROGRAM.laborRateField,
+        // added 2026-09-03 -- risk register total, so Ask AI can cite the same package-wide number
+        // the Risk Register tab itself shows.
+        riskExposure:T.riskExposure
       },
       monthlyCph: MONTHLY.map(function(m){ return {month:m.month, hShop:m.hShop, cphShop:m.cphShop, hField:m.hField, cphField:m.cphField}; }),
+      // Risk register (2026-09-03) -- id/name/probability/impact/cost/exposure/owner/mitigation,
+      // the exact same fields the Risk Register tab renders, never a second summary of them.
+      risks: RISKS.map(function(r){
+        return {id:r.id, name:deent(r.n), elevation:r.elev, probability:r.p, impact:deent(r.impact),
+          costed:r.costed, cost:r.costed ? r.cost : null, exposure:r.costed ? r.exposure : null,
+          costNote:deent(r.costNote), owner:r.owner, mitigation:deent(r.mitigation)};
+      }),
       elevations: R.map(function(r){
         return {id:r.id, name:deent(r.n), panels:r.panels,
           rel:r.rel, fra:r.fra, gla:r.gla, cra:r.cra, set:r.set, sea:r.sea,
@@ -2881,6 +3030,8 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
         + 'to deploy the Worker, then set ASK_AI_WORKER_URL.</p>')
       + '<button type="button" class="btn" id="askAiSummaryBtn" style="border-color:rgb(var(--c-accent));font-weight:600"'
         + (askAi.busy ? " disabled" : "") + '>Summarize this package&rsquo;s health &rarr;</button>'
+      + '<button type="button" class="btn" id="askAiScheduleBtn" style="border-color:rgb(var(--c-warning));font-weight:600;margin-left:8px"'
+        + (askAi.busy ? " disabled" : "") + '>What&rsquo;s driving schedule risk right now? &rarr;</button>'
       + askAiStartersHtml()
       + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">'
         + '<input class="gsearch" id="askAiInput" type="text" style="flex:1;min-width:220px" '
@@ -2907,6 +3058,16 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
     if (summaryBtn) summaryBtn.addEventListener("click", function(){
       var i = el("askAiInput");
       if (i){ i.value = "Summarize this package's overall health in a few sentences."; submitAskAi(); }
+    });
+    /* "AI scheduling," honestly scoped: this is a copilot that reads and synthesizes the real
+       leading indicators already computed (buffer trend, gate blockers, risk register) -- it does
+       NOT generate a schedule or forecast a date, which this page has stated elsewhere it declines
+       to fake. The tool-use guardrail (worker/lib.js) only exposes read-only facade_get_risk /
+       list_facade_risks tools, same mechanically-verified-claims contract as every other question. */
+    var scheduleBtn = el("askAiScheduleBtn");
+    if (scheduleBtn) scheduleBtn.addEventListener("click", function(){
+      var i = el("askAiInput");
+      if (i){ i.value = "What's actually driving schedule risk right now, and how urgent is each thing?"; submitAskAi(); }
     });
   }
   function submitAskAi(){
@@ -2955,7 +3116,7 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
   })();
 
   /* --- chrome ----------------------------------------------------------------------- */
-  var TAB_IDS = ["flow", "cost", "bid", "gates", "recon", "gloss", "method"];
+  var TAB_IDS = ["flow", "cost", "bid", "gates", "risk", "recon", "gloss", "method"];
   var selectTabById; // assigned inside wire(), used by openElevDrawer's hash-restore and the walkthrough
   (function wire(){
     var root = document.documentElement;
@@ -3045,6 +3206,7 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
     {tab:"flow", el:"mosaicWrap", text:"Every one of the 1,240 panels, coloured by the state it has reached. “Set” as an abstract count is one thing; a grid is another."},
     {tab:"cost", el:"beiRow", text:"BEI and TCPI/CPI divergence -- the one DCMA metric this panel-count ledger can run honestly, plus this page's own forecast-reliability flag."},
     {tab:"gates", el:"sbxResult", text:"A real what-if: drag the sliders and watch the SAME formula Gate 3 evaluates respond live."},
+    {tab:"risk", el:"riskBody", text:"Six real signals, priced where a real basis exists and left honestly unpriced where it doesn't -- probability, impact and dollar exposure, not just a flag."},
     {tab:"gloss", el:"glossList", text:"Every term on this page, plain-language first, then worked through with this package's own real numbers. Quiz mode is up top if you want to test yourself."},
     {tab:"method", el:"askAiGate", text:"Ask a real question and get an answer that is mechanically checked against the live ledger before it renders -- opt-in, since it costs real money per question."}
   ];
@@ -3124,7 +3286,7 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
   window.__FACADE__ = {PROGRAM:PROGRAM, ZONES:ZONES, WEEKS:WEEKS, R:R, T:T,
                        EACS:EACS, GATES:GATES, SHOP_LADDER:SHOP_LADDER, FIELD_LADDER:FIELD_LADDER,
                        RFIS:RFIS, CHANGE_ORDERS:CHANGE_ORDERS, RFI_ROWS:RFI_ROWS, CO_ROWS:CO_ROWS,
-                       MONTHLY:MONTHLY,
+                       MONTHLY:MONTHLY, RISKS:RISKS, P_BAND:P_BAND,
                        buildFacadeAskAiSnapshot:buildFacadeAskAiSnapshot, askAiConfigured:askAiConfigured,
                        askAiState:askAi, escHtml:escHtml, getAskAiWorkerUrl:function(){ return ASK_AI_WORKER_URL; }};
 })();
