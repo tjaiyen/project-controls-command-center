@@ -115,8 +115,15 @@ footer{margin-top:64px;padding-top:22px;border-top:1px solid var(--c-line);
   font-size:12.5px;color:rgb(var(--c-text-secondary))}
 
 /* chart primitives */
-.chart{margin-top:16px}
-.chart svg{width:100%;height:auto;overflow:visible}
+/* /stress-test finding, 2026-09-03: SVG text doesn't reflow like HTML text -- shrinking the
+   whole chart to fit a narrow mobile card shrinks its labels proportionally too. At a 375px
+   viewport a bar-value label was measured rendering at 6 CSS px tall, well below legible.
+   Fixed with the exact pattern .tblwrap already uses for wide tables on this same page: don't
+   shrink below the intrinsic size, let it scroll instead. Every chart function below uses
+   W=640 as its base width, so a flat 640px works for all of them. */
+.chart{margin-top:16px;overflow-x:auto}
+.chart svg{display:block;width:640px;max-width:none;height:auto;overflow:visible}
+@media(min-width:760px){.chart svg{width:100%}}
 .chart .bar-rect{transition:opacity .15s}
 .chart .bar-rect:hover{opacity:.82}
 .chart .axislabel{font:500 10.5px ui-monospace,Menlo,monospace;fill:rgb(var(--c-text-secondary))}
@@ -258,9 +265,10 @@ ul.tight{margin:10px 0 0;padding-left:19px} ul.tight li{margin:6px 0}
         pre-leased, and balance-sheet-backed.
       </p>
     </div>
-    <p class="src">Source: Kidder Mathews &amp; Cushman &amp; Wakefield Q2 2026 MarketBeat; King
+    <p class="src">Source: <a href="https://kidder.com/market-reports/seattle-office-market-report/" target="_blank" rel="noopener">Kidder Mathews</a>
+      &amp; Cushman &amp; Wakefield Q2 2026 MarketBeat; King
       County Assessor via <a href="https://www.seattletimes.com/business/local-business/as-downtown-seattle-offices-empty-city-facing-years-of-zombie-towers/" target="_blank" rel="noopener">Seattle Times</a>;
-      Gupta/Mittal/Van Nieuwerburgh, <i>American Economic Review</i> 116(2) 2026; MBA maturity
+      <a href="https://www.aeaweb.org/articles?id=10.1257/aer.20231619" target="_blank" rel="noopener">Gupta/Mittal/Van Nieuwerburgh, <i>American Economic Review</i> 116(2) 2026</a>; MBA maturity
       survey; Trepp CMBS Delinquency Report (Jan 2026); IMF Global Financial Stability Report;
       NBER WP 31970; S&amp;P Global data-center credit tracking.</p>
   </section>
@@ -298,7 +306,7 @@ ul.tight{margin:10px 0 0;padding-left:19px} ul.tight li{margin:6px 0}
         <tbody id="bearBody"></tbody>
       </table>
     </div>
-    <p class="src">Source: CBRE North America Data Center Trends H1 2026; company 10-K/10-Q
+    <p class="src">Source: <a href="https://www.cbre.com/insights/books/north-america-data-center-trends-h1-2026" target="_blank" rel="noopener">CBRE North America Data Center Trends H1 2026</a>; company 10-K/10-Q
       filings and FY2026 capex guidance (Amazon, Alphabet, Microsoft, Meta); US Census C30
       construction data.</p>
   </section>
@@ -316,7 +324,7 @@ ul.tight{margin:10px 0 0;padding-left:19px} ul.tight li{margin:6px 0}
       <h3>Committed power vs. the queue behind it</h3>
       <div class="chart" id="powerGapChart"></div>
     </div>
-    <p class="src">Source: Grant PUD QTEP filings; CBRE/PGE Hillsboro market data; corridor and
+    <p class="src">Source: <a href="https://grantpudqtep.org/" target="_blank" rel="noopener">Grant PUD QTEP filings</a>; CBRE/PGE Hillsboro market data; corridor and
       power-position detail per the proposal's corridor and power chapters.</p>
   </section>
 
@@ -469,7 +477,7 @@ ul.tight{margin:10px 0 0;padding-left:19px} ul.tight li{margin:6px 0}
 
   <section id="roadmap">
     <div class="chapter"><span class="num">8</span>Execution roadmap</div>
-    <h2>Eighteen months, three tranches, two award gates</h2>
+    <h2>Eighteen months, four phases, two award gates</h2>
     <p class="lede">Click a phase to see its actions, cost buckets, and exit criteria. The plan
       self-funds from the first subcontract award onward.</p>
 
@@ -477,7 +485,12 @@ ul.tight{margin:10px 0 0;padding-left:19px} ul.tight li{margin:6px 0}
     <div id="phasePanels"></div>
 
     <div class="card" style="margin-top:18px">
-      <h3>Cumulative cash-flow profile <span style="font-weight:400;color:rgb(var(--c-text-secondary));font-size:12px">(illustrative planning scenario &mdash; indexed units, not dollar figures, per the source proposal's own discipline against committing numbers before Phase 1 estimating)</span></h3>
+      <h3>Cumulative net position <span style="font-weight:400;color:rgb(var(--c-text-secondary));font-size:12px">(illustrative planning scenario &mdash; indexed units, not dollar figures, per the source proposal's own discipline against committing numbers before Phase 1 estimating)</span></h3>
+      <p style="margin:9px 0 0;color:rgb(var(--c-text-secondary))">Negative from month 1 as certification and pursuit spend runs ahead of revenue,
+        deepening through Phase 1&ndash;2 before flattening. Maximum exposure lands around month 9
+        &mdash; bounded by Tranches 1&ndash;2 alone, since Tranche 3 releases only on a signed
+        subcontract. Breakeven arrives around month 15 as first-package progress billings ramp,
+        with the position turning sharply positive by month 18.</p>
       <div class="chart" id="cashflowChart"></div>
     </div>
     <p class="src">Source: proposal Ch. 9 (tranche-gated investment schedule and roadmap).</p>
@@ -490,22 +503,22 @@ ul.tight{margin:10px 0 0;padding-left:19px} ul.tight li{margin:6px 0}
       market and a crowded doorway. Pick a scenario:</p>
 
     <div class="toggle3" id="decisionToggle" role="tablist">
-      <button role="tab" aria-selected="true" data-panel="wrong">If we're wrong</button>
-      <button role="tab" aria-selected="false" data-panel="right">If we're right</button>
-      <button role="tab" aria-selected="false" data-panel="wait">If we wait</button>
+      <button id="tab-wrong" role="tab" aria-selected="true" aria-controls="panel-wrong" data-panel="wrong">If we're wrong</button>
+      <button id="tab-right" role="tab" aria-selected="false" aria-controls="panel-right" data-panel="right">If we're right</button>
+      <button id="tab-wait" role="tab" aria-selected="false" aria-controls="panel-wait" data-panel="wait">If we wait</button>
     </div>
-    <div class="card toggle3-panel open" id="panel-wrong" data-panel="wrong">
+    <div class="card toggle3-panel open" id="panel-wrong" role="tabpanel" aria-labelledby="tab-wrong" data-panel="wrong">
       <p style="margin:0;color:rgb(var(--c-text-secondary))">The loss is certification-scale spend,
         partially resalable, with the legacy curtain-wall platform fully intact. Tranches 1 and 2
         are the only capital at risk before a signed subcontract exists.</p>
     </div>
-    <div class="card toggle3-panel" id="panel-right" data-panel="right">
+    <div class="card toggle3-panel" id="panel-right" role="tabpanel" aria-labelledby="tab-right" data-panel="right">
       <p style="margin:0;color:rgb(var(--c-text-secondary))">We hold manufacturer certifications,
         tested references, and GC prequalification in a market where 80.4% of construction is
         pre-leased and the erector bench is the binding constraint &mdash; assets that took
         incumbents years to assemble and a fast-follower cannot shortcut.</p>
     </div>
-    <div class="card toggle3-panel" id="panel-wait">
+    <div class="card toggle3-panel" id="panel-wait" role="tabpanel" aria-labelledby="tab-wait" data-panel="wait">
       <p style="margin:0;color:rgb(var(--c-text-secondary))">The same evidence guarantees the
         doorway fills: certification quotas, union crew availability, and GC shortlists are all
         finite &mdash; and the office pipeline that's supposed to carry us in the meantime has
@@ -626,16 +639,20 @@ ul.tight{margin:10px 0 0;padding-left:19px} ul.tight li{margin:6px 0}
     {risk:"Power delays stall campus energization", answer:"Power-led phasing is the entry argument itself — envelopes are built ahead of energization, not after"}
   ];
 
+  /* /stress-test finding, 2026-09-03: this used to be 3 corridors, including a "Puget Sound
+     conversions" entry naming two regional power-authority abbreviations, with zero basis
+     anywhere in the ~230-source research base -- confirmed via a direct grep for both, zero
+     hits. Chapter 4 of the source proposal is explicit: the boom "resolves ... into exactly
+     two buildable corridors."
+     Removed, and the two real corridors' distances corrected to the chapter's own figures
+     (150mi/200mi) -- the deck's slide had rounded them to 165mi/190mi without saying so. */
   var CORRIDORS = [
     {key:"quincy", name:"Quincy / Grant County, WA", anchor:"Microsoft (Quincy-only cloud region), legacy Yahoo/Oath, new AI campuses",
       power:"Grant PUD: 372 MW expanding to 750 MW; ~$0.04/kWh-class hydro", tight:"Absorbing everything delivered; campus-style ground-up",
-      dist:"~165 mi — dispatchable from the Mukilteo yard and local union crews", committed:372, queue:800},
+      dist:"~150 mi east over the Cascades — dispatchable from the Mukilteo yard and local union crews", committed:372, queue:800},
     {key:"hillsboro", name:"Hillsboro, OR (Silicon Forest)", anchor:"NTT, Flexential, QTS, Stack, hyperscale edge",
       power:"PGE/BPA fed; substation-led phasing", tight:"0.2% vacancy — tightest primary market in the U.S.",
-      dist:"~190 mi — union Locals 29/14 overlap existing agreements", committed:430, queue:1700},
-    {key:"pugetsound", name:"Puget Sound conversions", anchor:"Grid-constrained infill; office/industrial-to-DC reuse",
-      power:"SCL/PSE queue multi-year — the power gap itself is the moat", tight:"No new power until ~2029+; brownfield wins",
-      dist:"Home market — established GC relationships already in place", committed:0, queue:0}
+      dist:"~200 mi south on I-5 — union Locals 29/14 overlap existing agreements", committed:430, queue:1700}
   ];
 
   var IMP = [
@@ -721,7 +738,19 @@ ul.tight{margin:10px 0 0;padding-left:19px} ul.tight li{margin:6px 0}
       exit:"Quarterly pipeline-mix and margin review by ownership; second award or campus follow-on secured."}
   ];
 
-  var CASHFLOW = [8,14,22,30,42,52,58,55,48,38,25,10,-5,-18,-22,-15,2,25];
+  /* /stress-test finding, 2026-09-03 (CRIT): this array used to be invented -- it started
+     positive, peaked mid-program, and dipped negative near the end, which is roughly the
+     inverse of the source proposal's own Chart 9.1 (cumulative net position: negative from
+     month 1, deepening through Phase 1-2 investment, trough at month 9, breakeven at month 15,
+     rising to ~200 by month 18 as first-award revenue ramps). Traced directly from that chart
+     image, matching both of its own labeled annotations ("Maximum exposure ~ month 9",
+     "Illustrative breakeven ~ month 15") and its start/end values -- still indexed units, not
+     dollars, per the source's own stated discipline. */
+  var CASHFLOW = [-15,-30,-50,-70,-80,-95,-108,-122,-130,-128,-115,-95,-70,-35,15,70,130,200];
+  var CASHFLOW_ANNOTATIONS = [
+    {month:9, label:"Max exposure ≈ Mo 9"},
+    {month:15, label:"Breakeven ≈ Mo 15"}
+  ];
 
   /* ============================================================ SVG helpers ============================================================ */
   var SVGNS = "http://www.w3.org/2000/svg";
@@ -733,12 +762,13 @@ ul.tight{margin:10px 0 0;padding-left:19px} ul.tight li{margin:6px 0}
   function accent(){ return getComputedStyle(document.documentElement).getPropertyValue("--c-accent").trim() || "6 182 212"; }
   function danger(){ return getComputedStyle(document.documentElement).getPropertyValue("--c-danger").trim() || "239 68 68"; }
   function success(){ return getComputedStyle(document.documentElement).getPropertyValue("--c-success").trim() || "16 185 129"; }
+  function warning(){ return getComputedStyle(document.documentElement).getPropertyValue("--c-warning").trim() || "245 158 11"; }
 
   /* Simple horizontal-axis bar chart. data: [{label, value, note}], fmt(value)->string */
   function barChart(mount, data, opts){
     opts = opts || {};
     var W = 640, H = 60 + data.length * 46, PAD = 12, LBLW = opts.labelWidth || 150;
-    var max = opts.max || Math.max.apply(null, data.map(function(d){ return d.value; })) * 1.12;
+    var max = opts.max || Math.max.apply(null, data.map(function(d){ return d.value; })) * 1.12 || 1; // guard: an empty/all-zero dataset would otherwise divide by 0/-Infinity below
     var svg = el("svg", {viewBox: "0 0 " + W + " " + H, role:"img", "aria-label": opts.aria || ""});
     var barW = W - LBLW - PAD - 60;
     data.forEach(function(d, i){
@@ -765,7 +795,7 @@ ul.tight{margin:10px 0 0;padding-left:19px} ul.tight li{margin:6px 0}
   function rangeChart(mount, data, opts){
     opts = opts || {};
     var W = 640, H = 40 + data.length * 56, LBLW = 210;
-    var max = opts.max || Math.max.apply(null, data.map(function(d){ return d.hi; })) * 1.15;
+    var max = opts.max || Math.max.apply(null, data.map(function(d){ return d.hi; })) * 1.15 || 1; // same empty/all-zero guard as barChart
     var barW = W - LBLW - 70;
     var svg = el("svg", {viewBox:"0 0 " + W + " " + H, role:"img", "aria-label": opts.aria || ""});
     data.forEach(function(d, i){
@@ -803,7 +833,7 @@ ul.tight{margin:10px 0 0;padding-left:19px} ul.tight li{margin:6px 0}
       svg.appendChild(sub);
     });
     var totalH = 14 + IMP.length * 62;
-    [["metal", WSEC.metal, success()], ["steel", WSEC.steel, "245 158 11"]].forEach(function(t){
+    [["metal", WSEC.metal, success()], ["steel", WSEC.steel, warning()]].forEach(function(t){
       var tx = LBLW + (t[1] / max) * barW;
       svg.appendChild(el("line", {class:"threshold", x1:tx, y1:0, x2:tx, y2:totalH, stroke:"rgb(" + t[2] + ")"}));
       var lbl = el("text", {x:tx, y:totalH+16, class:"barsub", "text-anchor":"middle"});
@@ -820,7 +850,7 @@ ul.tight{margin:10px 0 0;padding-left:19px} ul.tight li{margin:6px 0}
     var W = 640, H = 200, PAD = 20;
     var vals = CASHFLOW;
     var max = Math.max.apply(null, vals), min = Math.min.apply(null, vals);
-    var range = max - min;
+    var range = (max - min) || 1; // guard: an all-equal-value CASHFLOW would otherwise divide by 0 -> NaN points
     var stepX = (W - PAD*2) / (vals.length - 1);
     var zeroY = PAD + (max / range) * (H - PAD*2);
     var pts = vals.map(function(v, i){
@@ -828,16 +858,22 @@ ul.tight{margin:10px 0 0;padding-left:19px} ul.tight li{margin:6px 0}
       var y = PAD + ((max - v) / range) * (H - PAD*2);
       return [x, y];
     });
-    var svg = el("svg", {viewBox:"0 0 " + W + " " + H, role:"img", "aria-label":"Illustrative cumulative cash-flow profile across the four tranches"});
+    var svg = el("svg", {viewBox:"0 0 " + W + " " + H, role:"img", "aria-label":"Illustrative cumulative net position across the 18-month program: negative from month 1, deepening to maximum exposure around month 9, crossing to breakeven around month 15, rising to a positive position by month 18"});
     svg.appendChild(el("line", {x1:PAD, y1:zeroY, x2:W-PAD, y2:zeroY, class:"gridline"}));
     var path = "M " + pts.map(function(p){ return p[0] + " " + p[1]; }).join(" L ");
     svg.appendChild(el("path", {d:path, fill:"none", stroke:"rgb(" + accent() + ")", "stroke-width":2.5}));
     var fillPath = path + " L " + pts[pts.length-1][0] + " " + zeroY + " L " + pts[0][0] + " " + zeroY + " Z";
     svg.appendChild(el("path", {d:fillPath, fill:"rgb(" + accent() + " / .12)", stroke:"none"}));
-    svg.appendChild(el("text", {x:PAD, y:14, class:"barsub"})).textContent = "Certification + pursuit (T1–T2)";
-    svg.appendChild(el("text", {x:W-PAD, y:14, class:"barsub", "text-anchor":"end"})).textContent = "Scale, cash-funded (T4)";
-    svg.appendChild(el("text", {x:PAD, y:H-6, class:"barsub"})).textContent = "Month 1";
-    svg.appendChild(el("text", {x:W-PAD, y:H-6, class:"barsub", "text-anchor":"end"})).textContent = "Month 18";
+    CASHFLOW_ANNOTATIONS.forEach(function(a){
+      var pt = pts[a.month - 1];
+      svg.appendChild(el("circle", {cx:pt[0], cy:pt[1], r:3.5, fill:"rgb(" + danger() + ")"}));
+      var above = pt[1] > H / 2;
+      var t = el("text", {x:pt[0], y: above ? pt[1] - 10 : pt[1] + 18, class:"barsub", "text-anchor":"middle"});
+      t.textContent = a.label;
+      svg.appendChild(t);
+    });
+    svg.appendChild(el("text", {x:PAD, y:14, class:"barsub"})).textContent = "Month 1";
+    svg.appendChild(el("text", {x:W-PAD, y:14, class:"barsub", "text-anchor":"end"})).textContent = "Month 18";
     mount.innerHTML = "";
     mount.appendChild(svg);
   }
@@ -849,7 +885,12 @@ ul.tight{margin:10px 0 0;padding-left:19px} ul.tight li{margin:6px 0}
     btn.className = "statcell";
     btn.innerHTML = '<div class="v">' + s.v + '</div><div class="l">' + s.l + '</div>';
     btn.addEventListener("click", function(){
-      document.getElementById(s.jump).scrollIntoView({behavior: mq.matches !== undefined ? "smooth" : "auto"});
+      /* /stress-test finding, 2026-09-03: `mq.matches !== undefined` is always true (mq.matches
+         is always a real boolean) -- this always forced "smooth" regardless of the user's actual
+         motion preference, silently overriding the CSS reduced-motion guard above (an explicit
+         scrollIntoView behavior option wins over CSS). Check the real media query instead. */
+      var reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      document.getElementById(s.jump).scrollIntoView({behavior: reducedMotion ? "auto" : "smooth"});
     });
     heroMount.appendChild(btn);
   });
@@ -870,11 +911,6 @@ ul.tight{margin:10px 0 0;padding-left:19px} ul.tight li{margin:6px 0}
     subBody.appendChild(tr);
   });
 
-  barChart(document.getElementById("maturityChart"), MATURITY, {
-    aria: "CRE debt maturing 2025 to 2027, in billions of dollars",
-    fmt: function(v){ return "$" + v + "B"; }
-  });
-
   /* target stats + capex + rotation + bear table */
   var targetMount = document.getElementById("targetStats");
   TARGET_STATS.forEach(function(s){
@@ -884,9 +920,6 @@ ul.tight{margin:10px 0 0;padding-left:19px} ul.tight li{margin:6px 0}
       '</div><div style="margin-top:8px;font-size:13px;color:rgb(var(--c-text-secondary))">' + s.l + '</div>';
     targetMount.appendChild(d);
   });
-  barChart(document.getElementById("capexChart"), CAPEX, {aria:"Big-4 hyperscaler capex, 2024 to 2026 guided", fmt:function(v){ return "$" + v + "B"; }});
-  barChart(document.getElementById("rotationChart"), ROTATION, {aria:"Data center vs office construction spending, April 2026", fmt:function(v){ return "$" + v + "B"; }, labelWidth:150});
-
   var bearBody = document.getElementById("bearBody");
   BEAR.forEach(function(b){
     var tr = document.createElement("tr");
@@ -899,14 +932,18 @@ ul.tight{margin:10px 0 0;padding-left:19px} ul.tight li{margin:6px 0}
   var corridorPanels = document.getElementById("corridorPanels");
   CORRIDORS.forEach(function(c, i){
     var btn = document.createElement("button");
+    btn.id = "tab-corridor-" + c.key;
     btn.setAttribute("role", "tab");
     btn.setAttribute("aria-selected", i === 0 ? "true" : "false");
+    btn.setAttribute("aria-controls", "corridor-" + c.key);
     btn.dataset.panel = c.key;
     btn.textContent = c.name;
     corridorToggle.appendChild(btn);
     var panel = document.createElement("div");
     panel.className = "card toggle3-panel" + (i === 0 ? " open" : "");
     panel.id = "corridor-" + c.key;
+    panel.setAttribute("role", "tabpanel");
+    panel.setAttribute("aria-labelledby", "tab-corridor-" + c.key);
     panel.innerHTML =
       '<div class="grid2"><div><div class="src" style="margin-top:0"><b style="color:rgb(var(--c-text-primary))">Anchor demand</b></div><p style="margin:4px 0 0;color:rgb(var(--c-text-secondary))">' + c.anchor + '</p>' +
       '<div class="src"><b style="color:rgb(var(--c-text-primary))">Power position</b></div><p style="margin:4px 0 0;color:rgb(var(--c-text-secondary))">' + c.power + '</p></div>' +
@@ -919,14 +956,6 @@ ul.tight{margin:10px 0 0;padding-left:19px} ul.tight li{margin:6px 0}
     Array.prototype.forEach.call(corridorToggle.querySelectorAll("button"), function(b){ b.setAttribute("aria-selected", String(b === btn)); });
     Array.prototype.forEach.call(corridorPanels.querySelectorAll(".toggle3-panel"), function(p){ p.classList.toggle("open", p.id === "corridor-" + btn.dataset.panel); });
   });
-
-  var powerData = CORRIDORS.filter(function(c){ return c.committed > 0; }).map(function(c){
-    return {label: c.name.split(" (")[0].split(" / ")[0], value: c.queue, note: c.committed + " MW committed / contracted"};
-  });
-  barChart(document.getElementById("powerGapChart"), powerData, {aria:"Power queue vs committed capacity per corridor", fmt:function(v){ return v + " MW queue"; }, labelWidth:170});
-
-  impChartRender(document.getElementById("impChart"));
-  rangeChart(document.getElementById("scheduleChart"), SCHEDULE, {aria:"Conventional vs modular data center delivery schedule in months"});
 
   /* GC table + filter */
   var gcBody = document.getElementById("gcBody");
@@ -965,6 +994,7 @@ ul.tight{margin:10px 0 0;padding-left:19px} ul.tight li{margin:6px 0}
     tr.tabIndex = 0;
     tr.setAttribute("role", "button");
     tr.setAttribute("aria-expanded", "false");
+    tr.setAttribute("aria-controls", "risk-detail-" + i);
     tr.innerHTML = '<td><span class="chev">▸</span></td><td>' + r.risk + '</td><td>' + pill(r.likelihood) + '</td><td>' + pill(r.impact) + '</td><td style="color:rgb(var(--c-text-secondary))">' + r.owner + '</td>';
     var detail = document.createElement("tr");
     detail.className = "risk-detail";
@@ -987,13 +1017,17 @@ ul.tight{margin:10px 0 0;padding-left:19px} ul.tight li{margin:6px 0}
   PHASES.forEach(function(p, i){
     var btn = document.createElement("button");
     btn.className = "phase-btn";
+    btn.id = "tab-phase-" + i;
     btn.setAttribute("role", "tab");
     btn.setAttribute("aria-selected", i === 0 ? "true" : "false");
+    btn.setAttribute("aria-controls", "phase-" + i);
     btn.dataset.phase = i;
     btn.innerHTML = '<div class="pn">' + p.n + ' · ' + p.months + '</div><div class="pm">' + p.title + '</div>';
     phaseRail.appendChild(btn);
     var panel = document.createElement("div");
     panel.className = "card phase-panel" + (i === 0 ? " open" : "");
+    panel.setAttribute("role", "tabpanel");
+    panel.setAttribute("aria-labelledby", "tab-phase-" + i);
     panel.id = "phase-" + i;
     panel.innerHTML =
       '<h3>' + p.n + ': ' + p.title + '</h3>' +
@@ -1008,7 +1042,28 @@ ul.tight{margin:10px 0 0;padding-left:19px} ul.tight li{margin:6px 0}
     Array.prototype.forEach.call(phasePanels.querySelectorAll(".phase-panel"), function(p){ p.classList.toggle("open", p.id === "phase-" + btn.dataset.phase); });
   });
 
-  cashflowRender(document.getElementById("cashflowChart"));
+  /* /stress-test finding, 2026-09-03: chart rendering used to happen at two separate call
+     sites -- once at initial load, once (with different, incomplete options -- missing every
+     `aria` string, and missing the schedule chart entirely) in the theme-toggle handler. That
+     drift is exactly the defect class this whole page exists to guard against elsewhere.
+     Consolidated into one function, called from both places, so there is only one place that
+     can go stale. */
+  function renderAllCharts(){
+    var powerData = CORRIDORS.filter(function(c){ return c.committed > 0; }).map(function(c){
+      return {label: c.name.split(" (")[0].split(" / ")[0], value: c.queue, note: c.committed + " MW committed / contracted"};
+    });
+    barChart(document.getElementById("maturityChart"), MATURITY, {
+      aria: "CRE debt maturing 2025 to 2027, in billions of dollars",
+      fmt: function(v){ return "$" + v + "B"; }
+    });
+    barChart(document.getElementById("capexChart"), CAPEX, {aria:"Big-4 hyperscaler capex, 2024 to 2026 guided", fmt:function(v){ return "$" + v + "B"; }});
+    barChart(document.getElementById("rotationChart"), ROTATION, {aria:"Data center vs office construction spending, April 2026", fmt:function(v){ return "$" + v + "B"; }, labelWidth:150});
+    barChart(document.getElementById("powerGapChart"), powerData, {aria:"Power queue vs committed capacity per corridor", fmt:function(v){ return v + " MW queue"; }, labelWidth:170});
+    impChartRender(document.getElementById("impChart"));
+    rangeChart(document.getElementById("scheduleChart"), SCHEDULE, {aria:"Conventional vs modular data center delivery schedule in months"});
+    cashflowRender(document.getElementById("cashflowChart"));
+  }
+  renderAllCharts();
 
   /* decision 3-way toggle */
   var decisionToggle = document.getElementById("decisionToggle");
@@ -1021,27 +1076,33 @@ ul.tight{margin:10px 0 0;padding-left:19px} ul.tight li{margin:6px 0}
   });
 
   /* section nav: active-link highlighting on scroll */
-  var navLinks = Array.prototype.slice.call(document.querySelectorAll("#navrail a"));
+  var navrail = document.getElementById("navrail");
+  var navLinks = Array.prototype.slice.call(navrail.querySelectorAll("a"));
   var sections = navLinks.map(function(a){ return document.querySelector(a.getAttribute("href")); }).filter(Boolean);
+  /* /stress-test finding, 2026-09-03: at mobile widths only ~3-4 of the navrail's 10 links fit
+     on screen, and the active-link highlight had no way to bring itself into view -- the user
+     could scroll well past a section with no visible confirmation which nav item was active.
+     Scrolls the rail (not the page) only when the active link actually changes, not on every
+     scroll tick. */
+  var lastActiveId = null;
   function updateActiveNav(){
     var y = window.scrollY + 140;
     var current = sections[0];
     sections.forEach(function(s){ if (s.offsetTop <= y) current = s; });
     navLinks.forEach(function(a){ a.classList.toggle("active", a.getAttribute("href") === "#" + current.id); });
+    if (current.id !== lastActiveId){
+      lastActiveId = current.id;
+      var activeLink = navrail.querySelector('a[href="#' + current.id + '"]');
+      if (activeLink) activeLink.scrollIntoView({inline:"center", block:"nearest", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"});
+    }
   }
   window.addEventListener("scroll", updateActiveNav, {passive:true});
   updateActiveNav();
 
-  /* re-render theme-dependent charts on theme toggle so bar colors update */
+  /* re-render theme-dependent charts on theme toggle so bar colors update -- same function as
+     the initial render, not a hand-duplicated subset (see the note above renderAllCharts). */
   themeBtn.addEventListener("click", function(){
-    setTimeout(function(){
-      barChart(document.getElementById("maturityChart"), MATURITY, {fmt:function(v){ return "$" + v + "B"; }});
-      barChart(document.getElementById("capexChart"), CAPEX, {fmt:function(v){ return "$" + v + "B"; }});
-      barChart(document.getElementById("rotationChart"), ROTATION, {fmt:function(v){ return "$" + v + "B"; }, labelWidth:150});
-      barChart(document.getElementById("powerGapChart"), powerData, {fmt:function(v){ return v + " MW queue"; }, labelWidth:170});
-      impChartRender(document.getElementById("impChart"));
-      cashflowRender(document.getElementById("cashflowChart"));
-    }, 10);
+    setTimeout(renderAllCharts, 10);
   });
 
   /* expose data + render fns for the headless test harness */
