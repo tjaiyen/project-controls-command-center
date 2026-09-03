@@ -285,7 +285,7 @@ Everything below is a real DOM interaction, independently covered by `stress.cjs
   - **Pipeline architecture** (AI & Data) — 12 nodes (6 sources + dbt staging + marts + integrity
     gate + 3 outputs); each source node names the *specific* live field/downstream tab it feeds
     (e.g. the cost ledger names `PKGS[].ac` and the z-score/EWMA controls it feeds), and the
-    integrity-gate node clarifies the dbt-side 65-check count vs. this tab's own live
+    integrity-gate node clarifies the dbt-side 103-check count vs. this tab's own live
     `GUARDS.length` (29) — two independently-run stacks, not one gate wearing two names.
 - **7 hover/click tooltips on `bars()`-rendered charts** (EAC trend, float, CPLI, schedule drift,
   float erosion, productivity, crew cost-per-hour) plus the risk heat map — each shows the real

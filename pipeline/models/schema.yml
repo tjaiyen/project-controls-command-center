@@ -63,6 +63,11 @@ models:
           - dbt_expectations.expect_column_values_to_be_between:
               min_value: 0        # priced exposure never negative
 
+  - name: stg_actions
+    columns:
+      - name: id
+        tests: [unique, not_null]
+
   - name: fct_schedule_risk
     tests:
       - dbt_utils.expression_is_true:

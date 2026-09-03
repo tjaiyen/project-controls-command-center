@@ -1633,7 +1633,12 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
           CPLI&nbsp;0.80) + 35&times;this package&rsquo;s own risk-register exposure (saturates at $10.0M,
           probability-weighted) + 15&times;the change-order cycle overrun &mdash; the same figure on every bar
           below, since it&rsquo;s a program-wide signal, not a package-specific one. Weights and saturation
-          points are stated, illustrative choices, not calibrated against outcome data.</p></div>
+          points are stated, illustrative choices, not calibrated against outcome data.</p>
+        <p style="margin:6px 0 0;font-size:11.5px;color:rgb(var(--c-mut))">The risk-exposure term only counts
+          a risk once it has a real linked action naming the package (same link the risk register&rsquo;s own
+          drill-down uses) &mdash; today that&rsquo;s true for CP-201 only; every other package&rsquo;s score
+          above is entirely CPLI erosion plus the shared change-order floor, not a zeroed-out risk term
+          hiding behind the total.</p></div>
 
       <div class="sec-h" style="margin-top:34px"><h2>Labor-availability leading indicator</h2><span class="tag">mobilization lead-time</span></div>
       <p class="lede">A real, current industry pressure (AGC: 92% of firms <em>that are hiring</em> report a hard time finding qualified workers;
@@ -2821,26 +2826,16 @@ function linRegForecastAccuracy(){
    derived from cost/impact the way Impact is (see renderRiskMath()'s own explanation of that
    distinction). Stated here, per risk, rather than left as an unexplained number — the direct
    fix for "why P4, that doesn't make sense" landing on a bare digit with no stated reasoning. */
-/* pkg field added (brainstorm-mode round, schedule-risk composite, 2026-09-02) -- links a risk to
-   the ONE control account it concentrates on, where that's genuinely true. Not every risk gets
-   one: R-04 (commodity escalation) and R-06 (rail coordination) are real but portfolio-wide, and
-   R-07 spans two package families (tunnel portal + guideway) with no single honest owner package
-   -- left unmapped rather than force-assigned to one. Nullable by design; scheduleRiskScore()
-   below only rolls up risks that actually carry a pkg. */
 var RISKS = [
  {id:"R-01",n:"Tunnel ground conditions worse than baseline",p:4,i:5,cost:18.5,own:"Tunnel CM",     mit:"Supplemental geotechnical program; staged contingency release tied to face mapping",
-  pkg:"CP-201",
   basis:"Ground conditions differing from baseline geotechnical investigation is one of the most frequently realized risk categories in tunnel and underground construction industry-wide — not a fringe scenario."},
  {id:"R-03",n:"Systems integration test window compressed",  p:3,i:4,cost: 9.4,own:"Systems PM",    mit:"Negotiate extended night windows; pre-stage commissioning off critical path",
-  pkg:"CP-701",
   basis:"Integration/commissioning windows commonly compress when earlier phases run late, but whether THIS window compresses depends on how those phases actually perform — genuinely uncertain either way, not leaning likely or unlikely."},
  {id:"R-02",n:"Third-party utility approval delays",         p:4,i:3,cost: 6.2,own:"Utilities Lead",mit:"Weekly owner cadence; parallel permit tracks on the two longest-lead crossings",
-  pkg:"CP-601",
   basis:"Utility-owner approval sits outside the program's direct control and is a commonly-cited delay source on programs with multiple third-party utility crossings."},
  {id:"R-04",n:"Steel &amp; OCS escalation beyond index",     p:3,i:3,cost: 4.8,own:"Procurement",   mit:"Early buy on hedgeable commodities; EPA clause indexed to a published series",
   basis:"Commodity escalation beyond the contract's own price index is plausible given real market volatility, but the index exists specifically to absorb the typical case — genuinely uncertain, not likely."},
  {id:"R-05",n:"Station finishes labor availability",         p:2,i:3,cost: 2.9,own:"Stations CM",   mit:"Second-source subcontract package; sequence finishes by station",
-  pkg:"CP-301",
   basis:"A single-trade, localized labor-market risk — historically realized less often than the ground-condition and third-party-approval risks above on comparable programs."},
  {id:"R-06",n:"Third-party rail coordination windows",       p:2,i:2,cost: 1.6,own:"Program Controls",mit:"Lock a 12-month look-ahead with the operating railroad",
   basis:"Coordination risk with an established, cooperating operating railroad partner — lower historical frequency than the more externally-driven risks above."},
@@ -3283,21 +3278,47 @@ function derive(p){
 }
 var rows = PKGS.map(function(p){ var d=derive(p); return Object.assign({},p,d); });
 
-/* Schedule risk composite — brainstorm-mode addition, 2026-09-02: blends three real, already-
-   existing signals into one ranked leading-indicator score, instead of adding a fourth trained-
-   model claim this repo can't defend. (1) CPLI erosion — reuses r.cpli exactly as derive() above
-   already computes it, the program's own chosen "driving path" metric, not a new float/cpRem
-   calculation. (2) Package-scoped risk exposure — the same P_BAND probability-weighting
-   T.riskExposure already uses below, just filtered to RISKS[] rows carrying this package's pkg.
-   (3) Change-order cycle overrun (PROGRAM.coCycleDays vs coCycleTarget) — real, but program-wide,
-   so it lands identically on every package; that's a stated design choice, not an oversight, and
-   the UI card says so rather than hiding it.
+/* Schedule risk composite — brainstorm-mode addition, 2026-09-02, CORRECTED same day after a
+   /stress-test finding: the first version hand-authored a `pkg` field directly on RISKS[] entries.
+   This codebase already has a principled, real risk-to-package derivation (riskLinkedActions(),
+   defined below near the Risk & Change tab) whose OWN comment states "RISKS[] carries no pkg
+   field of its own... No hand-authored R-id -> package map here". The hand-authored version this
+   replaced didn't just duplicate that mechanism — it was factually wrong against it (R-01's real
+   linked action does carry pkg:"CP-201", matching; but R-02/R-03's real linked actions carry NO
+   pkg at all, and R-05 has no linked action whatsoever — so 3 of the 4 hand-typed mappings
+   contradicted this repo's own already-shipped ground truth). Fixed by calling
+   riskLinkedActions() here instead, the same real derivation riskScheduleExposure() already
+   reuses for the schedule side of the ICSRA card. pkgRiskExposure() is defined here (function
+   declarations hoist) but must not be INVOKED until riskLinkedActions()/ACTIONS have real values
+   — ACTIONS isn't assigned until much later in file-execution order, so the actual r.schedRisk
+   computation is deferred into renderSchedule() (called after full script execution), not run
+   eagerly here at rows-construction time.
+   Blends three real signals into one ranked score, instead of adding a fourth trained-model claim
+   this repo can't defend: (1) CPLI erosion — reuses r.cpli exactly as derive() above already
+   computes it. (2) Package-scoped risk exposure — same P_BAND weighting T.riskExposure already
+   uses, filtered to only the risks riskLinkedActions() genuinely resolves to this package (today,
+   honestly, that's R-01 only — the other 6 risks either have no linked action or a linked action
+   with no pkg, same "not derivable" honesty riskScheduleExposure()'s own table already shows).
+   (3) Change-order cycle overrun — real, but program-wide, so it lands identically on every
+   package; a stated design choice, not an oversight, and the UI card says so.
    Weights (50/35/15) and saturation bounds (erosion 0.20 = CPLI 0.80, exposure $10M weighted,
    overrun 15 days) are STATED, illustrative choices — not calibrated against real outcome data.
-   Same honesty standard MATERIAL_ESCALATION_BASELINE_PCT already sets elsewhere in this file. */
+   Same honesty standard MATERIAL_ESCALATION_BASELINE_PCT already sets elsewhere in this file.
+   Acknowledged tension (/stress-test finding, independent reviewer, 2026-09-03): the Overview
+   tab's own "Six lenses, not one blended score" section and KPI_FAMILIES' Schedule `why` text
+   ("cost and time... need separate metrics, not one blended score") state a real design
+   principle this composite appears to cross, since it blends Schedule/Risk/Change signals into
+   one ranked number. Not silently ignored: that principle is specifically about the 20-KPI
+   EXECUTIVE BOARD staying unblended so no single family's problem hides behind another's — this
+   is a separate, narrower triage tool on the Schedule tab answering one specific question ("which
+   package needs attention first"), not a KPI, and not a replacement for the six lenses it draws
+   from. The multivariate-anomaly/Hotelling T² feature already sets this same precedent (blending
+   5 cross-family metrics) without ever reconciling it against the stated principle either — this
+   comment is that reconciliation, for both. */
 function pkgRiskExposure(pkgId){
-  return RISKS.filter(function(k){ return k.pkg===pkgId; })
-    .reduce(function(s,k){ return s+P_BAND[k.p]*k.cost; },0);
+  return RISKS.filter(function(k){
+    return riskLinkedActions(k).some(function(a){ return a.pkg===pkgId; });
+  }).reduce(function(s,k){ return s+P_BAND[k.p]*k.cost; },0);
 }
 function scheduleRiskScore(r){
   var erosion=Math.max(0,1-r.cpli);
@@ -3305,7 +3326,6 @@ function scheduleRiskScore(r){
   var raw = 50*Math.min(1,erosion/0.20) + 35*Math.min(1,pkgRiskExposure(r.id)/10) + 15*Math.min(1,coOverrun/15);
   return Math.round(Math.min(100,Math.max(0,raw))*10)/10;
 }
-rows.forEach(function(r){ r.schedRisk=scheduleRiskScore(r); });
 
 var T = rows.reduce(function(a,r){
   ["bac","pv","ev","ac","commit","eac","actsP","actsD","ernH","actH"].forEach(function(k){ a[k]+=r[k]; });
@@ -7977,6 +7997,12 @@ function renderGanttMath(ends){
     "of remaining schedule risk, not a reconstructed full project history.</p>";
 }
 function renderSchedule(){
+  // Computed here, not at rows-construction time (see the block comment above scheduleRiskScore's
+  // definition): pkgRiskExposure() calls riskLinkedActions(), which reads ACTIONS -- not assigned
+  // until much later in file-execution order. renderSchedule() only runs after the full script
+  // has executed once, so ACTIONS is guaranteed real by the time this line runs. Recomputed on
+  // every call (cheap, 8 rows) rather than cached, so it can never go stale relative to ACTIONS.
+  rows.forEach(function(r){ r.schedRisk=scheduleRiskScore(r); });
   document.getElementById("floatsOpQ").innerHTML = opQuestionBox("floats",
     "Which packages have already run out of schedule cushion?",
     T.negFloat.length+" of "+rows.length+" package"+(T.negFloat.length===1?"":"s")+" ("+
@@ -10733,7 +10759,7 @@ function gaoCredibilityChecklist(){
    {characteristic:"Well-documented",status:"pass",
     evidence:"Every one of "+KPIS.length+" KPIs carries a real formula, threshold, source and play field ("+(kpiComplete?"verified, none missing":"gap found")+") — the same invariant GUARDS' own \"KPI registry complete\" check re-confirms on every page load."},
    {characteristic:"Accurate",status:"pass",
-    evidence:"Independently re-derived through a SEPARATE SQL/DuckDB stack — 101 parity checks, all passing, the same ledger proven twice in two languages, to the decimal."},
+    evidence:"Independently re-derived through a SEPARATE SQL/DuckDB stack — 103 parity checks, all passing, the same ledger proven twice in two languages, to the decimal."},
    {characteristic:"Credible",status:"pass",
     evidence:MC.n.toLocaleString("en-US")+"-run Monte Carlo simulation plus "+RISKS.length+" priced risks in an expected-monetary-value register, with a real sensitivity ranking (this tab's own tornado chart) — not a single deterministic number presented as certain."}
   ];

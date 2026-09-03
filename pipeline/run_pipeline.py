@@ -62,8 +62,13 @@ for p in PKGS:
 # --- 1b. Parse the risk register and change-order cycle inputs -------------
 # (schedule-risk composite, 2026-09-02) — capture each risk object's own body up to its closing
 # brace (these are flat literals, no nested `{`), then parse fields from within that one block —
-# avoids a chained field-order regex silently drifting onto the WRONG risk's pkg if an unrelated
-# field (mit/basis) sits between cost and pkg in the source, as it genuinely does here.
+# avoids a chained field-order regex silently drifting onto the wrong risk's fields if an
+# unrelated field sits between two others, as genuinely happens in this source.
+# NO pkg field parsed here (schedule-risk composite, CORRECTED /stress-test finding, same day as
+# the original add): RISKS[] itself carries no pkg field -- see index.html's own
+# riskLinkedActions() comment ("no hand-authored R-id -> package map"). The real risk-to-package
+# link is derived below from ACTIONS[]'s own real pkg field, mirroring index.html's corrected
+# pkgRiskExposure(), not from a static column on the risk register itself.
 risk_block_re = re.compile(r'\{id:"(R-\d+)".*?\}', re.S)
 risks_start = src.index("var RISKS")
 risks_end = src.index("];", risks_start)   # the array's own closing bracket, not a magic window
@@ -72,15 +77,30 @@ for block_m in risk_block_re.finditer(src[risks_start:risks_end]):
     block = block_m.group(0)
     p_m = re.search(r'\bp:\s*(\d)', block)
     cost_m = re.search(r'\bcost:\s*([\d.]+)', block)
-    pkg_m = re.search(r'\bpkg:"(CP-\d+)"', block)
-    RISKS_PY.append({"id": block_m.group(1), "p": int(p_m.group(1)), "cost": float(cost_m.group(1)),
-                      "pkg": pkg_m.group(1) if pkg_m else None})
+    RISKS_PY.append({"id": block_m.group(1), "p": int(p_m.group(1)), "cost": float(cost_m.group(1))})
 check("parsed 7 risks from index.html RISKS[]", len(RISKS_PY) == 7, f"got {len(RISKS_PY)}")
-mapped = [r for r in RISKS_PY if r["pkg"]]
-check("4 risks carry a pkg mapping (R-01/R-02/R-03/R-05)", len(mapped) == 4, f"got {len(mapped)}")
-check("mapped risks are exactly R-01/R-02/R-03/R-05",
-      sorted(r["id"] for r in mapped) == ["R-01", "R-02", "R-03", "R-05"],
-      f"got {sorted(r['id'] for r in mapped)}")
+
+# ACTIONS[] entries whose src names a risk register entry ("Risk register · R-01") -- the real
+# link, same one riskLinkedActions() reads. Only 4 of 7 risks have one at all (per index.html's
+# own comment); of those 4, only R-01's actually carries a pkg field today -- both counts are
+# asserted below so a change in either direction (source drift) is caught, not silently absorbed.
+action_block_re = re.compile(r'\{id:"(A-\d+)".*?\}', re.S)
+actions_start = src.index("var ACTIONS")
+actions_end = src.index("\n];", actions_start)
+STG_ACTIONS = []
+for block_m in action_block_re.finditer(src[actions_start:actions_end]):
+    block = block_m.group(0)
+    src_m = re.search(r'src:"([^"]*)"', block)
+    if not src_m or "Risk register" not in src_m.group(1):
+        continue   # only risk-linked actions matter for this join -- matches riskLinkedActions()'s
+                    # own ACTIONS.filter(a => a.src.indexOf(k.id) >= 0) scope
+    pkg_m = re.search(r'\bpkg:"(CP-\d+)"', block)
+    STG_ACTIONS.append({"id": block_m.group(1), "src": src_m.group(1),
+                         "pkg": pkg_m.group(1) if pkg_m else None})
+check("parsed 4 risk-linked actions from index.html ACTIONS[]", len(STG_ACTIONS) == 4, f"got {len(STG_ACTIONS)}")
+pkg_carrying = [a for a in STG_ACTIONS if a["pkg"]]
+check("exactly 1 of those 4 actions carries a real pkg (only R-01's does, today)",
+      len(pkg_carrying) == 1 and pkg_carrying[0]["pkg"] == "CP-201", f"got {pkg_carrying}")
 
 co_re = re.search(r'coCycleDays:\s*(\d+),\s*coCycleTarget:\s*(\d+)', src)
 check("parsed PROGRAM.coCycleDays/coCycleTarget from index.html", co_re is not None)
@@ -131,10 +151,13 @@ ledger = con.execute(MODEL.read_text()).fetchall()
 cols = [d[0] for d in con.description]
 by_id = {r[0]: dict(zip(cols, r)) for r in ledger}
 
-# --- 3b. Schedule-risk composite: build risk register + program tables, run the model -------
-con.execute("create table stg_risk_register(id varchar, p integer, cost double, pkg varchar)")
-con.executemany("insert into stg_risk_register values (?,?,?,?)",
-                [(r["id"], r["p"], r["cost"], r["pkg"]) for r in RISKS_PY])
+# --- 3b. Schedule-risk composite: build risk register + actions + program tables, run the model
+con.execute("create table stg_risk_register(id varchar, p integer, cost double)")
+con.executemany("insert into stg_risk_register values (?,?,?)",
+                [(r["id"], r["p"], r["cost"]) for r in RISKS_PY])
+con.execute("create table stg_actions(id varchar, src varchar, pkg varchar)")
+con.executemany("insert into stg_actions values (?,?,?)",
+                [(a["id"], a["src"], a["pkg"]) for a in STG_ACTIONS])
 con.execute("create table dim_program(co_cycle_days integer, co_cycle_target_days integer)")
 con.execute("insert into dim_program values (?,?)", (CO_CYCLE_DAYS, CO_CYCLE_TARGET))
 sched_ledger = con.execute(SCHED_MODEL.read_text()).fetchall()
@@ -166,10 +189,21 @@ for p in PKGS:
 # arithmetic matches a hand-written, independent Python implementation of the identically-stated
 # formula (weights 50/35/15, saturation bounds 0.20/$10M/15d) — a formula-equivalence check, not
 # a data-reconstruction check. Not a substitute for section 4's proof; a different, real one.
+def py_pkg_risk_exposure(pkg_id):
+    # Mirrors index.html's corrected pkgRiskExposure(): a risk counts toward pkg_id's exposure
+    # only if it has a REAL linked action (src contains the risk id) whose OWN pkg field matches
+    # -- not a static field on the risk itself. `any(...)` matches JS's `.some(...)` semantics.
+    total = 0.0
+    for r in RISKS_PY:
+        linked = [a for a in STG_ACTIONS if r["id"] in a["src"]]
+        if any(a["pkg"] == pkg_id for a in linked):
+            total += P_BAND[r["p"]] * r["cost"]
+    return total
+
 def py_schedule_risk_raw(pkg_id, float_days, cp_rem):
     cpli = (cp_rem + float_days) / cp_rem if cp_rem > 0 else 1.0
     erosion = max(0.0, 1.0 - cpli)
-    risk_exp = sum(P_BAND[r["p"]] * r["cost"] for r in RISKS_PY if r["pkg"] == pkg_id)
+    risk_exp = py_pkg_risk_exposure(pkg_id)
     co_overrun = max(0, CO_CYCLE_DAYS - CO_CYCLE_TARGET)
     raw = 50 * min(1, erosion / 0.20) + 35 * min(1, risk_exp / 10) + 15 * min(1, co_overrun / 15)
     return min(100, max(0, raw))
@@ -178,8 +212,11 @@ for p in PKGS:
     py_raw = py_schedule_risk_raw(p["id"], p["float"], p["cpRem"])
     sql_raw = sched_by_id[p["id"]]["schedule_risk_score_raw"]
     # Real arithmetic equivalence — compared BEFORE rounding, since DuckDB's round() and Python's
-    # round() break an exact .x5 tie (CP-701 hits one, at 31.45) with different, equally valid
-    # rules. Widening the post-round tolerance would have masked that instead of explaining it.
+    # round() break an exact .x5 tie with different, equally valid rules (CP-701's raw score DID
+    # land exactly on one, at 31.45, under the original hand-authored pkg mapping; the same-day
+    # riskLinkedActions() correction changed its real risk term to 0, so it's now an exact 15.0,
+    # no tie -- kept as defensive general practice regardless, not because today's data needs it).
+    # Widening the post-round tolerance would have masked that instead of explaining it.
     check(f"{p['id']} schedule_risk_score_raw: SQL == independent Python", abs(sql_raw - py_raw) < 1e-9,
           f"sql={sql_raw} py={py_raw}")
     # The rounded, on-screen value must still land within 0.05 of the raw score in BOTH
@@ -187,10 +224,11 @@ for p in PKGS:
     # demanding the two languages break the same half-way tie the same direction.
     sql_rounded = sched_by_id[p["id"]]["schedule_risk_score"]
     py_rounded = round(py_raw, 1)
-    # 0.05 + 1e-9: an exact .x5 tie (CP-701's raw is 31.45) sits precisely at the 0.05 boundary,
-    # and 31.45 has no exact binary float representation, so a strict <= 0.05 spuriously fails on
-    # float noise around 5e-16 -- same class of epsilon this file already applies at 1e-6/1e-9
-    # elsewhere, not a loosened tolerance masking a real gap.
+    # 0.05 + 1e-9: an exact .x5 tie sits precisely at the 0.05 boundary, and a value like 31.45
+    # (CP-701's raw score under the pre-correction hand-authored pkg mapping; superseded by the
+    # same-day riskLinkedActions() fix) has no exact binary float representation, so a strict
+    # <= 0.05 can spuriously fail on float noise around 5e-16 -- same class of epsilon this file
+    # already applies at 1e-6/1e-9 elsewhere, not a loosened tolerance masking a real gap.
     check(f"{p['id']} schedule_risk_score (SQL, rounded) within 0.05 of raw",
           abs(sql_rounded - sql_raw) <= 0.05 + 1e-9, f"rounded={sql_rounded} raw={sql_raw}")
     check(f"{p['id']} schedule_risk_score (Python, rounded) within 0.05 of raw",
@@ -202,13 +240,15 @@ for p in PKGS:
 # only 4 of schema.yml's declared tests were actually implemented (and one of those 4 had a
 # mislabeled check() string, "ev <= pv" printed for what was actually an ev<=bac test — fixed
 # below too), silently understating what README/HANDOFF's "enforces the guardrails in
-# models/schema.yml" claim promised. All 21 checks below map 1:1 to a schema.yml test declaration.
+# models/schema.yml" claim promised. All 23 checks below map 1:1 to a schema.yml test declaration.
 # (/stress-test finding, 2026-08-22: this comment itself still said "10" after later rounds grew
 # the real count to 14 — the exact class of drift this comment already exists to warn against.
 # 2026-08-26: grew to 15 with the claim_month temporal-fence check below.
 # 2026-09-02: grew to 21 with the 6 fct_schedule_risk/stg_risk_register guardrails below (schema.yml's
-# schedule-risk block) -- update this count again the next time a check is added, or this becomes
-# the same stale-number bug it warns about.)
+# schedule-risk block), then to 23 with 2 stg_actions guardrails added the same day when a
+# /stress-test finding forced the risk-to-package link to route through a real stg_actions join
+# instead of a hand-authored column -- update this count again the next time a check is added, or
+# this becomes the same stale-number bug it warns about.)
 con.execute("create table fct_control_account as " + MODEL.read_text())
 
 # fct_control_account model-level invariants (schema.yml's 3 dbt_utils.expression_is_true tests)
@@ -271,6 +311,10 @@ check("guardrail: fct_schedule_risk.package_id not null", sr_null == 0, f"{sr_nu
 check("guardrail: stg_risk_register.id unique", risk_dup == 0, f"{risk_dup} duplicates")
 check("guardrail: stg_risk_register.p within [1, 5]", risk_p_bad == 0, f"{risk_p_bad} violations")
 check("guardrail: stg_risk_register.cost >= 0 everywhere", risk_cost_neg == 0, f"{risk_cost_neg} negative rows")
+act_dup = con.execute("select count(*) - count(distinct id) from stg_actions").fetchone()[0]
+act_null = con.execute("select count(*) from stg_actions where id is null").fetchone()[0]
+check("guardrail: stg_actions.id unique", act_dup == 0, f"{act_dup} duplicates")
+check("guardrail: stg_actions.id not null", act_null == 0, f"{act_null} nulls")
 
 # --- 6. Emit the proof artifact --------------------------------------------
 # checks{} added (/stress-test finding, 2026-08-27): index.html's own "65 parity checks" claim

@@ -36,7 +36,7 @@ function livePipelineCheckCount() {
   // `SKIP_LIVE_PIPELINE=1 node stress.cjs` skips it (loudly, same as the other degraded paths),
   // falling back to the text-presence-only check.
   if (process.env.SKIP_LIVE_PIPELINE) {
-    console.log("  [degraded] SKIP_LIVE_PIPELINE set — skipping the live SQL/DuckDB parity-check verification by request. The '66 parity checks' assertions below fall back to a text-presence-only check.");
+    console.log("  [degraded] SKIP_LIVE_PIPELINE set — skipping the live SQL/DuckDB parity-check verification by request. The '103 parity checks' assertions below fall back to a text-presence-only check.");
     return null;
   }
   // Accepted, stated gap (/stress-test finding, independent reviewer, 2026-08-27): this assumes a
@@ -46,7 +46,7 @@ function livePipelineCheckCount() {
   // rule calls a lie of omission when left unstated. Stated here, not silently left as unknown.
   const venvPy = DIR + "pipeline/.venv/bin/python3";
   if (!fs.existsSync(venvPy)) {
-    console.log("  [degraded] pipeline/.venv not found — skipping the live SQL/DuckDB parity-check verification (run `python3 -m venv pipeline/.venv && pipeline/.venv/bin/pip install duckdb` once to enable it, or set SKIP_LIVE_PIPELINE=1 to silence this note). The '66 parity checks' assertions below fall back to a text-presence-only check.");
+    console.log("  [degraded] pipeline/.venv not found — skipping the live SQL/DuckDB parity-check verification (run `python3 -m venv pipeline/.venv && pipeline/.venv/bin/pip install duckdb` once to enable it, or set SKIP_LIVE_PIPELINE=1 to silence this note). The '103 parity checks' assertions below fall back to a text-presence-only check.");
     return null;
   }
   try {
@@ -5021,9 +5021,11 @@ console.log("== D25. whole-repo /stress-test round -- pipeline comment + dead CS
   // 2026-08-26: grew 14 -> 15 with the real claim_month temporal-fence guardrail (harvested from a
   // pasted external blueprint, after fact-checking it -- see pipeline/run_pipeline.py's own comment).
   // 2026-09-02: grew 15 -> 21 with the fct_schedule_risk/stg_risk_register guardrails (schedule-risk
-  // composite addition).
-  ok(realCheckCount === 21, "sanity: the pipeline really does have 21 real guardrail checks", String(realCheckCount));
-  ok(pipelineSrc.indexOf("All 21 checks below") >= 0, "the pipeline's own comment states the real, current check count, not a stale earlier one");
+  // composite addition), then 21 -> 23 with 2 stg_actions guardrails the same day, when a
+  // /stress-test finding forced the risk-to-package link through a real join instead of a
+  // hand-authored column.
+  ok(realCheckCount === 23, "sanity: the pipeline really does have 23 real guardrail checks", String(realCheckCount));
+  ok(pipelineSrc.indexOf("All 23 checks below") >= 0, "the pipeline's own comment states the real, current check count, not a stale earlier one");
   ok(indexSrc.indexOf(".inf{color:var(--c-pill-i)}") === -1, "the dead .inf CSS rule (zero markup/JS usages, confirmed by a full-file word-boundary sweep) has been removed");
   ok(indexSrc.indexOf("--c-pill-i") >= 0, "the underlying --c-pill-i token itself is still used elsewhere (.pill.i/.ticon.i/RAG.i) -- only the unused .inf shorthand was dead, not the color");
 }
@@ -8183,7 +8185,7 @@ ok(archSrc.includes("20 metrics, 6 families") && archSrc.includes("20 metrics ac
 ok(P.kpis.length === 20, "index.html's live KPIS array actually has 20 entries, matching architecture.html's claim", String(P.kpis.length));
 // 66-check -> 101-check (schedule-risk composite, 2026-09-02) -- kept in sync with the
 // LIVE_PIPELINE_CHECKS-driven checks above rather than left as a stale static literal.
-ok(archSrc.includes("29 live checks (browser)") && archSrc.includes("29 browser checks plus a separate 101-check SQL pipeline"),
+ok(archSrc.includes("29 live checks (browser)") && archSrc.includes("29 browser checks plus a separate 103-check SQL pipeline"),
   "architecture.html's '29 checks' prose is present in both the diagram box and the legend table -- 28->29, brainstorm-mode round, 2026-08-26 (item #3's QA/QC closure gate)");
 ok(P.guards.length === 29, "index.html's live GUARDS array actually has 29 entries, matching architecture.html's claim", String(P.guards.length));
 // 64 -> 65 (docs-currency /stress-test round, 2026-08-26): the temporal-fence guardrail added to
@@ -8195,8 +8197,28 @@ if (LIVE_PIPELINE_CHECKS) {
   ok(archSrc.includes("+ " + LIVE_PIPELINE_CHECKS.total + "-check SQL pipeline") && LIVE_PIPELINE_CHECKS.failed === 0,
     "architecture.html's SQL-pipeline check count matches a LIVE run of pipeline/run_pipeline.py this session (resolved -- no longer a static-only assumption)", JSON.stringify(LIVE_PIPELINE_CHECKS));
 } else {
-  ok(archSrc.includes("+ 66-check SQL pipeline"),
-    "architecture.html cites the 66-check SQL pipeline figure (degraded: no local pipeline/.venv found, text-presence check only -- see console note above)");
+  ok(archSrc.includes("+ 103-check SQL pipeline"),
+    "architecture.html cites the 103-check SQL pipeline figure (degraded: no local pipeline/.venv found, text-presence check only -- see console note above)");
+}
+// README.md/docs/HANDOFF.md added to this live-count sweep (/stress-test finding, independent
+// reviewer, 2026-09-03): both cited a stale "66"/"65-check" figure with ZERO test coverage tying
+// them to the live pipeline total -- the exact class of silent drift this whole mechanism exists
+// to catch, just in two files nothing was watching. Same LIVE_PIPELINE_CHECKS source, same
+// degraded-mode fallback shape as the architecture.html check just above.
+const readmeSrc = fs.readFileSync(DIR + "README.md", "utf8");
+const handoffSrc = fs.readFileSync(DIR + "docs/HANDOFF.md", "utf8");
+if (LIVE_PIPELINE_CHECKS) {
+  ok(readmeSrc.includes("(" + LIVE_PIPELINE_CHECKS.total + " checks,") && LIVE_PIPELINE_CHECKS.failed === 0,
+    "README.md's pipeline check count matches a LIVE run of pipeline/run_pipeline.py this session", JSON.stringify(LIVE_PIPELINE_CHECKS));
+  ok(readmeSrc.includes(LIVE_PIPELINE_CHECKS.total + " parity checks"),
+    "README.md's \"N parity checks\" claim (about index.html's own citation) also matches the live count");
+  ok(handoffSrc.includes("dbt-side " + LIVE_PIPELINE_CHECKS.total + "-check count"),
+    "docs/HANDOFF.md's pipeline check count matches a LIVE run of pipeline/run_pipeline.py this session");
+} else {
+  ok(readmeSrc.includes("(103 checks,") && readmeSrc.includes("103 parity checks"),
+    "README.md cites the 103-check pipeline figure (degraded: no local pipeline/.venv found, text-presence check only)");
+  ok(handoffSrc.includes("dbt-side 103-check count"),
+    "docs/HANDOFF.md cites the 103-check pipeline figure (degraded: no local pipeline/.venv found, text-presence check only)");
 }
 ok(archSrc.includes("17 tracked items"), "architecture.html's '17 tracked items' prose is present");
 ok(P.actions.length === 17, "index.html's live ACTIONS array actually has 17 entries, matching architecture.html's claim", String(P.actions.length));
@@ -9643,7 +9665,7 @@ console.log("== D56. GAO cost-estimate credibility checklist (research-backed up
     ok(accurate.evidence.includes(LIVE_PIPELINE_CHECKS.total + " parity checks") && LIVE_PIPELINE_CHECKS.failed === 0,
       "Accurate's evidence cites a count that matches a LIVE run of pipeline/run_pipeline.py this session (resolved -- no longer a static-only assumption)", JSON.stringify(LIVE_PIPELINE_CHECKS));
   } else {
-    ok(accurate.evidence.includes("66 parity checks"), "Accurate's evidence cites the real SQL/DuckDB parity-check count (degraded: no local pipeline/.venv found, text-presence check only -- see console note above)");
+    ok(accurate.evidence.includes("103 parity checks"), "Accurate's evidence cites the real SQL/DuckDB parity-check count (degraded: no local pipeline/.venv found, text-presence check only -- see console note above)");
   }
   const credible = rows.find((r) => r.characteristic === "Credible");
   ok(credible.evidence.includes(P.mc.n.toLocaleString("en-US")) && credible.evidence.includes(String(P.risks.length)), "Credible's evidence cites the real Monte Carlo run count and real risk-register size, not hardcoded numbers");
@@ -9899,7 +9921,7 @@ console.log("== D60. Estimate Maturity cards stacked, not side-by-side (TJ's own
   has("estClassCard", "Estimate classification", "estClassCard still renders its real heading after the wrapper change");
 }
 
-console.log("== D61. Schedule risk composite (brainstorm-mode addition, 2026-09-02) ==");
+console.log("== D61. Schedule risk composite (brainstorm-mode addition, 2026-09-02, CORRECTED same day) ==");
 {
   // Real coverage for the new feature itself, not just the stale-count fixes it forced elsewhere.
   const bad = P.rows.filter(r => !(r.schedRisk >= 0 && r.schedRisk <= 100));
@@ -9907,15 +9929,27 @@ console.log("== D61. Schedule risk composite (brainstorm-mode addition, 2026-09-
   ok(P.rows.every(r => typeof r.schedRisk === "number" && isFinite(r.schedRisk)),
     "every row carries a real, finite schedRisk (scheduleRiskScore() ran for all 8 packages)");
   const worst = P.rows.slice().sort((a, b) => b.schedRisk - a.schedRisk)[0];
-  ok(worst.id === "CP-201", "CP-201 (negative float + the largest priced, package-mapped risk) scores highest",
+  ok(worst.id === "CP-201", "CP-201 (negative float + the one real, package-mapped risk) scores highest",
     worst.id + "=" + worst.schedRisk);
-  // Package risk exposure only rolls up risks that carry a pkg -- packages with none score the
-  // same identical floor (the CO-cycle term alone), proving the "no risk mapped" case isn't
-  // silently inflated or zeroed.
-  const unmapped = P.rows.filter(r => ["CP-101", "CP-102", "CP-401", "CP-501"].includes(r.id));
-  const floorVals = new Set(unmapped.map(r => r.schedRisk));
-  ok(floorVals.size === 1, "the 4 packages with no risk-register mapping and healthy CPLI all share one identical floor score",
-    [...floorVals].join(","));
+
+  // CORRECTED finding, same day: the first version hand-authored a `pkg` field directly on
+  // RISKS[] entries, contradicting index.html's own riskLinkedActions() comment ("no hand-authored
+  // R-id -> package map") -- and was factually wrong against it for 3 of 4 mappings. RISKS[] now
+  // carries NO pkg field at all; the four asserts below prove that's true (not just removed from
+  // the one place already checked) and that the real derivation is what's driving the score.
+  ["R-01", "R-02", "R-03", "R-04", "R-05", "R-06", "R-07"].forEach(id => {
+    const block = (indexSrc.match(new RegExp('\\{id:"' + id + '"[\\s\\S]*?\\}', "")) || [""])[0];
+    ok(!/pkg:"/.test(block), id + "'s RISKS[] entry carries no hand-authored pkg field");
+  });
+  ok(/function pkgRiskExposure\(pkgId\)\{\s*return RISKS\.filter\(function\(k\)\{\s*return riskLinkedActions\(k\)\.some/.test(indexSrc),
+    "pkgRiskExposure() derives package linkage by calling riskLinkedActions(), not a static field");
+  // Today's real ground truth (asserted, not assumed): only R-01's linked action (A-04) carries a
+  // real pkg -- so only CP-201 should show any nonzero risk-exposure contribution; every other
+  // package's schedRisk comes ENTIRELY from CPLI erosion + the shared CO-cycle floor.
+  const cp201Only = P.rows.filter(r => r.id !== "CP-201")
+    .every(r => Math.abs(r.schedRisk - (50 * Math.min(1, Math.max(0, 1 - r.cpli) / 0.20) + 15)) < 0.06);
+  ok(cp201Only, "every package except CP-201 scores exactly its erosion term + the CO-cycle floor (zero risk contribution)",
+    P.rows.map(r => r.id + "=" + r.schedRisk).join(","));
 
   has("schedRisk", "CP-201", "the schedule-risk bars render CP-201's row");
   has("schedRiskOpQ", "accumulating schedule risk from every direction", "the schedule-risk operational question renders");
@@ -9925,24 +9959,15 @@ console.log("== D61. Schedule risk composite (brainstorm-mode addition, 2026-09-
   ok(/Weights and saturation[\s\S]{0,40}points are stated, illustrative choices/.test(indexSrc),
     "the schedule-risk card explicitly discloses its weights/bounds are illustrative, not calibrated");
 
-  // pkg mapping: 4 risks mapped, 3 deliberately left portfolio-wide (R-04/R-06/R-07) -- both
-  // halves asserted, not just the presence of the mapped ones.
-  ["CP-201", "CP-601", "CP-701", "CP-301"].forEach(pkg =>
-    ok(new RegExp('pkg:"' + pkg + '"').test(indexSrc), "RISKS[] carries a pkg:\"" + pkg + "\" mapping"));
-  ["R-04", "R-06", "R-07"].forEach(id => {
-    const block = (indexSrc.match(new RegExp('\\{id:"' + id + '"[\\s\\S]*?\\}', "")) || [""])[0];
-    ok(!/pkg:"/.test(block), id + " is deliberately left unmapped (portfolio-wide/multi-package risk)");
-  });
-
   // Pipeline files exist and are non-trivial (content-level pipeline correctness is
   // run_pipeline.py's own job, re-verified live via LIVE_PIPELINE_CHECKS above -- this just
   // confirms the model/schema files this session added are actually present and real).
   const schedSql = fs.readFileSync(DIR + "pipeline/models/fct_schedule_risk.sql", "utf8");
-  ok(schedSql.includes("schedule_risk_score") && schedSql.includes("dim_control_account"),
-    "pipeline/models/fct_schedule_risk.sql exists and defines the composite score");
+  ok(schedSql.includes("schedule_risk_score") && schedSql.includes("dim_control_account") &&
+     schedSql.includes("stg_actions"), "pipeline/models/fct_schedule_risk.sql joins through stg_actions, not a static pkg column");
   const schemaYml = fs.readFileSync(DIR + "pipeline/models/schema.yml", "utf8");
-  ok(schemaYml.includes("fct_schedule_risk") && schemaYml.includes("stg_risk_register"),
-    "schema.yml declares guardrail tests for both new models");
+  ok(schemaYml.includes("fct_schedule_risk") && schemaYml.includes("stg_risk_register") && schemaYml.includes("stg_actions"),
+    "schema.yml declares guardrail tests for all three new/changed models");
 }
 
 console.log("\n" + pass + " passed, " + fail + " failed");
