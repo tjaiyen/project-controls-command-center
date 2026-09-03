@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Project Controls for a Unitized Facade Operation — TJ Jaiyen</title>
+<meta name="description" content="TJ Jaiyen — capability coverage for project controls at a unitized curtain wall subcontractor, gaps included. Prepared for Walters &amp; Wolf.">
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230A0F1D'/%3E%3Cpath d='M6 22 L12 15 L18 18 L26 8' stroke='%2306B6D4' stroke-width='2.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+:root{
+  --c-bg-primary:10 15 29; --c-bg-card:30 41 59; --c-accent:6 182 212;
+  --c-text-primary:241 245 249; --c-text-secondary:148 163 184; --c-text-code:34 211 238;
+  --c-success:16 185 129; --c-warning:245 158 11; --c-danger:239 68 68;
+  --c-pill-g:#34D399; --c-pill-a:#F59E0B; --c-pill-r:#FCA5A5;
+  --c-line:rgb(6 182 212 / .20);
+}
+@media (prefers-color-scheme: light){
+  :root{
+    --c-bg-primary:248 250 252; --c-bg-card:255 255 255; --c-accent:14 116 144;
+    --c-text-primary:15 23 42; --c-text-secondary:71 85 105; --c-text-code:14 116 144;
+    --c-success:5 150 105; --c-warning:180 83 9; --c-danger:220 38 38;
+    --c-pill-g:#065F46; --c-pill-a:#92400E; --c-pill-r:#991B1B;
+    --c-line:rgb(14 116 144 / .22);
+  }
+}
+:root[data-theme="dark"]{
+  --c-bg-primary:10 15 29; --c-bg-card:30 41 59; --c-accent:6 182 212;
+  --c-text-primary:241 245 249; --c-text-secondary:148 163 184; --c-text-code:34 211 238;
+  --c-success:16 185 129; --c-warning:245 158 11; --c-danger:239 68 68;
+  --c-pill-g:#34D399; --c-pill-a:#F59E0B; --c-pill-r:#FCA5A5;
+  --c-line:rgb(6 182 212 / .20);
+}
+:root[data-theme="light"]{
+  --c-bg-primary:248 250 252; --c-bg-card:255 255 255; --c-accent:14 116 144;
+  --c-text-primary:15 23 42; --c-text-secondary:71 85 105; --c-text-code:14 116 144;
+  --c-success:5 150 105; --c-warning:180 83 9; --c-danger:220 38 38;
+  --c-pill-g:#065F46; --c-pill-a:#92400E; --c-pill-r:#991B1B;
+  --c-line:rgb(14 116 144 / .22);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:rgb(var(--c-bg-primary));color:rgb(var(--c-text-primary));
+  font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased}
+code,.mono,.tabular{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+.tabular{font-variant-numeric:tabular-nums}
+a{color:rgb(var(--c-accent))}
+:focus-visible{outline:2px solid rgb(var(--c-accent));outline-offset:2px;border-radius:4px}
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px 72px}
+.bar{position:sticky;top:0;z-index:40;background:rgb(var(--c-bg-primary) / .92);
+  backdrop-filter:blur(8px);border-bottom:1px solid var(--c-line)}
+.bar-in{max-width:1080px;margin:0 auto;padding:10px 20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.brand{display:flex;gap:9px;align-items:center;font-weight:600;text-decoration:none;color:inherit}
+.brand small{display:block;font:400 11px/1.3 ui-monospace,Menlo,monospace;color:rgb(var(--c-text-secondary))}
+.dot{width:9px;height:9px;border-radius:50%;background:rgb(var(--c-accent));flex:none}
+.bar .right{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.icobtn{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:9px 11px;
+  border:1px solid var(--c-line);border-radius:7px;background:transparent;
+  color:rgb(var(--c-text-primary));font:500 12px/1 inherit;cursor:pointer;text-decoration:none}
+@media (hover:hover) and (pointer:fine){.icobtn:hover{background:rgb(var(--c-accent) / .10)}}
+.icobtn[aria-pressed="true"]{background:rgb(var(--c-accent) / .16);border-color:rgb(var(--c-accent))}
+.eyebrow{font:600 10.5px/1 ui-monospace,Menlo,monospace;letter-spacing:.16em;text-transform:uppercase;
+  color:rgb(var(--c-text-code));margin:0 0 8px}
+h1{font-size:clamp(1.6rem,3.6vw,2.2rem);line-height:1.16;letter-spacing:-.022em;margin:0 0 12px}
+h2{font-size:clamp(1.15rem,2.2vw,1.38rem);letter-spacing:-.015em;margin:0 0 8px}
+h3{font-size:1rem;margin:0 0 6px}
+.lede{color:rgb(var(--c-text-secondary));max-width:74ch;margin:0}
+section{padding-top:46px}
+.chapter{display:flex;align-items:center;gap:10px;margin-bottom:14px;
+  font:600 11px/1 ui-monospace,Menlo,monospace;letter-spacing:.13em;text-transform:uppercase;
+  color:rgb(var(--c-text-secondary))}
+.chapter .num{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:6px;
+  background:rgb(var(--c-accent) / .13);color:rgb(var(--c-text-code));font-size:11px}
+.card{background:rgb(var(--c-bg-card));border:1px solid var(--c-line);border-radius:10px;padding:17px}
+.thesis{border-left:3px solid rgb(var(--c-accent));background:rgb(var(--c-accent) / .07);
+  border-radius:0 9px 9px 0;padding:15px 18px;margin-top:18px;font-size:15.5px}
+.thesis b{color:rgb(var(--c-text-primary))}
+.cov{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;
+  background:var(--c-line);border:1px solid var(--c-line);border-radius:10px;overflow:hidden;margin-top:18px}
+.covcell{background:rgb(var(--c-bg-card));padding:14px 16px}
+.covcell .v{font:600 1.5rem/1 ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums}
+.covcell .l{margin-top:7px;font:600 10px/1.3 ui-monospace,Menlo,monospace;letter-spacing:.1em;
+  text-transform:uppercase;color:rgb(var(--c-text-secondary))}
+/* Status text reuses the measured pill tokens -- the raw status hues fail AA as small text. */
+.good{color:var(--c-pill-g)} .warn{color:var(--c-pill-a)} .bad{color:var(--c-pill-r)}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}
+.tblwrap{overflow-x:auto;margin-top:14px;border:1px solid var(--c-line);border-radius:10px}
+@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}}
+table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:680px}
+th,td{text-align:left;padding:11px 13px;border-bottom:1px solid var(--c-line);vertical-align:top}
+th{font:600 10px/1.3 ui-monospace,Menlo,monospace;letter-spacing:.09em;text-transform:uppercase;
+  color:rgb(var(--c-text-secondary));background:rgb(var(--c-bg-card))}
+tbody tr:last-child td{border-bottom:none}
+td.req{font-weight:500;width:27%}
+td.st{width:96px;white-space:nowrap}
+.pill{display:inline-block;padding:2px 9px;border-radius:999px;font:600 10.5px/1.6 ui-monospace,Menlo,monospace}
+.pill.met{background:rgb(var(--c-success) / .15);color:var(--c-pill-g)}
+.pill.part{background:rgb(var(--c-warning) / .16);color:var(--c-pill-a)}
+.pill.gap{background:rgb(var(--c-danger) / .15);color:var(--c-pill-r)}
+tr.low td.req::after{content:" \00B7 low relevance here";font:400 11px/1 ui-monospace,Menlo,monospace;
+  color:rgb(var(--c-text-secondary))}
+ul.tight{margin:10px 0 0;padding-left:19px} ul.tight li{margin:5px 0}
+.grid2{display:grid;grid-template-columns:1fr;gap:16px;margin-top:16px}
+.grid2>*{min-width:0}
+@media(min-width:860px){.grid2{grid-template-columns:1fr 1fr}}
+.leak{padding:13px 0;border-bottom:1px solid var(--c-line)}
+.leak:last-child{border-bottom:none}
+.leak .d{font:600 11px/1.35 ui-monospace,Menlo,monospace;letter-spacing:.08em;text-transform:uppercase;
+  color:rgb(var(--c-text-code));margin-bottom:5px}
+.opt{padding:15px 0;border-bottom:1px solid var(--c-line)}
+.opt:last-child{border-bottom:none}
+.opt .h{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;margin-bottom:6px}
+.opt .h b{font-size:15px}
+.price{font:600 12px/1 ui-monospace,Menlo,monospace;color:rgb(var(--c-text-code));
+  padding:4px 9px;border:1px solid var(--c-line);border-radius:999px;white-space:nowrap}
+.rec{background:rgb(var(--c-success) / .15);color:var(--c-pill-g);border-radius:999px;
+  padding:2px 9px;font:600 10.5px/1.6 ui-monospace,Menlo,monospace}
+footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
+  font-size:12.5px;color:rgb(var(--c-text-secondary))}
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <div class="bar-in">
+    <a class="brand" href="index.html" title="Back to the command center">
+      <span class="dot"></span>
+      <span>Project Controls &mdash; Unitized Facade<small>TJ Jaiyen &middot; prepared for Walters &amp; Wolf</small></span>
+    </a>
+    <div class="right">
+      <button class="icobtn" id="themeBtn" type="button" aria-pressed="false">Theme</button>
+      <a class="icobtn" href="facade.html">Facade dashboard</a>
+      <a class="icobtn" href="index.html">&larr; Command center</a>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <section id="top" style="padding-top:36px">
+    <div class="eyebrow">Walters &amp; Wolf &middot; Mukilteo, WA &middot; Project Controls</div>
+    <h1>You know what a job should cost when you bid it</h1>
+    <p class="lede">
+      The open question is whether you know what it <em>actually</em> cost while there is still time
+      to do something about it. I spent four and a half years in Mukilteo owning the first half of
+      that sentence &mdash; takeoffs, unit rates, margin, and the GC proposal that came out the other
+      end. I spent the two years after it owning the second half: production cost across four Collins
+      Aerospace sites as the SAP CO/PP/MM/FICO subject&#8209;matter expert, then building
+      B.E.&nbsp;Meyers &amp; Co.'s entire cost and forecasting infrastructure from zero as its first
+      dedicated cost accountant. The bid side and the
+      actuals side are the same problem seen from opposite ends, and most people who do project
+      controls have only ever stood at one end of it.
+    </p>
+    <div class="thesis">
+      <b>The structural argument:</b> a unitized curtain wall job is not a construction schedule with
+      a factory attached &mdash; it is a <b>production line with an installation window</b>. The shop
+      thinks in panels and takt; the field thinks in floors and crew days; accounting thinks in cost
+      codes. One job number, three languages. That is a manufacturing&#8209;controls problem wearing a
+      construction hat, and it is the seam my two careers actually sit on.
+    </div>
+    <div class="card" style="margin-top:14px;border-left:3px solid rgb(var(--c-success));border-radius:0 10px 10px 0">
+      <h3>One thing I checked before writing this</h3>
+      <p style="margin:9px 0 0;color:rgb(var(--c-text-secondary))">
+        Your own site says Walters &amp; Wolf is
+        <b style="color:rgb(var(--c-text-primary))">&ldquo;disciplined in practicing the Toyota
+        production system, growing and building lean thinkers&rdquo;</b> &mdash; alongside a stated
+        library of over six thousand continuous&#8209;improvement videos. A shop that already thinks
+        in flow, pull, takt and buffers deserves project controls that speak that language. Almost no
+        controls candidate does; most will hand you a critical&#8209;path model and call the factory
+        an input. The metrics I would build for you &mdash; panel flow, days of buffer cover,
+        shop&#8209;versus&#8209;field cost crosswalk &mdash; are lean metrics that happen to roll up
+        into earned value, not the other way round.
+        <span style="font-size:12px">(<a href="https://waltersandwolf.com/how-we-do-it/" target="_blank" rel="noopener">waltersandwolf.com/how-we-do-it</a>, verified 2&nbsp;Sep&nbsp;2026)</span>
+      </p>
+    </div>
+  </section>
+
+  <section id="coverage">
+    <div class="chapter"><span class="num">1</span>Capability coverage</div>
+    <h2>What this work needs, and where I actually land on each</h2>
+    <p class="lede">There is no posting behind this page, which means <b>I wrote the list</b> &mdash;
+      so I chose the test. That is worth saying out loud rather than hoping nobody notices. The
+      eighteen lines below are the capabilities I believe a controls function at a unitized facade
+      subcontractor genuinely needs; the scores are the same ones I would give on any skills survey,
+      including the zeros. A coverage matrix is only worth reading if the shortfalls are in it, so
+      they are marked as plainly as the matches. If you think the list is wrong, that is a better
+      conversation than the scores.</p>
+
+    <div class="cov" id="cov"></div>
+
+    <div class="filters" role="group" aria-label="Filter capabilities by coverage">
+      <button class="icobtn" data-f="all"  aria-pressed="true" id="fAll">All</button>
+      <button class="icobtn" data-f="met"  aria-pressed="false">Met</button>
+      <button class="icobtn" data-f="part" aria-pressed="false">Partial</button>
+      <button class="icobtn" data-f="gap"  aria-pressed="false">Gap</button>
+    </div>
+
+    <div class="tblwrap" tabindex="0" role="region" aria-label="Capability coverage matrix, horizontally scrollable">
+      <table>
+        <thead><tr>
+          <th scope="col">Capability</th>
+          <th scope="col">Evidence</th>
+          <th scope="col">Coverage</th>
+        </tr></thead>
+        <tbody id="covBody" aria-live="polite"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="gaps">
+    <div class="chapter"><span class="num">2</span>What I don't bring, stated once</div>
+    <h2>The scheduling half, without the hedging</h2>
+    <p class="lede">Nearly every partial and the one outright gap above trace to a single thing.
+      Here it is plainly, because finding it out in the fifth meeting would be worse for both of us.</p>
+    <div class="grid2">
+      <div class="card">
+        <h3><span class="pill gap">Gap</span> &nbsp;Owning a CPM schedule in Primavera P6</h3>
+        <p style="margin:9px 0 0;color:rgb(var(--c-text-secondary))">
+          Zero. Not &ldquo;limited exposure&rdquo; &mdash; I have never owned a P6 model and I do not
+          claim otherwise on a resume, in a survey, or here. The same is true of Deltek Cobra and
+          Costpoint. If what you need is a scheduler to administer a critical&#8209;path model, I am
+          the wrong call.
+        </p>
+        <p style="margin:9px 0 0;color:rgb(var(--c-text-secondary))">
+          What I would say about it: P6 is a bounded, learnable tool. Structured fundamentals run a
+          few days to a working command of the interface; genuine schedule ownership &mdash; logic
+          ties, resource levelling, baseline management &mdash; builds over the following months on
+          real project data. That is the same ramp any new CPM user faces. I am not going to dress it
+          up as anything shorter.
+        </p>
+      </div>
+      <div class="card">
+        <h3><span class="pill part">Partial</span> &nbsp;Earned value on real jobs</h3>
+        <p style="margin:9px 0 0;color:rgb(var(--c-text-secondary))">
+          I have built the full apparatus &mdash; CPI, SPI, schedule&#8209;based SPI(t), four EAC
+          methods, critical&#8209;path length index, baseline execution index, Monte Carlo cost
+          forecasting, and an independent SQL re&#8209;derivation that has to agree with the browser's
+          own arithmetic before the page is allowed to claim a number. You can
+          <a href="index.html">open all of it</a> &mdash; and the version built for
+          <em>this</em> problem specifically, with panel&#8209;level earned value, the
+          factory&#8209;versus&#8209;field buffer, the AAMA gates and tolerance creep, is
+          <a href="facade.html">here</a>.
+        </p>
+        <p style="margin:9px 0 0;color:rgb(var(--c-text-secondary))">
+          But it is <b>self&#8209;directed work on synthetic data</b>, not a program I ran. The cost
+          variance, forecasting and reconciliation half of it I have done for real, at scale, for
+          money. The earned&#8209;value half I have built rather than operated. Both halves of that
+          sentence are true and I would rather you have them in the same paragraph.
+        </p>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h3>What follows from that</h3>
+      <p style="margin:9px 0 0;color:rgb(var(--c-text-secondary))">
+        It is the reason the first engagement below is scoped around <b>cost</b> rather than
+        <b>schedule</b>. Not because schedule does not matter on a facade job &mdash; it is most of
+        the risk &mdash; but because I should start where I am already strong, prove something
+        useful, and earn the schedule half rather than assert it.
+      </p>
+    </div>
+  </section>
+
+  <section id="operation">
+    <div class="chapter"><span class="num">3</span>Your operation, specifically</div>
+    <h2>Six places margin leaks on unitized work</h2>
+    <p class="lede">Independent of whether a system exists to see them in, these are structural to
+      unitized work and worth naming. I am not claiming they are all true in Mukilteo today &mdash;
+      I have been gone since January 2024 and I would be guessing. Any single one of them is worth
+      more than the fee below; the point of a first engagement is finding out which ones you
+      actually have, and building the first piece of the thing that lets you see them.</p>
+
+    <div class="card" style="margin-top:16px;border-left:3px solid rgb(var(--c-accent));border-radius:0 10px 10px 0">
+      <h3>The backdrop, so the leak list below isn't read in a vacuum</h3>
+      <p style="margin:9px 0 0;color:rgb(var(--c-text-secondary))">
+        The commercial office market that built the branch's historical volume hasn't paused &mdash;
+        it has reset. Downtown Seattle office vacancy hit a record 35.8% in Q2 2026 and the regional
+        office construction pipeline is down roughly 99% from its 2023 peak.
+        <span style="font-size:12px">(<a href="https://kidder.com/market-reports/seattle-office-market-report/" target="_blank" rel="noopener">Kidder Mathews, Q2 2026</a>)</span>
+        Meanwhile a different kind of building envelope has become the most heavily financed segment
+        in commercial construction: North American data&#8209;center inventory grew 33.7%
+        year&#8209;over&#8209;year to a record 10,903 MW in H1 2026, with vacancy at a
+        record&#8209;low 1.4%.
+        <span style="font-size:12px">(<a href="https://www.cbre.com/insights/books/north-america-data-center-trends-h1-2026" target="_blank" rel="noopener">CBRE, H1 2026</a>)</span>
+        Grant County, one Cascade crossing east, is mid&#8209;way through a $260M program to roughly
+        double its deliverable power by 2029.
+        <span style="font-size:12px">(<a href="https://grantpudqtep.org/" target="_blank" rel="noopener">Grant PUD QTEP</a>)</span>
+      </p>
+      <p style="margin:9px 0 0;color:rgb(var(--c-text-secondary))">
+        I've been gone since January 2024, so which of those trendlines matters more to the branch's
+        2026 plan isn't mine to call from outside. What doesn't change either way: when the volume
+        you're chasing tightens or shifts, the operation that already knows its real job cost
+        &mdash; panel by panel, vendor by vendor &mdash; makes that call faster and with less
+        guessing than the one re&#8209;deriving it under pressure. That is the case for what follows,
+        independent of which market the branch is building into next.
+      </p>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="leak"><div class="d">1 &middot; Shop and field roll up to one margin in different units</div>
+        Panels fabricated versus floors set. Without a crosswalk, &ldquo;how are we doing&rdquo; has
+        no single answer.</div>
+      <div class="leak"><div class="d">2 &middot; Percent complete is contested</div>
+        The GC says one number, the field says another, accounting says a third. On unitized work
+        physical completion is genuinely <b>countable</b> &mdash; panels set over panels total &mdash;
+        which is a luxury stick&#8209;built jobs do not have. It only helps if someone tracks it that
+        way.</div>
+      <div class="leak"><div class="d">3 &middot; The buffer is real but invisible</div>
+        Everyone knows you want crated units ahead of the setting crew. Almost nobody carries a
+        <b>days&#8209;of&#8209;cover</b> number that trends, so buffer depletion is noticed when the
+        crane goes idle rather than three weeks earlier.</div>
+      <div class="leak"><div class="d">4 &middot; RFIs and change orders are managed as correspondence, not as priced exposure</div>
+        Procore holds the thread; the aging pipeline of unpriced change rarely shows up as a dollar
+        figure against margin until it settles.</div>
+      <div class="leak"><div class="d">5 &middot; Rework from tolerance drift books late</div>
+        Small setting variances compound across an elevation sweep. By the time it is a perimeter
+        joint that will not take sealant, the cost is already spent.</div>
+      <div class="leak"><div class="d">6 &middot; Estimating re-derives price it already paid for once</div>
+        Without a queryable history of what a product cost, from which vendor, on what kind of job,
+        every bid starts closer to zero than it needs to.</div>
+    </div>
+    <div class="card" style="margin-top:16px;border-left:3px solid rgb(var(--c-accent));border-radius:0 10px 10px 0">
+      <h3>Why I can write that list without a discovery call</h3>
+      <p style="margin:9px 0 0;color:rgb(var(--c-text-secondary))">
+        Because I priced this work for four and a half years. I know what a split&#8209;mullion stack
+        joint is, why the crating order is reversed against the setting sweep, what the starter sill
+        flood test gates before panels go above it, and what it costs when a takeoff and a material
+        schedule quietly disagree &mdash; because I found one that did. Linking unit geometry
+        directly to the material schedule reconciled two disconnected takeoffs, surfaced a real
+        square&#8209;footage discrepancy, and turned addenda repricing from days into minutes.
+        <b style="color:rgb(var(--c-text-primary))">That is the seed of the first engagement below</b>
+        &mdash; the same discipline, applied to your vendor quote and PO history instead of one
+        takeoff.
+      </p>
+    </div>
+  </section>
+
+  <section id="start">
+    <div class="chapter"><span class="num">4</span>Where I'd start</div>
+    <h2>Three shapes, and the one I'd pick</h2>
+    <p class="lede">All three are on the page rather than assuming which fits your year. The
+      recommendation is the first one, because it is the shape where you find out whether I am useful
+      before committing to anything.</p>
+    <div class="card" style="margin-top:16px">
+      <div class="opt">
+        <div class="h"><b>A &middot; Estimating History Assembly</b>
+          <span class="price">$4,000&ndash;$8,000 fixed &middot; 2&ndash;4 weeks</span>
+          <span class="rec">Recommended</span></div>
+        <div style="color:rgb(var(--c-text-secondary))">
+          Assemble your scattered bid quotes and past purchase orders &mdash; email, folders, PDFs,
+          whatever form they are actually in &mdash; into one queryable price history, coded to
+          <b>CSI MasterFormat 08 44 13</b> so it stays portable into whatever you use next. You get
+          the history itself, plus a written finding on what it shows about your last several bids:
+          where price moved against you, which vendors drift from quote to final PO, and where a
+          repeat product is priced inconsistently for no visible reason. Yours to keep whether or not
+          anything follows. This is the smallest possible closed loop &mdash; it touches no PM's
+          process and needs no system to exist first, which is deliberate.
+        </div>
+      </div>
+      <div class="opt">
+        <div class="h"><b>B &middot; The shared substrate</b>
+          <span class="price">$8,000&ndash;$15,000 build &middot; $1,000&ndash;$2,500/mo</span></div>
+        <div style="color:rgb(var(--c-text-secondary))">
+          For when the answer to A is &ldquo;we want this live, and we want the rest of it too.&rdquo;
+          Not a dashboard &mdash; a small, versioned set of handoff templates (cost breakdown,
+          schedule of values, PO, change order) that behave like the Excel your PMs already keep,
+          feeding one governed data layer underneath. No PM is asked to stop using Excel or adopt
+          anyone else's method &mdash; the standard is the shape of the handoff, not the tool. What
+          comes back to each PM is something none of them can produce alone: their job against the
+          last several of its type. I would want A done first regardless.
+        </div>
+      </div>
+      <div class="opt">
+        <div class="h"><b>C &middot; Fractional, embedded, or salaried</b>
+          <span class="price">$175&ndash;225/hr, or W&#8209;2</span></div>
+        <div style="color:rgb(var(--c-text-secondary))">
+          A set number of days a month owning controls across the branch's active jobs, convertible to
+          a salaried seat if it earns one. I am open on the shape and would rather you pick it than
+          have me presume.
+        </div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h3>What I'd need from you</h3>
+      <ul class="tight" style="color:rgb(var(--c-text-secondary))">
+        <li>Whatever bid quotes and past POs exist, in whatever form and however scattered &mdash;
+          that is the raw material for Option A, not a precondition for it.</li>
+        <li>Thirty minutes each with an estimator, a PM, and whoever owns the shop schedule.</li>
+        <li>One person who can tell me when I am wrong about how the operation runs today, and who
+          can speak for what your PMs would and would not accept &mdash; ideally the person who will
+          actually lead this once it is running.</li>
+        <li>If there turns out to be an ERP or a controls tool already in place, tell me &mdash; it
+          changes nothing about Option A and changes the shape of Option B.</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>
+    <p><b>Prepared by TJ Jaiyen</b> &middot; Lake Stevens, WA &middot;
+      <a href="mailto:theerayut.jaiyen@gmail.com">theerayut.jaiyen@gmail.com</a> &middot;
+      <a href="https://linkedin.com/in/jaiyentheerayut" target="_blank" rel="noopener">LinkedIn</a> &middot;
+      <a href="https://tjaiyen.github.io/tj-finance-portfolio/" target="_blank" rel="noopener">Portfolio</a></p>
+    <p>The linked dashboard uses synthetic illustrative data only &mdash; no client, employer or
+      agency information appears in it, and none of my prior employers' data appears anywhere on this
+      page. Figures cited above are drawn from my own work history and are stated at the level of
+      detail I can defend in a room without backtracking. Company and market facts &mdash; about
+      Walters &amp; Wolf and about the regional office and data&#8209;center markets &mdash; are taken
+      from the named public sources and were verified on 2&nbsp;September&nbsp;2026.</p>
+  </footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var root = document.documentElement;
+  var themeBtn = document.getElementById("themeBtn");
+  var mq = window.matchMedia("(prefers-color-scheme: dark)");
+  function applyThemeLabel(){ themeBtn.setAttribute("aria-pressed", root.dataset.theme ? "true" : "false"); }
+  themeBtn.addEventListener("click", function(){
+    var current = root.dataset.theme || (mq.matches ? "dark" : "light");
+    root.dataset.theme = current === "dark" ? "light" : "dark";
+    applyThemeLabel();
+  });
+  applyThemeLabel();
+
+  /* Capability rows. There is no posting behind this page, so the list is self-authored -- the
+     lede says so explicitly rather than implying an external rubric. `s` in met | part | gap.
+     `low` flags a capability that is real in project controls generally but carries little weight
+     at a facade subcontractor specifically; it is tallied separately for the same reason otak.html
+     tallies preferred lines separately -- declining something that does not apply here should not
+     read as being under-qualified. */
+  var CAPS = [
+    {r:"Curtain-wall bid and estimate cost basis",
+     e:"Four and a half years owning bid pricing and cost estimation on high-rise aluminum curtain wall exceeding $50M per package, takeoff through GC proposal &mdash; in your Mukilteo office. Material takeoffs and quantity development in Bluebeam across 100+ projects.", s:"met"},
+    {r:"Takeoff-to-material-schedule reconciliation",
+     e:"Linked unit geometry directly to the material schedule to reconcile two previously disconnected takeoffs; caught a real square-footage discrepancy and cut addenda repricing from days to minutes. This is the specific move Option A productises.", s:"met"},
+    {r:"ERP and production cost systems",
+     e:"Principal subject-matter expert for SAP CO/PP/MM/FICO across four Collins Aerospace production sites. Then, as the first dedicated cost accountant in B.E. Meyers &amp; Co.'s history, built its entire cost-reporting and forecasting infrastructure from zero against SYSPRO 8 — no predecessor, no templates, no BI team.", s:"met"},
+    {r:"Cross-system data reconciliation",
+     e:"The strongest line here. SYSPRO to Excel to Power BI; SAP to Excel to Power BI. Forensic SQL reconciliation against SYSPRO 8 to find where two systems disagreed and why. A shop system and a field system that measure work differently is the same problem.", s:"met"},
+    {r:"Reporting and dashboards for leadership",
+     e:"A 180+ measure DAX library and 60+ Power Query pipelines built from scratch; cost-intelligence dashboards across $500M+ of annual production at Collins. Delivered to CFO, COO and Director of Operations audiences, not to analysts.", s:"met"},
+    {r:"Cost forecasting and EAC development",
+     e:"Rolling twelve-month revenue, cost and cash forecast tool built from zero; long-range cost modelling and make/buy analysis at Collins Aerospace.", s:"met"},
+    {r:"Cost variance analysis and decomposition",
+     e:"Core FP&amp;A work at Collins. Decomposing a single variance into quantity, price and productivity is the method Option A applies to closed bids &mdash; the same arithmetic, pointed backwards.", s:"met"},
+    {r:"Change, RFI and submittal coordination with GCs and vendors",
+     e:"Roughly six years across Walters &amp; Wolf and Pillari Bros. &mdash; RFIs to the general contractor, RFQs to material vendors, submittals to engineering, in Procore. Also negotiated subcontractor and vendor pricing directly on GC proposals.", s:"met"},
+    {r:"Programming and automation for controls",
+     e:"Python (pandas, pyodbc, SQLAlchemy), SQL, PowerShell automating a full extract-verify-submit pipeline on a weekly and monthly schedule, VBA for the formatted report inside it, and a tested dbt/DuckDB cost-attribution pipeline in a CI-green repository.", s:"met"},
+    {r:"AI-assisted variance narrative, with guardrails",
+     e:"Built a Claude-based finance variance agent with hallucination, coverage and schema guardrails &mdash; the guardrails being the point. A narrative that cannot be mechanically checked against the data it describes is a liability, not a feature.", s:"met"},
+    {r:"Earned value: CPI, SPI, SPI(t), EAC, VAC",
+     e:"Fully built &mdash; four EAC methods, schedule-based SPI(t), Monte Carlo cost forecasting, and an independent SQL re-derivation that must agree with the browser's own arithmetic. But self-directed on synthetic data, not a program I ran for money.", s:"part"},
+    {r:"Cost and schedule integration",
+     e:"Same self-directed dashboard: a gate that locks earned-value figures to a formally adopted baseline, breach thresholds each carrying a named owner and consequence, and a cost-versus-schedule work-breakdown reconciliation. Built, not operated.", s:"part"},
+    {r:"Preliminary and hand-off schedule development",
+     e:"Real and recurring: bid-to-handoff schedules in MS Project within a GC-provided timeframe, sequenced across engineering and mock-up gates, procurement, fabrication, staging, floor-by-floor erection and closeout, tied to payment milestones &mdash; then handed to PM and engineering to execute. Upstream of live schedule ownership.", s:"part"},
+    {r:"Schedule updating and progress measurement",
+     e:"Progress tracked against budgeted crew hours in HeavyJob at Pillari Bros. Real measurement, but against a labour budget rather than critical-path logic.", s:"part"},
+    {r:"Critical path and float analysis",
+     e:"Built critical-path length index and float-erosion tracking in the self-directed dashboard &mdash; computing the metrics from my own demo data rather than interpreting output from a live scheduling tool. The arithmetic I know; the tool I do not.", s:"part"},
+    {r:"Formal schedule baseline and change management",
+     e:"Change-order and RFI coordination with GCs and vendors, yes, across two employers. Formal schedule-baseline management &mdash; issuing, freezing, and controlling revisions to a baseline programme &mdash; no.", s:"part"},
+    {r:"CPM schedule ownership in Primavera P6",
+     e:"None. Zero, not &ldquo;limited exposure&rdquo; &mdash; and I do not claim otherwise on a resume, in a survey, or here. It is a bounded, learnable tool and I would expect the normal multi-month ramp to genuine ownership, which I am not going to describe as anything shorter.", s:"gap"},
+    {r:"Deltek Cobra / Costpoint",
+     e:"None. Named for completeness because it appears on most project-controls rubrics; it is government-contracting tooling and is unlikely to be what a commercial facade subcontractor runs.", s:"gap", low:true}
+  ];
+
+  var LABEL = {met:"Met", part:"Partial", gap:"Gap"};
+  var body = document.getElementById("covBody");
+
+  function draw(filter){
+    body.innerHTML = CAPS.filter(function(q){ return filter === "all" || q.s === filter; })
+      .map(function(q){
+        return '<tr class="' + (q.low ? "low" : "") + '" data-s="' + q.s + '">' +
+          '<td class="req">' + q.r + '</td>' +
+          '<td style="color:rgb(var(--c-text-secondary))">' + q.e + '</td>' +
+          '<td class="st"><span class="pill ' + q.s + '">' + LABEL[q.s] + '</span></td></tr>';
+      }).join("") ||
+      '<tr><td colspan="3" style="color:rgb(var(--c-text-secondary))">No capabilities in this band.</td></tr>';
+  }
+
+  /* No single blended "coverage %" -- it would weight a low-relevance line the same as a core one,
+     so naming a tool this industry does not use would read as being under-qualified. Core and
+     low-relevance are counted separately. */
+  function tally(pred){
+    return CAPS.filter(pred).reduce(function(a,q){ a[q.s] = (a[q.s]||0) + 1; a.n++; return a; },
+                                    {n:0, met:0, part:0, gap:0});
+  }
+  var core = tally(function(q){ return !q.low; });
+  var low  = tally(function(q){ return q.low; });
+  document.getElementById("cov").innerHTML =
+    '<div class="covcell"><div class="v">' + CAPS.length + '</div><div class="l">Capabilities assessed</div></div>' +
+    '<div class="covcell"><div class="v good">' + core.met + ' / ' + core.n +
+      '</div><div class="l">Core &mdash; fully met</div></div>' +
+    '<div class="covcell"><div class="v warn">' + core.part +
+      '</div><div class="l">Core &mdash; partial</div></div>' +
+    '<div class="covcell"><div class="v ' + (core.gap ? "bad" : "good") + '">' + core.gap +
+      '</div><div class="l">Core &mdash; gap</div></div>' +
+    '<div class="covcell"><div class="v ' + (low.gap ? "warn" : "good") + '">' +
+      low.part + ' partial &middot; ' + low.gap + ' gap' +
+      '</div><div class="l">Low relevance (' + low.n + ')</div></div>';
+
+  document.querySelector(".filters").addEventListener("click", function(e){
+    var b = e.target.closest("button[data-f]"); if (!b) return;
+    Array.prototype.forEach.call(this.querySelectorAll("button"), function(x){
+      x.setAttribute("aria-pressed", String(x === b));
+    });
+    draw(b.dataset.f);
+  });
+
+  draw("all");
+})();
+</script>
+</body>
+</html>
