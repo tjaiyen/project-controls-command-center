@@ -109,5 +109,14 @@ ok(!/David Mitchell|Schedule Intelligence|Maria Rodriguez/.test(flat),
 ok(!/\b40%/.test(flat),
   'the unverified "40% faster schedule development" figure (sourced only to the fabricated quote) is not asserted');
 
+/* Deck link (added 2026-09-03, on TJ's explicit go to publish the full deck, not just reference it).
+   Provable, not just asserted: the href in the page must point to a file that actually exists in
+   the repo -- same discipline as every other "prove it" check in this harness. */
+console.log('\n== Deck link (2026-09-03) ==');
+const DECK_REL = 'docs/Data_Center_Investment_Case_Walters_Wolf.pptx';
+ok(new RegExp('href="' + DECK_REL.replace(/\./g, '\\.') + '"').test(src),
+  'the page links to ' + DECK_REL);
+ok(fs.existsSync(DECK_REL), 'the linked deck file actually exists in the repo at ' + DECK_REL);
+
 console.log(fail ? '\nFAILED ' + fail : '\nall ok');
 process.exit(fail ? 1 : 0);
