@@ -20,10 +20,10 @@ const near = (a, b, tol) => Math.abs(a - b) < (tol === undefined ? 1e-6 : tol);
 /* ---- DOM stub ---------------------------------------------------------------------- */
 function makeEl(id){
   return {
-    id, innerHTML:'', hidden:false, dataset:{}, attrs:{}, className:'',
+    id, innerHTML:'', hidden:false, dataset:{}, attrs:{}, className:'', style:{}, textContent:'',
     setAttribute(k,v){ this.attrs[k]=v; }, getAttribute(k){ return this.attrs[k]; },
     addEventListener(){}, querySelectorAll(){ return []; }, querySelector(){ return null; },
-    closest(){ return null; }
+    closest(){ return null; }, focus(){}
   };
 }
 const els = {};
@@ -32,9 +32,15 @@ global.document = {
   documentElement: makeEl('html'),
   getElementById: get,
   querySelector: sel => get(sel),
-  querySelectorAll: () => []
+  querySelectorAll: () => [],
+  addEventListener(){}
 };
 global.window = { matchMedia: () => ({ matches:true }) };
+// Feature #18 (deep-link hash routing) reads/writes location.hash and calls history.replaceState --
+// neither exists in plain Node, so this stub (not a real browser) needs its own minimal Location/
+// History, same reasoning as the document/window stubs above.
+global.location = { hash: '', pathname: '/facade.html', search: '' };
+global.history = { replaceState(_s, _t, url){ var h = String(url).indexOf('#'); global.location.hash = h === -1 ? '' : String(url).slice(h); } };
 
 eval(script);
 const F = global.window.__FACADE__;
@@ -176,7 +182,11 @@ ok(/Read the narrowness, not just the centre/.test(rendered),
    'the page explains WHY the distribution is narrow rather than leaving it looking overconfident');
 ok(/drawn independently, which understates the true spread/.test(rendered),
    'the independence assumption is stated as a limitation, not hidden');
-ok(/Math\.min\(MC\[0\], T\.bac/.test(src),
+// Matches MC[0] or sims[0] -- the MC chart was parameterized into build(sims, correlated) for the
+// correlated-draw toggle (2026-09-03); the invariant itself (BAC forced into the x-range) is
+// unchanged, only the local variable name, so the check now tracks the invariant, not one literal
+// variable name.
+ok(/Math\.min\((?:MC|sims)\[0\], T\.bac/.test(src),
    'the chart forces BAC into range so the budget line cannot be clipped off-canvas');
 if (T.pOverBac === 1)
   ok(/entire distribution sits to the right of it/.test(rendered),
@@ -215,6 +225,17 @@ ok(/Cost Performance Index/.test(src) && /Schedule Performance Index/.test(src),
    'the help toggles carry real definitions, not placeholder text');
 ok(/\.kpi \.help::before\{content:""/.test(src),
    'the help toggle has the same 44px invisible hit-area expander as .help-ic in index.html (visual glyph stays small, real tap target does not)');
+
+// Permanent regression gate (2026-09-03, /stress-test finding during the 20-feature build): several
+// new buttons were given an inline `min-height:36px`/`32px` override, silently undercutting the
+// .btn class's own 44px floor this page was already fixed to earlier the same session. Fixed by
+// dropping the inline override (the class rule wins on its own); this check makes that class of
+// regression fail the build instead of relying on a human re-noticing it.
+const inlineShortBtn = [...src.matchAll(/<button[^>]*style="[^"]*"/g)]
+  .filter(m => /min-height:\s*(\d+)px/.test(m[0]) && parseInt(m[0].match(/min-height:\s*(\d+)px/)[1], 10) < 44);
+ok(inlineShortBtn.length === 0,
+   'no <button> inline style overrides .btn\'s 44px min-height floor with something smaller',
+   inlineShortBtn.map(m => m[0].slice(0, 60)).join(' | ') || 'none found');
 
 console.log('\n== L. Ask AI (2026-09-03) ==');
 ok(F.askAiConfigured() === false, 'Ask AI is dormant by default -- the placeholder Worker URL was never replaced, so no network call is even attempted');
@@ -320,6 +341,89 @@ CHANGE_ORDERS.filter(c => c.status === 'pending').forEach(c => {
 const snap2 = F.buildFacadeAskAiSnapshot();
 ['bei', 'fpy', 'breakRate', 'unbilledFactoryValue', 'retainageHeld', 'rfiAvgDays', 'coRatePct', 'coUnpricedExposure']
   .forEach(k => ok(snap2.totals[k] === T[k], 'snapshot.totals.' + k + ' is wired to the real T.' + k + ', not omitted'));
+
+console.log('\n== N. 20-feature UX round (2026-09-03), structural checks -- browser-verified live separately ==');
+ok(/id="tab-gloss"/.test(src) && /id="p-gloss"/.test(src), 'the Glossary tab exists (feature #6)');
+ok(/id="quizBtn"/.test(src) && /function quizPickNext/.test(src), 'quiz mode exists (feature #7)');
+ok(/id="elevDrawer"/.test(src) && /function openElevDrawer/.test(src) && /function closeElevDrawer/.test(src),
+   'the elevation drill-down drawer exists (feature #1)');
+ok(/data-elev="/.test(src), 'at least one elev-link trigger renders on the page');
+ok((src.match(/elevLink\(r\.id\)/g) || []).length >= 8, 'elevLink is applied across multiple tables, not just one', (src.match(/elevLink\(r\.id\)/g) || []).length);
+ok(/data-sort="/.test(src) && /function wireSortableTable/.test(src), 'sortable-table infrastructure and at least one opted-in table exist (feature #5)');
+const sortableCount = (src.match(/data-sort="/g) || []).length;
+ok(sortableCount >= 8, 'sortable columns are wired on at least 8 tables', sortableCount);
+ok(/function parseSortNum/.test(src) && /1e6/.test(src.match(/function parseSortNum[\s\S]{0,400}/)[0]),
+   'the sort parser understands this page\'s own $X.XXM / $Xk formatted cells, not just bare numbers');
+ok(/class="mosaic"/.test(src) && /MOSAIC_STATES/.test(src), 'the panel mosaic exists (feature #11)');
+ok(/id="benchBody"/.test(src) && /renderBenchmark/.test(src), 'the benchmark scorecard exists (feature #9)');
+ok(/id="sbxCrate"/.test(src) && /id="sbxSet"/.test(src) && /SBX_DAYS/.test(src), 'the Gate-3 what-if sandbox exists (feature #2)');
+ok(/state-flip/.test(src) && /classList\.add\("state-flip"\)/.test(src), 'the sandbox applies a real state-change flourish, not a decorative always-on animation (feature #15)');
+ok(/function computeMcCorrelated/.test(src) && /id="mcCorrBtn"/.test(src), 'the correlated-Monte-Carlo toggle exists (feature #3)');
+ok(/id="bufferCompareBtn"/.test(src) && /T\.coverPrior/.test(src), 'the 3-weeks-ago buffer overlay toggle exists (feature #17)');
+ok(/id="playScrub"/.test(src) && /id="playBtn"/.test(src), 'the week-by-week playback scrubber exists (feature #12)');
+ok(/playBtn\.disabled = true/.test(src), 'auto-play is disabled under reduced motion rather than running at a 0ms interval (a real gate, not a token one)');
+ok(/id="zoneMap"/.test(src) && /ZONEMAP_ORDER/.test(src), 'the persistent spatial elevation map exists (feature #14)');
+ok(/id="plainLangBtn"/.test(src) && /plain-lang/.test(src), 'the plain-language toggle exists (feature #10)');
+ok(/id="walkStartBtn"/.test(src) && /WALK_STEPS/.test(src) && /walk-highlight/.test(src), 'the guided walkthrough exists (feature #16)');
+ok(/function animateCount/.test(src) && /KPIS\.forEach\(function\(x, i\)\{ if \(x\.raw/.test(src), 'KPI count-up animation is wired (feature #13)');
+ok(/data-hover-cause="/.test(src) && /function showHoverCard/.test(src), 'the productivity-bar hover-card exists (feature #19)');
+ok(/id="askAiSummaryBtn"/.test(src), 'the pinned Ask AI summary starter exists (feature #20)');
+ok(/e\.sub\b/.test(src) && EACS.every(e => typeof e.sub === 'string' && e.sub.length > 0),
+   'every EAC method row carries a real substituted-number formula, not just the symbolic one (feature #8)');
+
+console.log('\n== O. /stress-test fixes on the 20-feature round (2026-09-03) ==');
+ok(/benchBody[\s\S]{0,600}r\[5\] \? "watch" : "ok"/.test(src),
+   'benchmark scorecard pill colour is driven by an explicit boolean per row, not a regex matched against the reading text (the regex approach silently mis-coloured "Above band" -- caught before ship)');
+ok(!/Below\|Slower\|Above ceiling\|Below floor\|Above basis/.test(src),
+   'the old fragile regex-based benchmark colour check is actually gone, not just superseded');
+ok(/playTimer = setInterval[\s\S]{0,500}flowPanel\.hidden/.test(src),
+   'the playback auto-play timer checks the Panel Flow tab is still visible and stops itself if not (previously it ran forever in the background once started, even after switching tabs)');
+ok(/id="mcIndepBtn"/.test(src) && /indepBtn\.addEventListener\("click", function\(\)\{ build\(MC, false\)/.test(src),
+   'the correlated-Monte-Carlo view has a real path back to the independent-draw view (it was a one-way door)');
+ok(/elevDrawerReturnFocus = document\.activeElement/.test(src) && /elevDrawerReturnFocus\.focus\(\)/.test(src),
+   'closing the elevation drawer restores focus to whatever triggered it (it previously dropped focus silently)');
+ok(/if \(startBtn\) startBtn\.focus\(\)/.test(src),
+   'ending the walkthrough restores focus to the button that started it');
+ok(/role="dialog" aria-modal="true" aria-label="Guided tour"/.test(src),
+   'the walkthrough overlay carries the same dialog semantics as the elevation drawer (it was missing role/aria-modal entirely)');
+ok(/history\.replaceState\(null, "", location\.pathname \+ location\.search \+ "#elev="/.test(src),
+   'opening the elevation drawer uses replaceState, not a direct location.hash assignment (a direct assignment pushed a new history entry per open, so Back needed one press per elevation ever opened)');
+ok(/\.zonemap \.zm-row\{[^}]*min-height:44px/.test(src),
+   'the clickable zone-map rows meet the 44px touch-target floor (they measured ~23px before this fix)');
+ok(/th\[role="button"\]::before\{content:"";position:absolute[^}]*height:44px/.test(src),
+   'sortable table headers carry a 44px invisible hit-area expander (the visible header is ~33.5px tall)');
+ok(/\.elev-link\{[^}]*position:relative;display:inline-block/.test(src) && !/\btd \.elev-link\{/.test(src),
+   'the elev-link 44px hit-area is anchored on the link itself in every context, not only inside a <td> (rowbar-embedded links in wipRows/cvRows/prodRows previously had no positioned ancestor at all, since "position:relative" was scoped to "td .elev-link")');
+ok(/\.gatepill\.watch\{/.test(src) && /status === "watch" \? "watch"/.test(src),
+   'the sandbox\'s three real states (below floor / above ceiling / in band) map to three distinct pill colours, not two ("above ceiling" previously rendered identically to a healthy "in band" reading)');
+ok(/id="quizRight"/.test(src) && /id="quizWrong"/.test(src) && /quiz\.right\+\+/.test(src),
+   'the quiz\'s "self-graded" score has a real control that increments it (quiz.right was previously written once at init and never incremented, so the score silently stayed 0/N forever)');
+ok(/startBtn\.addEventListener\("click", function\(\)\{ if \(!el\("elevDrawer"\)\.hidden\) closeElevDrawer/.test(src),
+   'starting the guided walkthrough closes an already-open elevation drawer first, rather than stacking two dialogs');
+
+// The mosaic renders one <i> tile per real panel -- re-count the ACTUAL rendered tiles rather than
+// trusting the counts array arithmetic, so a future edit that miscounts a state band is caught.
+const mosaicHtml = els.mosaicWrap ? els.mosaicWrap.innerHTML : '';
+const mosaicTileCount = (mosaicHtml.match(/<i /g) || []).length;
+ok(mosaicTileCount === T.panels, 'the panel mosaic renders exactly one tile per real panel, package-wide', mosaicTileCount + ' vs ' + T.panels);
+ZONES.forEach(z => {
+  const perZoneCount = (mosaicHtml.split(z.id + ' &mdash;').length - 1);
+  ok(perZoneCount === z.panels, z.id + ': mosaic renders exactly ' + z.panels + ' tiles for this elevation (its title-attribute count)', perZoneCount);
+});
+
+console.log('\n== P. /stress-test fixes, round 2 -- independent-reviewer findings (2026-09-03) ==');
+ok(/function trapFocus\(container, e\)/.test(src),
+   'a real focus-trap function exists (both dialogs declared role="dialog" aria-modal="true" but nothing actually cycled Tab/Shift+Tab inside them -- most browsers do not enforce that from the ARIA attribute alone, so keyboard users could Tab straight past either overlay onto the page behind it)');
+ok(/if \(!el\("elevDrawer"\)\.hidden\) trapFocus\(el\("elevDrawer"\), e\)/.test(src),
+   'the elevation drawer\'s keydown handler actually calls trapFocus while open');
+ok(/if \(!el\("walkOverlay"\)\.hidden\) trapFocus\(el\("walkOverlay"\), e\)/.test(src),
+   'the walkthrough\'s keydown handler actually calls trapFocus while open (this closes the keyboard-only path the independent reviewer found: Tab could reach a background elev-link and Enter would open the drawer WHILE the walkthrough was still showing, even after the mouse-only "close drawer before starting tour" fix)');
+ok(/walkLockTimer = setTimeout\(function\(\)\{ document\.documentElement\.style\.overflow = "hidden"; \}/.test(src),
+   'the walkthrough locks page scroll once its own scrollIntoView has settled, matching the elevation drawer\'s scroll-lock -- deliberately NOT locked before the scroll (that would fight scrollIntoView, the overlay\'s own navigation mechanism)');
+ok(/function walkEnd\(\)\{[\s\S]{0,50}el\("walkOverlay"\)\.hidden = true;[\s\S]{0,300}document\.documentElement\.style\.overflow = "";/.test(src),
+   'ending the walkthrough always unlocks scroll again, including when ended mid-lock-timer');
+ok(!/tables are re-rendered on tab switch/.test(src),
+   'the stale/inaccurate comment claiming tables re-render on tab switch is gone (none of the render*() functions ever run more than once; delegation is for covering many elevLink() call sites with one handler, not for surviving re-renders that do not happen)');
 
 console.log(fail ? '\nFAILED — ' + fail + ' check(s)' : '\nall ok');
 process.exit(fail ? 1 : 0);

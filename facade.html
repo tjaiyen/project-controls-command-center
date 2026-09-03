@@ -71,6 +71,10 @@ a{color:rgb(var(--c-accent))}
   font:600 11px/1 ui-monospace,Menlo,monospace;letter-spacing:.04em}
 .gatepill.blocked{background:rgb(var(--c-danger) / .16);color:var(--c-pill-r);border:1px solid rgb(var(--c-danger) / .4)}
 .gatepill.clear{background:rgb(var(--c-success) / .15);color:var(--c-pill-g);border:1px solid rgb(var(--c-success) / .35)}
+/* /stress-test finding (2026-09-03): the sandbox has three real states (below floor / above ceiling
+   / in band) but .gatepill only ever had two colours (blocked/clear), so "above ceiling --
+   overproducing" was silently rendered identically to a genuinely healthy reading. */
+.gatepill.watch{background:rgb(var(--c-warning) / .16);color:var(--c-pill-a);border:1px solid rgb(var(--c-warning) / .4)}
 .tabs{display:flex;gap:6px;flex-wrap:wrap;padding:12px 0 0;border-bottom:1px solid var(--c-line)}
 .tabs button{border-radius:7px 7px 0 0;border-bottom-color:transparent}
 .banner{margin-top:16px;padding:11px 15px;border-radius:9px;font-size:12.5px;
@@ -164,6 +168,57 @@ ul.tight{margin:9px 0 0;padding-left:19px} ul.tight li{margin:5px 0;color:rgb(va
 @keyframes livePulse{0%,80%,100%{opacity:.25}40%{opacity:1}}
 footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
   font-size:12.5px;color:rgb(var(--c-text-secondary))}
+
+/* 20-feature UX round (2026-09-03) -- shared overlay/interaction primitives. */
+/* /stress-test finding (2026-09-03): position:relative was scoped to "td .elev-link" only, but
+   elevLink() is also used inside rowbar()'s <span> labels (wipRows/cvRows/prodRows) -- there the
+   ::before hit-area expander had no positioned ancestor to anchor to, so it positioned relative to
+   whatever distant ancestor WAS positioned instead of centering on the link. Moved onto the base
+   class so every usage site gets a correct, self-contained anchor. */
+.elev-link{background:none;border:none;padding:0;font:inherit;color:rgb(var(--c-accent));
+  cursor:pointer;text-decoration:underline;text-underline-offset:2px;position:relative;display:inline-block}
+.elev-link::before{content:"";position:absolute;width:44px;height:44px;margin-left:-11px;margin-top:-11px}
+.drawer-backdrop{position:fixed;inset:0;background:rgb(0 0 0 / .45);z-index:80;
+  display:flex;justify-content:flex-end}
+.drawer-backdrop[hidden]{display:none}
+.drawer{background:rgb(var(--c-bg-primary));width:min(420px,92vw);height:100%;overflow-y:auto;
+  padding:22px 20px;position:relative;border-left:1px solid var(--c-line)}
+.hovercard{position:fixed;z-index:90;max-width:260px;background:rgb(var(--c-bg-card));
+  border:1px solid var(--c-line);border-radius:8px;padding:9px 12px;font-size:12px;
+  box-shadow:0 6px 20px rgb(0 0 0 / .25);pointer-events:none}
+.hovercard[hidden]{display:none}
+.walkthrough{position:fixed;inset:0;z-index:85;background:rgb(0 0 0 / .35);
+  display:flex;align-items:flex-end;justify-content:center;padding:0 0 28px}
+.walkthrough[hidden]{display:none}
+.walk-card{background:rgb(var(--c-bg-card));border:1px solid var(--c-accent);border-radius:12px;
+  padding:16px 18px;max-width:440px;width:92vw;box-shadow:0 10px 30px rgb(0 0 0 / .3)}
+.walk-highlight{outline:2px solid rgb(var(--c-accent));outline-offset:3px;border-radius:8px}
+/* /stress-test finding (2026-09-03): a sortable header's real height is ~33px (th's own 10px/10px
+   padding + a 10px label), under the 44px floor -- same invisible-hit-area-expander pattern as
+   .kpi .help::before elsewhere on this page (visible header stays compact, real tap target does not). */
+th[role="button"]{position:relative}
+th[role="button"]::before{content:"";position:absolute;left:0;right:0;top:50%;height:44px;transform:translateY(-50%)}
+th[role="button"]::after{content:"\2195";opacity:.35;margin-left:5px;font-size:10px;position:relative}
+th[data-dir="asc"]::after{content:"\2191";opacity:1}
+th[data-dir="desc"]::after{content:"\2193";opacity:1}
+.mosaic{display:grid;grid-template-columns:repeat(auto-fill,minmax(8px,1fr));gap:2px}
+.mosaic i{display:block;aspect-ratio:1;border-radius:1.5px}
+.zonemap{display:flex;flex-direction:column-reverse;gap:3px;max-width:220px}
+/* /stress-test finding (2026-09-03): these rows are clickable (open the elevation drawer) but the
+   original padding+line-height gave them a ~23px computed height, well under the 44px touch-target
+   floor every other interactive element on this page was already held to. */
+.zonemap .zm-row{display:flex;align-items:center;gap:8px;padding:6px 8px;min-height:44px;box-sizing:border-box;border-radius:6px;
+  font:600 11px/1 ui-monospace,Menlo,monospace;cursor:pointer;border:1px solid transparent}
+.zonemap .zm-row:hover,.zonemap .zm-row:focus-visible{border-color:var(--c-line)}
+.plain-lang [data-jargon]{display:none}
+.plain-lang [data-plain]{display:inline}
+[data-plain]{display:none}
+.slider{display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap}
+.slider label{font-size:12.5px;flex:1;min-width:180px}
+.slider input[type="range"]{flex:2;min-width:140px;accent-color:rgb(var(--c-accent));min-height:44px}
+.slider .sv{font:600 12px ui-monospace,Menlo,monospace;min-width:64px;text-align:right}
+@keyframes stateFlip{0%{box-shadow:0 0 0 0 rgb(var(--c-accent) / .5)}70%{box-shadow:0 0 0 10px rgb(var(--c-accent) / 0)}100%{box-shadow:0 0 0 0 rgb(var(--c-accent) / 0)}}
+.state-flip{animation:stateFlip .6s ease-out}
 @media (prefers-reduced-motion: reduce){html{scroll-behavior:auto} *{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -209,10 +264,22 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
     <button class="icobtn" id="tab-bid"   role="tab" data-t="bid"   aria-selected="false" aria-controls="p-bid"   tabindex="-1">3 &middot; Bid vs Actual</button>
     <button class="icobtn" id="tab-gates" role="tab" data-t="gates" aria-selected="false" aria-controls="p-gates" tabindex="-1">4 &middot; Gates &amp; Tolerance</button>
     <button class="icobtn" id="tab-recon" role="tab" data-t="recon" aria-selected="false" aria-controls="p-recon" tabindex="-1">5 &middot; Shop &harr; Field</button>
-    <button class="icobtn" id="tab-method" role="tab" data-t="method" aria-selected="false" aria-controls="p-method" tabindex="-1">6 &middot; Method</button>
+    <button class="icobtn" id="tab-gloss" role="tab" data-t="gloss" aria-selected="false" aria-controls="p-gloss" tabindex="-1">6 &middot; Glossary</button>
+    <button class="icobtn" id="tab-method" role="tab" data-t="method" aria-selected="false" aria-controls="p-method" tabindex="-1">7 &middot; Method</button>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+    <button type="button" class="btn" id="walkStartBtn" style="padding:6px 12px;font-size:12px">Take a 90&#8209;second tour &rarr;</button>
+    <button type="button" class="btn" id="plainLangBtn" aria-pressed="false" style="padding:6px 12px;font-size:12px">Plain-language labels</button>
   </div>
 
   <div class="kpis" id="kpis"></div>
+
+  <details class="dbox" style="margin-top:16px" open>
+    <summary style="cursor:pointer;font-weight:600;font-size:13px">Elevation map &mdash; a persistent spatial anchor, click any row for detail</summary>
+    <div id="zoneMap" class="zonemap" style="margin-top:10px"></div>
+    <p class="note" style="font-style:normal;margin-top:8px">Colour is a composite of CPI, FPY and open
+      gates for that elevation &mdash; a fast at-a-glance read, not a replacement for the tabs below.</p>
+  </details>
 
   <!-- 1 ................................................................. PANEL FLOW -->
   <section class="panel" id="p-flow" role="tabpanel" aria-labelledby="tab-flow">
@@ -232,6 +299,12 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
         <span><i style="background:var(--c-field)"></i>Set in the field</span>
         <span><i style="background:rgb(var(--c-text-secondary))"></i>Field plan</span>
       </div>
+      <div class="slider" style="margin-top:14px">
+        <label for="playScrub">Play back week-by-week</label>
+        <input type="range" id="playScrub" min="1" value="1">
+        <button type="button" class="btn" id="playBtn" style="padding:5px 11px;font-size:12px">Play &#9654;</button>
+      </div>
+      <p class="note" id="playReadout" style="font-style:normal"></p>
     </div>
 
     <div class="grid2">
@@ -240,6 +313,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
         <p class="sub">Panels in buffer divided by the setting rate over the trailing four weeks
           &mdash; so it answers &ldquo;at the pace we are actually setting, how long until the crew
           runs dry?&rdquo;</p>
+        <button type="button" class="btn" id="bufferCompareBtn" aria-pressed="false" style="padding:5px 11px;font-size:12px;margin-bottom:6px">Compare to 3 weeks ago</button>
         <div id="bufferChart"></div>
         <div class="formula" id="bufferFormula"></div>
       </div>
@@ -260,7 +334,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
       <div id="creditRows"></div>
       <div class="tblwrap">
         <table>
-          <thead><tr>
+          <thead><tr data-sort="text,num,num,num,num,num,num,num">
             <th scope="col">Elevation</th><th class="num" scope="col">Panels</th>
             <th class="num" scope="col">Framed</th><th class="num" scope="col">Glazed</th>
             <th class="num" scope="col">Crated</th><th class="num" scope="col">Set</th>
@@ -279,7 +353,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
           rework cycle. A lean-manufacturing metric (Six Sigma / Factory Physics), applied at the
           one shop checkpoint this ledger has real data for.</p>
         <div class="tblwrap">
-          <table><thead><tr><th scope="col">Elevation</th><th class="num" scope="col">Crated</th>
+          <table><thead><tr data-sort="text,num,num,num,num"><th scope="col">Elevation</th><th class="num" scope="col">Crated</th>
             <th class="num" scope="col">First pass</th><th class="num" scope="col">Rework</th>
             <th class="num" scope="col">FPY</th></tr></thead>
             <tbody id="fpyBody"></tbody><tfoot id="fpyFoot"></tfoot></table>
@@ -297,6 +371,16 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
         <p class="note" id="wipNote" style="font-style:normal"></p>
       </div>
     </div>
+    <div class="dbox">
+      <h3>Every panel, as a picture</h3>
+      <p class="sub">1,240 panels is an abstraction until it is a grid. One tile per panel,
+        coloured by the furthest shop/field state it has reached &mdash; the same cumulative
+        states and counts the table above already shows, laid out instead of summed. Ordering
+        within an elevation is illustrative (this ledger tracks cumulative counts, not individual
+        panel identity); the counts per state are exactly the real ledger's.</p>
+      <div class="legend" id="mosaicLegend"></div>
+      <div id="mosaicWrap" style="margin-top:12px"></div>
+    </div>
   </section>
 
   <!-- 2 ............................................................... COST / EVM -->
@@ -311,7 +395,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
       <h3>Package performance</h3>
       <div class="tblwrap">
         <table>
-          <thead><tr>
+          <thead><tr data-sort="text,num,num,num,num,num,num,num,num">
             <th scope="col">Elevation</th>
             <th class="num" scope="col">BAC</th><th class="num" scope="col">PV</th>
             <th class="num" scope="col">EV</th><th class="num" scope="col">AC</th>
@@ -390,7 +474,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
       <h3>Material quantity and price, by elevation</h3>
       <div class="tblwrap">
         <table>
-          <thead><tr>
+          <thead><tr data-sort="text,num,num,num,num,num,num,num">
             <th scope="col">Elevation</th>
             <th class="num" scope="col">Bid sf</th><th class="num" scope="col">Actual sf</th>
             <th class="num" scope="col">Bid $/sf</th><th class="num" scope="col">Actual $/sf</th>
@@ -429,7 +513,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
           (average first reply 6.4 days, median 9.7 days) &mdash; the most-cited primary source on
           this, not a figure this page invented.</p>
         <div class="tblwrap">
-          <table><thead><tr><th scope="col">RFI</th><th scope="col">Elevation</th>
+          <table><thead><tr data-sort="text,text,text,num,text"><th scope="col">RFI</th><th scope="col">Elevation</th>
             <th scope="col">Subject</th><th class="num" scope="col">Days</th>
             <th scope="col">Status</th></tr></thead>
             <tbody id="rfiBody"></tbody></table>
@@ -442,7 +526,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
           band (CFMA); pending PCOs aged and weighted by percent complete on unapproved work &mdash;
           the live financing exposure that log alone would not show.</p>
         <div class="tblwrap">
-          <table><thead><tr><th scope="col">ID</th><th scope="col">Description</th>
+          <table><thead><tr data-sort="text,text,num,num,text"><th scope="col">ID</th><th scope="col">Description</th>
             <th class="num" scope="col">Value</th><th class="num" scope="col">Outstanding</th>
             <th scope="col">Aging</th></tr></thead>
             <tbody id="coBody"></tbody></table>
@@ -465,6 +549,25 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
     </div>
 
     <div class="dbox">
+      <h3>What would it take to clear Gate 3?</h3>
+      <p class="sub">Gate 3 (factory buffer ahead of the setting crew) is driven by two real levers
+        &mdash; the shop's crate rate and the field's set rate. Move either and watch the projected
+        buffer respond, using the exact same formula the gate itself evaluates &mdash; nothing here
+        is a separate, simplified model.</p>
+      <div class="slider">
+        <label for="sbxCrate">Add shop capacity (panels/working day)</label>
+        <input type="range" id="sbxCrate" min="0" max="5" step="0.5" value="0">
+        <span class="sv" id="sbxCrateV">+0.0</span>
+      </div>
+      <div class="slider">
+        <label for="sbxSet">Field pace change (panels/working day)</label>
+        <input type="range" id="sbxSet" min="-3" max="3" step="0.5" value="0">
+        <span class="sv" id="sbxSetV">+0.0</span>
+      </div>
+      <div id="sbxResult" style="margin-top:12px"></div>
+    </div>
+
+    <div class="dbox">
       <h3>Tolerance creep &mdash; a cost indicator disguised as a survey reading</h3>
       <p class="sub">Setting variance at each vertical joint is individually trivial and cumulatively
         not. A consistent bias of a fraction of a millimetre per panel compounds across an elevation
@@ -473,7 +576,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
         that from a discovery into a forecast.</p>
       <div class="tblwrap">
         <table>
-          <thead><tr>
+          <thead><tr data-sort="text,num,num,num,num,num,text">
             <th scope="col">Elevation</th><th class="num" scope="col">Panels set</th>
             <th class="num" scope="col">Measured drift</th><th class="num" scope="col">Per panel</th>
             <th class="num" scope="col">Projected at full sweep</th>
@@ -493,7 +596,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
           stop/stool in a 5-minute period and still counts it a pass. Gate 5 above only ever shows
           pass/fail; this is the number underneath it.</p>
         <div class="tblwrap">
-          <table><thead><tr><th scope="col">Elevation</th><th class="num" scope="col">Collected</th>
+          <table><thead><tr data-sort="text,num,num,text"><th scope="col">Elevation</th><th class="num" scope="col">Collected</th>
             <th class="num" scope="col">Allowance</th><th scope="col">Reading</th></tr></thead>
             <tbody id="hoseBody"></tbody></table>
         </div>
@@ -505,7 +608,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
           spontaneous-breakage design rate (nickel-sulfide inclusions and handling combined), not a
           figure this page invented.</p>
         <div class="tblwrap">
-          <table><thead><tr><th scope="col">Elevation</th><th class="num" scope="col">Crated</th>
+          <table><thead><tr data-sort="text,num,num,num"><th scope="col">Elevation</th><th class="num" scope="col">Crated</th>
             <th class="num" scope="col">Broken</th><th class="num" scope="col">Rate</th></tr></thead>
             <tbody id="breakBody"></tbody><tfoot id="breakFoot"></tfoot></table>
         </div>
@@ -550,12 +653,40 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
     </div>
   </section>
 
-  <!-- 6 ...................................................................... METHOD -->
+  <!-- 6 ................................................................... GLOSSARY -->
+  <section class="panel" id="p-gloss" role="tabpanel" aria-labelledby="tab-gloss" hidden>
+    <h2>Every term on this page, explained plainly and worked through</h2>
+    <p class="lede">Each entry below is the plain-language meaning first, then the real formula
+      worked through with <em>this package's own current numbers</em> &mdash; not a textbook
+      example, the exact figures the other six tabs already show. Computed live, same as
+      everything else here.</p>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
+      <button type="button" class="btn" id="quizBtn" style="padding:6px 12px;font-size:12px" aria-pressed="false">Quiz me &rarr;</button>
+      <span class="sub" id="quizScore"></span>
+    </div>
+    <div id="glossList"></div>
+    <div class="dbox" id="quizBox" hidden></div>
+  </section>
+
+  <!-- 7 ...................................................................... METHOD -->
   <section class="panel" id="p-method" role="tabpanel" aria-labelledby="tab-method" hidden>
     <h2>How every number here is produced</h2>
     <p class="lede">The point of this page is the method, not the tower. Nothing below is typed;
       each figure traces to the panel ledger through a named function, and the page ships with a test
       harness that re&#8209;derives the totals independently and fails the build if they disagree.</p>
+
+    <div class="dbox">
+      <h3>Benchmark scorecard</h3>
+      <p class="sub">Every external number cited in prose on the other tabs, in one place, next to
+        this package's own reading &mdash; so the comparison doesn't require re-reading six
+        paragraphs to assemble.</p>
+      <div class="tblwrap">
+        <table><thead><tr data-sort="text,num,text,text,text"><th scope="col">Metric</th>
+          <th class="num" scope="col">This package</th><th class="num" scope="col">Benchmark</th>
+          <th scope="col">Source</th><th scope="col">Reading</th></tr></thead>
+          <tbody id="benchBody"></tbody></table>
+      </div>
+    </div>
 
     <div class="dbox">
       <h3>The ledger</h3>
@@ -668,6 +799,26 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
       this page. Domain references &mdash; the AAMA and ASTM test standards named in the gate list
       &mdash; are public consensus standards, cited for what they gate rather than reproduced.</p>
   </footer>
+</div>
+
+<!-- Shared overlays -- one instance each, reused across every feature that needs them (drawer,
+     tooltip, guided walkthrough), rather than a modal/tooltip duplicated per feature. -->
+<div class="drawer-backdrop" id="elevDrawer" hidden>
+  <div class="drawer" role="dialog" aria-modal="true" aria-label="Elevation detail">
+    <button type="button" class="btn" id="elevDrawerClose" style="position:absolute;top:12px;right:12px;padding:6px 10px">&times; Close</button>
+    <div id="elevDrawerBody"></div>
+  </div>
+</div>
+<div class="hovercard" id="hoverCard" hidden></div>
+<div class="walkthrough" id="walkOverlay" hidden role="dialog" aria-modal="true" aria-label="Guided tour">
+  <div class="walk-card">
+    <div class="sub" id="walkStep"></div>
+    <p id="walkText" style="margin:8px 0 0"></p>
+    <div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end">
+      <button type="button" class="btn" id="walkSkip" style="padding:6px 12px">Skip tour</button>
+      <button type="button" class="btn" id="walkNext" style="padding:6px 12px">Next &rarr;</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -1061,6 +1212,32 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
     sims.sort(function(a, b){ return a - b; });
     return sims;
   }
+  /* Feature #3 -- the Method tab's own stated limitation, built: "the elevations are drawn
+     independently... a correlated draw would widen this distribution." A single-shared-factor
+     model, not a full covariance matrix -- one systemic PERT shock per simulation run, blended 50/50
+     into each elevation's own draw, so a bad-shared-shock run pushes every elevation's efficiency the
+     same direction at once instead of averaging out across six independent draws. Deliberately
+     simple and stated as such, not presented as a rigorous correlation estimate this ledger has no
+     covariance data to actually calibrate. */
+  var MC_CORRELATION_WEIGHT = 0.5;
+  function computeMcCorrelated(n){
+    var rnd = lcg(20260901), sims = []; // different seed -- a genuinely separate run, not a relabel
+    for (var i = 0; i < n; i++){
+      var shared = pertRnd(rnd, -0.06, 0, 0.10); // one shared systemic pressure this run
+      var total = 0;
+      for (var j = 0; j < R.length; j++){
+        var r = R[j];
+        var rem = r.bac - r.ev;
+        var mode = 1 / r.cpi;
+        var lo = Math.max(0.80, mode - 0.14), hi = mode + 0.22;
+        var own = pertRnd(rnd, lo, mode, hi);
+        total += r.ac + rem * Math.max(0.5, own + MC_CORRELATION_WEIGHT * shared);
+      }
+      sims.push(total);
+    }
+    sims.sort(function(a, b){ return a - b; });
+    return sims;
+  }
   function q(sims, p){
     var i = (sims.length - 1) * p, lo = Math.floor(i), hi = Math.ceil(i);
     return lo === hi ? sims[lo] : sims[lo] + (sims[hi] - sims[lo]) * (i - lo);
@@ -1072,13 +1249,17 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
   /* --- Four forecasts of the same package ------------------------------------------- */
   var EACS = [
     {n:"Current cost efficiency continues", f:"BAC &divide; CPI", v:T.bac / T.cpi,
+     sub:m(T.bac) + " &divide; " + idx(T.cpi),
      w:"The default when nothing about the remaining work is expected to change."},
     {n:"Remaining work runs to budget", f:"AC + (BAC &minus; EV)", v:T.ac + (T.bac - T.ev),
+     sub:m(T.ac) + " + (" + m(T.bac) + " &minus; " + m(T.ev) + ")",
      w:"Assumes the overrun to date was one-off. Defensible only with a named, fixed cause."},
     {n:"Cost and schedule pressure both persist", f:"AC + (BAC &minus; EV) &divide; (CPI &times; SPI)",
      v:T.ac + (T.bac - T.ev) / (T.cpi * T.spi),
+     sub:m(T.ac) + " + (" + m(T.bac) + " &minus; " + m(T.ev) + ") &divide; (" + idx(T.cpi) + " &times; " + idx(T.spi) + ")",
      w:"The pessimistic read: being behind costs money to recover. Usually the right one when SPI &lt; 1."},
     {n:"Bottom-up from each elevation", f:"&Sigma; (elevation BAC &divide; elevation CPI)", v:T.eacBottomUp,
+     sub:R.map(function(r){ return idx(r.eac / 1e6); }).join("M + ") + "M",
      w:"Respects the spread between elevations instead of blending them into one index."}
   ];
   T.eacSpread = (Math.max.apply(null, EACS.map(function(e){ return e.v; }))
@@ -1145,6 +1326,163 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
          + Math.max(0, Math.min(100, widthPct)).toFixed(1) + '%;background:' + color
          + '"></i></div></div>';
   }
+  /* Feature #1 -- every elevation id anywhere on the page becomes this same clickable trigger,
+     opening the ONE shared drill-down drawer (openElevDrawer, above) rather than a per-table detail
+     view. */
+  function elevLink(id){ return '<button type="button" class="elev-link" data-elev="' + id + '">' + id + '</button>'; }
+
+  /* ==================================================================================
+     UX INFRASTRUCTURE -- shared primitives the 20-feature brainstorm round (2026-09-03) is built
+     from. Each is a single small utility reused by several features below, rather than one-off
+     code per feature -- the same reuse-first discipline the rest of this page already follows.
+     ================================================================================== */
+
+  function motionOk(){
+    return !(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  }
+
+  /* Count-up animation for a KPI-style number -- purely a render-time detail (the underlying value
+     never changes), gated by motionOk() so a reduced-motion reader just sees the final number
+     immediately, matching this page's existing global reduced-motion CSS rule. */
+  function animateCount(el, toVal, fmt, ms){
+    if (!el) return;
+    if (!motionOk()){ el.textContent = fmt(toVal); return; }
+    var start = null, dur = ms || 600;
+    function step(ts){
+      if (start === null) start = ts;
+      var p = Math.min(1, (ts - start) / dur);
+      var eased = 1 - Math.pow(1 - p, 3); // ease-out cubic -- an entrance, never ease-in (B-series motion rule)
+      el.textContent = fmt(toVal * eased);
+      if (p < 1) requestAnimationFrame(step);
+      else el.textContent = fmt(toVal);
+    }
+    requestAnimationFrame(step);
+  }
+
+  /* Click-to-sort on any <table> that has data-sort="col0type,col1type,..." on the <thead> row --
+     type is "num" or "text". Toggles ascending/descending on repeat clicks of the same header. */
+  /* Strips this page's own formatting ($, commas, M/k suffixes, mm/ml/% units, the unicode minus
+     m()/k() use) rather than requiring a data-sort-val override on every numeric cell in every
+     table -- one parser handles every table's existing cell format uniformly. */
+  function parseSortNum(s){
+    s = String(s).replace(/−/g, "-").replace(/,/g, "");
+    var neg = /^-/.test(s);
+    var mMatch = s.match(/^-?\$?([\d.]+)M\b/);
+    if (mMatch) return (neg ? -1 : 1) * parseFloat(mMatch[1]) * 1e6;
+    var kMatch = s.match(/^-?\$?([\d.]+)k\b/);
+    if (kMatch) return (neg ? -1 : 1) * parseFloat(kMatch[1]) * 1e3;
+    var v = parseFloat(s.replace(/^-?\$/, neg ? "-" : ""));
+    return isFinite(v) ? v : -Infinity; // unsortable/em-dash cells sink to one end, never NaN-scattered
+  }
+  function wireSortableTable(table){
+    var head = table.querySelector("thead tr");
+    if (!head || !head.dataset.sort) return;
+    var types = head.dataset.sort.split(",");
+    var ths = Array.prototype.slice.call(head.children);
+    ths.forEach(function(th, i){
+      if (types[i] === "-") return;
+      th.style.cursor = "pointer";
+      th.setAttribute("role", "button");
+      th.setAttribute("tabindex", "0");
+      th.setAttribute("aria-label", th.textContent + " -- click to sort");
+      function doSort(){
+        var body = table.querySelector("tbody");
+        var rows = Array.prototype.slice.call(body.children);
+        var asc = th.dataset.dir !== "asc";
+        ths.forEach(function(t){ delete t.dataset.dir; });
+        th.dataset.dir = asc ? "asc" : "desc";
+        rows.sort(function(a, b){
+          var av = a.children[i] ? a.children[i].textContent.trim() : "";
+          var bv = b.children[i] ? b.children[i].textContent.trim() : "";
+          if (types[i] === "num"){ av = parseSortNum(av); bv = parseSortNum(bv); return asc ? av - bv : bv - av; }
+          return asc ? av.localeCompare(bv) : bv.localeCompare(av);
+        });
+        rows.forEach(function(r){ body.appendChild(r); });
+      }
+      th.addEventListener("click", doSort);
+      th.addEventListener("keydown", function(e){ if (e.key === "Enter" || e.key === " "){ e.preventDefault(); doSort(); } });
+    });
+  }
+
+  /* A single shared drawer element (#elevDrawer, in the HTML) -- one instance reused by every
+     "click this elevation id" trigger on the page, rather than a modal per feature. */
+  var elevDrawerReturnFocus = null; // /stress-test finding (2026-09-03): closing the drawer never
+    // returned focus anywhere, silently dropping a keyboard user back at the top of <body> -- now
+    // captured on open, restored on close.
+  function openElevDrawer(id){
+    var r = R.filter(function(x){ return x.id === id; })[0];
+    if (!r) return;
+    var body = el("elevDrawerBody");
+    if (!body) return;
+    elevDrawerReturnFocus = document.activeElement;
+    body.innerHTML =
+      '<h3>' + r.id + ' <span style="font-weight:400;color:rgb(var(--c-text-secondary))">' + deent(r.n) + '</span></h3>'
+      + '<div class="grid2" style="margin-top:10px">'
+      + '<div><div class="sub">Panel flow</div>'
+      + rowbar("Framed", fmtInt(r.fra) + " / " + fmtInt(r.panels), r.fra / r.panels * 100, "var(--c-shop)")
+      + rowbar("Glazed", fmtInt(r.gla) + " / " + fmtInt(r.panels), r.gla / r.panels * 100, "var(--c-shop)")
+      + rowbar("Crated", fmtInt(r.cra) + " / " + fmtInt(r.panels), r.cra / r.panels * 100, "var(--c-shop)")
+      + rowbar("Set", fmtInt(r.set) + " / " + fmtInt(r.panels), r.set / r.panels * 100, "var(--c-field)")
+      + rowbar("Sealed", fmtInt(r.sea) + " / " + fmtInt(r.panels), r.sea / r.panels * 100, "var(--c-field)")
+      + '</div><div><div class="sub">Cost &amp; schedule</div>'
+      + '<p class="formula" style="margin-top:6px">BAC ' + m(r.bac) + ' &middot; EV ' + m(r.ev)
+      + ' &middot; AC ' + m(r.ac) + '<br>SPI ' + idx(r.spi) + ' &middot; CPI ' + idx(r.cpi)
+      + ' &middot; VAC ' + k(r.vac) + '<br>FPY ' + pct(r.fpy) + ' &middot; break rate ' + pct(r.breakRate, 2)
+      + '<br>flood ' + (r.flood ? "signed" : "open") + ' &middot; hose ' + (r.hose ? "passed" : "open")
+      + '</p></div></div>'
+      + '<p class="note" style="font-style:normal;margin-top:10px">Quantity var ' + k(r.qtyVar)
+      + ' &middot; price var ' + k(r.priceVar) + ' &middot; productivity var ' + k(r.prodVar)
+      + (r.surveyed ? ' &middot; creep projected ' + r.creepProj.toFixed(1) + ' mm' : '') + '</p>';
+    el("elevDrawer").hidden = false;
+    document.documentElement.style.overflow = "hidden";
+    // replaceState, not a direct location.hash assignment -- a direct assignment pushes a new
+    // history entry every open, so a reader who opened a couple of elevations would need several
+    // Back presses just to leave the page (/stress-test finding, 2026-09-03; the tab switcher
+    // already got this right, the drawer originally didn't match it).
+    history.replaceState(null, "", location.pathname + location.search + "#elev=" + id);
+    var closeBtn = el("elevDrawerClose");
+    if (closeBtn) closeBtn.focus();
+  }
+  function closeElevDrawer(){
+    var d = el("elevDrawer");
+    if (d) d.hidden = true;
+    document.documentElement.style.overflow = "";
+    if (/^#elev=/.test(location.hash)) history.replaceState(null, "", location.pathname + location.search);
+    if (elevDrawerReturnFocus && typeof elevDrawerReturnFocus.focus === "function") elevDrawerReturnFocus.focus();
+    elevDrawerReturnFocus = null;
+  }
+
+  /* Lightweight hover/focus tooltip -- one shared floating element (#hoverCard) positioned next to
+     whatever triggered it, rather than a browser-native title="" (no styling control) or a tooltip
+     per chart (duplicated positioning code). */
+  function showHoverCard(html, x, y){
+    var c = el("hoverCard");
+    if (!c) return;
+    c.innerHTML = html;
+    c.style.left = Math.max(8, x + 12) + "px";
+    c.style.top = Math.max(8, y + 12) + "px";
+    c.hidden = false;
+  }
+  function hideHoverCard(){ var c = el("hoverCard"); if (c) c.hidden = true; }
+
+  /* /stress-test finding (2026-09-03, independent reviewer, HIGH): both #elevDrawer and #walkOverlay
+     declare role="dialog" aria-modal="true", but aria-modal is a semantic hint to assistive tech --
+     most browsers do NOT enforce Tab order on their own, so Tab/Shift+Tab could walk straight past
+     either overlay onto background content while it still visually covered the screen (and, via a
+     background elev-link's Enter-key handler, could even open the drawer WHILE the walkthrough was
+     still showing -- the exact "two stacked dialogs" case the mouse-only fix above only half-closed).
+     A real WAI-ARIA APG focus trap: cycle Tab/Shift+Tab between the dialog's own first/last
+     focusable descendants instead of trusting aria-modal alone. */
+  function trapFocus(container, e){
+    if (e.key !== "Tab" || !container) return;
+    var focusable = Array.prototype.slice.call(container.querySelectorAll(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    ));
+    if (!focusable.length) return;
+    var first = focusable[0], last = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first){ e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
+  }
 
   /* ==================================================================================
      RENDER
@@ -1171,26 +1509,27 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
   var worstCreepRatio = worstCreepZone.creepRatio;
 
   var KPIS = [
-    {l:"Days of buffer cover", v:T.coverDays.toFixed(1),
+    {l:"Days of buffer cover", v:T.coverDays.toFixed(1), raw:T.coverDays, fmt:function(v){ return v.toFixed(1); },
      c:band(T.coverDays, PROGRAM.bufferFloorDays * 2, PROGRAM.bufferFloorDays),
      s:fmtInt(T.buffer) + " crated panels &divide; " + T.setRate.toFixed(1) + "/day set rate"},
     {l:"Panels set", v:fmtInt(T.set) + " / " + fmtInt(T.panels),
      c:band(T.set / T.plan, 1, 0.95), s:"Plan to date " + fmtInt(T.plan) + " &mdash; "
      + fmtInt(Math.abs(T.set - T.plan)) + (T.set < T.plan ? " behind" : " ahead")},
-    {l:"Earned value", v:m(T.ev), c:"info", s:pct(T.pct) + " of " + m(T.bac) + " budget"},
-    {l:"CPI", v:idx(T.cpi), c:band(T.cpi, 1, 0.95),
+    {l:"Earned value", v:m(T.ev), raw:T.ev, fmt:m, c:"info", s:pct(T.pct) + " of " + m(T.bac) + " budget"},
+    {l:"CPI", v:idx(T.cpi), raw:T.cpi, fmt:idx, c:band(T.cpi, 1, 0.95),
      s:"Cost variance " + k(T.cv),
      def:"Cost Performance Index &mdash; earned value &divide; actual cost. 1.00 means every dollar "
        + "spent bought a dollar of planned work; below 1.00 means it bought less."},
-    {l:"SPI", v:idx(T.spi), c:band(T.spi, 1, 0.95),
+    {l:"SPI", v:idx(T.spi), raw:T.spi, fmt:idx, c:band(T.spi, 1, 0.95),
      s:"In dollars, not days &mdash; " + k(T.sv),
      def:"Schedule Performance Index &mdash; earned value &divide; planned value. Measured in dollars "
        + "of work claimed, not calendar days, which is why it can move without the finish date moving."},
-    {l:"Forecast at completion", v:m(T.eacBottomUp), c:band(T.vac, 0, -T.bac * 0.03),
+    {l:"Forecast at completion", v:m(T.eacBottomUp), raw:T.eacBottomUp, fmt:m, c:band(T.vac, 0, -T.bac * 0.03),
      s:"Bottom-up. Variance " + k(T.vac)},
-    {l:"Productivity factor", v:idx(T.pf), c:band(T.pf, 1, 0.95),
+    {l:"Productivity factor", v:idx(T.pf), raw:T.pf, fmt:idx, c:band(T.pf, 1, 0.95),
      s:fmtInt(T.ernH) + " earned / " + fmtInt(T.actH) + " actual hours"},
-    {l:"Joint budget consumed", v:pct(worstCreepRatio, 0), c:band(worstCreepRatio, 0.65, 1, true),
+    {l:"Joint budget consumed", v:pct(worstCreepRatio, 0), raw:worstCreepRatio, fmt:function(v){ return pct(v, 0); },
+     c:band(worstCreepRatio, 0.65, 1, true),
      s:"Worst elevation (" + worstCreepZone.id + ") projected across its full sweep, against "
        + PROGRAM.jointBudgetMm + " mm"}
   ];
@@ -1202,7 +1541,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
     var def = x.def
       ? '<div class="def" id="kpiDef' + i + '" hidden>' + x.def + '</div>'
       : "";
-    return '<div class="kpi"><div class="v ' + x.c + '">' + x.v + '</div>'
+    return '<div class="kpi"><div class="v ' + x.c + '" id="kpiVal' + i + '">' + (x.raw === undefined ? x.v : "0") + '</div>'
          + '<div class="l">' + x.l + help + '</div><div class="s">' + x.s + '</div>' + def + '</div>';
   }).join(""));
   el("kpis").addEventListener("click", function(e){
@@ -1212,6 +1551,26 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
     b.setAttribute("aria-expanded", String(!open));
     if (def) def.hidden = open;
   });
+  /* Feature #13 -- count up from 0 on first load only (a re-animating number every tab switch would
+     be noise, not signal -- ties motion to "you just arrived," a real state, not decoration). */
+  KPIS.forEach(function(x, i){ if (x.raw !== undefined) animateCount(el("kpiVal" + i), x.raw, x.fmt); });
+
+  /* Feature #14 -- a persistent spatial anchor across every tab (sits above the tab strip's own
+     panels, so it never re-renders on tab switch). Order is illustrative floor position (podium at
+     grade, then low-rise, then high-rise; the returns don't stack vertically with the tower faces,
+     so they sit at the top as their own row) -- stated as such, not implying a real floor plan. */
+  var ZONEMAP_ORDER = ["PDM", "S-LO", "N-LO", "S-HI", "N-HI", "E-W"];
+  (function renderZoneMap(){
+    set("zoneMap", ZONEMAP_ORDER.map(function(id){
+      var r = R.filter(function(x){ return x.id === id; })[0]; if (!r) return "";
+      var openGate = GATES.filter(function(g, gi){ return g.s === "act" && new RegExp("\\b" + id + "\\b").test(g.d); }).length > 0;
+      var risk = (r.cpi < 0.95 || r.fpy < 0.90 || openGate) ? "act" : (r.cpi < 1 || r.fpy < 0.95) ? "watch" : "ok";
+      var bg = risk === "act" ? "rgb(var(--c-danger) / .18)" : risk === "watch" ? "rgb(var(--c-warning) / .16)" : "rgb(var(--c-success) / .14)";
+      return '<div class="zm-row" data-elev="' + id + '" tabindex="0" role="button" aria-label="' + id + ' detail" style="background:' + bg + '">'
+        + '<span>' + id + '</span><span style="color:rgb(var(--c-text-secondary));font-weight:400">CPI ' + idx(r.cpi)
+        + ' &middot; FPY ' + pct(r.fpy, 0) + '</span></div>';
+    }).join(""));
+  })();
 
   /* --- 1. Panel flow ---------------------------------------------------------------- */
   (function renderSCurve(){
@@ -1256,6 +1615,71 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
       "Cumulative panels crated by the shop against panels set in the field over "
       + W + " weeks; the shaded gap between them is the buffer, currently "
       + fmtInt(T.buffer) + " panels."));
+
+    /* Feature #4 -- scrub the chart to read any past week's exact reading, not just the current
+       one. Coordinates map through the SVG's own viewBox, not the rendered pixel box, so this
+       stays correct at any zoom/CSS width. */
+    var scEl = el("sCurve"), scSvg = scEl && scEl.querySelector("svg");
+    if (scSvg){
+      scSvg.style.cursor = "crosshair";
+      scSvg.addEventListener("mousemove", function(e){
+        var rect = scSvg.getBoundingClientRect();
+        var xIn = (e.clientX - rect.left) * (w / rect.width);
+        var idx = Math.max(0, Math.min(W - 1, Math.round((xIn - pl) / iw * (W - 1))));
+        var buf = WEEKS.crated[idx] - WEEKS.set[idx];
+        showHoverCard('<b>Week ' + (idx + 1) + '</b><br>Crated ' + fmtInt(WEEKS.crated[idx])
+          + '<br>Set ' + fmtInt(WEEKS.set[idx]) + '<br>Buffer ' + fmtInt(buf) + ' panels',
+          e.clientX, e.clientY);
+      });
+      scSvg.addEventListener("mouseleave", hideHoverCard);
+    }
+
+    /* Feature #12 -- scrub or auto-play through the SAME S-curve, week by week. A playhead line
+       drawn over the existing chart (not a redraw of truncated data) -- geometry stays the SAME
+       chart the rest of this dbox already renders, just a moving read position on it. */
+    var scrub = el("playScrub"), playBtn = el("playBtn"), playTimer = null;
+    if (scrub && scSvg){
+      scrub.max = W; scrub.value = W;
+      var headLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      headLine.setAttribute("stroke", "rgb(var(--c-accent))");
+      headLine.setAttribute("stroke-width", "1.5");
+      headLine.setAttribute("y1", pt); headLine.setAttribute("y2", pt + ih);
+      scSvg.appendChild(headLine);
+      function showWeek(idx){
+        var x = X(idx).toFixed(1);
+        headLine.setAttribute("x1", x); headLine.setAttribute("x2", x);
+        var buf = WEEKS.crated[idx] - WEEKS.set[idx];
+        set("playReadout", "<b>Week " + (idx + 1) + " of " + W + "</b> &mdash; crated " + fmtInt(WEEKS.crated[idx])
+          + " &middot; set " + fmtInt(WEEKS.set[idx]) + " &middot; buffer " + fmtInt(buf) + " panels");
+      }
+      scrub.addEventListener("input", function(){ stopPlay(); showWeek(parseInt(scrub.value, 10) - 1); });
+      function stopPlay(){
+        if (playTimer){ clearInterval(playTimer); playTimer = null; playBtn.textContent = "Play ▶"; }
+      }
+      if (motionOk()){
+        playBtn.addEventListener("click", function(){
+          if (playTimer){ stopPlay(); return; }
+          if (parseInt(scrub.value, 10) >= W) scrub.value = 1; // restart from the beginning if already at the end
+          playBtn.textContent = "Pause ⏸";
+          playTimer = setInterval(function(){
+            // /stress-test finding (2026-09-03): switching tabs away from Panel Flow while playing
+            // left this interval running indefinitely in the background (invisible, but a real
+            // leaked timer for the rest of the page's life) -- stop as soon as the tab is hidden.
+            var flowPanel = el("p-flow");
+            if (flowPanel && flowPanel.hidden){ stopPlay(); return; }
+            var next = parseInt(scrub.value, 10) + 1;
+            if (next > W){ stopPlay(); return; }
+            scrub.value = next; showWeek(next - 1);
+          }, 220);
+        });
+      } else {
+        // Reduced-motion: the manual scrub above still works (a direct, discrete user action);
+        // continuous auto-play is exactly the ambient motion this preference asks to suppress.
+        playBtn.disabled = true;
+        playBtn.title = "Auto-play is off under reduced-motion -- drag the slider instead.";
+      }
+      showWeek(W - 1);
+    }
   })();
 
   (function renderBuffer(){
@@ -1264,29 +1688,53 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
     var maxY = Math.max.apply(null, vals) * 1.1, iw = w - pl - pr, ih = h - pt - pb;
     var X = function(i){ return pl + (i / (W - 1)) * iw; };
     var Y = function(v){ return pt + ih - (v / maxY) * ih; };
-    var g = '', pts = [], i;
-    var fy = Y(PROGRAM.bufferFloorDays);
-    g += '<rect x="' + pl + '" y="' + fy.toFixed(1) + '" width="' + iw + '" height="'
-       + (pt + ih - fy).toFixed(1) + '" fill="rgb(var(--c-danger))" opacity="0.10"/>'
-       + '<line x1="' + pl + '" y1="' + fy.toFixed(1) + '" x2="' + (w - pr) + '" y2="' + fy.toFixed(1)
-       + '" stroke="rgb(var(--c-danger))" stroke-width="1.2" stroke-dasharray="4 3"/>'
-       + '<text x="' + (pl + 6) + '" y="' + (fy - 6).toFixed(1) + '" font-size="10.5" '
-       + 'font-family="ui-monospace,Menlo,monospace" fill="var(--c-pill-r)">'
-       + PROGRAM.bufferFloorDays + '-day floor</text>';
-    for (i = 0; i < W; i++){ if (T.cover[i] !== null) pts.push(X(i).toFixed(1) + "," + Y(T.cover[i]).toFixed(1)); }
-    g += polyline(pts, "rgb(var(--c-accent))", null, 2.2);
-    g += '<circle cx="' + X(W - 1).toFixed(1) + '" cy="' + Y(T.coverDays).toFixed(1)
-       + '" r="4" fill="rgb(var(--c-accent))"/>';
-    g += '<text x="' + (pl - 8) + '" y="' + (Y(maxY * 0.92) + 4).toFixed(1) + '" text-anchor="end" '
-       + 'font-size="11" font-family="ui-monospace,Menlo,monospace" fill="rgb(var(--c-text-secondary))">days</text>';
-    set("bufferChart", svg(w, h, g,
-      "Working days of buffer cover by week, currently " + T.coverDays.toFixed(1)
-      + " days against a " + PROGRAM.bufferFloorDays + "-day floor."));
+    function build(compare){
+      var g = '', pts = [], i;
+      var fy = Y(PROGRAM.bufferFloorDays);
+      g += '<rect x="' + pl + '" y="' + fy.toFixed(1) + '" width="' + iw + '" height="'
+         + (pt + ih - fy).toFixed(1) + '" fill="rgb(var(--c-danger))" opacity="0.10"/>'
+         + '<line x1="' + pl + '" y1="' + fy.toFixed(1) + '" x2="' + (w - pr) + '" y2="' + fy.toFixed(1)
+         + '" stroke="rgb(var(--c-danger))" stroke-width="1.2" stroke-dasharray="4 3"/>'
+         + '<text x="' + (pl + 6) + '" y="' + (fy - 6).toFixed(1) + '" font-size="10.5" '
+         + 'font-family="ui-monospace,Menlo,monospace" fill="var(--c-pill-r)">'
+         + PROGRAM.bufferFloorDays + '-day floor</text>';
+      for (i = 0; i < W; i++){ if (T.cover[i] !== null) pts.push(X(i).toFixed(1) + "," + Y(T.cover[i]).toFixed(1)); }
+      g += polyline(pts, "rgb(var(--c-accent))", null, 2.2);
+      /* Feature #17 -- before/after overlay: a real second marker at the SAME week T.coverPrior
+         already reads from (W-4), not a decorative second line -- toggled, not always-on, so the
+         default view stays uncluttered. */
+      if (compare && T.cover[W - 4] !== null){
+        g += '<line x1="' + X(W - 4).toFixed(1) + '" y1="' + pt + '" x2="' + X(W - 4).toFixed(1)
+           + '" y2="' + (pt + ih) + '" stroke="rgb(var(--c-warning))" stroke-width="1" stroke-dasharray="2 3"/>'
+           + '<circle cx="' + X(W - 4).toFixed(1) + '" cy="' + Y(T.coverPrior).toFixed(1)
+           + '" r="4" fill="rgb(var(--c-warning))"/>'
+           + '<text x="' + X(W - 4).toFixed(1) + '" y="' + (Y(T.coverPrior) - 9).toFixed(1)
+           + '" text-anchor="middle" font-size="10.5" font-weight="600" '
+           + 'font-family="ui-monospace,Menlo,monospace" fill="var(--c-pill-a)">3wk ago: '
+           + T.coverPrior.toFixed(1) + 'd</text>';
+      }
+      g += '<circle cx="' + X(W - 1).toFixed(1) + '" cy="' + Y(T.coverDays).toFixed(1)
+         + '" r="4" fill="rgb(var(--c-accent))"/>';
+      g += '<text x="' + (pl - 8) + '" y="' + (Y(maxY * 0.92) + 4).toFixed(1) + '" text-anchor="end" '
+         + 'font-size="11" font-family="ui-monospace,Menlo,monospace" fill="rgb(var(--c-text-secondary))">days</text>';
+      set("bufferChart", svg(w, h, g,
+        "Working days of buffer cover by week, currently " + T.coverDays.toFixed(1)
+        + " days against a " + PROGRAM.bufferFloorDays + "-day floor."
+        + (compare ? " Compared against " + T.coverPrior.toFixed(1) + " days three weeks earlier." : "")));
+    }
+    build(false);
     set("bufferFormula",
       "<b>cover</b> = (crated &minus; set) &divide; trailing 4-week set rate<br>"
       + "&nbsp;&nbsp;&nbsp;&nbsp; = (" + fmtInt(T.crated) + " &minus; " + fmtInt(T.set) + ") &divide; "
       + T.setRate.toFixed(2) + " panels/day = <b>" + T.coverDays.toFixed(1) + " working days</b><br>"
       + "three weeks ago it read " + T.coverPrior.toFixed(1) + " days");
+    var cmpBtn = el("bufferCompareBtn");
+    if (cmpBtn) cmpBtn.addEventListener("click", function(){
+      var on = cmpBtn.getAttribute("aria-pressed") === "true";
+      cmpBtn.setAttribute("aria-pressed", String(!on));
+      cmpBtn.textContent = on ? "Compare to 3 weeks ago" : "Hide comparison";
+      build(!on);
+    });
   })();
 
   (function renderTakt(){
@@ -1315,7 +1763,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
     }).join(""));
 
     set("zoneFlowBody", R.map(function(r){
-      return '<tr><td>' + r.id + ' <span style="color:rgb(var(--c-text-secondary))">' + r.n + '</span></td>'
+      return '<tr><td>' + elevLink(r.id) + ' <span style="color:rgb(var(--c-text-secondary))">' + r.n + '</span></td>'
         + '<td class="num">' + fmtInt(r.panels) + '</td><td class="num">' + fmtInt(r.fra) + '</td>'
         + '<td class="num">' + fmtInt(r.gla) + '</td><td class="num">' + fmtInt(r.cra) + '</td>'
         + '<td class="num">' + fmtInt(r.set) + '</td><td class="num">' + fmtInt(r.sea) + '</td>'
@@ -1329,12 +1777,41 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
       + '<td class="num">' + pct(T.pct) + '</td></tr>');
   })();
 
+  /* Feature #11 -- one tile per panel, coloured by furthest cumulative state reached. Each
+     elevation's own panels are ordered sealed-first then back through set/crated/glazed/framed/
+     not-yet-framed, purely as a DISPLAY convention (this ledger has no per-panel identity to sort
+     by) -- the count in each colour band is exactly r.sea/r.set/r.cra/r.gla/r.fra/r.panels, so the
+     picture can never show more progress than the real ledger does. */
+  var MOSAIC_STATES = [
+    {k:"sea", label:"Sealed", color:"rgb(var(--c-field))"},
+    {k:"set", label:"Set", color:"rgb(var(--c-field) / .55)"},
+    {k:"cra", label:"Crated", color:"rgb(var(--c-shop))"},
+    {k:"gla", label:"Glazed", color:"rgb(var(--c-shop) / .65)"},
+    {k:"fra", label:"Framed", color:"rgb(var(--c-shop) / .35)"},
+    {k:null, label:"Not yet framed", color:"rgb(var(--c-text-secondary) / .18)"}
+  ];
+  (function renderMosaic(){
+    set("mosaicLegend", MOSAIC_STATES.map(function(s){
+      return '<span><i style="background:' + s.color + '"></i>' + s.label + '</span>';
+    }).join(""));
+    set("mosaicWrap", R.map(function(r){
+      var counts = [r.sea, r.set - r.sea, r.cra - r.set, r.gla - r.cra, r.fra - r.gla, r.panels - r.fra];
+      var tiles = "";
+      counts.forEach(function(n, si){
+        for (var i = 0; i < n; i++) tiles += '<i style="background:' + MOSAIC_STATES[si].color + '" title="' + r.id + ' &mdash; ' + MOSAIC_STATES[si].label + '"></i>';
+      });
+      return '<div style="margin-top:14px"><div class="sub" style="margin-bottom:6px">' + r.id
+        + ' <span style="color:rgb(var(--c-text-secondary))">&middot; ' + fmtInt(r.panels) + ' panels</span></div>'
+        + '<div class="mosaic">' + tiles + '</div></div>';
+    }).join(""));
+  })();
+
   /* First-Pass Yield -- lean-manufacturing metric (Six Sigma / Factory Physics), applied at the one
      shop QC checkpoint this ledger has data for: crated panels, split into first-attempt passes vs.
      panels that needed at least one rework cycle. */
   (function renderFpy(){
     set("fpyBody", R.slice().sort(function(a, b){ return a.fpy - b.fpy; }).map(function(r){
-      return '<tr><td>' + r.id + '</td><td class="num">' + fmtInt(r.cra) + '</td>'
+      return '<tr><td>' + elevLink(r.id) + '</td><td class="num">' + fmtInt(r.cra) + '</td>'
         + '<td class="num">' + fmtInt(r.qcFirstPass) + '</td><td class="num">' + fmtInt(r.qcRework) + '</td>'
         + '<td class="num ' + band(r.fpy, 0.95, 0.90) + '">' + pct(r.fpy) + '</td></tr>';
     }).join(""));
@@ -1359,7 +1836,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
   (function renderWip(){
     set("wipRows", R.slice().sort(function(a, b){ return b.unbilledFactoryValue - a.unbilledFactoryValue; })
       .map(function(r){
-        return rowbar(r.id + ' <span style="color:rgb(var(--c-text-secondary))">'
+        return rowbar(elevLink(r.id) + ' <span style="color:rgb(var(--c-text-secondary))">'
           + fmtInt(r.unbilledPanels) + ' crated, not yet set</span>', k(r.unbilledFactoryValue),
           r.unbilledFactoryValue / T.unbilledFactoryValue * 100, "rgb(var(--c-accent))");
       }).join(""));
@@ -1387,7 +1864,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
   /* --- 2. Cost / EVM ---------------------------------------------------------------- */
   (function renderEvm(){
     set("evmBody", R.map(function(r){
-      return '<tr><td>' + r.id + '</td><td class="num">' + m(r.bac) + '</td>'
+      return '<tr><td>' + elevLink(r.id) + '</td><td class="num">' + m(r.bac) + '</td>'
         + '<td class="num">' + m(r.pv) + '</td><td class="num">' + m(r.ev) + '</td>'
         + '<td class="num">' + m(r.ac) + '</td>'
         + '<td class="num ' + band(r.spi, 1, 0.95) + '">' + idx(r.spi) + '</td>'
@@ -1407,6 +1884,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
       return '<div style="padding:11px 0;border-bottom:1px solid var(--c-line)">'
         + rowbar(e.n + ' <span style="color:rgb(var(--c-text-secondary))">&middot; ' + e.f + '</span>',
                  m(e.v), e.v / mxE * 100, "rgb(var(--c-accent))")
+        + '<div class="formula" style="margin-top:6px;font-size:11.5px">' + e.sub + ' = <b>' + m(e.v) + '</b></div>'
         + '<p class="note" style="margin-top:6px;font-style:normal">' + e.w + '</p></div>';
     }).join(""));
     set("eacSpread", "Widest disagreement between the four methods is " + pct(T.eacSpread)
@@ -1419,7 +1897,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
     var byCv = R.slice().sort(function(a, b){ return a.cv - b.cv; });
     var mxCv = Math.max.apply(null, byCv.map(function(r){ return Math.abs(r.cv); }));
     set("cvRows", byCv.map(function(r){
-      return rowbar(r.id + ' <span style="color:rgb(var(--c-text-secondary))">CPI ' + idx(r.cpi) + '</span>',
+      return rowbar(elevLink(r.id) + ' <span style="color:rgb(var(--c-text-secondary))">CPI ' + idx(r.cpi) + '</span>',
         k(r.cv), Math.abs(r.cv) / mxCv * 100,
         r.cv < 0 ? "rgb(var(--c-danger))" : "rgb(var(--c-success))");
     }).join("")
@@ -1476,63 +1954,83 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
 
   (function renderMc(){
     var w = 620, h = 210, pl = 40, pr = 12, pt = 14, pb = 30;
-    /* Force BAC into the x-range even when every simulated outcome sits above it. Clipping
-       the budget line off-canvas would hide the single most important thing this chart says. */
-    var lo = Math.min(MC[0], T.bac * 0.999), hi = Math.max(MC[MC.length - 1], T.bac * 1.001);
-    var bins = 44, counts = new Array(bins).fill(0), i;
-    for (i = 0; i < MC.length; i++){
-      var b = Math.max(0, Math.min(bins - 1, Math.floor((MC[i] - lo) / (hi - lo) * bins)));
-      counts[b]++;
+    function build(sims, correlated){
+      var p10 = q(sims, 0.10), p50 = q(sims, 0.50), p80 = q(sims, 0.80), p95 = q(sims, 0.95);
+      var pOver = sims.filter(function(v){ return v > T.bac; }).length / sims.length;
+      /* Force BAC into the x-range even when every simulated outcome sits above it. Clipping
+         the budget line off-canvas would hide the single most important thing this chart says. */
+      var lo = Math.min(sims[0], T.bac * 0.999), hi = Math.max(sims[sims.length - 1], T.bac * 1.001);
+      var bins = 44, counts = new Array(bins).fill(0), i;
+      for (i = 0; i < sims.length; i++){
+        var b = Math.max(0, Math.min(bins - 1, Math.floor((sims[i] - lo) / (hi - lo) * bins)));
+        counts[b]++;
+      }
+      var mxC = Math.max.apply(null, counts), iw = w - pl - pr, ih = h - pt - pb;
+      var bw = iw / bins, g = "";
+      for (i = 0; i < bins; i++){
+        var bh = counts[i] / mxC * ih, cx = lo + (i + 0.5) / bins * (hi - lo);
+        g += '<rect x="' + (pl + i * bw).toFixed(1) + '" y="' + (pt + ih - bh).toFixed(1)
+           + '" width="' + (bw - 1).toFixed(1) + '" height="' + bh.toFixed(1)
+           + '" fill="' + (cx > T.bac ? "rgb(var(--c-danger))" : "rgb(var(--c-success))")
+           + '" opacity="0.72"/>';
+      }
+      var Xv = function(v){ return pl + (v - lo) / (hi - lo) * iw; };
+      [["BAC", T.bac, "rgb(var(--c-accent))"], ["P50", p50, "rgb(var(--c-text-secondary))"],
+       ["P80", p80, "rgb(var(--c-warning))"]].forEach(function(mk){
+        var x = Xv(mk[1]);
+        if (x < pl || x > w - pr) return;
+        g += '<line x1="' + x.toFixed(1) + '" y1="' + pt + '" x2="' + x.toFixed(1) + '" y2="' + (pt + ih)
+           + '" stroke="' + mk[2] + '" stroke-width="1.6" stroke-dasharray="4 3"/>'
+           + '<text x="' + x.toFixed(1) + '" y="' + (h - 8) + '" text-anchor="middle" font-size="10.5" '
+           + 'font-family="ui-monospace,Menlo,monospace" fill="' + mk[2] + '">' + mk[0] + '</text>';
+      });
+      set("mcChart", svg(w, h, g, "Distribution of ten thousand simulated costs at completion; "
+        + pct(pOver, 0) + " of runs land above the " + m(T.bac) + " budget."
+        + (correlated ? " Correlated-draw view." : "")));
+      set("mcRows",
+        rowbar("P10 &mdash; optimistic", m(p10), 25, "rgb(var(--c-success))")
+      + rowbar("P50 &mdash; median", m(p50), 50, "rgb(var(--c-accent))")
+      + rowbar("P80 &mdash; the number to carry", m(p80), 80, "rgb(var(--c-warning))")
+      + rowbar("P95", m(p95), 95, "rgb(var(--c-danger))")
+      + '<p class="note" style="font-style:normal"><b>Read the narrowness, not just the centre.</b> '
+      + 'P10 to P95 spans ' + k(p95 - p10) + ' &mdash; only ' + pct((p95 - p10) / p50, 1)
+      + ' of the forecast. That is not a suspiciously confident model; it is what a package that is '
+      + pct(T.pct) + ' complete actually looks like. ' + m(T.ac) + ' is already spent and cannot be '
+      + 'simulated, so only the ' + m(T.bac - T.ev) + ' of unearned budget carries any uncertainty at '
+      + 'all. The useful conclusion is uncomfortable rather than uncertain: ' + pct(pOver, 0)
+      + ' of runs finish above the ' + m(T.bac) + ' budget, and the entire distribution sits to the '
+      + 'right of it. At this stage the overrun is not a risk to be managed, it is a fact to be '
+      + 'reported &mdash; what is still open is how much further it goes.</p>'
+      + '<p class="note" style="font-style:normal">The bottom-up EAC of ' + m(T.eacBottomUp)
+      + ' sits at about the P'
+      + Math.round(sims.filter(function(v){ return v <= T.eacBottomUp; }).length / sims.length * 100)
+      + ' mark. A single-point EAC is always a percentile; it is worth knowing which one you have been '
+      + 'quoting. '
+      + (correlated
+        ? '<b>Correlated-draw view:</b> a single shared systemic factor (blended ' + pct(MC_CORRELATION_WEIGHT, 0)
+          + ' into each elevation\'s own draw) is applied per simulation run, so a bad shared shock '
+          + 'pushes every elevation the same direction at once instead of averaging out &mdash; a '
+          + 'deliberately simple single-factor model, not a calibrated covariance matrix this ledger '
+          + 'has no data to estimate. <button type="button" class="btn" id="mcIndepBtn" style="margin-left:4px;padding:3px 10px;font-size:11.5px">&larr; Back to the independent-draw view</button>'
+        : '<b>Stated limitation:</b> the elevations are drawn independently, which understates '
+          + 'the true spread &mdash; they share crews, suppliers and a setting datum, so their overruns are '
+          + 'correlated in reality. <button type="button" class="btn" id="mcCorrBtn" style="margin-left:4px;padding:3px 10px;font-size:11.5px">See the correlated-draw view &rarr;</button>')
+      + '</p>');
+      // /stress-test finding (2026-09-03): the correlated-draw toggle was a one-way door -- once
+      // clicked, there was no path back to the canonical independent-draw view short of reloading
+      // the page. Fixed with a symmetric return button.
+      var btn = el("mcCorrBtn");
+      if (btn) btn.addEventListener("click", function(){ build(computeMcCorrelated(10000), true); });
+      var indepBtn = el("mcIndepBtn");
+      if (indepBtn) indepBtn.addEventListener("click", function(){ build(MC, false); });
     }
-    var mxC = Math.max.apply(null, counts), iw = w - pl - pr, ih = h - pt - pb;
-    var bw = iw / bins, g = "";
-    for (i = 0; i < bins; i++){
-      var bh = counts[i] / mxC * ih, cx = lo + (i + 0.5) / bins * (hi - lo);
-      g += '<rect x="' + (pl + i * bw).toFixed(1) + '" y="' + (pt + ih - bh).toFixed(1)
-         + '" width="' + (bw - 1).toFixed(1) + '" height="' + bh.toFixed(1)
-         + '" fill="' + (cx > T.bac ? "rgb(var(--c-danger))" : "rgb(var(--c-success))")
-         + '" opacity="0.72"/>';
-    }
-    var Xv = function(v){ return pl + (v - lo) / (hi - lo) * iw; };
-    [["BAC", T.bac, "rgb(var(--c-accent))"], ["P50", T.p50, "rgb(var(--c-text-secondary))"],
-     ["P80", T.p80, "rgb(var(--c-warning))"]].forEach(function(mk){
-      var x = Xv(mk[1]);
-      if (x < pl || x > w - pr) return;
-      g += '<line x1="' + x.toFixed(1) + '" y1="' + pt + '" x2="' + x.toFixed(1) + '" y2="' + (pt + ih)
-         + '" stroke="' + mk[2] + '" stroke-width="1.6" stroke-dasharray="4 3"/>'
-         + '<text x="' + x.toFixed(1) + '" y="' + (h - 8) + '" text-anchor="middle" font-size="10.5" '
-         + 'font-family="ui-monospace,Menlo,monospace" fill="' + mk[2] + '">' + mk[0] + '</text>';
-    });
-    set("mcChart", svg(w, h, g, "Distribution of ten thousand simulated costs at completion; "
-      + pct(T.pOverBac, 0) + " of runs land above the " + m(T.bac) + " budget."));
-    set("mcRows",
-      rowbar("P10 &mdash; optimistic", m(T.p10), 25, "rgb(var(--c-success))")
-    + rowbar("P50 &mdash; median", m(T.p50), 50, "rgb(var(--c-accent))")
-    + rowbar("P80 &mdash; the number to carry", m(T.p80), 80, "rgb(var(--c-warning))")
-    + rowbar("P95", m(T.p95), 95, "rgb(var(--c-danger))")
-    + '<p class="note" style="font-style:normal"><b>Read the narrowness, not just the centre.</b> '
-    + 'P10 to P95 spans ' + k(T.p95 - T.p10) + ' &mdash; only ' + pct((T.p95 - T.p10) / T.p50, 1)
-    + ' of the forecast. That is not a suspiciously confident model; it is what a package that is '
-    + pct(T.pct) + ' complete actually looks like. ' + m(T.ac) + ' is already spent and cannot be '
-    + 'simulated, so only the ' + m(T.bac - T.ev) + ' of unearned budget carries any uncertainty at '
-    + 'all. The useful conclusion is uncomfortable rather than uncertain: ' + pct(T.pOverBac, 0)
-    + ' of runs finish above the ' + m(T.bac) + ' budget, and the entire distribution sits to the '
-    + 'right of it. At this stage the overrun is not a risk to be managed, it is a fact to be '
-    + 'reported &mdash; what is still open is how much further it goes.</p>'
-    + '<p class="note" style="font-style:normal">The bottom-up EAC of ' + m(T.eacBottomUp)
-    + ' sits at about the P'
-    + Math.round(MC.filter(function(v){ return v <= T.eacBottomUp; }).length / MC.length * 100)
-    + ' mark. A single-point EAC is always a percentile; it is worth knowing which one you have been '
-    + 'quoting. <b>Stated limitation:</b> the elevations are drawn independently, which understates '
-    + 'the true spread &mdash; they share crews, suppliers and a setting datum, so their overruns are '
-    + 'correlated in reality. A correlated draw would widen this distribution and is the honest next '
-    + 'refinement rather than something this page pretends it already does.</p>');
+    build(MC, false);
   })();
 
   /* --- 3. Bid vs actual ------------------------------------------------------------- */
   (function renderBid(){
     set("bidBody", R.map(function(r){
-      return '<tr><td>' + r.id + '</td>'
+      return '<tr><td>' + elevLink(r.id) + '</td>'
         + '<td class="num">' + fmtInt(r.bidQty) + '</td><td class="num">' + fmtInt(r.actQty) + '</td>'
         + '<td class="num">$' + r.bidRate.toFixed(2) + '</td><td class="num">$' + r.actRate.toFixed(2) + '</td>'
         + '<td class="num ' + (r.qtyVar > 0 ? "bad" : "good") + '">' + k(r.qtyVar) + '</td>'
@@ -1557,10 +2055,26 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
 
     var mxP = Math.max.apply(null, R.map(function(r){ return Math.abs(r.prodVar); }));
     set("prodRows", R.slice().sort(function(a, b){ return b.prodVar - a.prodVar; }).map(function(r){
-      return rowbar(r.id + ' <span style="color:rgb(var(--c-text-secondary))">PF ' + idx(r.pf) + '</span>',
+      return '<div data-hover-cause="' + r.id + '">' + rowbar(elevLink(r.id)
+        + ' <span style="color:rgb(var(--c-text-secondary))">PF ' + idx(r.pf) + '</span>',
         k(r.prodVar), Math.abs(r.prodVar) / mxP * 100,
-        r.prodVar > 0 ? "rgb(var(--c-danger))" : "rgb(var(--c-success))");
+        r.prodVar > 0 ? "rgb(var(--c-danger))" : "rgb(var(--c-success))") + '</div>';
     }).join(""));
+    /* Feature #19 -- hover a bar to get the SAME cause reasoning the "What each cause would mean
+       here" card states in full, condensed to this one elevation, right where the bar already is. */
+    (function wireProdHover(){
+      var wrap = el("prodRows");
+      if (!wrap) return;
+      wrap.addEventListener("mousemove", function(e){
+        var row = e.target.closest("[data-hover-cause]"); if (!row) return;
+        var r = R.filter(function(x){ return x.id === row.dataset.hoverCause; })[0]; if (!r) return;
+        var lead = Math.abs(r.qtyVar) >= Math.abs(r.priceVar) && Math.abs(r.qtyVar) >= Math.abs(r.prodVar) ? "quantity"
+                 : Math.abs(r.priceVar) >= Math.abs(r.prodVar) ? "price" : "productivity";
+        showHoverCard('<b>' + r.id + '</b><br>Qty ' + k(r.qtyVar) + ' &middot; Price ' + k(r.priceVar)
+          + ' &middot; Prod ' + k(r.prodVar) + '<br>Largest driver: <b>' + lead + '</b>', e.clientX, e.clientY);
+      });
+      wrap.addEventListener("mouseleave", hideHoverCard);
+    })();
     var worstRatio = R.slice().sort(function(a, b){ return a.pf - b.pf; })[0];
     var worstDollar = R.slice().sort(function(a, b){ return b.prodVar - a.prodVar; })[0];
     set("prodFormula", "<b>productivity variance</b> = (actual hours &minus; earned hours) &times; "
@@ -1661,7 +2175,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
       var st = r.surveyed === 0 ? "na"
              : r.creepRatio >= 1 ? "act" : r.creepRatio >= 0.65 ? "watch" : "ok";
       var lbl = {na:"Not yet set", act:"Over budget", watch:"Watch", ok:"Within"};
-      return '<tr><td>' + r.id + '</td><td class="num">' + fmtInt(r.set) + '</td>'
+      return '<tr><td>' + elevLink(r.id) + '</td><td class="num">' + fmtInt(r.set) + '</td>'
         + '<td class="num">' + (r.surveyed ? r.creepMm.toFixed(1) + " mm" : "&mdash;") + '</td>'
         + '<td class="num">' + (r.surveyed ? r.creepPer.toFixed(2) + " mm" : "&mdash;") + '</td>'
         + '<td class="num">' + (r.surveyed ? r.creepProj.toFixed(1) + " mm" : "&mdash;") + '</td>'
@@ -1687,6 +2201,45 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
       : "No elevation is projected past its joint budget on current readings.");
   })();
 
+  /* Feature #2 -- a real what-if sandbox: both sliders feed the SAME buffer/coverDays formula the
+     Gate 3 card already evaluates (deriveGates(), above), over a stated 10-working-day projection
+     window -- never a separate, simplified model. Feature #15 ties a state-change flourish to the
+     one real trigger that deserves it: the projected gate status actually flipping. */
+  var SBX_DAYS = 10;
+  (function renderSandbox(){
+    var crateIn = el("sbxCrate"), setIn = el("sbxSet");
+    var lastStatus = null;
+    function compute(){
+      var crateDelta = parseFloat(crateIn.value) || 0, setDelta = parseFloat(setIn.value) || 0;
+      var newCrate = Math.max(0, T.crateRate + crateDelta);
+      var newSet = Math.max(0.1, T.setRate + setDelta);
+      var futureBuffer = T.buffer + (newCrate - newSet) * SBX_DAYS;
+      var futureCover = futureBuffer / newSet;
+      var status = futureCover < PROGRAM.bufferFloorDays ? "act"
+                 : futureCover > PROGRAM.bufferCeilingDays ? "watch" : "ok";
+      el("sbxCrateV").textContent = (crateDelta >= 0 ? "+" : "") + crateDelta.toFixed(1);
+      el("sbxSetV").textContent = (setDelta >= 0 ? "+" : "") + setDelta.toFixed(1);
+      var label = {act:"Still below the floor", watch:"Above the ceiling -- overproducing", ok:"Within the target band"};
+      var resultEl = el("sbxResult");
+      resultEl.innerHTML =
+        '<span class="gatepill ' + (status === "act" ? "blocked" : status === "watch" ? "watch" : "clear") + '">&#9679; ' + label[status] + '</span>'
+        + '<div class="formula" style="margin-top:8px">projected, ' + SBX_DAYS + ' working days out:<br>'
+        + 'buffer ' + fmtInt(T.buffer) + ' + (' + newCrate.toFixed(1) + ' &minus; ' + newSet.toFixed(1)
+        + ') &times; ' + SBX_DAYS + ' = <b>' + fmtInt(futureBuffer) + ' panels</b><br>'
+        + 'cover = ' + fmtInt(futureBuffer) + ' &divide; ' + newSet.toFixed(1) + ' = <b>'
+        + futureCover.toFixed(1) + ' days</b> (today: ' + T.coverDays.toFixed(1) + ' days)</div>';
+      if (lastStatus !== null && lastStatus !== status){
+        resultEl.classList.remove("state-flip"); void resultEl.offsetWidth; resultEl.classList.add("state-flip");
+      }
+      lastStatus = status;
+    }
+    if (crateIn && setIn){
+      crateIn.addEventListener("input", compute);
+      setIn.addEventListener("input", compute);
+      compute();
+    }
+  })();
+
   /* AAMA 501.2's own quantitative allowance + the tempered-glass industry's spontaneous-breakage
      design basis -- two real numeric thresholds the boolean gates above discard. Neither is a DCMA
      or EVMS metric; both are cited to their own real source (FGIA/AAMA and Construction Specifier /
@@ -1694,7 +2247,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
   (function renderQuality(){
     set("hoseBody", R.filter(function(r){ return r.hoseVolMl !== null; }).map(function(r){
       var nearMiss = r.hoseVolMl > 0 && r.hoseVolMl < 14.2;
-      return '<tr><td>' + r.id + '</td><td class="num">' + r.hoseVolMl.toFixed(1) + ' ml</td>'
+      return '<tr><td>' + elevLink(r.id) + '</td><td class="num">' + r.hoseVolMl.toFixed(1) + ' ml</td>'
         + '<td class="num">14.2 ml</td>'
         + '<td><span class="pill ' + (nearMiss ? "watch" : "ok") + '">' + (nearMiss ? "Near allowance" : "Clean pass") + '</span></td></tr>';
     }).join("") || '<tr><td colspan="4">No elevation has run its AAMA 501.2 hose test yet.</td></tr>');
@@ -1706,7 +2259,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
       : "No elevation has run its AAMA 501.2 hose test yet.");
 
     set("breakBody", R.slice().sort(function(a, b){ return b.breakRate - a.breakRate; }).map(function(r){
-      return '<tr><td>' + r.id + '</td><td class="num">' + fmtInt(r.cra) + '</td>'
+      return '<tr><td>' + elevLink(r.id) + '</td><td class="num">' + fmtInt(r.cra) + '</td>'
         + '<td class="num">' + fmtInt(r.breaks) + '</td>'
         + '<td class="num ' + (r.breakRate > PROGRAM.nisDesignRate ? "bad" : "good") + '">'
         + pct(r.breakRate, 2) + '</td></tr>';
@@ -1781,7 +2334,32 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
     + 'That is the version worth building; this is the harness for it.</p>');
   })();
 
-  /* --- 6. Method -------------------------------------------------------------------- */
+  /* Feature #9 -- consolidates every real external citation already scattered across the other
+     five tabs into one side-by-side comparison, rather than a new claim.
+     /stress-test finding (2026-09-03): the pill colour originally matched against the READING TEXT
+     via a hand-maintained regex (/Below|Slower|Above ceiling|.../) -- a real bug, caught before
+     ship: "Above band" (change-order rate exceeding its cited range) was never added to that list,
+     so a package that actually broke the 15% band would still render a green "ok" pill. Replaced
+     with an explicit boolean per row so the colour can never drift from the reading again. */
+  (function renderBenchmark(){
+    var rows = [
+      ["BEI (DCMA #14)", idx(T.bei), "&ge; 0.95 healthy", "DCMA 14-Point Assessment", T.bei >= 0.95 ? "At/above" : "Below", T.bei < 0.95],
+      ["First-Pass Yield", pct(T.fpy), "&ge; 95% typical", "Six Sigma / Factory Physics", T.fpy >= 0.95 ? "At/above" : "Below", T.fpy < 0.95],
+      ["Glass breakage rate", pct(T.breakRate, 2), pct(PROGRAM.nisDesignRate, 1) + " design basis", "Construction Specifier / Pilkington / Vitro", T.breakRate > PROGRAM.nisDesignRate ? "Above basis" : "Within basis", T.breakRate > PROGRAM.nisDesignRate],
+      ["RFI response (closed avg)", T.rfiAvgDays !== null ? T.rfiAvgDays.toFixed(1) + "d" : "n/a", "9.7d median", "Navigant Construction Forum (1,362 projects)", (T.rfiAvgDays !== null && T.rfiAvgDays <= 9.7) ? "Faster" : "Slower", !(T.rfiAvgDays !== null && T.rfiAvgDays <= 9.7)],
+      ["Change-order rate", pct(T.coRatePct, 1), "5&ndash;15% band", "CFMA Benchmarker (general commercial)", T.coRatePct <= 0.15 ? "Within band" : "Above band", T.coRatePct > 0.15],
+      ["Retainage rate", pct(PROGRAM.retainagePct, 1), "0&ndash;15% typical", "CMiC / Procore (model input)", "Within range", false],
+      ["AAMA 501.2 near-miss rate", pct(T.hoseNearMissRate, 0), "0% ideal (clean pass)", "FGIA/AAMA 501.2 (14.2 ml allowance)", T.hoseNearMissRate > 0 ? "Some near-misses" : "All clean", T.hoseNearMissRate > 0],
+      ["Buffer cover", T.coverDays.toFixed(1) + "d", PROGRAM.bufferFloorDays + "&ndash;" + PROGRAM.bufferCeilingDays + "d target", "Little's Law (this page's own target band)", T.overWip ? "Above ceiling" : (T.coverDays < PROGRAM.bufferFloorDays ? "Below floor" : "In band"), T.overWip || T.coverDays < PROGRAM.bufferFloorDays]
+    ];
+    set("benchBody", rows.map(function(r){
+      return '<tr><td>' + r[0] + '</td><td class="num">' + r[1] + '</td><td class="num">' + r[2]
+        + '</td><td style="color:rgb(var(--c-text-secondary));font-size:12px">' + r[3] + '</td>'
+        + '<td><span class="pill ' + (r[5] ? "watch" : "ok") + '">' + r[4] + '</span></td></tr>';
+    }).join(""));
+  })();
+
+  /* --- 7. Method -------------------------------------------------------------------- */
   (function renderMethod(){
     set("ledgerDesc", "One row per elevation, " + Object.keys(ZONES[0]).length
       + " fields each, plus three weekly series of " + W + " observations, a package-level RFI log "
@@ -1839,6 +2417,94 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
       + "&nbsp;&nbsp;= " + m(T.ev) + " &nbsp;(CPI " + idx(T.cpi) + ", SPI " + idx(T.spi) + ")<br>"
       + "quantity + price &minus; total = <b>$0.00</b><br>"
       + "shop + field &minus; package EV = <b>$0.00</b>");
+  })();
+
+  /* --- Glossary + quiz (features #6/#7) -- every entry's "worked" text is built from the SAME
+     live T/R values every other tab reads, never a hand-typed example number. ------------------ */
+  var GLOSSARY = [
+    {t:"SPI -- Schedule Performance Index", p:"Are we earning value at the rate the plan expected? Measured in dollars of work claimed, not days -- it can move without the finish date moving.",
+     worked:function(){ return "EV " + m(T.ev) + " &divide; PV " + m(T.pv) + " = <b>" + idx(T.spi) + "</b>"; }},
+    {t:"CPI -- Cost Performance Index", p:"For every dollar spent, how much planned work did it actually buy? 1.00 = a dollar bought a dollar.",
+     worked:function(){ return "EV " + m(T.ev) + " &divide; AC " + m(T.ac) + " = <b>" + idx(T.cpi) + "</b>"; }},
+    {t:"TCPI -- To-Complete Performance Index", p:"What efficiency would the REMAINING work need to run at to still hit budget? Compared against the CPI actually being run, it shows how big a turnaround the current EAC is assuming.",
+     worked:function(){ return "(BAC " + m(T.bac) + " &minus; EV " + m(T.ev) + ") &divide; (BAC &minus; AC " + m(T.ac) + ") = <b>" + idx(T.tcpi) + "</b>, vs. a trailing CPI of " + idx(T.cpi); }},
+    {t:"VAC -- Variance at Completion", p:"At the current pace, how far will the final cost land from budget?",
+     worked:function(){ return "BAC " + m(T.bac) + " &minus; EAC " + m(T.eacBottomUp) + " = <b>" + k(T.vac) + "</b>"; }},
+    {t:"BEI -- Baseline Execution Index", p:"Of the panels the baseline plan says should be set by now, how many actually are? A count-based check that can move independently of SPI, which is a dollar ratio.",
+     worked:function(){ return "set " + fmtInt(T.set) + " &divide; plan " + fmtInt(T.plan) + " = <b>" + idx(T.bei) + "</b>"; }},
+    {t:"FPY -- First-Pass Yield", p:"Of the panels that cleared factory QC, how many passed on the FIRST attempt, with no rework cycle?",
+     worked:function(){ return "first-pass " + fmtInt(T.qcFirstPass) + " &divide; crated " + fmtInt(T.craTotal) + " = <b>" + pct(T.fpy) + "</b>"; }},
+    {t:"Days of buffer cover", p:"At the pace the field is actually setting panels right now, how many working days until the crated buffer runs dry?",
+     worked:function(){ return "buffer " + fmtInt(T.buffer) + " panels &divide; " + T.setRate.toFixed(1) + "/day = <b>" + T.coverDays.toFixed(1) + " days</b> (floor: " + PROGRAM.bufferFloorDays + "d, ceiling: " + PROGRAM.bufferCeilingDays + "d)"; }},
+    {t:"Retainage", p:"The share of billed value an owner or GC withholds until closeout, as leverage to ensure the work gets finished.",
+     worked:function(){ return "billed&#8209;to&#8209;date " + m(T.billedToDate) + " &times; " + pct(PROGRAM.retainagePct, 1) + " = <b>" + m(T.retainageHeld) + "</b> currently held"; }},
+    {t:"NiS breakage design basis", p:"The tempered-glass industry's own accepted rate of spontaneous glass fracture from nickel-sulfide inclusions -- not a defect this page invented, a real published design allowance.",
+     worked:function(){ return "package breakage rate " + pct(T.breakRate, 2) + " against a " + pct(PROGRAM.nisDesignRate, 1) + " design basis"; }},
+    {t:"AAMA 501.2 allowance", p:"The water-test standard's own quantitative pass threshold -- a pass can still collect water on the interior stop, up to a stated limit, before it counts as a fail.",
+     worked:function(){ return T.hoseTestedCount + " elevation" + (T.hoseTestedCount === 1 ? "" : "s") + " tested, " + pct(T.hoseNearMissRate, 0) + " trending toward the 14.2 ml allowance rather than passing at 0 ml"; }},
+    {t:"RFI response time", p:"How long does it take to get an answer to a field question, benchmarked against a real 1,362-project industry study.",
+     worked:function(){ return (T.rfiAvgDays !== null ? "closed RFIs averaged <b>" + T.rfiAvgDays.toFixed(1) + " days</b>" : "no closed RFIs yet") + " against a 9.7-day published median"; }},
+    {t:"Change-order rate", p:"Approved change-order value as a share of budget, benchmarked against a general commercial-construction band.",
+     worked:function(){ return "approved " + k(T.coApprovedValue) + " &divide; BAC " + m(T.bac) + " = <b>" + pct(T.coRatePct, 1) + "</b> (band: 5&ndash;15%)"; }},
+    {t:"Tolerance creep", p:"A tiny per-panel setting bias, projected across a full elevation sweep, against the joint's sealant budget -- turns an unnoticeable reading into a forecast.",
+     worked:function(){ var w = R.filter(function(r){ return r.surveyed > 0; }).sort(function(a, b){ return b.creepRatio - a.creepRatio; })[0];
+       return w.id + ": " + w.creepPer.toFixed(2) + " mm/panel &times; " + w.sweep + " panels = <b>" + w.creepProj.toFixed(1) + " mm</b> against a " + PROGRAM.jointBudgetMm + " mm budget"; }},
+    {t:"Rules of credit", p:"The published weights that convert a panel's shop/field STATE into a fraction of its budget earned -- physical progress, not a superintendent's percent-complete guess.",
+     worked:function(){ return "shop ladder: " + SHOP_LADDER.map(function(s){ return pct(s.w, 0); }).join(" &rarr; ") + " &middot; field ladder: " + FIELD_LADDER.map(function(s){ return pct(s.w, 0); }).join(" &rarr; "); }}
+  ];
+  (function renderGlossary(){
+    set("glossList", GLOSSARY.map(function(g, i){
+      return '<details class="dbox" id="gloss' + i + '"><summary style="cursor:pointer;font-weight:600;font-size:13.5px">' + g.t + '</summary>'
+        + '<p class="sub" style="margin-top:8px">' + g.p + '</p>'
+        + '<div class="formula" style="margin-top:8px">' + g.worked() + '</div></details>';
+    }).join(""));
+  })();
+
+  var quiz = {active:false, i:-1, order:[], right:0, asked:0};
+  function quizPickNext(){
+    if (!quiz.order.length) quiz.order = GLOSSARY.map(function(_, i){ return i; }).sort(function(){ return Math.random() - 0.5; });
+    quiz.i = quiz.order.pop();
+    var g = GLOSSARY[quiz.i];
+    set("quizScore", quiz.asked ? "Score: " + quiz.right + " / " + quiz.asked : "");
+    set("quizBox",
+      '<h3>' + g.t + '</h3><p class="sub">' + g.p + '</p>'
+      + '<p class="note" style="font-style:normal;margin-top:8px">Before you look: what do you think this package\'s own number reads right now?</p>'
+      + '<button type="button" class="btn" id="quizReveal" style="margin-top:8px;padding:6px 12px;font-size:12px">Reveal &rarr;</button>'
+      + '<div id="quizAnswer" style="margin-top:8px"></div>');
+    var b = el("quizReveal");
+    if (b) b.addEventListener("click", function(){
+      quiz.asked++;
+      // /stress-test finding (2026-09-03): the score readout claimed to be "self-graded" but there
+      // was never a control for the reader to actually self-grade with -- quiz.right was written
+      // once (at initialisation) and read twice, never incremented, so the score silently stayed
+      // "0 / N" forever. Added the two buttons that were missing.
+      set("quizAnswer", '<div class="formula">' + g.worked() + '</div>'
+        + '<p class="note" style="font-style:normal;margin-top:8px">Were you close?</p>'
+        + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">'
+        + '<button type="button" class="btn" id="quizRight" style="padding:6px 12px;font-size:12px">Yes, I was close</button>'
+        + '<button type="button" class="btn" id="quizWrong" style="padding:6px 12px;font-size:12px">Not really</button></div>'
+        + '<button type="button" class="btn" id="quizNext" hidden style="margin-top:8px;padding:6px 12px;font-size:12px">Next &rarr;</button>');
+      function graded(wasRight){
+        if (wasRight) quiz.right++;
+        set("quizScore", "Score: " + quiz.right + " / " + quiz.asked + " (self-graded &mdash; the point is checking your own instinct, not a scored test)");
+        el("quizRight").disabled = true; el("quizWrong").disabled = true;
+        var nextBtn = el("quizNext"); nextBtn.hidden = false; nextBtn.focus();
+      }
+      el("quizRight").addEventListener("click", function(){ graded(true); });
+      el("quizWrong").addEventListener("click", function(){ graded(false); });
+      el("quizNext").addEventListener("click", quizPickNext);
+    });
+  }
+  (function wireQuiz(){
+    var btn = el("quizBtn");
+    if (!btn) return;
+    btn.addEventListener("click", function(){
+      quiz.active = !quiz.active;
+      btn.setAttribute("aria-pressed", String(quiz.active));
+      el("quizBox").hidden = !quiz.active;
+      el("glossList").hidden = quiz.active;
+      if (quiz.active) quizPickNext(); else set("quizScore", "");
+    });
   })();
 
   /* --- Ask AI ------------------------------------------------------------------------
@@ -1988,6 +2654,8 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
       (askAiConfigured() ? "" :
         '<p style="font-size:12.5px;color:var(--c-pill-a)">Not yet configured &mdash; see docs/ASK_AI_SETUP.md '
         + 'to deploy the Worker, then set ASK_AI_WORKER_URL.</p>')
+      + '<button type="button" class="btn" id="askAiSummaryBtn" style="border-color:rgb(var(--c-accent));font-weight:600"'
+        + (askAi.busy ? " disabled" : "") + '>Summarize this package&rsquo;s health &rarr;</button>'
       + askAiStartersHtml()
       + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">'
         + '<input class="gsearch" id="askAiInput" type="text" style="flex:1;min-width:220px" '
@@ -2008,6 +2676,13 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
     if (submitBtn) submitBtn.addEventListener("click", submitAskAi);
     var input = el("askAiInput");
     if (input) input.addEventListener("keydown", function(e){ if (e.key === "Enter") submitAskAi(); });
+    /* Feature #20 -- fills AND submits in one click, since it's still a single deliberate action
+       gated behind the same "Enable Ask AI" opt-in every other question already requires. */
+    var summaryBtn = el("askAiSummaryBtn");
+    if (summaryBtn) summaryBtn.addEventListener("click", function(){
+      var i = el("askAiInput");
+      if (i){ i.value = "Summarize this package's overall health in a few sentences."; submitAskAi(); }
+    });
   }
   function submitAskAi(){
     var input = el("askAiInput");
@@ -2055,6 +2730,8 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
   })();
 
   /* --- chrome ----------------------------------------------------------------------- */
+  var TAB_IDS = ["flow", "cost", "bid", "gates", "recon", "gloss", "method"];
+  var selectTabById; // assigned inside wire(), used by openElevDrawer's hash-restore and the walkthrough
   (function wire(){
     var root = document.documentElement;
     var themeBtn = el("themeBtn");
@@ -2073,11 +2750,14 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
         x.setAttribute("aria-selected", String(isB));
         x.setAttribute("tabindex", isB ? "0" : "-1");
       });
-      ["flow","cost","bid","gates","recon","method"].forEach(function(t){
+      TAB_IDS.forEach(function(t){
         var p = el("p-" + t); if (p) p.hidden = (t !== b.dataset.t);
       });
       if (focusIt) b.focus();
+      if (!location.hash || location.hash.indexOf("t=" + b.dataset.t) === -1)
+        history.replaceState(null, "", location.pathname + location.search + "#t=" + b.dataset.t); // feature #18
     }
+    selectTabById = function(id){ var b = tabs.querySelector('button[data-t="' + id + '"]'); if (b) selectTab(b, false); };
 
     tabs.addEventListener("click", function(e){
       var b = e.target.closest("button[data-t]"); if (!b) return;
@@ -2097,6 +2777,121 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
       if (!next) return;
       e.preventDefault();
       selectTab(next, true);
+    });
+
+    /* Feature #18 -- deep-link restore on load: #t=cost or #elev=S-HI (which also selects the tab
+       that elevation's table lives on isn't well-defined -- it opens the drawer over whatever tab
+       is current, defaulting to Panel Flow, since the drawer itself carries the full detail). */
+    var hash = location.hash.replace(/^#/, "");
+    var mT = hash.match(/(?:^|&)t=([a-z]+)/), mE = hash.match(/(?:^|&)elev=([A-Za-z0-9-]+)/);
+    if (mT && TAB_IDS.indexOf(mT[1]) !== -1) selectTabById(mT[1]);
+    if (mE) openElevDrawer(mE[1]);
+
+    /* Feature #1 -- one delegated click handler for every elev-link trigger anywhere on the page,
+       rather than a listener bound per element. elevLink() is rendered at many different call sites
+       (table cells AND rowbar() labels in wipRows/cvRows/prodRows), so delegation is one handler
+       covering all of them instead of N near-duplicate bindings -- not because anything re-renders
+       after load (nothing does; every render*() IIFE runs exactly once. /stress-test finding,
+       2026-09-03, independent reviewer: the original comment here claimed otherwise). */
+    document.addEventListener("click", function(e){
+      var link = e.target.closest("[data-elev]");
+      if (link){ openElevDrawer(link.dataset.elev); return; }
+      if (e.target.closest("#elevDrawerClose") || e.target === el("elevDrawer")) closeElevDrawer();
+    });
+    document.addEventListener("keydown", function(e){
+      if (e.key === "Escape" && !el("elevDrawer").hidden){ closeElevDrawer(); return; }
+      if ((e.key === "Enter" || e.key === " ") && e.target.matches('[data-elev][role="button"]')){
+        e.preventDefault(); openElevDrawer(e.target.dataset.elev);
+        return;
+      }
+      if (!el("elevDrawer").hidden) trapFocus(el("elevDrawer"), e);
+    });
+
+    /* Feature #5 -- wire click-to-sort on every table that opts in via data-sort. */
+    Array.prototype.slice.call(document.querySelectorAll("table")).forEach(wireSortableTable);
+  })();
+
+  /* Feature #16 -- guided walkthrough. Each step names the tab it needs (switched via the SAME
+     selectTabById wire() already exposes) and the element to spotlight -- a sequence through real
+     content, not a separate tour-only script. */
+  var WALK_STEPS = [
+    {tab:"flow", el:"zoneMap", text:"This map is the whole package's status at a glance, and it stays visible on every tab. Click any elevation any time for full detail."},
+    {tab:"flow", el:"sCurve", text:"The shop crates panels, the field sets them -- the gap between the two lines is the buffer. Hover the chart to read any past week's exact numbers."},
+    {tab:"flow", el:"mosaicWrap", text:"Every one of the 1,240 panels, coloured by the state it has reached. “Set” as an abstract count is one thing; a grid is another."},
+    {tab:"cost", el:"beiRow", text:"BEI and TCPI/CPI divergence -- the one DCMA metric this panel-count ledger can run honestly, plus this page's own forecast-reliability flag."},
+    {tab:"gates", el:"sbxResult", text:"A real what-if: drag the sliders and watch the SAME formula Gate 3 evaluates respond live."},
+    {tab:"gloss", el:"glossList", text:"Every term on this page, plain-language first, then worked through with this package's own real numbers. Quiz mode is up top if you want to test yourself."},
+    {tab:"method", el:"askAiGate", text:"Ask a real question and get an answer that is mechanically checked against the live ledger before it renders -- opt-in, since it costs real money per question."}
+  ];
+  var walkIdx = -1;
+  var walkLockTimer = null;
+  function walkShow(i){
+    walkIdx = i;
+    var step = WALK_STEPS[i];
+    if (!step){ walkEnd(); return; }
+    selectTabById(step.tab);
+    document.querySelectorAll(".walk-highlight").forEach(function(x){ x.classList.remove("walk-highlight"); });
+    var target = el(step.el);
+    set("walkStep", "Step " + (i + 1) + " of " + WALK_STEPS.length);
+    set("walkText", step.text);
+    el("walkNext").textContent = (i === WALK_STEPS.length - 1) ? "Done" : "Next →";
+    el("walkOverlay").hidden = false;
+    el("walkNext").focus(); // keyboard users land somewhere real, not lost in the highlighted content
+    /* /stress-test finding (2026-09-03, independent reviewer): the elevation drawer locks page
+       scroll while open but the walkthrough originally didn't, so a reader could scroll the
+       highlighted content out from behind the fixed tour card. Can't just copy the drawer's
+       approach verbatim -- this overlay's own mechanism REQUIRES scrolling (scrollIntoView, right
+       below), so locking overflow before that runs would fight the walkthrough itself. Unlock,
+       let the scroll happen, then lock once it has actually settled. */
+    if (walkLockTimer) clearTimeout(walkLockTimer);
+    document.documentElement.style.overflow = "";
+    if (target){
+      target.classList.add("walk-highlight");
+      target.scrollIntoView({behavior: motionOk() ? "smooth" : "auto", block: "center"});
+    }
+    walkLockTimer = setTimeout(function(){ document.documentElement.style.overflow = "hidden"; }, motionOk() ? 500 : 0);
+  }
+  function walkEnd(){
+    el("walkOverlay").hidden = true;
+    document.querySelectorAll(".walk-highlight").forEach(function(x){ x.classList.remove("walk-highlight"); });
+    walkIdx = -1;
+    if (walkLockTimer){ clearTimeout(walkLockTimer); walkLockTimer = null; }
+    document.documentElement.style.overflow = "";
+    var startBtn = el("walkStartBtn");
+    if (startBtn) startBtn.focus(); // symmetric with the drawer's own focus-return fix, above
+  }
+  (function wireWalkthrough(){
+    var startBtn = el("walkStartBtn"), nextBtn = el("walkNext"), skipBtn = el("walkSkip");
+    // /stress-test finding (2026-09-03): the drawer (e.g. opened via a #elev= deep link) and the
+    // walkthrough overlay could both be open at once -- not broken, just two stacked dialogs with
+    // no reason for both to be up. Starting a tour now closes any open drawer first.
+    if (startBtn) startBtn.addEventListener("click", function(){ if (!el("elevDrawer").hidden) closeElevDrawer(); walkShow(0); });
+    if (nextBtn) nextBtn.addEventListener("click", function(){ walkShow(walkIdx + 1); });
+    if (skipBtn) skipBtn.addEventListener("click", walkEnd);
+    document.addEventListener("keydown", function(e){
+      if (e.key === "Escape" && !el("walkOverlay").hidden){ walkEnd(); return; }
+      if (!el("walkOverlay").hidden) trapFocus(el("walkOverlay"), e);
+    });
+  })();
+
+  /* Feature #10 -- plain-language toggle, scoped to the KPI board (the page's single densest patch
+     of EVM jargon) rather than every string on the page -- a global find/replace over prose that was
+     deliberately written to explain itself would fight that writing rather than help it. */
+  (function wirePlainLanguage(){
+    var btn = el("plainLangBtn");
+    if (!btn) return;
+    var labels = {"CPI":"Cost efficiency", "SPI":"Schedule efficiency", "Days of buffer cover":"Days until the crew runs dry",
+      "Forecast at completion":"Likely final cost", "Productivity factor":"Labour efficiency", "Joint budget consumed":"Sealant room used up"};
+    btn.addEventListener("click", function(){
+      var on = document.body.classList.toggle("plain-lang");
+      btn.setAttribute("aria-pressed", String(on));
+      btn.textContent = on ? "Show technical labels" : "Plain-language labels";
+      document.querySelectorAll("#kpis .l").forEach(function(labelEl){
+        var raw = labelEl.dataset.rawLabel || labelEl.childNodes[0].textContent.trim();
+        labelEl.dataset.rawLabel = raw;
+        var plain = labels[raw];
+        if (plain) labelEl.childNodes[0].textContent = on ? plain : raw;
+      });
     });
   })();
 
