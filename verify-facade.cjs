@@ -192,5 +192,19 @@ console.log('\n== I. Sanitization (whitespace-normalised) ==');
 ok(/Synthetic illustrative data/.test(flatSrc), 'the synthetic-data banner is present');
 ok(!/<script[^>]+src=|<link[^>]+href="http/i.test(src), 'zero external references');
 
+console.log('\n== J. UI-design review fixes (2026-09-02) ==');
+ok(/font:16px\/1\.6 -apple-system/.test(src), 'base body font is 16px (was 14.5px, below the review checklist minimum)');
+ok(/min-height:44px/.test(src), 'the shared .icobtn touch target is 44px (was 34px)');
+const tabIds = ['tab-flow','tab-cost','tab-bid','tab-gates','tab-recon','tab-method'];
+const panelIds = ['p-flow','p-cost','p-bid','p-gates','p-recon','p-method'];
+tabIds.forEach((id, i) => {
+  ok(new RegExp('id="' + id + '"').test(src), 'tab button has id="' + id + '"');
+  ok(new RegExp('aria-labelledby="' + id + '"').test(src),
+     panelIds[i] + ' tabpanel is aria-labelledby="' + id + '"');
+});
+ok(/ArrowRight[\s\S]{0,400}ArrowLeft/.test(src) || /ArrowLeft[\s\S]{0,400}ArrowRight/.test(src),
+   'the tablist handles ArrowLeft/ArrowRight (WAI-ARIA tabs pattern, not click-only)');
+ok(/Home[\s\S]{0,200}End/.test(src) || /"Home"/.test(src), 'the tablist handles Home/End');
+
 console.log(fail ? '\nFAILED — ' + fail + ' check(s)' : '\nall ok');
 process.exit(fail ? 1 : 0);

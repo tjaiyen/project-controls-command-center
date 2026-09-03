@@ -45,7 +45,7 @@
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{margin:0;background:rgb(var(--c-bg-primary));color:rgb(var(--c-text-primary));
-  font:14.5px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   -webkit-font-smoothing:antialiased}
 code,.mono,.tab-num{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
 .tab-num{font-variant-numeric:tabular-nums}
@@ -62,7 +62,7 @@ a{color:rgb(var(--c-accent))}
 .brand small{display:block;font:400 11px/1.3 ui-monospace,Menlo,monospace;color:rgb(var(--c-text-secondary))}
 .dot{width:9px;height:9px;border-radius:50%;background:rgb(var(--c-accent));flex:none}
 .bar .right{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.icobtn{display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:6px 11px;
+.icobtn{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:6px 11px;
   border:1px solid var(--c-line);border-radius:7px;background:transparent;
   color:rgb(var(--c-text-primary));font:500 12px/1 inherit;cursor:pointer;text-decoration:none}
 .icobtn:hover{background:rgb(var(--c-accent) / .10)}
@@ -177,18 +177,18 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
   </div>
 
   <div class="tabs" role="tablist" aria-label="Sections">
-    <button class="icobtn" role="tab" data-t="flow"  aria-selected="true">1 &middot; Panel Flow</button>
-    <button class="icobtn" role="tab" data-t="cost"  aria-selected="false">2 &middot; Cost &amp; Earned Value</button>
-    <button class="icobtn" role="tab" data-t="bid"   aria-selected="false">3 &middot; Bid vs Actual</button>
-    <button class="icobtn" role="tab" data-t="gates" aria-selected="false">4 &middot; Gates &amp; Tolerance</button>
-    <button class="icobtn" role="tab" data-t="recon" aria-selected="false">5 &middot; Shop &harr; Field</button>
-    <button class="icobtn" role="tab" data-t="method" aria-selected="false">6 &middot; Method</button>
+    <button class="icobtn" id="tab-flow"  role="tab" data-t="flow"  aria-selected="true"  aria-controls="p-flow"  tabindex="0">1 &middot; Panel Flow</button>
+    <button class="icobtn" id="tab-cost"  role="tab" data-t="cost"  aria-selected="false" aria-controls="p-cost"  tabindex="-1">2 &middot; Cost &amp; Earned Value</button>
+    <button class="icobtn" id="tab-bid"   role="tab" data-t="bid"   aria-selected="false" aria-controls="p-bid"   tabindex="-1">3 &middot; Bid vs Actual</button>
+    <button class="icobtn" id="tab-gates" role="tab" data-t="gates" aria-selected="false" aria-controls="p-gates" tabindex="-1">4 &middot; Gates &amp; Tolerance</button>
+    <button class="icobtn" id="tab-recon" role="tab" data-t="recon" aria-selected="false" aria-controls="p-recon" tabindex="-1">5 &middot; Shop &harr; Field</button>
+    <button class="icobtn" id="tab-method" role="tab" data-t="method" aria-selected="false" aria-controls="p-method" tabindex="-1">6 &middot; Method</button>
   </div>
 
   <div class="kpis" id="kpis"></div>
 
   <!-- 1 ................................................................. PANEL FLOW -->
-  <section class="panel" id="p-flow" role="tabpanel">
+  <section class="panel" id="p-flow" role="tabpanel" aria-labelledby="tab-flow">
     <h2>Factory output, field setting, and the buffer between them</h2>
     <p class="lede">The single most useful number on a unitized job is not percent complete &mdash;
       it is <b>how many working days of crated panels are standing between the shop and the setting
@@ -247,7 +247,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
   </section>
 
   <!-- 2 ............................................................... COST / EVM -->
-  <section class="panel" id="p-cost" role="tabpanel" hidden>
+  <section class="panel" id="p-cost" role="tabpanel" aria-labelledby="tab-cost" hidden>
     <h2>Earned value, when physical completion is actually countable</h2>
     <p class="lede">Most earned&#8209;value disputes come down to an argued percent complete. Unitized
       work has an advantage stick&#8209;built does not: <b>panels are countable</b>. Earned value here
@@ -303,7 +303,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
   </section>
 
   <!-- 3 ................................................................ BID VS ACTUAL -->
-  <section class="panel" id="p-bid" role="tabpanel" hidden>
+  <section class="panel" id="p-bid" role="tabpanel" aria-labelledby="tab-bid" hidden>
     <h2>What the bid assumed, against what the job did</h2>
     <p class="lede">A single margin variance is a symptom with at least three different diseases.
       Splitting it into <b>quantity</b>, <b>price</b> and <b>productivity</b> is what makes it
@@ -349,7 +349,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
   </section>
 
   <!-- 4 .............................................................. GATES / TOLERANCE -->
-  <section class="panel" id="p-gates" role="tabpanel" hidden>
+  <section class="panel" id="p-gates" role="tabpanel" aria-labelledby="tab-gates" hidden>
     <h2>Gates that actually gate, and drift that predicts rework</h2>
     <p class="lede">A quality gate that always shows green is not checking anything. Each gate below
       evaluates a live condition against this package's own data; one of them is currently failing,
@@ -384,7 +384,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
   </section>
 
   <!-- 5 ................................................................ RECONCILIATION -->
-  <section class="panel" id="p-recon" role="tabpanel" hidden>
+  <section class="panel" id="p-recon" role="tabpanel" aria-labelledby="tab-recon" hidden>
     <h2>One job number, two work breakdowns</h2>
     <p class="lede">The shop plans in panel types and production batches. The field plans in floors
       and elevation sweeps. Both roll into one margin, and when the two structures are never
@@ -420,7 +420,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
   </section>
 
   <!-- 6 ...................................................................... METHOD -->
-  <section class="panel" id="p-method" role="tabpanel" hidden>
+  <section class="panel" id="p-method" role="tabpanel" aria-labelledby="tab-method" hidden>
     <h2>How every number here is produced</h2>
     <p class="lede">The point of this page is the method, not the tower. Nothing below is typed;
       each figure traces to the panel ledger through a named function, and the page ships with a test
@@ -1338,14 +1338,38 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
       themeBtn.setAttribute("aria-pressed", "true");
     });
     var tabs = document.querySelector(".tabs");
-    tabs.addEventListener("click", function(e){
-      var b = e.target.closest("button[data-t]"); if (!b) return;
-      Array.prototype.forEach.call(tabs.querySelectorAll("button"), function(x){
-        x.setAttribute("aria-selected", String(x === b));
+    var tabBtns = Array.prototype.slice.call(tabs.querySelectorAll("button[data-t]"));
+
+    function selectTab(b, focusIt){
+      tabBtns.forEach(function(x){
+        var isB = x === b;
+        x.setAttribute("aria-selected", String(isB));
+        x.setAttribute("tabindex", isB ? "0" : "-1");
       });
       ["flow","cost","bid","gates","recon","method"].forEach(function(t){
         var p = el("p-" + t); if (p) p.hidden = (t !== b.dataset.t);
       });
+      if (focusIt) b.focus();
+    }
+
+    tabs.addEventListener("click", function(e){
+      var b = e.target.closest("button[data-t]"); if (!b) return;
+      selectTab(b, false);
+    });
+
+    /* WAI-ARIA Tabs pattern: Left/Right move and activate (roving tabindex),
+       Home/End jump to the first/last tab. The tabpanel content is instant, so moving
+       focus already previews the panel -- no separate "activate" step needed. */
+    tabs.addEventListener("keydown", function(e){
+      var cur = e.target.closest("button[data-t]"); if (!cur) return;
+      var i = tabBtns.indexOf(cur), next = null;
+      if (e.key === "ArrowRight") next = tabBtns[(i + 1) % tabBtns.length];
+      else if (e.key === "ArrowLeft") next = tabBtns[(i - 1 + tabBtns.length) % tabBtns.length];
+      else if (e.key === "Home") next = tabBtns[0];
+      else if (e.key === "End") next = tabBtns[tabBtns.length - 1];
+      if (!next) return;
+      e.preventDefault();
+      selectTab(next, true);
     });
   })();
 

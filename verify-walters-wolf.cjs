@@ -80,5 +80,9 @@ ok(/cbre\.com\/insights\/books\/north-america-data-center-trends-h1-2026/.test(f
 ok(/grantpudqtep\.org/.test(flat), 'Grant PUD QTEP source link is present');
 ok(!/should (pivot|retool|reposition)|we recommend|the recommended path/i.test(flat), 'market-backdrop card stays descriptive -- no strategy recommendation asserted on a public page');
 
+console.log('\n== UI-design review fixes (2026-09-02) ==');
+ok(/font:16px\/1\.6 -apple-system/.test(src), 'base body font is 16px (was 14.5px, below the review checklist minimum)');
+ok(/min-height:44px/.test(src), 'the shared .icobtn touch target is 44px (was 34px) -- fixes the nav bar AND the filter buttons, which share this class');
+
 console.log(fail ? '\nFAILED ' + fail : '\nall ok');
 process.exit(fail ? 1 : 0);
