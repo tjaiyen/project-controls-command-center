@@ -6,6 +6,13 @@ key can never live in this repo. This is the one hands-on step to turn the featu
 else (the UI, the guardrail logic, the tests) already ships in the repo and is dormant until this
 is done.
 
+**One Worker, two dashboards (2026-09-03).** `facade.html`'s own Method tab carries the same
+feature, answered against its own package ledger (panels/gates/EAC methods), never the program
+KPI board. Both pages talk to the SAME Worker deployment and SHARE one `DAILY_BUDGET_USD` pool and
+one rate limiter — a request's `dashboard` field ("program" or "facade") just selects which tool
+set and system prompt (`worker/lib.js`'s `PROGRAM_TOOLS`/`FACADE_TOOLS`) answers it. There is
+nothing to deploy twice; steps 1–6 below stand up the one Worker both pages use.
+
 This step needs a Cloudflare account and your own Anthropic API key — do this part yourself
 rather than handing credentials to an assistant.
 
@@ -74,25 +81,30 @@ wrangler deploy
 
 Wrangler prints the live URL, something like `https://pcc-ask-ai.<your-subdomain>.workers.dev`.
 
-## 7. Point the dashboard at it
+## 7. Point BOTH dashboards at it
 
-In `index.html`, find:
+The same `ASK_AI_WORKER_URL` placeholder appears twice — once per page, each its own module-scope
+variable, deliberately not shared code (there's no shared JS file between the two pages):
 
 ```js
 var ASK_AI_WORKER_URL = "https://REPLACE-ME.workers.dev/ask";
 ```
 
-Replace it with the real URL from step 6 (keep the `/ask` path — the Worker doesn't currently
-route on it, but keeping a path makes future routing additions non-breaking). Commit and push.
+in `index.html` (index.html's own Ask AI, program dashboard) and in `facade.html` (Method tab,
+facade dashboard). Replace both with the real URL from step 6 (keep the `/ask` path — the Worker
+doesn't currently route on it, but keeping a path makes future routing additions non-breaking).
+Commit and push.
 
 `stress.cjs`'s external-asset sweep only allowlists the literal `REPLACE-ME.workers.dev`
 placeholder, deliberately — once you set the real URL, that sweep will fail until you also update
 its allowlist regex (search `no unexpected external assets`) to match your real subdomain. That's
 intentional, not a bug: it forces a conscious acknowledgment of the one new external dependency
 this feature adds, the same discipline this file already applies to every other external URL.
+`verify-facade.cjs` has the equivalent check for `facade.html`'s own copy of the placeholder.
 
-The feature stays off by default either way (`state.askAiEnabled` starts `false`) — this step only
-makes the "Enable Ask AI" toggle actually work instead of showing the "not yet configured" notice.
+Each page's feature stays off by default either way (`state.askAiEnabled` / the local `askAi.enabled`
+in facade.html both start `false`) — this step only makes the "Enable Ask AI" toggle actually work
+on each page instead of showing the "not yet configured" notice.
 
 ## What this session did NOT do (accepted limitation, stated plainly)
 

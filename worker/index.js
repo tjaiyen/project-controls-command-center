@@ -50,11 +50,11 @@ function json(body, status, origin) {
     headers: Object.assign({"Content-Type": "application/json"}, corsHeaders(origin))});
 }
 
-async function callAnthropic(env, messages) {
+async function callAnthropic(env, messages, dashboard) {
   var res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {"Content-Type": "application/json", "x-api-key": env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01"},
-    body: JSON.stringify({model: ANTHROPIC_MODEL, max_tokens: 700, system: lib.SYSTEM_PROMPT, tools: lib.TOOLS, messages: messages})
+    body: JSON.stringify({model: ANTHROPIC_MODEL, max_tokens: 700, system: lib.getSystemPrompt(dashboard), tools: lib.getTools(dashboard), messages: messages})
   });
   if (!res.ok) throw new Error("Anthropic API error: " + res.status);
   return res.json();
@@ -65,6 +65,10 @@ async function handleAsk(request, env, origin) {
   try { body = await request.json(); } catch (e) { return json({error: "Malformed request body."}, 400, origin); }
   var question = String(body && body.question || "").trim();
   var snapshot = body && body.snapshot;
+  // dashboard selects which tool set/system prompt/dispatcher this question is answered against
+  // (see worker/lib.js) -- defaults to "program" so an older client that never sends the field
+  // (index.html, before this change) keeps behaving exactly as it did.
+  var dashboard = body && body.dashboard === "facade" ? "facade" : "program";
   if (!question || question.length > 500) return json({error: "Question must be non-empty and under 500 characters."}, 400, origin);
   if (!snapshot || typeof snapshot !== "object") return json({error: "Missing program-data snapshot."}, 400, origin);
   if (lib.snapshotTooLarge(snapshot)) return json({error: "Program-data snapshot is larger than expected -- refusing."}, 400, origin);
@@ -109,7 +113,7 @@ async function handleAsk(request, env, origin) {
   var finalText = null; // null (not "") distinguishes "never produced a final answer" from "produced an empty one"
   var usage = {input_tokens: 0, output_tokens: 0};
   for (var round = 0; round < MAX_TOOL_ROUNDS; round++) {
-    var resp = await callAnthropic(env, messages);
+    var resp = await callAnthropic(env, messages, dashboard);
     usage.input_tokens += (resp.usage && resp.usage.input_tokens) || 0;
     usage.output_tokens += (resp.usage && resp.usage.output_tokens) || 0;
     var toolUses = (resp.content || []).filter(function (b) { return b.type === "tool_use"; });
@@ -119,7 +123,7 @@ async function handleAsk(request, env, origin) {
     }
     messages.push({role: "assistant", content: resp.content});
     var toolResultBlocks = toolUses.map(function (t) {
-      var result = lib.callTool(t.name, t.input, snapshot);
+      var result = lib.callTool(t.name, t.input, snapshot, dashboard);
       toolResults.push({name: t.name, args: t.input, result: result});
       return {type: "tool_result", tool_use_id: t.id, content: JSON.stringify(result)};
     });

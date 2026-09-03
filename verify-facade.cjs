@@ -216,5 +216,110 @@ ok(/Cost Performance Index/.test(src) && /Schedule Performance Index/.test(src),
 ok(/\.kpi \.help::before\{content:""/.test(src),
    'the help toggle has the same 44px invisible hit-area expander as .help-ic in index.html (visual glyph stays small, real tap target does not)');
 
+console.log('\n== L. Ask AI (2026-09-03) ==');
+ok(F.askAiConfigured() === false, 'Ask AI is dormant by default -- the placeholder Worker URL was never replaced, so no network call is even attempted');
+ok(F.getAskAiWorkerUrl().indexOf('REPLACE-ME') !== -1, 'the Worker URL is still the documented placeholder (docs/ASK_AI_SETUP.md is the deploy step, not this file)');
+ok(F.askAiState.enabled === false, 'Ask AI has not auto-enabled itself on page load -- a reader must click the gate button');
+ok(F.askAiState.history.length === 0, 'zero questions have been asked at load -- proves the feature makes no network call just by the page rendering');
+const snap = F.buildFacadeAskAiSnapshot();
+ok(snap.totals.bac === T.bac && snap.totals.cpi === T.cpi && snap.totals.p50 === T.p50,
+   'the snapshot totals are the SAME live T values every other tab reads, not a second invented copy', 'bac=' + snap.totals.bac);
+ok(snap.elevations.length === R.length && snap.elevations[0].id === R[0].id && snap.elevations[0].pctEarned === R[0].pct,
+   'the snapshot carries all 6 real elevations, keyed the same way R already is', snap.elevations.length + ' elevations');
+ok(snap.gates.length === GATES.length && snap.gates[4].n === 5 && snap.gates[4].status === GATES[4].s,
+   'the snapshot remaps GATES into {n:<1-based position>, status, ...} -- gate 5 lands at position 5, matching facade_get_gate\'s positional lookup', 'gates=' + snap.gates.length);
+ok(snap.gates.every(g => !/&\w+;/.test(g.name) && !/&\w+;/.test(g.detail)),
+   'gate name/detail text is HTML-entity-decoded before it reaches the model (deent()), not raw markup like "&mdash;"');
+ok(snap.eacMethods.length === EACS.length && near(snap.eacMethods[0].value, EACS[0].v),
+   'the snapshot carries all 4 real EAC methods with their real values', snap.eacMethods.length + ' methods');
+ok(near(snap.mc.p50, T.p50) && near(snap.mc.pOverBac, T.pOverBac),
+   'the snapshot\'s Monte Carlo summary matches the real T.p50/T.pOverBac, not a separate simulation', 'p50=' + snap.mc.p50);
+ok(near(snap.bidVariance.totVar, T.totVar), 'the snapshot\'s bid variance ties to the real T.totVar', 'totVar=' + snap.bidVariance.totVar);
+ok(F.escHtml('<script>alert(1)</script>') === '&lt;script&gt;alert(1)&lt;/script&gt;',
+   'escHtml neutralises HTML -- an AI answer is external content and is escaped before it ever reaches innerHTML, same as index.html\'s own Ask AI');
+ok(/dashboard:\s*"facade"/.test(src), 'the fetch body actually declares dashboard:"facade" -- the Worker cannot silently answer this page against the OTHER dashboard\'s tool set');
+ok(/id="askAiEnableBtn"[^>]*class="btn"|class="btn" id="askAiEnableBtn"/.test(src),
+   'the Enable button uses the new .btn class (44px min-height), not a cramped inline override like index.html\'s own compact chips');
+ok(/\.btn\{[^}]*min-height:44px/.test(src), '.btn itself carries the 44px touch-target floor the rest of this page was already fixed to');
+ok(/\.gsearch\{[^}]*min-height:44px/.test(src) && /\.gsearch\{[^}]*font:16px/.test(src),
+   '.gsearch (the Ask AI input) is also 44px tall and 16px text -- the same two floors facade.html\'s body/icobtn were fixed to earlier this session');
+
+console.log('\n== M. Domain-metric build (2026-09-03) ==');
+const { RFIS, CHANGE_ORDERS, RFI_ROWS, CO_ROWS } = F;
+
+// First-Pass Yield -- re-derived straight from ZONES literals, not from R (the derived output).
+ZONES.forEach(z => ok(z.qcFirstPass + z.qcRework === z.cra,
+  z.id + ': qcFirstPass + qcRework === cra (the invariant the FPY split depends on)',
+  z.qcFirstPass + '+' + z.qcRework + '=' + (z.qcFirstPass + z.qcRework) + ' vs cra=' + z.cra));
+const rawCraTotal = ZONES.reduce((a, z) => a + z.cra, 0);
+const rawFirstPass = ZONES.reduce((a, z) => a + z.qcFirstPass, 0);
+ok(near(T.fpy, rawFirstPass / rawCraTotal), 'package FPY re-derived from raw qcFirstPass/cra sums matches T.fpy', T.fpy.toFixed(4));
+const worstFpyZone = ZONES.slice().sort((a, b) => (a.qcFirstPass / a.cra) - (b.qcFirstPass / b.cra))[0];
+ok(R.find(r => r.id === worstFpyZone.id).fpy < 0.95, 'the worst-FPY elevation genuinely reads below the 95% band this page treats as healthy', worstFpyZone.id);
+
+// Breakage rate vs. the stated NiS design basis.
+const rawBreaks = ZONES.reduce((a, z) => a + z.breaks, 0);
+ok(near(T.breakRate, rawBreaks / rawCraTotal), 'package breakage rate re-derived from raw breaks/cra sums matches T.breakRate', T.breakRate.toFixed(5));
+ok(PROGRAM.nisDesignRate === 0.008, 'the NiS design-basis constant is the real cited 8-per-1,000 figure, not a rounded stand-in');
+const overDesignZones = ZONES.filter(z => (z.breaks / z.cra) > PROGRAM.nisDesignRate);
+ok(overDesignZones.length >= 1 && overDesignZones.length < ZONES.length,
+  'at least one elevation runs over the design basis while the package total does not -- the per-elevation-vs-package divergence the box claims to show',
+  overDesignZones.map(z => z.id).join(','));
+
+// AAMA 501.2 quantitative hose-test reading.
+const hoseTested = ZONES.filter(z => z.hoseVolMl !== null);
+const hoseNearMiss = hoseTested.filter(z => z.hoseVolMl > 0 && z.hoseVolMl < 14.2);
+ok(T.hoseTestedCount === hoseTested.length, 'T.hoseTestedCount matches a raw count of elevations with a non-null hoseVolMl', T.hoseTestedCount);
+ok(near(T.hoseNearMissRate, hoseNearMiss.length / hoseTested.length), 'T.hoseNearMissRate re-derived from raw hoseVolMl readings matches', T.hoseNearMissRate.toFixed(3));
+hoseTested.forEach(z => ok(z.hoseVolMl <= 14.2, z.id + ": every hoseVolMl reading actually respects the standard's own 14.2 ml allowance (a reading above it should be a failed test, not a passed one)"));
+
+// Unbilled factory value / WIP.
+const rawUnbilled = ZONES.reduce((a, z) => a + Math.max(0, z.cra - z.set) * (z.bacShop / z.panels), 0);
+ok(near(T.unbilledFactoryValue, rawUnbilled, 1), 'T.unbilledFactoryValue re-derived from raw (cra-set) x (bacShop/panels) per elevation matches', T.unbilledFactoryValue.toFixed(2));
+ok(T.unbilledFactoryValue > 0 && T.unbilledFactoryValue < T.bac, 'unbilled factory value is a real positive figure and a small fraction of BAC, not a runaway number');
+ok(typeof T.overWip === 'boolean' && T.overWip === (T.coverDays > PROGRAM.bufferCeilingDays), 'T.overWip is exactly the coverDays > ceiling comparison, not a separately hand-set flag');
+
+// BEI + TCPI/CPI divergence.
+ok(near(T.bei, T.set / T.plan), 'T.bei is exactly set/plan from the SAME weekly series the KPI board already reads, not a second computation', T.bei.toFixed(4));
+ok(T.bei > 0 && T.bei < 2, 'BEI is a plausible ratio, not a broken division');
+const gap = T.tcpi - T.cpi;
+ok(Math.abs(gap) >= 0 , 'TCPI-CPI gap computes to a real finite number'); // sanity: no NaN
+ok(isFinite(gap), 'the TCPI/CPI divergence is finite (would NaN if T.bac===T.ac, i.e. zero remaining budget headroom)');
+
+// Retainage.
+ok(near(T.retainageHeld, T.ev * PROGRAM.retainagePct), 'T.retainageHeld re-derived as billedToDate(=EV) x retainagePct matches exactly', T.retainageHeld.toFixed(2));
+ok(PROGRAM.retainagePct > 0 && PROGRAM.retainagePct < 0.15, 'the retainage rate is inside the commonly-cited 0-15% commercial range, not a placeholder value');
+
+// RFIs -- daysOpen re-derived from raw ISO dates via a completely independent date calc.
+function rawDaysBetween(a, b){ return Math.round((new Date(b) - new Date(a)) / 86400000); }
+RFIS.forEach(r => {
+  const row = RFI_ROWS.find(x => x.id === r.id);
+  const expectDays = rawDaysBetween(r.opened, r.answered || PROGRAM.dataDateIso);
+  ok(row.daysOpen === expectDays, r.id + ': daysOpen matches an independently re-derived date difference', row.daysOpen + ' vs ' + expectDays);
+  ok(row.closed === !!r.answered, r.id + ': closed flag matches whether answered is set');
+});
+const rawClosed = RFIS.filter(r => r.answered);
+const rawAvg = rawClosed.reduce((a, r) => a + rawDaysBetween(r.opened, r.answered), 0) / rawClosed.length;
+ok(near(T.rfiAvgDays, rawAvg), 'T.rfiAvgDays re-derived from raw closed-RFI dates matches', T.rfiAvgDays.toFixed(2));
+ok(T.rfiOpenCount === RFIS.filter(r => !r.answered).length, 'T.rfiOpenCount matches a raw count of RFIS with no answered date');
+ok(T.rfiOpenMaxDays >= 0, 'rfiOpenMaxDays is non-negative');
+
+// Change orders / PCOs.
+const rawApproved = CHANGE_ORDERS.filter(c => c.status === 'approved').reduce((a, c) => a + c.value, 0);
+ok(T.coApprovedValue === rawApproved, 'T.coApprovedValue matches a raw sum of approved CHANGE_ORDERS values', T.coApprovedValue);
+ok(near(T.coRatePct, rawApproved / T.bac), 'T.coRatePct is exactly coApprovedValue/BAC, not a hand-typed percentage');
+ok(T.coRatePct > 0 && T.coRatePct < 0.15, 'the change-order rate sits inside the commonly-cited 0-15% commercial band this page benchmarks it against');
+const rawUnpriced = CHANGE_ORDERS.filter(c => c.status === 'pending').reduce((a, c) => a + c.value * c.pctCompleteUnapproved, 0);
+ok(near(T.coUnpricedExposure, rawUnpriced), 'T.coUnpricedExposure matches a raw sum of pending value x pctCompleteUnapproved');
+CHANGE_ORDERS.filter(c => c.status === 'pending').forEach(c => {
+  const row = CO_ROWS.find(x => x.id === c.id);
+  ok(row.daysOutstanding === rawDaysBetween(c.opened, PROGRAM.dataDateIso), c.id + ': daysOutstanding independently re-derived from its opened date');
+});
+
+// New metrics actually reach the Ask AI snapshot -- the point of the wiring in buildFacadeAskAiSnapshot.
+const snap2 = F.buildFacadeAskAiSnapshot();
+['bei', 'fpy', 'breakRate', 'unbilledFactoryValue', 'retainageHeld', 'rfiAvgDays', 'coRatePct', 'coUnpricedExposure']
+  .forEach(k => ok(snap2.totals[k] === T[k], 'snapshot.totals.' + k + ' is wired to the real T.' + k + ', not omitted'));
+
 console.log(fail ? '\nFAILED — ' + fail + ' check(s)' : '\nall ok');
 process.exit(fail ? 1 : 0);

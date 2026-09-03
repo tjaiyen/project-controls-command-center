@@ -150,6 +150,18 @@ ul.tight{margin:9px 0 0;padding-left:19px} ul.tight li{margin:5px 0;color:rgb(va
 .track{height:8px;border-radius:999px;background:rgb(var(--c-text-secondary) / .16);overflow:hidden}
 .track i{display:block;height:100%;border-radius:999px}
 .note{font-size:12px;color:rgb(var(--c-text-secondary));margin-top:10px;font-style:italic}
+/* Ask AI -- reuses .dbox for its own card; these two are new because facade.html had no button
+   other than .icobtn (tabs/theme, 44px square-ish) and no text input at all before this feature.
+   Both hold the same 44px touch-target / 16px-text floor the rest of this page was fixed to. */
+.btn{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:9px 14px;
+  border:1px solid var(--c-line);border-radius:7px;background:transparent;
+  color:rgb(var(--c-text-primary));font:500 12.5px/1 inherit;cursor:pointer}
+@media (hover:hover) and (pointer:fine){.btn:hover{background:rgb(var(--c-accent) / .10)}}
+.btn:disabled{opacity:.5;cursor:default}
+.gsearch{min-height:44px;padding:9px 13px;border:1px solid var(--c-line);border-radius:7px;
+  background:rgb(var(--c-bg-primary));color:rgb(var(--c-text-primary));font:16px/1.4 inherit}
+.gsearch:focus-visible{outline:2px solid rgb(var(--c-accent));outline-offset:1px}
+@keyframes livePulse{0%,80%,100%{opacity:.25}40%{opacity:1}}
 footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
   font-size:12.5px;color:rgb(var(--c-text-secondary))}
 @media (prefers-reduced-motion: reduce){html{scroll-behavior:auto} *{animation:none!important;transition:none!important}}
@@ -259,6 +271,32 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
         </table>
       </div>
     </div>
+
+    <div class="grid2">
+      <div class="dbox">
+        <h3>First-Pass Yield &mdash; factory QC</h3>
+        <p class="sub">Panels that cleared factory QC on the first attempt vs. needed at least one
+          rework cycle. A lean-manufacturing metric (Six Sigma / Factory Physics), applied at the
+          one shop checkpoint this ledger has real data for.</p>
+        <div class="tblwrap">
+          <table><thead><tr><th scope="col">Elevation</th><th class="num" scope="col">Crated</th>
+            <th class="num" scope="col">First pass</th><th class="num" scope="col">Rework</th>
+            <th class="num" scope="col">FPY</th></tr></thead>
+            <tbody id="fpyBody"></tbody><tfoot id="fpyFoot"></tfoot></table>
+        </div>
+        <p class="note" id="fpyNote" style="font-style:normal"></p>
+      </div>
+      <div class="dbox">
+        <h3>Cash tied up in the shop</h3>
+        <p class="sub">The other half of the buffer story. Crated panels not yet set carry shop cost
+          already spent (acShop) that a typical field-installation-triggered pay app cannot yet bill
+          &mdash; and days-of-cover well above target means that cash is idling, not protecting the
+          setting crew.</p>
+        <div id="wipRows"></div>
+        <div class="formula" id="wipFormula"></div>
+        <p class="note" id="wipNote" style="font-style:normal"></p>
+      </div>
+    </div>
   </section>
 
   <!-- 2 ............................................................... COST / EVM -->
@@ -288,6 +326,28 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
         each elevation carries its own cost efficiency. The blended check &mdash; package BAC &divide;
         package CPI &mdash; is shown alongside it and legitimately differs; that spread is the thing a
         single blended index hides.</p>
+    </div>
+
+    <div class="grid2">
+      <div class="dbox">
+        <h3>Baseline execution &amp; forecast reliability</h3>
+        <p class="sub">DCMA 14-Point Assessment metric #14, applied to panel counts &mdash; the one
+          DCMA point this ledger has data for without a real activity network. Paired with a
+          divergence flag between TCPI and CPI: this page's own extension, not a DCMA metric.</p>
+        <div id="beiRow"></div>
+        <div class="formula" id="beiFormula"></div>
+        <p class="note" id="beiNote" style="font-style:normal"></p>
+        <p class="sub" id="divergenceRow" style="margin-top:12px;font-family:ui-monospace,Menlo,monospace"></p>
+        <p class="note" id="divergenceNote" style="font-style:normal"></p>
+      </div>
+      <div class="dbox">
+        <h3>Retainage exposure</h3>
+        <p class="sub">A model input, not a measured cash figure &mdash; the rate and the
+          earned-value-as-billing approximation are both stated explicitly below rather than left
+          implicit.</p>
+        <p class="sub" id="retainRow" style="font-family:ui-monospace,Menlo,monospace"></p>
+        <p class="note" id="retainNote" style="font-style:normal"></p>
+      </div>
     </div>
 
     <div class="grid2">
@@ -361,6 +421,35 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
         <div id="causeNarrative"></div>
       </div>
     </div>
+
+    <div class="grid2">
+      <div class="dbox">
+        <h3>RFI response time</h3>
+        <p class="sub">Benchmarked against the Navigant Construction Forum's own 1,362-project study
+          (average first reply 6.4 days, median 9.7 days) &mdash; the most-cited primary source on
+          this, not a figure this page invented.</p>
+        <div class="tblwrap">
+          <table><thead><tr><th scope="col">RFI</th><th scope="col">Elevation</th>
+            <th scope="col">Subject</th><th class="num" scope="col">Days</th>
+            <th scope="col">Status</th></tr></thead>
+            <tbody id="rfiBody"></tbody></table>
+        </div>
+        <p class="note" id="rfiNote" style="font-style:normal"></p>
+      </div>
+      <div class="dbox">
+        <h3>Change orders &amp; unpriced exposure</h3>
+        <p class="sub">Approved change orders against a general 5&ndash;15% commercial-construction
+          band (CFMA); pending PCOs aged and weighted by percent complete on unapproved work &mdash;
+          the live financing exposure that log alone would not show.</p>
+        <div class="tblwrap">
+          <table><thead><tr><th scope="col">ID</th><th scope="col">Description</th>
+            <th class="num" scope="col">Value</th><th class="num" scope="col">Outstanding</th>
+            <th scope="col">Aging</th></tr></thead>
+            <tbody id="coBody"></tbody></table>
+        </div>
+        <p class="note" id="coNote" style="font-style:normal"></p>
+      </div>
+    </div>
   </section>
 
   <!-- 4 .............................................................. GATES / TOLERANCE -->
@@ -395,6 +484,33 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
       </div>
       <div class="formula" id="creepFormula"></div>
       <p class="note" id="creepNote"></p>
+    </div>
+
+    <div class="grid2">
+      <div class="dbox">
+        <h3>AAMA 501.2 &mdash; the quantitative reading behind the pass/fail</h3>
+        <p class="sub">The standard itself allows up to 14.2 ml (0.5 oz) collected on an interior
+          stop/stool in a 5-minute period and still counts it a pass. Gate 5 above only ever shows
+          pass/fail; this is the number underneath it.</p>
+        <div class="tblwrap">
+          <table><thead><tr><th scope="col">Elevation</th><th class="num" scope="col">Collected</th>
+            <th class="num" scope="col">Allowance</th><th scope="col">Reading</th></tr></thead>
+            <tbody id="hoseBody"></tbody></table>
+        </div>
+        <p class="note" id="hoseNote" style="font-style:normal"></p>
+      </div>
+      <div class="dbox">
+        <h3>Glass breakage vs. the industry design basis</h3>
+        <p class="sub">8 lites per 1,000 (0.8%) is the tempered-glass industry's own accepted
+          spontaneous-breakage design rate (nickel-sulfide inclusions and handling combined), not a
+          figure this page invented.</p>
+        <div class="tblwrap">
+          <table><thead><tr><th scope="col">Elevation</th><th class="num" scope="col">Crated</th>
+            <th class="num" scope="col">Broken</th><th class="num" scope="col">Rate</th></tr></thead>
+            <tbody id="breakBody"></tbody><tfoot id="breakFoot"></tfoot></table>
+        </div>
+        <p class="note" id="breakNote" style="font-style:normal"></p>
+      </div>
     </div>
   </section>
 
@@ -487,6 +603,60 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
         <div class="formula" id="verifyNote"></div>
       </div>
     </div>
+
+    <div class="dbox">
+      <h3>Ask AI <span class="pill na" style="margin-left:2px">AI &middot; experimental</span></h3>
+      <p class="sub">Free-text questions about this package, answered by Claude reading only the real
+        numbers on this page &mdash; never its own outside knowledge. Every claim in the answer is
+        mechanically re-checked against the live ledger before it renders; anything unverifiable is
+        stripped, or the answer is refused outright. Calls an outside AI service and costs real money
+        per question, so it is off by default &mdash; turning it on is your call, each session.</p>
+      <div id="askAiGate" style="margin-top:10px"></div>
+      <div id="askAiPanel" hidden style="margin-top:12px"></div>
+    </div>
+
+    <div class="dbox">
+      <h3>AI System Card <span class="pill na" style="margin-left:2px">Ask AI's own disclosure</span></h3>
+      <p class="sub">One page stating intended use, what the model can access, how its claims get
+        checked, and its known limits &mdash; the same pattern real AI labs publish per model release
+        &mdash; instead of leaving a reader to infer all of that from a chat box.</p>
+      <div class="grid2" style="margin-top:6px">
+        <div class="dbox" style="margin-top:0">
+          <h3>Intended use</h3>
+          <p class="sub">Answering plain-language questions about <em>this package's own real
+            ledger</em> &mdash; the same panel, cost, gate and forecast figures already on this page.
+            Not a general-purpose assistant, not a source of outside facts, not construction, safety,
+            or investment advice.</p>
+        </div>
+        <div class="dbox" style="margin-top:0">
+          <h3>What it can access</h3>
+          <p class="sub">A real, live-computed snapshot &mdash; package totals, every elevation's
+            panel and cost figures, all five gates, all four EAC forecast methods, and the Monte
+            Carlo summary &mdash; never the model's own training knowledge, and never a live web
+            search. If the snapshot does not have it, the model does not either.</p>
+        </div>
+        <div class="dbox" style="margin-top:0">
+          <h3>How every claim gets checked</h3>
+          <p class="sub">The same contract stated at the top of this tab: <b style="color:rgb(var(--c-text-primary))">the
+            model proposes, the code disposes.</b> Every numeric claim in an answer is mechanically
+            re-extracted and recomputed from the live snapshot by an independent path before it
+            renders; anything unverifiable is stripped, or the whole answer is refused rather than
+            shown half-checked. The guardrail logic (<code>worker/lib.js</code>) is shared with, but
+            namespaced apart from, the Command Center dashboard's own Ask AI &mdash; this page's
+            questions can never be answered against that dashboard's KPIs and risk register, or
+            vice&#8209;versa.</p>
+        </div>
+        <div class="dbox" style="margin-top:0">
+          <h3>Known limits</h3>
+          <p class="sub">Calls an outside AI service and costs real money per question &mdash; off by
+            default, opted into per session, never assumed. Can refuse to answer rather than guess
+            when it is not confident. The snapshot is package- and elevation-level, not
+            panel-by-panel &mdash; it can say which elevation is driving a variance, not which single
+            panel or crew is. And this page's data is synthetic throughout, which the model is told
+            explicitly and will say if asked.</p>
+        </div>
+      </div>
+    </div>
   </section>
 
   <footer>
@@ -518,52 +688,90 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
     loc:"Puget Sound region (invented site)",
     storeys:24, gsf:118000, panels:1240,
     bac:18400000,
-    dataDate:"31 Aug 2026", week:34, weeksTotal:58,
+    dataDate:"31 Aug 2026", dataDateIso:"2026-08-31", week:34, weeksTotal:58,
     workDaysPerWeek:5,
     bufferFloorDays:10,        // contract-style floor: mobilise only above this cover
+    bufferCeilingDays:30,      // 3x the floor -- above this, cash is idling in the yard, not just
+                               // the shop running fast; see the WIP-cap box on the Panel Flow tab
     jointBudgetMm:20,          // cumulative creep the perimeter joint can absorb
-    laborRate:96               // $/hr blended shop+field, used ONLY for the productivity $ view
+    laborRate:96,              // $/hr blended shop+field, used ONLY for the productivity $ view
+    retainagePct:0.075,        // 7.5% -- commonly-observed private-work average (CMiC/Procore); a
+                               // model input, not this package's actual contract rate, stated as such
+    nisDesignRate:0.008        // 8 lites per 1,000 -- the tempered-glass industry's own spontaneous-
+                               // breakage design basis (Construction Specifier / Pilkington / Vitro),
+                               // not something this page invented
   };
 
   /* Cumulative panel states.  Monotonic by construction: a set panel was also crated,
-     glazed and framed.  The renderer asserts that ordering rather than trusting it. */
+     glazed and framed.  The renderer asserts that ordering rather than trusting it.
+
+     qcFirstPass / qcRework split the crated count (cra) into panels that cleared factory QC on
+     their first attempt vs. needed at least one rework cycle first -- qcFirstPass + qcRework = cra,
+     asserted by verify-facade.cjs. hoseVolMl is the water actually collected during the AAMA 501.2
+     hose test (null where the test has not yet run, i.e. hose===false) -- a pass can still carry up
+     to 14.2 ml on the interior stop before it counts as a fail, a detail the flood/hose booleans
+     alone discard. breaks is glass broken in fabrication/shipping/install (any cause). */
   var ZONES = [
     {id:"N-LO", n:"North &mdash; L02&ndash;L12", panels:248,
      rel:248, fra:248, gla:248, cra:244, set:232, sea:220,
+     qcFirstPass:234, qcRework:10, hoseVolMl:0, breaks:1,
      bacShop:2195000, bacField:1345000, acShop:2120000, acField:1270000, pv:3470000,
      ernH:20600, actH:20900,
      bidQty:23600, actQty:23950, bidRate:92.50, actRate:93.80,
      flood:true,  hose:true,  surveyed:22, creepMm:9.2,  sweep:24},
     {id:"N-HI", n:"North &mdash; L13&ndash;L24", panels:236,
      rel:236, fra:230, gla:222, cra:210, set:168, sea:150,
+     qcFirstPass:196, qcRework:14, hoseVolMl:6.5, breaks:3,
      bacShop:2150000, bacField:1320000, acShop:1950000, acField:1160000, pv:3140000,
      ernH:17900, actH:19400,
      bidQty:22450, actQty:22900, bidRate:92.50, actRate:96.20,
      flood:true,  hose:true,  surveyed:20, creepMm:11.4, sweep:24},
     {id:"S-LO", n:"South &mdash; L02&ndash;L12", panels:248,
      rel:248, fra:248, gla:246, cra:242, set:228, sea:214,
+     qcFirstPass:233, qcRework:9, hoseVolMl:0, breaks:1,
      bacShop:2195000, bacField:1345000, acShop:2105000, acField:1230000, pv:3450000,
      ernH:20400, actH:20200,
      bidQty:23600, actQty:23700, bidRate:92.50, actRate:92.10,
      flood:true,  hose:true,  surveyed:22, creepMm:7.6,  sweep:24},
     {id:"S-HI", n:"South &mdash; L13&ndash;L24", panels:236,
      rel:232, fra:220, gla:208, cra:196, set:150, sea:128,
+     qcFirstPass:172, qcRework:24, hoseVolMl:null, breaks:2,
      bacShop:2150000, bacField:1320000, acShop:1960000, acField:1180000, pv:3090000,
      ernH:16700, actH:19600,
      bidQty:22450, actQty:23400, bidRate:92.50, actRate:97.40,
      flood:true,  hose:false, surveyed:20, creepMm:17.8, sweep:24},
     {id:"E-W",  n:"East &amp; West returns", panels:196,
      rel:190, fra:176, gla:160, cra:148, set:96, sea:78,
+     qcFirstPass:137, qcRework:11, hoseVolMl:null, breaks:0,
      bacShop:1825000, bacField:1115000, acShop:1400000, acField:855000, pv:2290000,
      ernH:12500, actH:13800,
      bidQty:18650, actQty:19050, bidRate:98.00, actRate:101.30,
      flood:true,  hose:false, surveyed:16, creepMm:10.4, sweep:20},
     {id:"PDM",  n:"Podium &amp; entry", panels:76,
      rel:60, fra:44, gla:30, cra:22, set:0, sea:0,
+     qcFirstPass:21, qcRework:1, hoseVolMl:null, breaks:0,
      bacShop:900000, bacField:540000, acShop:480000, acField:32000, pv:620000,
      ernH:2300, actH:2750,
      bidQty:7250, actQty:7640, bidRate:126.00, actRate:133.50,
      flood:false, hose:false, surveyed:0,  creepMm:0,    sweep:12}
+  ];
+
+  /* RFIs and change orders live and are billed at the PACKAGE level, not per elevation (a real
+     RFI or CO often spans elevations), so they are their own arrays rather than more ZONES fields.
+     Dates are ISO so daysOpen/daysOutstanding are computed, never hand-typed. */
+  var RFIS = [
+    {id:"RFI-011", zone:"N-LO", subj:"Structural sealant width at typical joint", opened:"2026-05-18", answered:"2026-05-25"},
+    {id:"RFI-014", zone:"S-HI", subj:"Anchor embed conflict at grid 14", opened:"2026-06-02", answered:"2026-06-16"},
+    {id:"RFI-018", zone:"N-HI", subj:"Sill flashing detail at transition", opened:"2026-06-15", answered:"2026-06-19"},
+    {id:"RFI-022", zone:"S-LO", subj:"Vision-to-spandrel colour match", opened:"2026-07-08", answered:"2026-07-14"},
+    {id:"RFI-025", zone:"E-W",  subj:"Return-panel bracket clearance", opened:"2026-08-04", answered:null},
+    {id:"RFI-027", zone:"PDM",  subj:"Entry canopy attachment sequence", opened:"2026-08-19", answered:"2026-08-26"}
+  ];
+  var CHANGE_ORDERS = [
+    {id:"CO-03", desc:"Owner-directed spandrel colour change, 2 elevations", status:"approved", value:186000},
+    {id:"CO-05", desc:"Revised anchor detail at grid 14 (RFI-014 driven)", status:"approved", value:94000},
+    {id:"PCO-07", desc:"Additional fire-stopping at return panels", status:"pending", value:41000, pctCompleteUnapproved:0.60, opened:"2026-07-10"},
+    {id:"PCO-09", desc:"Podium canopy bracket redesign", status:"pending", value:28000, pctCompleteUnapproved:0.15, opened:"2026-08-19"}
   ];
 
   /* Rules of credit.  Two ladders, not one, because a panel earns shop scope and field
@@ -620,6 +828,10 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
     var cpi    = ac > 0 ? ev / ac : 1;
     var perPanel  = z.surveyed > 0 ? z.creepMm / z.surveyed : 0;
     var projected = perPanel * z.sweep;
+    var unbilled   = Math.max(0, z.cra - z.set);            // crated, shop cost already incurred,
+                                                              // not yet set -- see CFMA/NetSuite WIP
+                                                              // "underbilling" framing in the derived
+                                                              // Cash tied up in the shop box
     return {
       bac:bac, ac:ac, ev:ev, pv:z.pv, evShop:evShop, evField:evField,
       shopE:shopE, fieldE:fieldE,
@@ -636,7 +848,16 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
       prodVar:  (z.actH - z.ernH) * PROGRAM.laborRate,
       creepPer: perPanel, creepProj: projected,
       creepRatio: projected / PROGRAM.jointBudgetMm,
-      inBuffer: z.cra - z.set
+      inBuffer: z.cra - z.set,
+      // First-Pass Yield -- panels that cleared factory QC without a rework cycle, over all panels
+      // that have reached the crated state. Lean-manufacturing metric (Six Sigma / Factory Physics
+      // literature), applied here at the one QC checkpoint this ledger actually has data for.
+      fpy: z.cra > 0 ? z.qcFirstPass / z.cra : 1,
+      // NiS/handling breakage rate, benchmarked against the tempered-glass industry's own 8-per-1,000
+      // (0.8%) spontaneous-breakage design basis (Construction Specifier / Pilkington / Vitro).
+      breakRate: z.cra > 0 ? z.breaks / z.cra : 0,
+      unbilledPanels: unbilled,
+      unbilledFactoryValue: unbilled * (z.bacShop / z.panels)
     };
   }
 
@@ -674,6 +895,19 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
   T.prodVar = sum(function(r){ return r.prodVar; });
   T.bidQty  = sum(function(r){ return r.bidQty; });
   T.actQty  = sum(function(r){ return r.actQty; });
+  T.craTotal    = sum(function(r){ return r.cra; });
+  T.qcFirstPass = sum(function(r){ return r.qcFirstPass; });
+  T.qcRework    = sum(function(r){ return r.qcRework; });
+  T.fpy         = T.craTotal > 0 ? T.qcFirstPass / T.craTotal : 1;
+  T.breaks      = sum(function(r){ return r.breaks; });
+  T.breakRate   = T.craTotal > 0 ? T.breaks / T.craTotal : 0;
+  T.unbilledFactoryValue = sum(function(r){ return r.unbilledFactoryValue; });
+  // Retainage -- a model input (PROGRAM.retainagePct), not this package's actual contract rate.
+  // billedToDate approximates "billed" as earned value, the standard simplifying assumption when a
+  // page (like this one) does not carry a separate AIA-style billing ledger -- stated explicitly in
+  // the UI rather than silently presenting it as an audited billing figure.
+  T.billedToDate  = T.ev;
+  T.retainageHeld = T.billedToDate * PROGRAM.retainagePct;
 
   /* --- Panel flow ------------------------------------------------------------------ */
   var W = WEEKS.crated.length;
@@ -706,6 +940,29 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
   }
   T.cover = coverSeries();
   T.coverPrior = T.cover[W - 4];
+
+  // Baseline Execution Index -- DCMA 14-Point Assessment metric #14 (BEI = tasks actually complete
+  // over tasks the baseline plan said should be complete by the data date), applied to panel counts
+  // since this ledger has no activity network to run the other 13 points against. Below 1.00 means
+  // the pace being run is not recovering the plan even where SPI still reads acceptably, because SPI
+  // is a dollar ratio and can mask an accumulating COUNT of late starts.
+  T.bei = T.plan > 0 ? T.set / T.plan : 1;
+
+  // WIP ceiling -- the buffer-floor gate (below) only ever checks for TOO LITTLE cover; this is the
+  // other half of Little's Law (WIP = throughput x cycle time): cover that is too HIGH means panels
+  // are sitting crated, cash already spent, well past when the field could use them -- overproduction,
+  // not safety stock. Paired with T.unbilledFactoryValue for the dollar figure.
+  T.overWip = isFinite(T.coverDays) && T.coverDays > PROGRAM.bufferCeilingDays;
+
+  // AAMA 501.2's own quantitative allowance -- up to 14.2 ml (0.5 oz) collected on an interior
+  // stop/stool in a 5-minute period still counts as a pass. The gate list below only ever shows the
+  // pass/fail boolean; this keeps the number the standard actually allows, so a passed test trending
+  // toward the limit is visible before it becomes a failed one.
+  var AAMA_HOSE_ALLOWANCE_ML = 14.2;
+  var hoseTested   = R.filter(function(r){ return r.hoseVolMl !== null; });
+  var hoseNearMiss = hoseTested.filter(function(r){ return r.hoseVolMl > 0 && r.hoseVolMl < AAMA_HOSE_ALLOWANCE_ML; });
+  T.hoseTestedCount   = hoseTested.length;
+  T.hoseNearMissRate  = hoseTested.length ? hoseNearMiss.length / hoseTested.length : 0;
 
   /* --- Gates.  Each evaluates a live condition; none is a hard-coded status. --------- */
   function deriveGates(){
@@ -826,6 +1083,37 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
   ];
   T.eacSpread = (Math.max.apply(null, EACS.map(function(e){ return e.v; }))
                - Math.min.apply(null, EACS.map(function(e){ return e.v; }))) / T.bac;
+
+  /* --- RFIs -- Navigant Construction Forum's 1,362-project study is the benchmark cited below
+     (avg first reply 6.4 days, median 9.7 days). Days are computed from the ISO dates in RFIS, never
+     hand-typed, so a wrong day count is a bug the ledger itself would show, not a silent typo. ------ */
+  function daysBetween(a, b){ return Math.round((new Date(b) - new Date(a)) / 86400000); }
+  var RFI_ROWS = RFIS.map(function(r){
+    var closed = !!r.answered;
+    return Object.assign({}, r, {
+      closed: closed,
+      daysOpen: daysBetween(r.opened, closed ? r.answered : PROGRAM.dataDateIso)
+    });
+  });
+  var closedRfis = RFI_ROWS.filter(function(r){ return r.closed; });
+  var openRfis   = RFI_ROWS.filter(function(r){ return !r.closed; });
+  T.rfiAvgDays    = closedRfis.length ? closedRfis.reduce(function(a, r){ return a + r.daysOpen; }, 0) / closedRfis.length : null;
+  T.rfiOpenCount  = openRfis.length;
+  T.rfiOpenMaxDays= openRfis.length ? Math.max.apply(null, openRfis.map(function(r){ return r.daysOpen; })) : 0;
+
+  /* --- Change orders / PCOs -- ClearStory/Datagrid PCO-tracking framing (aging + percent-complete-
+     on-unapproved-work as a live financing exposure) and CFMA's 5-15% commercial change-order-rate
+     band. daysOutstanding computed from `opened`, same discipline as RFIs above. ------------------ */
+  var CO_ROWS = CHANGE_ORDERS.map(function(c){
+    return Object.assign({}, c, {
+      daysOutstanding: c.status === "pending" ? daysBetween(c.opened, PROGRAM.dataDateIso) : 0
+    });
+  });
+  T.coApprovedValue = CO_ROWS.filter(function(c){ return c.status === "approved"; })
+                              .reduce(function(a, c){ return a + c.value; }, 0);
+  T.coRatePct = T.coApprovedValue / T.bac;
+  T.coUnpricedExposure = CO_ROWS.filter(function(c){ return c.status === "pending"; })
+    .reduce(function(a, c){ return a + c.value * c.pctCompleteUnapproved; }, 0);
 
   /* ==================================================================================
      FORMATTERS + CHART PRIMITIVES
@@ -1041,6 +1329,61 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
       + '<td class="num">' + pct(T.pct) + '</td></tr>');
   })();
 
+  /* First-Pass Yield -- lean-manufacturing metric (Six Sigma / Factory Physics), applied at the one
+     shop QC checkpoint this ledger has data for: crated panels, split into first-attempt passes vs.
+     panels that needed at least one rework cycle. */
+  (function renderFpy(){
+    set("fpyBody", R.slice().sort(function(a, b){ return a.fpy - b.fpy; }).map(function(r){
+      return '<tr><td>' + r.id + '</td><td class="num">' + fmtInt(r.cra) + '</td>'
+        + '<td class="num">' + fmtInt(r.qcFirstPass) + '</td><td class="num">' + fmtInt(r.qcRework) + '</td>'
+        + '<td class="num ' + band(r.fpy, 0.95, 0.90) + '">' + pct(r.fpy) + '</td></tr>';
+    }).join(""));
+    set("fpyFoot", '<tr><td>Package</td><td class="num">' + fmtInt(T.craTotal) + '</td>'
+      + '<td class="num">' + fmtInt(T.qcFirstPass) + '</td><td class="num">' + fmtInt(T.qcRework) + '</td>'
+      + '<td class="num ' + band(T.fpy, 0.95, 0.90) + '">' + pct(T.fpy) + '</td></tr>');
+    var worstFpy = R.slice().sort(function(a, b){ return a.fpy - b.fpy; })[0];
+    set("fpyNote", "<b>" + worstFpy.id + "</b> carries the package's worst first-pass rate at "
+      + pct(worstFpy.fpy) + " &mdash; " + fmtInt(worstFpy.qcRework) + " of its " + fmtInt(worstFpy.cra)
+      + " crated panels needed a rework cycle before clearing QC. A shop reject/rework trend rising "
+      + "ahead of a field problem is a leading indicator of it, not a coincidence with it "
+      + "(glassonweb.com, 2026: real-time IGU scanning moved upstream specifically so processors can "
+      + "correct the process before cost and waste escalate).");
+  })();
+
+  /* WIP ceiling + unbilled factory value -- the other half of the buffer story the days-of-cover
+     gate only checks one direction of. Little's Law (WIP = throughput x cycle time): cover well
+     above the ceiling means panels are sitting crated, cost already incurred (acShop), well past
+     when the field could use them -- cash idling in the yard, not safety stock. The dollar figure is
+     the CFMA/NetSuite "costs in excess of billings" (underbilling) concept applied to the shop state
+     split this ledger already carries -- a real WIP accounting idea, not a glazing-specific one. */
+  (function renderWip(){
+    set("wipRows", R.slice().sort(function(a, b){ return b.unbilledFactoryValue - a.unbilledFactoryValue; })
+      .map(function(r){
+        return rowbar(r.id + ' <span style="color:rgb(var(--c-text-secondary))">'
+          + fmtInt(r.unbilledPanels) + ' crated, not yet set</span>', k(r.unbilledFactoryValue),
+          r.unbilledFactoryValue / T.unbilledFactoryValue * 100, "rgb(var(--c-accent))");
+      }).join(""));
+    set("wipFormula", "<b>unbilled factory value</b> = (crated &minus; set) &times; (shop budget &divide; panels)<br>"
+      + "package: <b>" + k(T.unbilledFactoryValue) + "</b> &mdash; " + pct(T.unbilledFactoryValue / T.bac)
+      + " of package budget currently sitting as crated, shop-cost-incurred inventory<br>"
+      + "cover reading: <b>" + T.coverDays.toFixed(1) + " working days</b> against a "
+      + PROGRAM.bufferFloorDays + "&ndash;" + PROGRAM.bufferCeilingDays + " day target band");
+    set("wipNote", T.overWip
+      ? "Cover is currently <b>above</b> the " + PROGRAM.bufferCeilingDays + "-day ceiling. This is "
+        + "not the buffer-floor gate's concern (that watches for too little cover) &mdash; it is the "
+        + "other failure mode Little's Law predicts: panels sitting crated well past when the field "
+        + "can use them. " + k(T.unbilledFactoryValue) + " of shop cost is tied up in inventory that "
+        + "cannot be billed under a typical field-installation-triggered payment schedule (Modular "
+        + "Building Institute's own guidance for prefab/unitized contracts is to structure billing "
+        + "around production milestones for exactly this reason). Worth a stored-materials conversation "
+        + "under AIA A201 &sect;9.3.2, not just a schedule one."
+      : "Cover currently sits within the " + PROGRAM.bufferFloorDays + "&ndash;" + PROGRAM.bufferCeilingDays
+        + "-day target band &mdash; enough safety stock to protect the setting crew without tying up "
+        + "cash for an extended stretch. Still real money: " + k(T.unbilledFactoryValue) + " of shop "
+        + "cost is sitting as crated-not-yet-set inventory at any one time, which is the number to "
+        + "track if a stored-materials billing conversation (AIA A201 &sect;9.3.2) is ever worth having.");
+  })();
+
   /* --- 2. Cost / EVM ---------------------------------------------------------------- */
   (function renderEvm(){
     set("evmBody", R.map(function(r){
@@ -1084,6 +1427,51 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
     + pct(Math.abs(byCv[0].cv) / Math.abs(T.cv), 0) + ' of the package cost variance on '
     + pct(byCv[0].bac / T.bac, 0) + ' of the budget. A package CPI of ' + idx(T.cpi)
     + ' describes no single elevation on this job.</p>');
+  })();
+
+  /* Baseline Execution Index (DCMA 14-Point Assessment metric #14) + a TCPI/CPI divergence flag.
+     Named honestly: of DCMA's 14 points, this ledger has no activity network to run the other 13
+     against (they need a real CPM schedule this synthetic panel-flow model does not carry) -- BEI
+     is the one that translates directly onto panel counts, so it is the one built. The divergence
+     flag is this page's own extension, not a DCMA metric: TCPI is what efficiency the REMAINING work
+     would need to hit budget; when it drifts far from the CPI actually being run, the EAC assumes a
+     turnaround nothing in the data supports yet. */
+  (function renderBei(){
+    var gap = T.tcpi - T.cpi;
+    set("beiRow", rowbar("Baseline Execution Index", idx(T.bei), Math.min(100, T.bei * 100),
+      T.bei >= 0.95 ? "rgb(var(--c-success))" : T.bei >= 0.85 ? "rgb(var(--c-warning))" : "rgb(var(--c-danger))"));
+    set("beiFormula", "<b>BEI</b> = panels set to date &divide; panels the baseline plan says should "
+      + "be set by now<br>&nbsp;&nbsp;&nbsp;&nbsp; = " + fmtInt(T.set) + " &divide; " + fmtInt(T.plan)
+      + " = <b>" + idx(T.bei) + "</b>");
+    set("beiNote", (T.bei < 1
+      ? "Below 1.00: the pace being run is not recovering the plan. This can move independently of "
+        + "SPI, which is a dollar ratio &mdash; a package can show an acceptable SPI while still "
+        + "accumulating a count of panels that started late, because SPI never actually counts starts."
+      : "At or above 1.00: the field is keeping pace with, or ahead of, the baseline plan's own "
+        + "panel-count schedule."));
+    set("divergenceRow", "<b>TCPI</b> " + idx(T.tcpi) + " &nbsp;&mdash;&nbsp; <b>CPI</b> " + idx(T.cpi)
+      + " &nbsp;&mdash;&nbsp; gap " + (gap >= 0 ? "+" : "") + gap.toFixed(3));
+    set("divergenceNote", Math.abs(gap) >= 0.10
+      ? "<b>Flagged.</b> TCPI (what the REMAINING work would need to run at) sits " + Math.abs(gap).toFixed(3)
+        + (gap > 0 ? " above" : " below") + " the CPI actually being run today &mdash; more than the "
+        + "0.10 threshold this page treats as a real divergence. An EAC built on this TCPI is assuming "
+        + "a turnaround (or a further slide) that nothing in the trailing cost data supports yet; "
+        + "read it as the size of the bet being made, not as a forecast."
+      : "TCPI and the trailing CPI sit within 0.10 of each other &mdash; the EAC is not leaning on an "
+        + "assumed turnaround that the recent cost trend does not already show.");
+  })();
+
+  /* Retainage exposure -- a MODEL INPUT (PROGRAM.retainagePct), not this package's real contract
+     rate, and billedToDate approximates billing as earned value (the standard simplification when a
+     separate AIA-style billing ledger is not kept) -- both stated plainly rather than presented as
+     an audited cash figure. Rate range and mechanics from CMiC/Procore/ConsensusDocs guidance. */
+  (function renderRetainage(){
+    set("retainRow", "billed-to-date (&asymp; earned value) " + m(T.billedToDate) + " &times; "
+      + pct(PROGRAM.retainagePct, 1) + " retainage = <b>" + m(T.retainageHeld) + "</b> currently held");
+    set("retainNote", "Assumes billing tracks earned value 1:1, which a real job with its own AIA "
+      + "G702/G703 pay-app history would not &mdash; stated as a model input, not measured cash. The "
+      + "rate itself (" + pct(PROGRAM.retainagePct, 1) + ") is a commonly-observed private-work "
+      + "average (CMiC / Procore), not this package's actual contract retainage.");
   })();
 
   (function renderMc(){
@@ -1217,6 +1605,47 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
       + 'elevation is a finding, not a coincidence.</div></div></div>');
   })();
 
+  /* RFI response time -- benchmarked against Navigant Construction Forum's 1,362-project study
+     (avg first reply 6.4 days, median 9.7 days) -- the most-cited primary study on this, not a
+     figure this page invented. */
+  (function renderRfi(){
+    set("rfiBody", RFI_ROWS.slice().sort(function(a, b){ return b.daysOpen - a.daysOpen; }).map(function(r){
+      return '<tr><td>' + r.id + '</td><td>' + r.zone + '</td><td>' + r.subj + '</td>'
+        + '<td class="num">' + r.daysOpen + '</td>'
+        + '<td><span class="pill ' + (r.closed ? "ok" : "watch") + '">' + (r.closed ? "Answered" : "Open") + '</span></td></tr>';
+    }).join(""));
+    set("rfiNote", (T.rfiAvgDays !== null
+      ? "Closed RFIs on this package averaged " + T.rfiAvgDays.toFixed(1) + " days to answer &mdash; "
+        + (T.rfiAvgDays <= 9.7
+           ? "faster than the Navigant Construction Forum's own 9.7-day median across 1,362 projects."
+           : "slower than the Navigant Construction Forum's own 9.7-day median across 1,362 projects.")
+      : "No RFI on this package has been answered yet.")
+      + (T.rfiOpenCount
+        ? " " + T.rfiOpenCount + " RFI is still open at " + T.rfiOpenMaxDays + " days and counting "
+          + "&mdash; already past the entire distribution that study measured."
+        : " Every RFI on this package has been answered."));
+  })();
+
+  /* Change orders / PCOs -- CFMA's 5-15% commercial change-order-rate band, and the ClearStory/
+     Datagrid PCO-aging framing (10 days normal, 45 days elevated risk, 90+ major exposure). No
+     glazing-specific change-order-rate benchmark exists in the public record (confirmed by search);
+     the band cited here is general commercial construction, stated as such rather than implied to
+     be trade-specific. */
+  (function renderChangeOrders(){
+    set("coBody", CO_ROWS.map(function(c){
+      var agingCls = c.status !== "pending" ? "ok" : c.daysOutstanding > 45 ? "act" : c.daysOutstanding > 10 ? "watch" : "ok";
+      var agingLbl = c.status !== "pending" ? "Approved" : c.daysOutstanding > 45 ? "Elevated (>45d)" : c.daysOutstanding > 10 ? "Watch" : "Normal";
+      return '<tr><td>' + c.id + '</td><td>' + c.desc + '</td><td class="num">' + k(c.value) + '</td>'
+        + '<td class="num">' + (c.status === "pending" ? c.daysOutstanding + "d" : "&mdash;") + '</td>'
+        + '<td><span class="pill ' + agingCls + '">' + agingLbl + '</span></td></tr>';
+    }).join(""));
+    set("coNote", "Approved change orders total " + k(T.coApprovedValue) + " &mdash; " + pct(T.coRatePct, 1)
+      + " of package budget, against a commonly-cited 5&ndash;15% commercial-construction band (CFMA "
+      + "Benchmarker) &mdash; well inside it. Unpriced exposure on pending PCOs, weighted by percent "
+      + "complete on unapproved work, is " + k(T.coUnpricedExposure) + " currently financed without an "
+      + "approved change order backing it.");
+  })();
+
   /* --- 4. Gates + tolerance --------------------------------------------------------- */
   (function renderGates(){
     var glyph = {ok:"&#10003;", watch:"!", act:"&#10007;"};
@@ -1256,6 +1685,46 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
         + "measurement says it will, with " + fmtInt(worst.panels - worst.set)
         + " panels still to set on that elevation and time to correct the setting datum."
       : "No elevation is projected past its joint budget on current readings.");
+  })();
+
+  /* AAMA 501.2's own quantitative allowance + the tempered-glass industry's spontaneous-breakage
+     design basis -- two real numeric thresholds the boolean gates above discard. Neither is a DCMA
+     or EVMS metric; both are cited to their own real source (FGIA/AAMA and Construction Specifier /
+     Pilkington / Vitro respectively), not invented for this page. */
+  (function renderQuality(){
+    set("hoseBody", R.filter(function(r){ return r.hoseVolMl !== null; }).map(function(r){
+      var nearMiss = r.hoseVolMl > 0 && r.hoseVolMl < 14.2;
+      return '<tr><td>' + r.id + '</td><td class="num">' + r.hoseVolMl.toFixed(1) + ' ml</td>'
+        + '<td class="num">14.2 ml</td>'
+        + '<td><span class="pill ' + (nearMiss ? "watch" : "ok") + '">' + (nearMiss ? "Near allowance" : "Clean pass") + '</span></td></tr>';
+    }).join("") || '<tr><td colspan="4">No elevation has run its AAMA 501.2 hose test yet.</td></tr>');
+    set("hoseNote", T.hoseTestedCount
+      ? "Of " + T.hoseTestedCount + " elevation" + (T.hoseTestedCount === 1 ? "" : "s") + " tested, "
+        + pct(T.hoseNearMissRate, 0) + " passed while trending toward the standard's own 14.2 ml "
+        + "(0.5 oz) interior-stop allowance rather than passing clean at 0 ml &mdash; the detail a "
+        + "pass/fail boolean alone discards."
+      : "No elevation has run its AAMA 501.2 hose test yet.");
+
+    set("breakBody", R.slice().sort(function(a, b){ return b.breakRate - a.breakRate; }).map(function(r){
+      return '<tr><td>' + r.id + '</td><td class="num">' + fmtInt(r.cra) + '</td>'
+        + '<td class="num">' + fmtInt(r.breaks) + '</td>'
+        + '<td class="num ' + (r.breakRate > PROGRAM.nisDesignRate ? "bad" : "good") + '">'
+        + pct(r.breakRate, 2) + '</td></tr>';
+    }).join(""));
+    set("breakFoot", '<tr><td>Package</td><td class="num">' + fmtInt(T.craTotal) + '</td>'
+      + '<td class="num">' + fmtInt(T.breaks) + '</td>'
+      + '<td class="num ' + (T.breakRate > PROGRAM.nisDesignRate ? "bad" : "good") + '">'
+      + pct(T.breakRate, 2) + '</td></tr>');
+    var overDesign = R.filter(function(r){ return r.breakRate > PROGRAM.nisDesignRate; });
+    set("breakNote", "Design basis: " + pct(PROGRAM.nisDesignRate, 1) + " (8 lites per 1,000 &mdash; "
+      + "the tempered-glass industry's own spontaneous-breakage design allowance, not a figure this "
+      + "page invented). Package-wide the trailing rate is " + pct(T.breakRate, 2)
+      + (T.breakRate > PROGRAM.nisDesignRate ? ", above design basis." : ", within it.") + " "
+      + (overDesign.length
+        ? overDesign.map(function(r){ return r.id; }).join(", ") + " individually run above the "
+          + "design basis even though the package total does not &mdash; the kind of per-elevation "
+          + "signal a single blended figure would hide."
+        : "No single elevation runs above the design basis on current counts."));
   })();
 
   /* --- 5. Shop / field reconciliation ----------------------------------------------- */
@@ -1315,19 +1784,25 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
   /* --- 6. Method -------------------------------------------------------------------- */
   (function renderMethod(){
     set("ledgerDesc", "One row per elevation, " + Object.keys(ZONES[0]).length
-      + " fields each, plus three weekly series of " + W + " observations. That is the entire input. "
-      + "Every figure on the other five tabs is a function of these numbers.");
+      + " fields each, plus three weekly series of " + W + " observations, a package-level RFI log "
+      + "and change-order log. That is the entire input. Every figure on the other five tabs is a "
+      + "function of these numbers.");
     var LEDGER = [
       ["rel / fra / gla / cra", "Cumulative panels reaching each shop state", "Shop earned value, panel flow, crated total"],
       ["set / sea", "Cumulative panels set and perimeter-sealed", "Field earned value, buffer, hose-test gate"],
+      ["qcFirstPass / qcRework", "Crated panels split by whether QC needed a rework cycle", "First-Pass Yield"],
+      ["hoseVolMl", "Water collected during the AAMA 501.2 hose test (null if not yet run)", "Near-miss rate against the standard's 14.2 ml allowance"],
+      ["breaks", "Glass broken in fab/ship/install, any cause", "Breakage rate vs. the 0.8% NiS design basis"],
       ["bacShop / bacField", "Budget split between shop and field scope", "The rules of credit &mdash; weights ARE the cost split"],
-      ["acShop / acField", "Actual cost booked to each side", "CPI, EAC, cost variance"],
+      ["acShop / acField", "Actual cost booked to each side", "CPI, EAC, cost variance, unbilled factory value"],
       ["pv", "Planned value at the data date, from the baseline", "SPI, schedule variance"],
       ["ernH / actH", "Earned and actual labour hours", "Productivity factor and productivity variance"],
       ["bidQty / actQty / bidRate / actRate", "Bid and actual square footage and unit rate", "Quantity and price variance decomposition"],
       ["flood / hose", "Whether each elevation's water tests are signed off", "Gates 4 and 5, evaluated against panel counts"],
       ["surveyed / creepMm / sweep", "Survey readings of cumulative setting drift", "Tolerance projection against the joint budget"],
-      ["WEEKS.crated / set / plan", "Weekly cumulative panel counts", "The dual S-curve, takt rates, buffer trend"]
+      ["WEEKS.crated / set / plan", "Weekly cumulative panel counts", "The dual S-curve, takt rates, buffer trend, BEI"],
+      ["RFIS[].opened / answered", "RFI dates, package-level", "RFI response-time vs. the Navigant benchmark"],
+      ["CHANGE_ORDERS[].value / status / pctCompleteUnapproved", "Change orders and PCOs, package-level", "Change-order rate, unpriced exposure"]
     ];
     set("ledgerBody", LEDGER.map(function(x){
       return '<tr><td><code>' + x[0] + '</code></td><td>' + x[1] + '</td>'
@@ -1345,7 +1820,13 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
       ["Quantity variance", "(actual sf &minus; bid sf) &times; bid rate", "Holds price constant, so it isolates the takeoff."],
       ["Price variance", "(actual rate &minus; bid rate) &times; actual sf", "Holds the delivered quantity constant. Sums with quantity to the total, exactly."],
       ["Productivity variance", "(actual hours &minus; earned hours) &times; blended rate", "Labour, kept out of the material split so the decomposition stays exact."],
-      ["Tolerance projection", "(drift &divide; panels surveyed) &times; panels in sweep", "A linear projection of an observed bias. Says nothing about a bias that changes."]
+      ["Tolerance projection", "(drift &divide; panels surveyed) &times; panels in sweep", "A linear projection of an observed bias. Says nothing about a bias that changes."],
+      ["First-Pass Yield", "qcFirstPass &divide; crated", "Lean-manufacturing metric applied at the one shop QC checkpoint this ledger has data for."],
+      ["Baseline Execution Index", "set &divide; plan (from the weekly series)", "DCMA 14-Point Assessment metric #14 &mdash; the one DCMA point this panel-count ledger can run without a real activity network."],
+      ["Unbilled factory value", "(crated &minus; set) &times; (shop budget &divide; panels)", "The CFMA/NetSuite WIP &ldquo;costs in excess of billings&rdquo; concept, applied to the existing shop-state split."],
+      ["Breakage rate", "broken &divide; crated", "Benchmarked against the tempered-glass industry's own 0.8% spontaneous-breakage design basis."],
+      ["RFI days open", "answered date &minus; opened date (or data date, if still open)", "Benchmarked against the Navigant Construction Forum's 9.7-day median."],
+      ["Change-order rate", "&Sigma; approved CO value &divide; BAC", "Benchmarked against a general 5&ndash;15% commercial-construction band (CFMA), not a glazing-specific one."]
     ];
     set("formulaList", FS.map(function(f){
       return '<div style="padding:11px 0;border-bottom:1px solid var(--c-line)">'
@@ -1358,6 +1839,219 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
       + "&nbsp;&nbsp;= " + m(T.ev) + " &nbsp;(CPI " + idx(T.cpi) + ", SPI " + idx(T.spi) + ")<br>"
       + "quantity + price &minus; total = <b>$0.00</b><br>"
       + "shop + field &minus; package EV = <b>$0.00</b>");
+  })();
+
+  /* --- Ask AI ------------------------------------------------------------------------
+     Same architecture as index.html's own Ask AI (see that file's own long comment): this page
+     is fully static and public (GitHub Pages, no backend), so an API key can never live here --
+     this only ever talks to the small external Worker in worker/index.js, which now answers
+     BOTH dashboards from the one deployment (a "dashboard":"facade" field in the request body
+     selects FACADE_TOOLS/FACADE_SYSTEM_PROMPT server-side -- see worker/lib.js). The client's
+     only real jobs: (1) build a snapshot of the SAME live T/R/GATES/EACS values every other tab
+     on this page already reads, never invented data; (2) stay dormant -- zero network calls --
+     until a reader opts in, since every question costs real money; (3) escape everything before
+     it renders, since a model's answer is external content like any other. */
+  function escHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"}[c];
+    });
+  }
+  // decodes the handful of HTML entities the ledger's own display strings carry (they were
+  // authored for innerHTML, e.g. GATES[i].n / ZONES[i].n) so the AI reads and can quote plain text.
+  function deent(s){
+    return String(s).replace(/&mdash;/g, "—").replace(/&ndash;/g, "–")
+      .replace(/&harr;/g, "↔").replace(/&amp;/g, "&").replace(/&#8209;/g, "‑");
+  }
+  // Placeholder until a real Worker is deployed (docs/ASK_AI_SETUP.md) -- checked at call time so
+  // this fails safely (a clear message, zero network attempt) rather than a broken fetch to
+  // nowhere, on a page that is live on the public internet today.
+  var ASK_AI_WORKER_URL = "https://REPLACE-ME.workers.dev/ask";
+  function askAiConfigured(){ return ASK_AI_WORKER_URL.indexOf("REPLACE-ME") === -1; }
+
+  var askAi = {enabled:false, busy:false, count:0, history:[]}; // dormant by default -- enabled
+    // stays false until a reader clicks the gate button, so this feature makes zero network calls
+    // on page load or on any tab switch.
+
+  /* The ONLY data the Worker/model ever sees. Every field is read straight from the same live
+     T/R/GATES/EACS values every other tab already renders from -- never a second, parallel copy
+     of the package. Field names here match what worker/lib.js's callFacadeTool() expects. */
+  function buildFacadeAskAiSnapshot(){
+    return {
+      asOf: PROGRAM.dataDate,
+      totals: {
+        bac:T.bac, pv:T.pv, ev:T.ev, ac:T.ac, spi:T.spi, cpi:T.cpi, tcpi:T.tcpi, vac:T.vac,
+        panels:T.panels, set:T.set, buffer:T.buffer, coverDays:T.coverDays,
+        eacBottomUp:T.eacBottomUp, eacBlended:T.eacBlended, eacSpread:T.eacSpread,
+        p10:T.p10, p50:T.p50, p80:T.p80, p95:T.p95, pOverBac:T.pOverBac,
+        qtyVar:T.qtyVar, priceVar:T.priceVar, prodVar:T.prodVar, totVar:T.totVar,
+        // added 2026-09-03 -- domain-research build: DCMA/lean/quality/commercial metrics, so Ask
+        // AI can answer about them, not just what is charted.
+        bei:T.bei, tcpiCpiGap:T.tcpi - T.cpi, overWip:T.overWip,
+        fpy:T.fpy, breakRate:T.breakRate, nisDesignRate:PROGRAM.nisDesignRate,
+        hoseTestedCount:T.hoseTestedCount, hoseNearMissRate:T.hoseNearMissRate,
+        unbilledFactoryValue:T.unbilledFactoryValue,
+        retainagePct:PROGRAM.retainagePct, retainageHeld:T.retainageHeld, billedToDate:T.billedToDate,
+        rfiAvgDays:T.rfiAvgDays, rfiOpenCount:T.rfiOpenCount, rfiOpenMaxDays:T.rfiOpenMaxDays,
+        coApprovedValue:T.coApprovedValue, coRatePct:T.coRatePct, coUnpricedExposure:T.coUnpricedExposure
+      },
+      elevations: R.map(function(r){
+        return {id:r.id, name:deent(r.n), panels:r.panels,
+          rel:r.rel, fra:r.fra, gla:r.gla, cra:r.cra, set:r.set, sea:r.sea,
+          bac:r.bac, ac:r.ac, ev:r.ev, pv:r.pv, spi:r.spi, cpi:r.cpi, eac:r.eac, vac:r.vac,
+          pctEarned:r.pct, flood:r.flood, hose:r.hose,
+          qtyVar:r.qtyVar, priceVar:r.priceVar, prodVar:r.prodVar, totVar:r.totVar,
+          creepPerPanelMm:r.creepPer, creepProjectedMm:r.creepProj, creepRatio:r.creepRatio,
+          fpy:r.fpy, breakRate:r.breakRate, unbilledFactoryValue:r.unbilledFactoryValue};
+      }),
+      // GATES[i].n is that gate's NAME (not a number) -- remapped to {n:<1-based position>,
+      // name, status, detail} to match the shape facade_get_gate/list_facade_gates expect.
+      gates: GATES.map(function(g, i){
+        return {n:i + 1, name:deent(g.n), standard:deent(g.std), status:g.s, detail:deent(g.d)};
+      }),
+      eacMethods: EACS.map(function(e){
+        return {name:deent(e.n), formula:deent(e.f), value:e.v, when:deent(e.w)};
+      }),
+      mc: {n:10000, p10:T.p10, p50:T.p50, p80:T.p80, p95:T.p95, pOverBac:T.pOverBac},
+      bidVariance: {qtyVar:T.qtyVar, priceVar:T.priceVar, prodVar:T.prodVar, totVar:T.totVar}
+    };
+  }
+
+  function renderAskAiGate(){
+    el("askAiGate").innerHTML = askAi.enabled ? "" :
+      '<button type="button" class="btn" id="askAiEnableBtn">Enable Ask AI for this session</button>';
+    var b = el("askAiEnableBtn");
+    if (b) b.addEventListener("click", function(){
+      askAi.enabled = true; renderAskAiGate(); renderAskAiPanel();
+    });
+  }
+
+  var ASK_AI_STARTERS = [
+    {group:"Is this package on track?", qs:["Are we on budget?",
+      "What's the probability we bust the budget?",
+      "How wide is the spread between the four EAC methods?"]},
+    {group:"What needs attention?", qs:["What's blocking the field water test right now?",
+      "Which elevation is driving the cost overrun?"]},
+    {group:"What's the physical risk?", qs:["Is the factory buffer big enough?",
+      "What is the tolerance creep telling us?"]}
+  ];
+  function askAiFormatResult(result){
+    if (result == null) return "";
+    if (typeof result !== "object") return escHtml(String(result));
+    return Object.keys(result).map(function(k){
+      var v = result[k];
+      if (Array.isArray(v)) v = "[" + v.length + " item(s)]";
+      else if (v && typeof v === "object") v = JSON.stringify(v);
+      return escHtml(k) + ": " + escHtml(String(v));
+    }).join(", ");
+  }
+  function askAiWorkHtml(toolCalls){
+    if (!toolCalls || !toolCalls.length) return "";
+    return '<details class="dbox" style="margin-top:8px"><summary style="font-size:11px">Show your work ('
+      + toolCalls.length + " tool call" + (toolCalls.length === 1 ? "" : "s") + ')</summary>'
+      + '<ul class="tight" style="font-size:11px">' + toolCalls.map(function(tc){
+        var args = tc.args && Object.keys(tc.args).length ? JSON.stringify(tc.args) : "";
+        return '<li><code>' + escHtml(tc.name) + (args ? "(" + escHtml(args) + ")" : "()")
+          + '</code> &rarr; ' + askAiFormatResult(tc.result) + '</li>';
+      }).join("") + '</ul></details>';
+  }
+  function askAiVerifiedReadout(h){
+    if (!h.totalClaims) return '<span class="pill na" style="margin-top:6px">no specific figures stated</span>';
+    var verifiedN = h.totalClaims - h.unverifiedCount;
+    return '<span class="pill ' + (h.unverifiedCount ? "watch" : "ok") + '" style="margin-top:6px">'
+      + verifiedN + " of " + h.totalClaims + " claim" + (h.totalClaims === 1 ? "" : "s")
+      + " verified against live data" + (h.unverifiedCount ? " — " + h.unverifiedCount + " removed" : "")
+      + '</span>';
+  }
+  function askAiStartersHtml(){
+    return ASK_AI_STARTERS.map(function(g){
+      return '<div style="margin-top:8px"><div style="font:600 10.5px/1 ui-monospace,Menlo,monospace;'
+        + 'text-transform:uppercase;letter-spacing:.03em;color:rgb(var(--c-text-secondary));margin-bottom:4px">'
+        + escHtml(g.group) + '</div><div style="display:flex;gap:6px;flex-wrap:wrap">' + g.qs.map(function(q){
+          return '<button type="button" class="btn" data-ask-fill="' + escHtml(q) + '"'
+            + (askAi.busy ? " disabled" : "") + '>' + escHtml(q) + '</button>';
+        }).join("") + '</div></div>';
+    }).join("");
+  }
+  function renderAskAiPanel(){
+    el("askAiPanel").hidden = !askAi.enabled;
+    if (!askAi.enabled) return;
+    var historyHtml = askAi.history.map(function(h){
+      return '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--c-line)">'
+        + '<p style="font-size:12.5px;margin:0"><b>Q:</b> ' + escHtml(h.q) + '</p>'
+        + (h.error
+          ? '<p style="font-size:12.5px;margin:6px 0 0;color:var(--c-pill-r)">' + escHtml(h.error) + '</p>'
+          : '<p style="font-size:.95rem;margin:6px 0 0">' + escHtml(h.answer) + '</p>'
+            + askAiVerifiedReadout(h) + askAiWorkHtml(h.toolCalls))
+        + '</div>';
+    }).join("");
+    el("askAiPanel").innerHTML =
+      (askAiConfigured() ? "" :
+        '<p style="font-size:12.5px;color:var(--c-pill-a)">Not yet configured &mdash; see docs/ASK_AI_SETUP.md '
+        + 'to deploy the Worker, then set ASK_AI_WORKER_URL.</p>')
+      + askAiStartersHtml()
+      + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">'
+        + '<input class="gsearch" id="askAiInput" type="text" style="flex:1;min-width:220px" '
+        + 'placeholder="Ask anything about this package&hellip;" aria-label="Ask a free-text question about this package" '
+        + (askAi.busy ? "disabled" : "") + '>'
+        + '<button type="button" class="btn" id="askAiSubmit"' + (askAi.busy ? " disabled" : "") + '>'
+        + (askAi.busy ? "Asking…" : "Ask") + '</button>'
+      + '</div>'
+      + (askAi.busy ? '<p style="margin-top:8px;font-size:12px;color:rgb(var(--c-text-secondary))">Reading the live ledger'
+        + [0, .2, .4].map(function(d){
+            return '<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:currentColor;'
+              + 'margin-left:4px;animation:livePulse 1.4s ease-in-out ' + d + 's infinite"></span>';
+          }).join("") + '</p>' : "")
+      + '<p style="font-size:11px;margin-top:6px;color:rgb(var(--c-text-secondary))">Questions asked this session: '
+        + askAi.count + '</p>'
+      + historyHtml;
+    var submitBtn = el("askAiSubmit");
+    if (submitBtn) submitBtn.addEventListener("click", submitAskAi);
+    var input = el("askAiInput");
+    if (input) input.addEventListener("keydown", function(e){ if (e.key === "Enter") submitAskAi(); });
+  }
+  function submitAskAi(){
+    var input = el("askAiInput");
+    var q = input ? input.value.trim() : "";
+    if (!q || askAi.busy) return;
+    if (!askAiConfigured()){
+      askAi.history.unshift({q:q, error:"Ask AI isn't deployed yet -- see docs/ASK_AI_SETUP.md."});
+      if (input) input.value = "";
+      renderAskAiPanel();
+      return;
+    }
+    askAi.busy = true; askAi.count++;
+    renderAskAiPanel();
+    fetch(ASK_AI_WORKER_URL, {method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({question:q, snapshot:buildFacadeAskAiSnapshot(), dashboard:"facade"})})
+      .then(function(r){ return r.json().then(function(body){ return {ok:r.ok, body:body}; }); })
+      .then(function(res){
+        if (!res.ok || res.body.error){
+          askAi.history.unshift({q:q, error:res.body && res.body.error ? res.body.error : "The Ask AI service returned an error."});
+        } else {
+          askAi.history.unshift({q:q, answer:res.body.answer,
+            toolCalls:Array.isArray(res.body.toolCalls) ? res.body.toolCalls : [],
+            totalClaims:typeof res.body.totalClaims === "number" ? res.body.totalClaims : 0,
+            unverifiedCount:res.body.unverifiedCount || 0});
+        }
+      })
+      .catch(function(){
+        askAi.history.unshift({q:q, error:"Couldn't reach the Ask AI service -- check your connection and try again."});
+      })
+      .then(function(){
+        askAi.busy = false;
+        if (input) input.value = "";
+        renderAskAiPanel();
+      });
+  }
+  renderAskAiGate();
+  renderAskAiPanel();
+  (function wireAskAiPanelClicks(){
+    var panel = el("askAiPanel");
+    panel.addEventListener("click", function(e){
+      var fill = e.target.closest("[data-ask-fill]"); if (!fill) return;
+      var input = el("askAiInput");
+      if (input){ input.value = fill.dataset.askFill; input.focus(); }
+    });
   })();
 
   /* --- chrome ----------------------------------------------------------------------- */
@@ -1408,7 +2102,10 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);
 
   /* Exposed for verify-facade.cjs, which re-derives all of this independently. */
   window.__FACADE__ = {PROGRAM:PROGRAM, ZONES:ZONES, WEEKS:WEEKS, R:R, T:T,
-                       EACS:EACS, GATES:GATES, SHOP_LADDER:SHOP_LADDER, FIELD_LADDER:FIELD_LADDER};
+                       EACS:EACS, GATES:GATES, SHOP_LADDER:SHOP_LADDER, FIELD_LADDER:FIELD_LADDER,
+                       RFIS:RFIS, CHANGE_ORDERS:CHANGE_ORDERS, RFI_ROWS:RFI_ROWS, CO_ROWS:CO_ROWS,
+                       buildFacadeAskAiSnapshot:buildFacadeAskAiSnapshot, askAiConfigured:askAiConfigured,
+                       askAiState:askAi, escHtml:escHtml, getAskAiWorkerUrl:function(){ return ASK_AI_WORKER_URL; }};
 })();
 </script>
 </body>

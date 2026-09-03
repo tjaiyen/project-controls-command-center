@@ -274,6 +274,70 @@ async function run() {
     ok(after > before, "the budget reservation from this failed request is still recorded (spend went up) -- reserved atomically BEFORE the Anthropic call, not committed only on success, so a mid-loop failure can't cause spend to silently go unaccounted for");
   }
 
+  // 13. Dashboard threading (2026-09-03) -- facade.html sends {dashboard:"facade"}. Proves the
+  // Worker actually answers it with FACADE_TOOLS/FACADE_SYSTEM_PROMPT (not the program's), and
+  // that a facade tool call really dispatches through callFacadeTool and reads the real facade-
+  // shaped snapshot, not an "unknown tool" fallback.
+  function makeFacadeSnapshot() {
+    return {
+      asOf: "31 Aug 2026",
+      totals: {bac: 18.4, ev: 17.9, ac: 18.1, pv: 18.0, spi: 0.994, cpi: 0.989, vac: -0.21},
+      elevations: [{id: "S-HI", name: "South — L13–L24", panels: 236, pctEarned: 0.61}],
+      // facade_get_gate indexes this array POSITIONALLY (snapshot.gates[args.n-1]), matching how
+      // facade.html's real GATES.map(...) always emits a full, dense 5-element array -- so this
+      // fixture must be dense too, not sparse, or a positional lookup silently misses.
+      gates: [
+        {n: 1, name: "Performance mock-up passed", standard: "ASTM E283", status: "ok", detail: "Passed before mass extrusion released."},
+        {n: 2, name: "Mass production release", standard: "Gated on the mock-up above", status: "ok", detail: "Released."},
+        {n: 3, name: "Factory buffer ahead of the setting crew", standard: "Floor: 10 working days", status: "ok", detail: "Cover is stable."},
+        {n: 4, name: "Starter sill flood test before panels are set", standard: "Dammed flood test, per elevation", status: "ok", detail: "All elevations carry a signed sill test."},
+        {n: 5, name: "Field water test before interior close-in", standard: "AAMA 501.2", status: "act", detail: "BLOCKED on S-HI."},
+      ],
+      eacMethods: [{name: "Current cost efficiency continues", formula: "BAC / CPI", value: 18.6, when: "Default."}],
+      mc: {n: 10000, p10: 18.0, p50: 18.5, p80: 19.1, p95: 19.6, pOverBac: 0.62},
+      bidVariance: {qtyVar: 0.05, priceVar: 0.03, prodVar: 0.02, totVar: 0.1},
+    };
+  }
+  {
+    const env = makeEnv();
+    let sentBody = null, callCount = 0;
+    const realFetch = global.fetch;
+    global.fetch = async (url, opts) => {
+      if (!String(url).includes("anthropic.com")) return realFetch(url, opts);
+      callCount++;
+      if (callCount === 1) {
+        sentBody = JSON.parse(opts.body);
+        return new Response(JSON.stringify({content: [{type: "tool_use", id: "t1", name: "facade_get_gate", input: {n: 5}}], usage: {input_tokens: 30, output_tokens: 5}}), {status: 200});
+      }
+      return new Response(JSON.stringify({content: [{type: "text", text: "Gate 5 is blocked on S-HI."}], usage: {input_tokens: 40, output_tokens: 10}}), {status: 200});
+    };
+    const res = await worker.fetch(new Request("https://worker.example/ask", {method: "POST", headers: {Origin: ORIGIN}, body: JSON.stringify({question: "What's blocking gate 5?", snapshot: makeFacadeSnapshot(), dashboard: "facade"})}), env);
+    global.fetch = realFetch;
+    ok(res.status === 200, "a dashboard:'facade' request round-trips successfully");
+    ok(sentBody.tools.some(t => t.name === "facade_get_gate"), "the Anthropic request for a facade question carries FACADE_TOOLS (facade_get_gate present)");
+    ok(!sentBody.tools.some(t => t.name === "get_totals"), "the same request does NOT also carry the program dashboard's own tools -- the two tool sets never mix");
+    ok(sentBody.system.includes("curtain wall"), "the system prompt for a facade question is FACADE_SYSTEM_PROMPT, not the program one");
+    const body = await res.json();
+    ok(body.toolCalls[0].result.status === "act", "callTool actually dispatched facade_get_gate to callFacadeTool and returned the real gate object from the snapshot, not an 'unknown tool' error", JSON.stringify(body.toolCalls[0].result));
+  }
+  // 14. Backward compatibility -- an older/unmodified caller (index.html before this change) never
+  // sends `dashboard` at all. Proves the new threading left that default path byte-for-byte the
+  // same: PROGRAM_TOOLS, never the facade set.
+  {
+    const env = makeEnv();
+    let sentBody = null;
+    const realFetch = global.fetch;
+    global.fetch = async (url, opts) => {
+      if (!String(url).includes("anthropic.com")) return realFetch(url, opts);
+      sentBody = JSON.parse(opts.body);
+      return new Response(JSON.stringify({content: [{type: "text", text: "no comment"}], usage: {input_tokens: 10, output_tokens: 5}}), {status: 200});
+    };
+    await worker.fetch(new Request("https://worker.example/ask", {method: "POST", headers: {Origin: ORIGIN}, body: JSON.stringify({question: "hi", snapshot: makeSnapshot()})}), env);
+    global.fetch = realFetch;
+    ok(sentBody.tools.some(t => t.name === "get_totals"), "a request with no `dashboard` field still gets the original PROGRAM_TOOLS (index.html's existing behavior is unchanged)");
+    ok(!sentBody.tools.some(t => t.name.indexOf("facade_") === 0), "and never the facade tool set, by default");
+  }
+
   console.log("\n" + pass + " passed, " + fail + " failed");
   process.exit(fail ? 1 : 0);
 }
