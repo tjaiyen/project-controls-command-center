@@ -434,6 +434,18 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
       </div>
     </div>
 
+    <div class="dbox">
+      <h3>Cost per hour, by month &mdash; the rate half of labour variance</h3>
+      <p class="sub">Productivity (Panel Flow tab) measures whether the work took more or fewer
+        hours than budgeted. This measures the other half: whether each hour cost more or less than
+        the estimate assumed &mdash; wage escalation, overtime premium, sub rate creep. The exact
+        labour-side parallel to the quantity/price split already run for materials.</p>
+      <div id="cphChart"></div>
+      <div class="legend" id="cphLegend"></div>
+      <p class="note" id="cphNote" style="font-style:normal;margin-top:10px"></p>
+      <div class="formula" id="cphFormula"></div>
+    </div>
+
     <div class="grid2">
       <div class="dbox">
         <h3>Four ways to forecast the same package</h3>
@@ -942,6 +954,36 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
     {id:"PCO-09", desc:"Podium canopy bracket redesign", status:"pending", value:28000, pctCompleteUnapproved:0.15, opened:"2026-08-19"}
   ];
 
+  /* CPH (Cost Per Hour) monthly tracking (2026-09-03) -- a genuinely different signal from the
+     shop/field PRODUCTIVITY split above: PF/prodVar measure EFFICIENCY (more/fewer hours than
+     budgeted for the work done); CPH measures RATE (more/less paid per hour than the estimate
+     assumed) -- wage escalation, overtime premium, sub rate creep. Exactly the labour-side parallel
+     to the quantity/price split this page already runs for materials.
+
+     hShop/hField are real hours -- deliberately designed so they sum EXACTLY to T.actHShop/
+     T.actHField (the same real hours the elevation ledger already tracks, just viewed by calendar
+     month instead of by elevation, same idea as the existing shop/field reconciliation). cphShop/
+     cphField are a DIRECTLY-tracked average burdened rate per month (as a real payroll/timesheet
+     system would give you), not backed out of acShop/acField -- those totals include material and
+     everything else a unitized package spends on, not labour alone, so deriving a rate from them
+     would silently misrepresent a blended figure as a labour rate. The monthly labour-cost figure
+     (hours x rate) this produces is therefore a NEW number that does NOT reconcile to acShop/
+     acField, and is not claimed to -- stated explicitly in the UI, not glossed over.
+
+     Field starts in month 3 (cphField null before then), matching WEEKS.set staying at 0 through
+     week ~11 -- consistent with the rest of this ledger's own shop-leads-field story, not
+     mechanically derived week-by-week from it. */
+  var MONTHLY = [
+    {month:"Jan 2026", hShop:3200,  cphShop:85.50, hField:0,    cphField:null},
+    {month:"Feb 2026", hShop:6100,  cphShop:86.00, hField:0,    cphField:null},
+    {month:"Mar 2026", hShop:8400,  cphShop:87.00, hField:1800, cphField:126.00},
+    {month:"Apr 2026", hShop:9800,  cphShop:88.50, hField:4200, cphField:128.50},
+    {month:"May 2026", hShop:10200, cphShop:90.00, hField:6100, cphField:131.00},
+    {month:"Jun 2026", hShop:9900,  cphShop:92.50, hField:7400, cphField:135.00},
+    {month:"Jul 2026", hShop:8600,  cphShop:95.00, hField:7350, cphField:139.50},
+    {month:"Aug 2026", hShop:7000,  cphShop:97.50, hField:6600, cphField:144.00}
+  ];
+
   /* Rules of credit.  Two ladders, not one, because a panel earns shop scope and field
      scope at different moments -- and the weights are the *cost* split rather than an
      invented percentage: a crated-not-yet-set panel has earned its shop budget and none
@@ -1332,6 +1374,26 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
   T.coRatePct = T.coApprovedValue / T.bac;
   T.coUnpricedExposure = CO_ROWS.filter(function(c){ return c.status === "pending"; })
     .reduce(function(a, c){ return a + c.value * c.pctCompleteUnapproved; }, 0);
+
+  /* --- CPH (Cost Per Hour), monthly -- the rate-variance parallel to quantity/price above. ------ */
+  T.monthlyHShopTotal = MONTHLY.reduce(function(a, m){ return a + m.hShop; }, 0);
+  T.monthlyHFieldTotal = MONTHLY.reduce(function(a, m){ return a + m.hField; }, 0);
+  // Rate variance -- EXACT parallel to priceVar = (actRate - bidRate) x actQty, just for labour:
+  // (actual $/hr that month - the budget rate) x actual hours that month, summed across months.
+  // A positive number means the package paid more per hour than estimated, in total dollars.
+  T.rateVarShop = MONTHLY.reduce(function(a, m){
+    return a + (m.hShop > 0 ? (m.cphShop - PROGRAM.laborRateShop) * m.hShop : 0);
+  }, 0);
+  T.rateVarField = MONTHLY.reduce(function(a, m){
+    return a + (m.hField > 0 && m.cphField !== null ? (m.cphField - PROGRAM.laborRateField) * m.hField : 0);
+  }, 0);
+  T.rateVar = T.rateVarShop + T.rateVarField;
+  // Latest real reading of each -- the trailing number worth quoting, not a project-to-date average
+  // that would mute exactly the escalation trend this metric exists to catch.
+  var lastShopMonth = MONTHLY.slice().reverse().filter(function(m){ return m.hShop > 0; })[0];
+  var lastFieldMonth = MONTHLY.slice().reverse().filter(function(m){ return m.hField > 0 && m.cphField !== null; })[0];
+  T.cphShopLatest = lastShopMonth ? lastShopMonth.cphShop : null;
+  T.cphFieldLatest = lastFieldMonth ? lastFieldMonth.cphField : null;
 
   /* ==================================================================================
      FORMATTERS + CHART PRIMITIVES
@@ -1991,6 +2053,66 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
       + "average (CMiC / Procore), not this package's actual contract retainage.");
   })();
 
+  /* CPH (Cost Per Hour), by month -- the rate-variance parallel to the quantity/price split already
+     built for materials. Same chart primitives as the S-curve/buffer charts above, same discipline:
+     the y-axis is anchored to include both budget rates so neither reference line can be clipped
+     off-canvas, the exact reasoning already used for the Monte Carlo chart's BAC line. */
+  (function renderCph(){
+    var w = 620, h = 220, pl = 44, pr = 12, pt = 14, pb = 30;
+    var n = MONTHLY.length;
+    var allRates = [PROGRAM.laborRateShop, PROGRAM.laborRateField]
+      .concat(MONTHLY.map(function(m){ return m.cphShop; }))
+      .concat(MONTHLY.filter(function(m){ return m.cphField !== null; }).map(function(m){ return m.cphField; }));
+    var lo = Math.min.apply(null, allRates) * 0.95, hi = Math.max.apply(null, allRates) * 1.05;
+    var iw = w - pl - pr, ih = h - pt - pb;
+    var X = function(i){ return pl + (i / (n - 1)) * iw; };
+    var Y = function(v){ return pt + ih - (v - lo) / (hi - lo) * ih; };
+    var g = "", i;
+    for (i = 0; i <= 3; i++){
+      var yv = lo + (hi - lo) * i / 3, y = Y(yv);
+      g += '<line x1="' + pl + '" y1="' + y.toFixed(1) + '" x2="' + (w - pr) + '" y2="' + y.toFixed(1)
+         + '" stroke="var(--c-grid)" stroke-width="1"/>'
+         + '<text x="' + (pl - 6) + '" y="' + (y + 4).toFixed(1) + '" text-anchor="end" font-size="10.5" '
+         + 'font-family="ui-monospace,Menlo,monospace" fill="rgb(var(--c-text-secondary))">$' + yv.toFixed(0) + '</text>';
+    }
+    // Budget-rate reference lines -- flat, dashed, same convention as the buffer-floor line.
+    [[PROGRAM.laborRateShop, "var(--c-shop)"], [PROGRAM.laborRateField, "var(--c-field)"]].forEach(function(rl){
+      var ry = Y(rl[0]);
+      g += '<line x1="' + pl + '" y1="' + ry.toFixed(1) + '" x2="' + (w - pr) + '" y2="' + ry.toFixed(1)
+         + '" stroke="' + rl[1] + '" stroke-width="1.2" stroke-dasharray="4 3" opacity="0.6"/>';
+    });
+    for (i = 0; i < n; i++){
+      g += '<text x="' + X(i).toFixed(1) + '" y="' + (h - 8) + '" text-anchor="middle" font-size="9.5" '
+         + 'font-family="ui-monospace,Menlo,monospace" fill="rgb(var(--c-text-secondary))">'
+         + MONTHLY[i].month.slice(0, 3) + '</text>';
+    }
+    var shopPts = MONTHLY.map(function(m, idx){ return X(idx).toFixed(1) + "," + Y(m.cphShop).toFixed(1); });
+    var fieldPts = MONTHLY.filter(function(m){ return m.cphField !== null; })
+      .map(function(m){ return X(MONTHLY.indexOf(m)).toFixed(1) + "," + Y(m.cphField).toFixed(1); });
+    g += polyline(shopPts, "var(--c-shop)", null, 2.2);
+    g += polyline(fieldPts, "var(--c-field)", null, 2.2);
+    set("cphChart", svg(w, h, g,
+      "Shop and field actual cost per hour by month, against budget rates of $" + PROGRAM.laborRateShop
+      + "/hr and $" + PROGRAM.laborRateField + "/hr; both have drifted above budget."));
+    set("cphLegend",
+      '<span><i style="background:var(--c-shop)"></i>Shop actual $/hr</span>'
+      + '<span><i style="background:var(--c-field)"></i>Field actual $/hr</span>'
+      + '<span style="color:rgb(var(--c-text-secondary))">- - - budget rate</span>');
+    set("cphNote",
+      "Latest reading: shop $" + (T.cphShopLatest !== null ? T.cphShopLatest.toFixed(2) : "n/a") + "/hr against a $"
+      + PROGRAM.laborRateShop + "/hr budget (" + pct((T.cphShopLatest / PROGRAM.laborRateShop) - 1, 1) + " over) &middot; field $"
+      + (T.cphFieldLatest !== null ? T.cphFieldLatest.toFixed(2) : "n/a") + "/hr against a $" + PROGRAM.laborRateField
+      + "/hr budget (" + pct((T.cphFieldLatest / PROGRAM.laborRateField) - 1, 1) + " over). Rate variance to date: "
+      + k(T.rateVarShop) + " shop + " + k(T.rateVarField) + " field = <b>" + k(T.rateVar) + "</b> &mdash; the dollar cost of "
+      + "paying more per hour than the estimate assumed, isolated from whether the work itself ran efficiently "
+      + "(that is PF/productivity variance, a separate question, on the Bid vs Actual tab).");
+    set("cphFormula", "<b>rate variance</b> = &Sigma;<sub>months</sub> (actual $/hr &minus; budget $/hr) &times; actual hours that month<br>"
+      + "shop: <b>" + k(T.rateVarShop) + "</b> &middot; field: <b>" + k(T.rateVarField) + "</b><br>"
+      + '<span style="font-style:italic">monthly $/hr is tracked directly (as real payroll/timesheet data would give you), '
+      + 'not derived from acShop/acField -- those totals include material and everything else this package spends on, '
+      + 'not labour alone, so backing a rate out of them would silently misrepresent a blended figure as a labour rate.</span>');
+  })();
+
   (function renderMc(){
     var w = 620, h = 210, pl = 40, pr = 12, pt = 14, pb = 30;
     function build(sims, correlated){
@@ -2175,7 +2297,17 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
       + 'while the job runs, which is the argument for measuring it weekly rather than at closeout. '
       + 'Note that ' + worstD.id + ' is also the elevation carrying the worst cost variance and the '
       + 'worst tolerance drift &mdash; three metrics from three different systems pointing at one '
-      + 'elevation is a finding, not a coincidence.</div></div></div>');
+      + 'elevation is a finding, not a coincidence.</div></div></div>'
+      + '<div class="gaterow"><div class="ico ' + (T.rateVar > 0 ? "act" : "ok") + '">R</div><div class="body">'
+      + '<div class="t">Rate &mdash; package-wide ' + k(T.rateVar) + ' (' + k(T.rateVarShop) + ' shop / ' + k(T.rateVarField) + ' field)</div>'
+      + '<div class="d">Paid more per hour than the estimate assumed &mdash; the labour-side twin of '
+      + 'Price above, tracked monthly rather than by elevation (this ledger has no elevation-level '
+      + 'monthly history, stated honestly rather than faked). Latest shop rate is $' + T.cphShopLatest.toFixed(2)
+      + '/hr against a $' + PROGRAM.laborRateShop + '/hr budget, field $' + T.cphFieldLatest.toFixed(2)
+      + '/hr against $' + PROGRAM.laborRateField + '/hr &mdash; both still climbing month over month '
+      + '(Cost &amp; Earned Value tab). Unlike a productivity miss, a rate that has already escalated '
+      + 'is largely locked in on hours already worked, same as Price is on material already bought.'
+      + '</div></div></div>');
   })();
 
   /* RFI response time -- benchmarked against Navigant Construction Forum's 1,362-project study
@@ -2460,7 +2592,8 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
       ["surveyed / creepMm / sweep", "Survey readings of cumulative setting drift", "Tolerance projection against the joint budget"],
       ["WEEKS.crated / set / plan", "Weekly cumulative panel counts", "The dual S-curve, takt rates, buffer trend, BEI"],
       ["RFIS[].opened / answered", "RFI dates, package-level", "RFI response-time vs. the Navigant benchmark"],
-      ["CHANGE_ORDERS[].value / status / pctCompleteUnapproved", "Change orders and PCOs, package-level", "Change-order rate, unpriced exposure"]
+      ["CHANGE_ORDERS[].value / status / pctCompleteUnapproved", "Change orders and PCOs, package-level", "Change-order rate, unpriced exposure"],
+      ["MONTHLY[].hShop / cphShop / hField / cphField", "Monthly hours and directly-tracked $/hr, package-level", "Cost-per-hour trend, labour rate variance"]
     ];
     set("ledgerBody", LEDGER.map(function(x){
       return '<tr><td><code>' + x[0] + '</code></td><td>' + x[1] + '</td>'
@@ -2484,7 +2617,8 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
       ["Unbilled factory value", "(crated &minus; set) &times; (shop budget &divide; panels)", "The CFMA/NetSuite WIP &ldquo;costs in excess of billings&rdquo; concept, applied to the existing shop-state split."],
       ["Breakage rate", "broken &divide; crated", "Benchmarked against the tempered-glass industry's own 0.8% spontaneous-breakage design basis."],
       ["RFI days open", "answered date &minus; opened date (or data date, if still open)", "Benchmarked against the Navigant Construction Forum's 9.7-day median."],
-      ["Change-order rate", "&Sigma; approved CO value &divide; BAC", "Benchmarked against a general 5&ndash;15% commercial-construction band (CFMA), not a glazing-specific one."]
+      ["Change-order rate", "&Sigma; approved CO value &divide; BAC", "Benchmarked against a general 5&ndash;15% commercial-construction band (CFMA), not a glazing-specific one."],
+      ["Rate variance", "&Sigma;<sub>months</sub> (actual $/hr &minus; budget $/hr) &times; actual hours that month", "The labour-side twin of price variance -- how much extra a package paid per hour, isolated from how efficiently the hours were spent."]
     ];
     set("formulaList", FS.map(function(f){
       return '<div style="padding:11px 0;border-bottom:1px solid var(--c-line)">'
@@ -2530,7 +2664,9 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
      worked:function(){ var w = R.filter(function(r){ return r.surveyed > 0; }).sort(function(a, b){ return b.creepRatio - a.creepRatio; })[0];
        return w.id + ": " + w.creepPer.toFixed(2) + " mm/panel &times; " + w.sweep + " panels = <b>" + w.creepProj.toFixed(1) + " mm</b> against a " + PROGRAM.jointBudgetMm + " mm budget"; }},
     {t:"Rules of credit", p:"The published weights that convert a panel's shop/field STATE into a fraction of its budget earned -- physical progress, not a superintendent's percent-complete guess.",
-     worked:function(){ return "shop ladder: " + SHOP_LADDER.map(function(s){ return pct(s.w, 0); }).join(" &rarr; ") + " &middot; field ladder: " + FIELD_LADDER.map(function(s){ return pct(s.w, 0); }).join(" &rarr; "); }}
+     worked:function(){ return "shop ladder: " + SHOP_LADDER.map(function(s){ return pct(s.w, 0); }).join(" &rarr; ") + " &middot; field ladder: " + FIELD_LADDER.map(function(s){ return pct(s.w, 0); }).join(" &rarr; "); }},
+    {t:"CPH -- Cost Per Hour, and rate variance", p:"Whether each labour hour cost more or less than the estimate assumed -- wage escalation, overtime premium, sub rate creep. The labour-side twin of price variance; productivity/PF is the labour-side twin of quantity variance.",
+     worked:function(){ return "latest: shop $" + T.cphShopLatest.toFixed(2) + "/hr vs. $" + PROGRAM.laborRateShop + "/hr budget, field $" + T.cphFieldLatest.toFixed(2) + "/hr vs. $" + PROGRAM.laborRateField + "/hr budget &mdash; rate variance to date <b>" + k(T.rateVar) + "</b>"; }}
   ];
   (function renderGlossary(){
     set("glossList", GLOSSARY.map(function(g, i){
@@ -2641,8 +2777,13 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
         coApprovedValue:T.coApprovedValue, coRatePct:T.coRatePct, coUnpricedExposure:T.coUnpricedExposure,
         // added 2026-09-03 -- shop/field productivity split, mirroring the cost split's own totals.
         ernHShop:T.ernHShop, actHShop:T.actHShop, ernHField:T.ernHField, actHField:T.actHField,
-        pfShop:T.pfShop, pfField:T.pfField, prodVarShop:T.prodVarShop, prodVarField:T.prodVarField
+        pfShop:T.pfShop, pfField:T.pfField, prodVarShop:T.prodVarShop, prodVarField:T.prodVarField,
+        // added 2026-09-03 -- monthly CPH / labour rate variance.
+        cphShopLatest:T.cphShopLatest, cphFieldLatest:T.cphFieldLatest,
+        rateVarShop:T.rateVarShop, rateVarField:T.rateVarField, rateVar:T.rateVar,
+        laborRateShopBudget:PROGRAM.laborRateShop, laborRateFieldBudget:PROGRAM.laborRateField
       },
+      monthlyCph: MONTHLY.map(function(m){ return {month:m.month, hShop:m.hShop, cphShop:m.cphShop, hField:m.hField, cphField:m.cphField}; }),
       elevations: R.map(function(r){
         return {id:r.id, name:deent(r.n), panels:r.panels,
           rel:r.rel, fra:r.fra, gla:r.gla, cra:r.cra, set:r.set, sea:r.sea,
@@ -2983,6 +3124,7 @@ th[data-dir="desc"]::after{content:"\2193";opacity:1}
   window.__FACADE__ = {PROGRAM:PROGRAM, ZONES:ZONES, WEEKS:WEEKS, R:R, T:T,
                        EACS:EACS, GATES:GATES, SHOP_LADDER:SHOP_LADDER, FIELD_LADDER:FIELD_LADDER,
                        RFIS:RFIS, CHANGE_ORDERS:CHANGE_ORDERS, RFI_ROWS:RFI_ROWS, CO_ROWS:CO_ROWS,
+                       MONTHLY:MONTHLY,
                        buildFacadeAskAiSnapshot:buildFacadeAskAiSnapshot, askAiConfigured:askAiConfigured,
                        askAiState:askAi, escHtml:escHtml, getAskAiWorkerUrl:function(){ return ASK_AI_WORKER_URL; }};
 })();

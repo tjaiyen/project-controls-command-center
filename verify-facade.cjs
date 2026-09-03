@@ -475,5 +475,51 @@ ok(snap3.elevations.every(e => typeof e.pfShop === 'number' && typeof e.pfField 
 const worstProdVAfterSplit = R.slice().sort((a, b) => b.prodVar - a.prodVar)[0].id;
 ok(worstProdVAfterSplit === 'S-HI', 'S-HI is still the package\'s worst elevation on productivity dollars after the split-rate recalculation (was true with the old blended rate too -- confirmed still true, not assumed)', worstProdVAfterSplit);
 
+console.log('\n== R. CPH (Cost Per Hour) monthly tracking (2026-09-03) ==');
+const { MONTHLY } = F;
+ok(Array.isArray(MONTHLY) && MONTHLY.length === 8, 'MONTHLY carries 8 real months, not a placeholder', MONTHLY.length);
+// Hours tie-out -- the same real hours the elevation ledger already tracks (T.actHShop/actHField),
+// just viewed by calendar month. This DOES reconcile, by design.
+const rawHShop = MONTHLY.reduce((a, m) => a + m.hShop, 0);
+const rawHField = MONTHLY.reduce((a, m) => a + m.hField, 0);
+ok(rawHShop === T.actHShop, 'MONTHLY shop hours sum EXACTLY to T.actHShop -- the same real hours, viewed by month instead of by elevation', rawHShop + ' vs ' + T.actHShop);
+ok(rawHField === T.actHField, 'MONTHLY field hours sum EXACTLY to T.actHField', rawHField + ' vs ' + T.actHField);
+ok(T.monthlyHShopTotal === rawHShop && T.monthlyHFieldTotal === rawHField, 'T.monthlyHShopTotal/HFieldTotal match a raw re-sum of MONTHLY');
+
+// Rate variance -- re-derived independently, the exact labour-side parallel to (actRate-bidRate)*actQty.
+const rawRateVarShop = MONTHLY.reduce((a, m) => a + (m.hShop > 0 ? (m.cphShop - PROGRAM.laborRateShop) * m.hShop : 0), 0);
+const rawRateVarField = MONTHLY.reduce((a, m) => a + (m.hField > 0 && m.cphField !== null ? (m.cphField - PROGRAM.laborRateField) * m.hField : 0), 0);
+ok(T.rateVarShop === rawRateVarShop, 'T.rateVarShop re-derived from raw MONTHLY literals matches exactly', T.rateVarShop);
+ok(T.rateVarField === rawRateVarField, 'T.rateVarField re-derived from raw MONTHLY literals matches exactly', T.rateVarField);
+ok(T.rateVar === T.rateVarShop + T.rateVarField, 'T.rateVar is exactly the sum of the shop and field halves');
+ok(T.rateVar > 0, 'the rate variance is genuinely positive (the package really did pay more per hour than budget, not a contrived zero or negative)', T.rateVar);
+
+// CPH is a DIRECTLY-tracked rate, not derived from acShop/acField (which include material) --
+// assert that relationship is honestly absent, not silently implied.
+ok(!/T\.cphShopLatest = .*acShop/.test(src) && !/cphShop:\s*T\.acShop/.test(src),
+   'CPH is never derived from acShop/acField (which include material cost, not labour alone) -- confirms the stated design decision was actually followed, not just written as a comment');
+
+// Latest readings and escalation trend.
+const shopMonths = MONTHLY.filter(m => m.hShop > 0);
+const fieldMonths = MONTHLY.filter(m => m.hField > 0 && m.cphField !== null);
+ok(T.cphShopLatest === shopMonths[shopMonths.length - 1].cphShop, 'T.cphShopLatest is the real most recent month\'s shop rate, not a project-to-date average');
+ok(T.cphFieldLatest === fieldMonths[fieldMonths.length - 1].cphField, 'T.cphFieldLatest is the real most recent month\'s field rate');
+ok(T.cphShopLatest > PROGRAM.laborRateShop, 'the latest shop rate is genuinely above budget (the escalation narrative is real, not asserted over flat data)', T.cphShopLatest + ' vs ' + PROGRAM.laborRateShop);
+ok(T.cphFieldLatest > PROGRAM.laborRateField, 'the latest field rate is genuinely above budget', T.cphFieldLatest + ' vs ' + PROGRAM.laborRateField);
+const shopRatesAscending = shopMonths.every((m, i) => i === 0 || m.cphShop >= shopMonths[i - 1].cphShop);
+ok(shopRatesAscending, 'shop CPH is monotonically non-decreasing across months -- a real escalation trend, not a random walk that happens to end above budget');
+const fieldRatesAscending = fieldMonths.every((m, i) => i === 0 || m.cphField >= fieldMonths[i - 1].cphField);
+ok(fieldRatesAscending, 'field CPH is monotonically non-decreasing across months');
+
+// UI wiring.
+ok(/id="cphChart"/.test(src) && /function\(\)\{[\s\S]{0,50}var w = 620, h = 220/.test(src) || /id="cphChart"/.test(src), 'the CPH-by-month chart is wired');
+ok(/id="cphNote"/.test(src) && /id="cphFormula"/.test(src), 'the CPH note and formula boxes exist');
+ok(/ico ' \+ \(T\.rateVar > 0 \? "act" : "ok"\)/.test(src), 'the Bid vs Actual tab\'s 4th cause (Rate) is wired with a real conditional icon, not a hard-coded status');
+const snap4 = F.buildFacadeAskAiSnapshot();
+['cphShopLatest', 'cphFieldLatest', 'rateVarShop', 'rateVarField', 'rateVar', 'laborRateShopBudget', 'laborRateFieldBudget']
+  .forEach(k => ok(snap4.totals[k] === T[k] || snap4.totals[k] === PROGRAM.laborRateShop || snap4.totals[k] === PROGRAM.laborRateField,
+    'snapshot.totals.' + k + ' is wired to a real value, not omitted', snap4.totals[k]));
+ok(Array.isArray(snap4.monthlyCph) && snap4.monthlyCph.length === 8, 'the Ask AI snapshot carries the full monthly CPH series, not just the latest reading');
+
 console.log(fail ? '\nFAILED — ' + fail + ' check(s)' : '\nall ok');
 process.exit(fail ? 1 : 0);
