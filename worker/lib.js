@@ -163,9 +163,21 @@ function verifyClaims(claims, groundTruthNumbers, groundTruthText) {
 
 // Deterministic strip, not a second model call trusting the first -- every occurrence of an
 // unverified claim is replaced, never silently left in place.
+//
+// /stress-test finding (2026-09-02, independent reviewer + direct probing): a plain
+// text.split(claim).join(...) matches the claim as an inner SUBSTRING of any larger number too --
+// an unverified "1.2" corrupted a separately real, verified "$91.2M" into "$9[unverified]M",
+// because "1.2" literally occurs inside "91.2". Fixed with digit-boundary lookaround: a claim is
+// only replaced where it is NOT immediately adjacent to another digit on either side, so a shorter
+// unverified claim can no longer eat part of a longer verified one. Reproduced pre-fix and
+// confirmed fixed post-fix (see worker/smoketest.js's new case).
+function escapeRegExp(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
 function sanitizeAnswer(text, unverifiedClaims) {
   var out = String(text || "");
-  unverifiedClaims.forEach(function (c) { out = out.split(c).join("[unverified]"); });
+  unverifiedClaims.forEach(function (c) {
+    var re = new RegExp("(?<!\\d)" + escapeRegExp(c) + "(?!\\d)", "g");
+    out = out.replace(re, "[unverified]");
+  });
   return out;
 }
 
