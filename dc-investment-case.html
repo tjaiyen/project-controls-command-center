@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Data Center Investment Case — Mukilteo Repositioning</title>
+<meta name="description" content="TJ Jaiyen — an interactive rebuild of a data-center investment case for a former employer, every figure checked against primary sources, two slides' worth of fabricated content found and fixed.">
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230A0F1D'/%3E%3Cpath d='M6 22 L12 15 L18 18 L26 8' stroke='%2306B6D4' stroke-width='2.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+:root{
+  --c-bg-primary:10 15 29; --c-bg-card:30 41 59; --c-accent:6 182 212;
+  --c-text-primary:241 245 249; --c-text-secondary:148 163 184; --c-text-code:34 211 238;
+  --c-success:16 185 129; --c-warning:245 158 11; --c-danger:239 68 68;
+  --c-pill-g:#34D399; --c-pill-a:#F59E0B; --c-pill-r:#FCA5A5;
+  --c-line:rgb(6 182 212 / .20);
+}
+@media (prefers-color-scheme: light){
+  :root{
+    --c-bg-primary:248 250 252; --c-bg-card:255 255 255; --c-accent:14 116 144;
+    --c-text-primary:15 23 42; --c-text-secondary:71 85 105; --c-text-code:14 116 144;
+    --c-success:5 150 105; --c-warning:180 83 9; --c-danger:220 38 38;
+    --c-pill-g:#065F46; --c-pill-a:#92400E; --c-pill-r:#991B1B;
+    --c-line:rgb(14 116 144 / .22);
+  }
+}
+:root[data-theme="dark"]{
+  --c-bg-primary:10 15 29; --c-bg-card:30 41 59; --c-accent:6 182 212;
+  --c-text-primary:241 245 249; --c-text-secondary:148 163 184; --c-text-code:34 211 238;
+  --c-success:16 185 129; --c-warning:245 158 11; --c-danger:239 68 68;
+  --c-pill-g:#34D399; --c-pill-a:#F59E0B; --c-pill-r:#FCA5A5;
+  --c-line:rgb(6 182 212 / .20);
+}
+:root[data-theme="light"]{
+  --c-bg-primary:248 250 252; --c-bg-card:255 255 255; --c-accent:14 116 144;
+  --c-text-primary:15 23 42; --c-text-secondary:71 85 105; --c-text-code:14 116 144;
+  --c-success:5 150 105; --c-warning:180 83 9; --c-danger:220 38 38;
+  --c-pill-g:#065F46; --c-pill-a:#92400E; --c-pill-r:#991B1B;
+  --c-line:rgb(14 116 144 / .22);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}}
+body{margin:0;background:rgb(var(--c-bg-primary));color:rgb(var(--c-text-primary));
+  font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased}
+code,.mono,.tabular{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+.tabular{font-variant-numeric:tabular-nums}
+a{color:rgb(var(--c-accent))}
+:focus-visible{outline:2px solid rgb(var(--c-accent));outline-offset:2px;border-radius:4px}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px 96px}
+.bar{position:sticky;top:0;z-index:50;background:rgb(var(--c-bg-primary) / .92);
+  backdrop-filter:blur(8px);border-bottom:1px solid var(--c-line)}
+.bar-in{max-width:1180px;margin:0 auto;padding:10px 20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.brand{display:flex;gap:9px;align-items:center;font-weight:600;text-decoration:none;color:inherit}
+.brand small{display:block;font:400 11px/1.3 ui-monospace,Menlo,monospace;color:rgb(var(--c-text-secondary))}
+.dot{width:9px;height:9px;border-radius:50%;background:rgb(var(--c-accent));flex:none}
+.bar .right{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.icobtn{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:9px 11px;
+  border:1px solid var(--c-line);border-radius:7px;background:transparent;
+  color:rgb(var(--c-text-primary));font:500 12px/1 inherit;cursor:pointer;text-decoration:none}
+@media (hover:hover) and (pointer:fine){.icobtn:hover{background:rgb(var(--c-accent) / .10)}}
+.icobtn[aria-pressed="true"],.icobtn[aria-current="true"]{background:rgb(var(--c-accent) / .16);border-color:rgb(var(--c-accent))}
+/* section nav rail */
+.navrail{display:flex;gap:4px;overflow-x:auto;padding:8px 20px;max-width:1180px;margin:0 auto;
+  border-bottom:1px solid var(--c-line);-webkit-overflow-scrolling:touch;scrollbar-width:thin}
+.navrail::-webkit-scrollbar{height:5px}
+.navrail a{flex:none;font:600 11px/1 ui-monospace,Menlo,monospace;letter-spacing:.02em;
+  color:rgb(var(--c-text-secondary));text-decoration:none;padding:7px 10px;border-radius:6px;white-space:nowrap}
+.navrail a.active{color:rgb(var(--c-text-code));background:rgb(var(--c-accent) / .12)}
+@media (hover:hover) and (pointer:fine){.navrail a:hover{color:rgb(var(--c-text-primary))}}
+
+.eyebrow{font:600 10.5px/1 ui-monospace,Menlo,monospace;letter-spacing:.16em;text-transform:uppercase;
+  color:rgb(var(--c-text-code));margin:0 0 8px}
+h1{font-size:clamp(1.8rem,4vw,2.6rem);line-height:1.14;letter-spacing:-.022em;margin:0 0 12px}
+h2{font-size:clamp(1.25rem,2.4vw,1.6rem);letter-spacing:-.015em;margin:0 0 8px}
+h3{font-size:1.05rem;margin:0 0 6px}
+.lede{color:rgb(var(--c-text-secondary));max-width:78ch;margin:0}
+section{padding-top:56px;scroll-margin-top:96px}
+.chapter{display:flex;align-items:center;gap:10px;margin-bottom:14px;
+  font:600 11px/1 ui-monospace,Menlo,monospace;letter-spacing:.13em;text-transform:uppercase;
+  color:rgb(var(--c-text-secondary))}
+.chapter .num{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:6px;
+  background:rgb(var(--c-accent) / .13);color:rgb(var(--c-text-code));font-size:11px}
+.card{background:rgb(var(--c-bg-card));border:1px solid var(--c-line);border-radius:12px;padding:18px}
+.thesis{border-left:3px solid rgb(var(--c-accent));background:rgb(var(--c-accent) / .07);
+  border-radius:0 10px 10px 0;padding:16px 19px;margin-top:18px;font-size:16px}
+.thesis b{color:rgb(var(--c-text-primary))}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1px;
+  background:var(--c-line);border:1px solid var(--c-line);border-radius:12px;overflow:hidden;margin-top:18px}
+.statcell{background:rgb(var(--c-bg-card));padding:16px 17px;text-align:left;border:none;cursor:pointer;
+  color:inherit;font:inherit;display:block;width:100%}
+@media (hover:hover) and (pointer:fine){.statcell:hover{background:rgb(var(--c-accent) / .08)}}
+.statcell .v{font:700 1.7rem/1 ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;color:rgb(var(--c-text-code))}
+.statcell .l{margin-top:8px;font-size:12.5px;color:rgb(var(--c-text-secondary));line-height:1.4}
+.grid2{display:grid;grid-template-columns:1fr;gap:16px;margin-top:16px}
+.grid2>*{min-width:0}
+@media(min-width:900px){.grid2{grid-template-columns:1fr 1fr}}
+.grid3{display:grid;grid-template-columns:1fr;gap:14px;margin-top:16px}
+@media(min-width:760px){.grid3{grid-template-columns:repeat(3,1fr)}}
+.tblwrap{overflow-x:auto;margin-top:14px;border:1px solid var(--c-line);border-radius:10px}
+table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:640px}
+th,td{text-align:left;padding:11px 13px;border-bottom:1px solid var(--c-line);vertical-align:top}
+th{font:600 10px/1.3 ui-monospace,Menlo,monospace;letter-spacing:.08em;text-transform:uppercase;
+  color:rgb(var(--c-text-secondary));background:rgb(var(--c-bg-card));position:sticky;top:0}
+tbody tr:last-child td{border-bottom:none}
+.pill{display:inline-block;padding:2px 9px;border-radius:999px;font:600 10.5px/1.6 ui-monospace,Menlo,monospace}
+.pill.hi{background:rgb(var(--c-danger) / .15);color:var(--c-pill-r)}
+.pill.med{background:rgb(var(--c-warning) / .16);color:var(--c-pill-a)}
+.pill.lo{background:rgb(var(--c-success) / .15);color:var(--c-pill-g)}
+.src{margin-top:14px;font-size:11.5px;color:rgb(var(--c-text-secondary))}
+.src a{color:rgb(var(--c-text-secondary));text-decoration:underline}
+footer{margin-top:64px;padding-top:22px;border-top:1px solid var(--c-line);
+  font-size:12.5px;color:rgb(var(--c-text-secondary))}
+
+/* chart primitives */
+.chart{margin-top:16px}
+.chart svg{width:100%;height:auto;overflow:visible}
+.chart .bar-rect{transition:opacity .15s}
+.chart .bar-rect:hover{opacity:.82}
+.chart .axislabel{font:500 10.5px ui-monospace,Menlo,monospace;fill:rgb(var(--c-text-secondary))}
+.chart .barlabel{font:700 12px ui-monospace,Menlo,monospace;fill:rgb(var(--c-text-primary))}
+.chart .barsub{font:500 10px ui-monospace,Menlo,monospace;fill:rgb(var(--c-text-secondary))}
+.chart .gridline{stroke:var(--c-line);stroke-width:1}
+.chart .threshold{stroke:rgb(var(--c-danger));stroke-width:1.5;stroke-dasharray:4 3}
+
+/* GC table filter */
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.gc-row[hidden]{display:none}
+
+/* risk register expandable rows */
+.risk-row{cursor:pointer}
+.risk-row td:first-child{font-weight:600}
+.risk-detail{display:none;background:rgb(var(--c-accent) / .05)}
+.risk-detail.open{display:table-row}
+.risk-detail td{padding:14px 13px;color:rgb(var(--c-text-secondary));font-size:13px;line-height:1.6}
+.risk-row .chev{display:inline-block;transition:transform .15s;margin-right:6px;color:rgb(var(--c-text-code))}
+.risk-row[aria-expanded="true"] .chev{transform:rotate(90deg)}
+
+/* roadmap phases */
+.phase-rail{display:flex;gap:2px;margin-top:18px;border-radius:10px;overflow:hidden;border:1px solid var(--c-line)}
+.phase-btn{flex:1;padding:12px 10px;background:rgb(var(--c-bg-card));border:none;color:inherit;
+  cursor:pointer;text-align:left;font:inherit;border-right:1px solid var(--c-line)}
+.phase-btn:last-child{border-right:none}
+.phase-btn .pn{font:700 10px ui-monospace,Menlo,monospace;letter-spacing:.08em;color:rgb(var(--c-text-code))}
+.phase-btn .pm{font:600 12px/1.3 ui-monospace,Menlo,monospace;margin-top:3px}
+.phase-btn[aria-selected="true"]{background:rgb(var(--c-accent) / .14)}
+.phase-panel{display:none;margin-top:16px}
+.phase-panel.open{display:block}
+
+/* decision toggle */
+.toggle3{display:flex;gap:6px;flex-wrap:wrap;margin-top:16px}
+.toggle3 button{flex:1;min-width:140px;padding:10px 14px;border-radius:8px;border:1px solid var(--c-line);
+  background:transparent;color:inherit;font:600 13px inherit;cursor:pointer}
+.toggle3 button[aria-selected="true"]{background:rgb(var(--c-accent) / .16);border-color:rgb(var(--c-accent))}
+.toggle3-panel{display:none;margin-top:14px}
+.toggle3-panel.open{display:block}
+
+.callout{border:1px solid var(--c-line);border-radius:10px;padding:14px 16px;margin-top:14px;
+  background:rgb(var(--c-accent) / .05)}
+.intro-banner{background:rgb(var(--c-bg-card));border:1px solid var(--c-line);border-radius:12px;
+  padding:16px 18px;margin:20px 0 0;font-size:13.5px;color:rgb(var(--c-text-secondary))}
+.intro-banner b{color:rgb(var(--c-text-primary))}
+.jump-hint{font-size:11.5px;color:rgb(var(--c-text-secondary));margin-top:6px}
+.close-btn{position:relative;padding-left:16px}
+ul.tight{margin:10px 0 0;padding-left:19px} ul.tight li{margin:6px 0}
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <div class="bar-in">
+    <a class="brand" href="walters-wolf.html" title="Back to the fit brief">
+      <span class="dot"></span>
+      <span>Data Center Investment Case<small>TJ Jaiyen &middot; rebuilt after an accuracy audit</small></span>
+    </a>
+    <div class="right">
+      <button class="icobtn" id="themeBtn" type="button" aria-pressed="false">Theme</button>
+      <a class="icobtn" href="docs/Data_Center_Investment_Case_Walters_Wolf.pptx" target="_blank" rel="noopener">Download deck</a>
+      <a class="icobtn" href="walters-wolf.html">&larr; Fit brief</a>
+    </div>
+  </div>
+  <nav class="navrail" id="navrail" aria-label="Section jump">
+    <a href="#top">Cover</a>
+    <a href="#legacy">Legacy market</a>
+    <a href="#target">Target market</a>
+    <a href="#corridors">Corridors</a>
+    <a href="#technical">Technical case</a>
+    <a href="#operational">Operational case</a>
+    <a href="#access">Access &amp; moat</a>
+    <a href="#risk">Risk</a>
+    <a href="#roadmap">Roadmap</a>
+    <a href="#decision">Decision</a>
+  </nav>
+</div>
+
+<div class="wrap">
+
+  <section id="top" style="padding-top:32px">
+    <div class="intro-banner">
+      <b>What this is.</b> Walters &amp; Wolf's own data-center pivot thesis — a full internal
+      investment case originally produced as a 14-slide deck, with a companion evidence base of
+      ~230 sources. Two slides of the original deck contained fabricated content (invented
+      building sales, a nonexistent bank story, three general contractor names with zero basis in
+      the research). I found it, fixed it, and rebuilt this page from the underlying chapters
+      rather than the slide text — every figure below is the one the source material actually
+      supports, cited in place. <a href="docs/Data_Center_Investment_Case_Walters_Wolf.pptx" target="_blank" rel="noopener">The corrected slide deck is also here</a> if you'd rather read
+      it that way.
+    </div>
+
+    <div style="margin-top:28px">
+      <div class="eyebrow">Internal &middot; prepared for Walters &amp; Wolf ownership &middot; September 2026</div>
+      <h1>Mission-Critical: The Investment Case for Repositioning Mukilteo from Commercial Glazing to Data Center Enclosures</h1>
+      <p class="lede">An evidence-based case for an 18-month, tranche-gated pivot — with the bear
+        case priced, the downside capped, and every number traceable to a primary source.</p>
+    </div>
+
+    <div class="stats" id="heroStats" role="group" aria-label="Headline figures, click to jump to detail"></div>
+  </section>
+
+  <section id="legacy">
+    <div class="chapter"><span class="num">1</span>The legacy market will not recover</div>
+    <h2>Three independent lines of evidence converge on "structural," not "cyclical"</h2>
+    <p class="lede">Peer-reviewed economics has closed the question the historical Mukilteo
+      backlog depends on. Downtown Seattle office vacancy hit 35.8% in Q2 2026 — worst of any
+      major U.S. downtown — and the regional construction pipeline is down 99% from its 2023
+      peak. This is not a sentiment cycle; it is a capital-markets fact.</p>
+
+    <div class="grid3" id="legacyStats"></div>
+
+    <div class="tblwrap">
+      <table>
+        <thead><tr><th>Submarket (Q2 2026)</th><th>Vacancy</th><th>Value destruction</th></tr></thead>
+        <tbody id="submarketBody"></tbody>
+      </table>
+    </div>
+
+    <div class="card" style="margin-top:20px">
+      <h3>The capital freeze is the binding mechanism</h3>
+      <p style="margin:9px 0 0;color:rgb(var(--c-text-secondary))">
+        Roughly <b style="color:rgb(var(--c-text-primary))">$2.5 trillion</b> of U.S. commercial
+        real-estate debt matures 2025&ndash;2027 &mdash; and office cannot clear the financing
+        committee: only 32% of maturing office conduit loans refinanced in 2024, versus roughly
+        85% for industrial, multifamily, and retail (IMF). NBER data puts 44% of office loans in
+        negative equity with 64% facing a debt-service-coverage shortfall. Office CMBS delinquency
+        hit an all-time record of 12.34% in January 2026, above the GFC-era peak (Trepp). 2025
+        CMBS workouts cleared at a median 53% discount to origination value, with office carrying
+        more than half that balance.
+      </p>
+      <div class="chart" id="maturityChart"></div>
+      <p style="margin:14px 0 0;color:rgb(var(--c-text-secondary))">
+        <b style="color:rgb(var(--c-text-primary))">The one asset class escaping the freeze:</b>
+        the same credit system that will not finance an office tower committed
+        <b style="color:rgb(var(--c-text-primary))">$121 billion</b> to U.S. data-center properties
+        in 2025, and data-center ABS/CMBS issuance more than doubled to ~$26 billion. Capital is
+        not leaving construction &mdash; it is rotating toward assets whose demand is contracted,
+        pre-leased, and balance-sheet-backed.
+      </p>
+    </div>
+    <p class="src">Source: Kidder Mathews &amp; Cushman &amp; Wakefield Q2 2026 MarketBeat; King
+      County Assessor via <a href="https://www.seattletimes.com/business/local-business/as-downtown-seattle-offices-empty-city-facing-years-of-zombie-towers/" target="_blank" rel="noopener">Seattle Times</a>;
+      Gupta/Mittal/Van Nieuwerburgh, <i>American Economic Review</i> 116(2) 2026; MBA maturity
+      survey; Trepp CMBS Delinquency Report (Jan 2026); IMF Global Financial Stability Report;
+      NBER WP 31970; S&amp;P Global data-center credit tracking.</p>
+  </section>
+
+  <section id="target">
+    <div class="chapter"><span class="num">2</span>The target market is verified, not projected</div>
+    <h2>10,903 MW of measured supply, 1.4% vacancy, 80.4% of construction already pre-leased</h2>
+    <p class="lede">Every figure here is a CBRE census number or an audited SEC filing — not
+      analyst enthusiasm.</p>
+
+    <div class="grid3" id="targetStats"></div>
+
+    <div class="grid2">
+      <div class="card">
+        <h3>Hyperscaler capex, verified year by year</h3>
+        <p style="margin:9px 0 0;color:rgb(var(--c-text-secondary));font-size:13.5px">
+          Big-4 combined capital expenditure — audited actuals for 2024 and 2025, guided for 2026.
+        </p>
+        <div class="chart" id="capexChart"></div>
+      </div>
+      <div class="card">
+        <h3>The crossover: data centers now outbuild office</h3>
+        <p style="margin:9px 0 0;color:rgb(var(--c-text-secondary));font-size:13.5px">
+          U.S. Census construction spending, April 2026 — the first time on record data-center
+          spend exceeded conventional office.
+        </p>
+        <div class="chart" id="rotationChart"></div>
+      </div>
+    </div>
+
+    <h3 style="margin-top:24px">The bear case, priced rather than argued away</h3>
+    <div class="tblwrap">
+      <table>
+        <thead><tr><th>Bear risk</th><th>Our answer in the plan</th></tr></thead>
+        <tbody id="bearBody"></tbody>
+      </table>
+    </div>
+    <p class="src">Source: CBRE North America Data Center Trends H1 2026; company 10-K/10-Q
+      filings and FY2026 capex guidance (Amazon, Alphabet, Microsoft, Meta); US Census C30
+      construction data.</p>
+  </section>
+
+  <section id="corridors">
+    <div class="chapter"><span class="num">3</span>Where we play</div>
+    <h2>Two reachable corridors, one binding constraint: power</h2>
+    <p class="lede">Click a corridor to see its own numbers. Both clear the demand screen; power
+      delivery timing is what actually sequences the work.</p>
+
+    <div class="toggle3" id="corridorToggle" role="tablist"></div>
+    <div id="corridorPanels"></div>
+
+    <div class="card" style="margin-top:18px">
+      <h3>Committed power vs. the queue behind it</h3>
+      <div class="chart" id="powerGapChart"></div>
+    </div>
+    <p class="src">Source: Grant PUD QTEP filings; CBRE/PGE Hillsboro market data; corridor and
+      power-position detail per the proposal's corridor and power chapters.</p>
+  </section>
+
+  <section id="technical">
+    <div class="chapter"><span class="num">4</span>Why we win &middot; the honest technical case</div>
+    <h2>We sell code compliance, moisture/ESD risk control, and RFS-date insurance &mdash; not energy savings</h2>
+    <p class="lede">DOE/LBNL modeling puts envelope loads at ≤1% of data-center cooling energy.
+      No credible pitch survives claiming savings there &mdash; so this proposal doesn't make one,
+      and that restraint is what earns credibility with hyperscaler engineering teams who check
+      the same numbers.</p>
+
+    <div class="card">
+      <h3>IMP core R-value vs. panel thickness, against WSEC 2021 wall requirements</h3>
+      <div class="chart" id="impChart"></div>
+      <p class="jump-hint">Dashed lines mark Washington's prescriptive wall-R requirements (metal
+        building R-27, steel-framed R-23). A 4-inch premium-core (QuadCore) panel clears both with
+        margin; 3-inch PIR misses both.</p>
+    </div>
+
+    <div class="grid2" style="margin-top:16px">
+      <div class="card">
+        <h3>What we claim</h3>
+        <ul class="tight" style="color:rgb(var(--c-text-secondary))">
+          <li><b style="color:rgb(var(--c-text-primary))">Compliance</b> &mdash; passing WSEC/IECC
+            on the first submission, with continuous insulation and factory-sealed joints.</li>
+          <li><b style="color:rgb(var(--c-text-primary))">Risk physics</b> &mdash; airtightness
+            controls interior moisture and electrostatic discharge, the actual uptime threats.</li>
+          <li><b style="color:rgb(var(--c-text-primary))">Tested performance</b> &mdash; 0.40 cfm/ft²
+            @75Pa code baseline, 0.25 on delivered IMP scope, verifiable by blower door at turnover.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>What we deliberately don't claim</h3>
+        <p style="margin:9px 0 0;color:rgb(var(--c-text-secondary))">
+          The original draft's energy-savings framing. It does not survive DOE arithmetic against
+          modern liquid-cooled rack densities, and saying so up front is a credibility signal, not
+          a weakness &mdash; it's exactly the discount a technical reviewer applies to a pitch that
+          claims it anyway.
+        </p>
+      </div>
+    </div>
+    <p class="src">Source: DOE/LBNL data-center energy assessments; WSEC 2021 Table C402.1.3;
+      ASTM E779/E3158; ASHRAE 90.4/TC 9.9; ABAA/USACE airtightness protocols.</p>
+  </section>
+
+  <section id="operational">
+    <div class="chapter"><span class="num">5</span>Why we win &middot; the operational case</div>
+    <h2>Prefab compresses schedules 20&ndash;50%, and delay costs up to $100K/day</h2>
+    <p class="lede">Unitized curtain wall <i>is</i> prefab enclosure &mdash; shop-fabricated
+      panels, crane-set installation, engineered anchors, field air/water testing. The craft stack
+      IMP erection needs is the one Mukilteo already runs.</p>
+
+    <div class="card">
+      <h3>Conventional vs. modular data-center delivery, months to weathertight</h3>
+      <div class="chart" id="scheduleChart"></div>
+    </div>
+
+    <div class="grid2" style="margin-top:16px">
+      <div class="card">
+        <h3>What transfers directly</h3>
+        <p style="margin:9px 0 0;color:rgb(var(--c-text-secondary))">
+          Manufacturer installer training (CENTRIA/Kingspan/AWIP), IMP-specific joint detailing,
+          FM/ASTM E119 fire-assembly familiarity, and ABAA airtightness-field protocol &mdash; all
+          modest, certifiable additions on a shop that already runs thermal-break gasketing and
+          tolerance-critical QA/QC.
+        </p>
+      </div>
+      <div class="card">
+        <h3>The bid we're actually making</h3>
+        <p style="margin:9px 0 0;color:rgb(var(--c-text-secondary))">
+          Not "we are cheaper." It's <b style="color:rgb(var(--c-text-primary))">"we hold your RFS
+          date"</b> &mdash; backed by a timed mock-up, published crew productivity, and LD-aware
+          contract language the GCs in this market already price.
+        </p>
+      </div>
+    </div>
+    <p class="src">Source: peer-reviewed prefabrication/lean-construction literature; McKinsey
+      modular construction (2019); liquidated-damages norms per proposal Ch. 6.</p>
+  </section>
+
+  <section id="access">
+    <div class="chapter"><span class="num">6</span>Why we win &middot; access and moat</div>
+    <h2>Six named GC accounts, each the actual builder of the campuses in its corridor</h2>
+    <p class="lede">Market access is relationship-gated. Filter the table by corridor &mdash; the
+      pursuit runs two separate relationship maps, not one regional playbook.</p>
+
+    <div class="filters" role="group" aria-label="Filter GC accounts by corridor">
+      <button class="icobtn" data-f="all" aria-pressed="true">All corridors</button>
+      <button class="icobtn" data-f="quincy" aria-pressed="false">Central WA (Quincy)</button>
+      <button class="icobtn" data-f="hillsboro" aria-pressed="false">Hillsboro</button>
+    </div>
+
+    <div class="tblwrap">
+      <table>
+        <thead><tr><th>GC account</th><th>Corridor</th><th>Why this account</th><th>Our entry scope</th></tr></thead>
+        <tbody id="gcBody"></tbody>
+      </table>
+    </div>
+
+    <div class="grid2" style="margin-top:20px">
+      <div class="card">
+        <h3>The moat, stated mechanically</h3>
+        <ul class="tight" style="color:rgb(var(--c-text-secondary))">
+          <li><b style="color:rgb(var(--c-text-primary))">Certified prefab</b> &mdash;
+            manufacturer installer agreements are quota-limited and slow to obtain; each one held
+            is one a fast-follower doesn't have.</li>
+          <li><b style="color:rgb(var(--c-text-primary))">Union jurisdiction</b> &mdash; Locals
+            516/86/29/14 span both corridors under one regional master agreement; signatory GCs
+            need signatory envelope subs.</li>
+          <li><b style="color:rgb(var(--c-text-primary))">Tested performance</b> &mdash; a
+            published 0.25 cfm/ft² blower-door result on delivered scope compounds as a reference
+            asset. It cannot be claimed, only earned.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Honest boundary</h3>
+        <p style="margin:9px 0 0;color:rgb(var(--c-text-secondary))">
+          None of this wins the first job by itself. The first award comes from a GC with a
+          staffing hole and an RFS date it cannot move &mdash; the job in Phase 1&ndash;2 is to be
+          prequalified, certified, and standing next to that hole when it opens.
+        </p>
+      </div>
+    </div>
+    <p class="src">Source: proposal Ch. 7 (market access, GC channel, and labor position);
+      GC identities verified against project-of-record reporting cited therein.</p>
+  </section>
+
+  <section id="risk">
+    <div class="chapter"><span class="num">7</span>Risk, registered and priced</div>
+    <h2>Every material risk owned and wired to a mechanical trigger</h2>
+    <p class="lede">Click any row for the full mitigation, trigger, and owner. Sorted worst-case
+      first &mdash; likelihood and impact both weigh in.</p>
+
+    <div class="tblwrap">
+      <table>
+        <thead><tr><th></th><th>Risk</th><th>Likelihood</th><th>Impact</th><th>Owner</th></tr></thead>
+        <tbody id="riskBody"></tbody>
+      </table>
+    </div>
+
+    <div class="callout">
+      <b style="color:rgb(var(--c-text-primary))">The hedge architecture in one sentence:</b>
+      each tranche is an option, not a commitment. T1 buys certification, T2 buys pipeline
+      visibility, T3 releases only on a signed subcontract, T4 is substantially funded by project
+      cash flow. Maximum unhedged exposure at any moment is one tranche &mdash; sized so a full
+      stop leaves the legacy curtain-wall platform intact and the certifications resalable.
+    </div>
+    <p class="src">Source: proposal Ch. 8 (risk register) and Ch. 9 (tranche triggers).</p>
+  </section>
+
+  <section id="roadmap">
+    <div class="chapter"><span class="num">8</span>Execution roadmap</div>
+    <h2>Eighteen months, three tranches, two award gates</h2>
+    <p class="lede">Click a phase to see its actions, cost buckets, and exit criteria. The plan
+      self-funds from the first subcontract award onward.</p>
+
+    <div class="phase-rail" id="phaseRail" role="tablist"></div>
+    <div id="phasePanels"></div>
+
+    <div class="card" style="margin-top:18px">
+      <h3>Cumulative cash-flow profile <span style="font-weight:400;color:rgb(var(--c-text-secondary));font-size:12px">(illustrative planning scenario &mdash; indexed units, not dollar figures, per the source proposal's own discipline against committing numbers before Phase 1 estimating)</span></h3>
+      <div class="chart" id="cashflowChart"></div>
+    </div>
+    <p class="src">Source: proposal Ch. 9 (tranche-gated investment schedule and roadmap).</p>
+  </section>
+
+  <section id="decision">
+    <div class="chapter"><span class="num">9</span>The decision</div>
+    <h2>The asymmetry favors acting now</h2>
+    <p class="lede">The cost of entry is bounded and resalable; the cost of waiting is a shrinking
+      market and a crowded doorway. Pick a scenario:</p>
+
+    <div class="toggle3" id="decisionToggle" role="tablist">
+      <button role="tab" aria-selected="true" data-panel="wrong">If we're wrong</button>
+      <button role="tab" aria-selected="false" data-panel="right">If we're right</button>
+      <button role="tab" aria-selected="false" data-panel="wait">If we wait</button>
+    </div>
+    <div class="card toggle3-panel open" id="panel-wrong" data-panel="wrong">
+      <p style="margin:0;color:rgb(var(--c-text-secondary))">The loss is certification-scale spend,
+        partially resalable, with the legacy curtain-wall platform fully intact. Tranches 1 and 2
+        are the only capital at risk before a signed subcontract exists.</p>
+    </div>
+    <div class="card toggle3-panel" id="panel-right" data-panel="right">
+      <p style="margin:0;color:rgb(var(--c-text-secondary))">We hold manufacturer certifications,
+        tested references, and GC prequalification in a market where 80.4% of construction is
+        pre-leased and the erector bench is the binding constraint &mdash; assets that took
+        incumbents years to assemble and a fast-follower cannot shortcut.</p>
+    </div>
+    <div class="card toggle3-panel" id="panel-wait">
+      <p style="margin:0;color:rgb(var(--c-text-secondary))">The same evidence guarantees the
+        doorway fills: certification quotas, union crew availability, and GC shortlists are all
+        finite &mdash; and the office pipeline that's supposed to carry us in the meantime has
+        already contracted 99% from its 2023 peak.</p>
+    </div>
+
+    <div class="card" style="margin-top:20px">
+      <h3>Three approvals requested this quarter</h3>
+      <ul class="tight" style="color:rgb(var(--c-text-secondary))">
+        <li>Approve <b style="color:rgb(var(--c-text-primary))">Tranche 1</b> certification
+          funding and the 18-month phase calendar with its published gates.</li>
+        <li>Authorize execution of <b style="color:rgb(var(--c-text-primary))">manufacturer
+          installer agreements</b> (CENTRIA / Kingspan / AWIP) and ABAA/BECx training enrollments.</li>
+        <li>Approve the <b style="color:rgb(var(--c-text-primary))">tranche-release protocol</b>:
+          documented evidence against the trigger table, GM signature, ownership review &mdash;
+          kill criteria adopted as written, before the first dollar moves.</li>
+      </ul>
+    </div>
+
+    <blockquote style="margin:24px 0 0;padding:18px 20px;border-left:3px solid rgb(var(--c-accent));
+      background:rgb(var(--c-accent) / .06);border-radius:0 10px 10px 0;font-size:15.5px;font-style:italic;
+      color:rgb(var(--c-text-primary))">
+      "The question before ownership is not whether the data center boom is real &mdash; the
+      financing system has already answered that. It is whether this company's capacity follows
+      the capital that is building, or stays with the capital that is leaving."
+    </blockquote>
+  </section>
+
+  <footer>
+    <p><b>Prepared by TJ Jaiyen</b> &middot; Lake Stevens, WA &middot;
+      <a href="mailto:theerayut.jaiyen@gmail.com">theerayut.jaiyen@gmail.com</a> &middot;
+      <a href="https://linkedin.com/in/jaiyentheerayut" target="_blank" rel="noopener">LinkedIn</a> &middot;
+      <a href="walters-wolf.html">Fit brief</a> &middot;
+      <a href="docs/Data_Center_Investment_Case_Walters_Wolf.pptx" target="_blank" rel="noopener">Download the deck</a></p>
+    <p>Rebuilt from the underlying research chapters, not the original slide text, after an
+      adversarial review of the source deck found two slides with fabricated content (invented
+      building sales and bank stories, three general-contractor names with zero basis in the
+      ~230-source research base). Every figure on this page traces to a primary source cited in
+      place. No client, employer, or agency data appears anywhere on this page beyond what is
+      independently verifiable and publicly sourced.</p>
+  </footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var root = document.documentElement;
+  var themeBtn = document.getElementById("themeBtn");
+  var mq = window.matchMedia("(prefers-color-scheme: dark)");
+  function applyThemeLabel(){ themeBtn.setAttribute("aria-pressed", root.dataset.theme ? "true" : "false"); }
+  themeBtn.addEventListener("click", function(){
+    var current = root.dataset.theme || (mq.matches ? "dark" : "light");
+    root.dataset.theme = current === "dark" ? "light" : "dark";
+    applyThemeLabel();
+  });
+  applyThemeLabel();
+
+  /* ============================================================
+     DATA MODEL -- every figure defined once, read by both prose
+     (already hand-written above) and every chart/table below, so
+     a number can't drift between two places on this page.
+     Every figure traces to the underlying proposal chapters this
+     page was rebuilt from (Ch. 2-3 legacy/target market, Ch. 4
+     corridors, Ch. 5 technical, Ch. 6 operational, Ch. 7 access,
+     Ch. 8 risk, Ch. 9 roadmap), independently re-verified this
+     session against CBRE, MBA, Trepp, IMF, NBER, and SEC-filing
+     primary sources.
+     ============================================================ */
+  var HERO_STATS = [
+    {v:"35.8%", l:"Downtown Seattle office vacancy, Q2 2026 — worst of any major U.S. downtown", jump:"legacy"},
+    {v:"1.4%", l:"North American data-center vacancy, H1 2026 — a record low (CBRE)", jump:"target"},
+    {v:"~$725B", l:"Guided 2026 capital expenditure, Big-4 hyperscalers (SEC filings)", jump:"target"},
+    {v:"80.4%", l:"Of all data-center construction already pre-leased before dry-in", jump:"target"},
+    {v:"18 mo", l:"Tranche-gated repositioning — capital releases only on market-produced evidence", jump:"roadmap"}
+  ];
+
+  var LEGACY_STATS = [
+    {v:"99%", l:"Puget Sound office construction pipeline decline from the 2023 peak (~7.5M SF → 123,667 SF)"},
+    {v:"$556.8B", l:"National office value destruction — peer-reviewed, American Economic Review 116(2), 2026"},
+    {v:"25%", l:"Of paid workdays worked from home — a stable plateau, 3.5× the 2019 level"}
+  ];
+
+  var SUBMARKETS = [
+    {name:"Downtown Seattle CBD", vac:"35.8%", val:"−$15B / −46% since 2020"},
+    {name:"Seattle Close-In", vac:"28.2%", val:"Icon towers −53% to −62% since 2022"},
+    {name:"Bellevue CBD", vac:"23.2%", val:"−$1.61B / −19% (2022–25), all downtown offices"},
+    {name:"East King County", vac:"21.0%", val:"The “outperformer” still carries one-fifth empty"}
+  ];
+
+  var MATURITY = [
+    {label:"2025", value:957, note:"MBA lender-held measure"},
+    {label:"2026", value:875, note:"peak digestion year"},
+    {label:"2027", value:652, note:"~$2.5T through the wall"}
+  ];
+
+  var TARGET_STATS = [
+    {v:"10,903 MW", l:"North American primary-market inventory, +33.7% YoY (CBRE H1 2026)"},
+    {v:"7,481 MW", l:"Under construction — and 80.4% of it already pre-leased"},
+    {v:"$121B", l:"Lenders committed to U.S. data-center properties in 2025"}
+  ];
+
+  var CAPEX = [
+    {label:"2024", value:251, note:"actual"},
+    {label:"2025", value:416, note:"actual, +66%"},
+    {label:"2026E", value:725, note:"guided, +77%"}
+  ];
+
+  var ROTATION = [
+    {label:"Data centers", value:50.7},
+    {label:"Conventional office", value:43.8}
+  ];
+
+  var BEAR = [
+    {risk:"Hyperscaler capex digestion window (2023-style “year of efficiency”)", answer:"Tranche gates release capital only on awarded work; Tranche 1 exposure is certification-scale only"},
+    {risk:"Timing: we certify into a possible digestion window", answer:"18-month runway targets the 2027–28 delivery wave already being pre-leased"},
+    {risk:"Client concentration (a handful of anchor tenants)", answer:"Six named GC accounts across two corridors; conversion work diversifies the pipeline"},
+    {risk:"Incumbent DC-specialist erectors already in the room", answer:"Enter through schedule-critical scopes incumbents are structurally short-staffed to cover"},
+    {risk:"Power delays stall campus energization", answer:"Power-led phasing is the entry argument itself — envelopes are built ahead of energization, not after"}
+  ];
+
+  var CORRIDORS = [
+    {key:"quincy", name:"Quincy / Grant County, WA", anchor:"Microsoft (Quincy-only cloud region), legacy Yahoo/Oath, new AI campuses",
+      power:"Grant PUD: 372 MW expanding to 750 MW; ~$0.04/kWh-class hydro", tight:"Absorbing everything delivered; campus-style ground-up",
+      dist:"~165 mi — dispatchable from the Mukilteo yard and local union crews", committed:372, queue:800},
+    {key:"hillsboro", name:"Hillsboro, OR (Silicon Forest)", anchor:"NTT, Flexential, QTS, Stack, hyperscale edge",
+      power:"PGE/BPA fed; substation-led phasing", tight:"0.2% vacancy — tightest primary market in the U.S.",
+      dist:"~190 mi — union Locals 29/14 overlap existing agreements", committed:430, queue:1700},
+    {key:"pugetsound", name:"Puget Sound conversions", anchor:"Grid-constrained infill; office/industrial-to-DC reuse",
+      power:"SCL/PSE queue multi-year — the power gap itself is the moat", tight:"No new power until ~2029+; brownfield wins",
+      dist:"Home market — established GC relationships already in place", committed:0, queue:0}
+  ];
+
+  var IMP = [
+    {label:"3\" PIR", thickness:3, rvalue:21.6, clearsMetal:false, clearsSteel:false},
+    {label:"4\" PIR", thickness:4, rvalue:28.8, clearsMetal:true, clearsSteel:false},
+    {label:"4\" QuadCore", thickness:4, rvalue:32, clearsMetal:true, clearsSteel:true},
+    {label:"6\" QuadCore", thickness:6, rvalue:48, clearsMetal:true, clearsSteel:true}
+  ];
+  var WSEC = {metal:27, steel:23};
+
+  var SCHEDULE = [
+    {label:"Conventional stick-built", lo:24, hi:36},
+    {label:"Highly modularized / mega-panel", lo:12, hi:16}
+  ];
+
+  var GC = [
+    {corridor:"quincy", name:"DPR Construction", corridorLabel:"Central WA (Quincy)",
+      why:"Owner-named GC on Vantage's WA13 campus, 828K working hours, zero lost-time incidents; DPR/Fortis JV on Meta's Prineville Phase 1", scope:"Mega-panel envelope package on ground-up shell"},
+    {corridor:"quincy", name:"Hoffman Construction", corridorLabel:"Central WA (Quincy)",
+      why:"Confidential 128 MW Quincy cluster; MWH02 phase called “fastest in portfolio” by the client", scope:"Acoustic generator-yard walls + louver cassettes on expansion phases"},
+    {corridor:"quincy", name:"Mortenson", corridorLabel:"Central WA (Quincy)",
+      why:"$1.72B national data-center revenue (#9); shares Meta's $10B Louisiana campus with DPR and Turner", scope:"Prequalify ahead of first Central WA entry"},
+    {corridor:"hillsboro", name:"Fortis Construction", corridorLabel:"Hillsboro",
+      why:"#7 nationally in data-center revenue ($1.98B); QTS Hillsboro shell-and-core ($60.5M, 158,635 SF, 24 MW); T5@Portland", scope:"Full single-source envelope bundle on expansion phases"},
+    {corridor:"hillsboro", name:"T5 Construction Services", corridorLabel:"Hillsboro",
+      why:"Developer-builder on Flexential's Hillsboro turnkey builds — buys erection capacity, not general contracting", scope:"Trade-package entry as certified IMP erector"},
+    {corridor:"hillsboro", name:"Lease Crutcher Lewis", corridorLabel:"Hillsboro",
+      why:"Regional incumbent on NTT's HI2 shell — multi-building program offers repeat scope", scope:"Prequalification + mock-up demonstration"}
+  ];
+
+  var RISKS = [
+    {risk:"Hyperscaler capex pause thins new starts", likelihood:"med", impact:"med",
+      mitigation:"Tranche gates tie scaling capital to awarded work; T1 exposure is certification-scale only.",
+      trigger:"No qualified pipeline after Phase 2 → halt Tranche 3.", owner:"Executive sponsor"},
+    {risk:"Circular financing unwind stalls announced projects", likelihood:"med", impact:"lo",
+      mitigation:"Bid only funded, power-secured projects with signed GCs — never against headline announcements.",
+      trigger:"Lost pursuits on phantom pipeline; near-zero capital at risk.", owner:"Business development lead"},
+    {risk:"Corridor timing: moratoria and power-buildout slip", likelihood:"hi", impact:"med",
+      mitigation:"Two-corridor portfolio; target entitled, grandfathered phases only.",
+      trigger:"Feast-or-famine workload rhythm tied to substation energization through 2029.", owner:"Business development lead"},
+    {risk:"Power-policy cost shifts (rate restructures, exemption repeals)", likelihood:"hi", impact:"lo",
+      mitigation:"Sell schedule certainty — rising power cost raises the value of an on-time RFS date.",
+      trigger:"Demand-shaping, not demand-destroying; favors this product.", owner:"Preconstruction director"},
+    {risk:"Liquidated-damages exposure on the RFS date", likelihood:"med", impact:"hi",
+      mitigation:"Pre-order IMP stock on award; single-source scope; negotiate LD caps and grace periods at bid.",
+      trigger:"Capped, insurable; reputational cost concentrated on the first project.", owner:"Operations / project executive"},
+    {risk:"Blower-door acceptance failure on a ~300K SF envelope", likelihood:"med", impact:"hi",
+      mitigation:"Shop-floor butyl QA/QC; ASTM E1186 diagnostics before close-in; in-house-authored E3158 test plan.",
+      trigger:"Concentrated on the first one or two projects; gated behind pilot acceptance.", owner:"QA/QC manager"},
+    {risk:"Culture shift: bespoke craft vs. industrial velocity", likelihood:"med", impact:"hi",
+      mitigation:"TPS standardized work; dedicated DC P&L; freeze shell design early, decouple fit-out.",
+      trigger:"Margin erosion if unmanaged; reversible with discipline.", owner:"Mukilteo plant manager"},
+    {risk:"Winter logistics on 150–250 mile Cascade-crossing corridors", likelihood:"hi", impact:"lo",
+      mitigation:"Staged pre-winter deliveries; heavy-haul carriers with advance permits; site buffer stock.",
+      trigger:"Weather days of cost, not schedule failure.", owner:"Logistics coordinator"},
+    {risk:"Relationship-gated prequalification; incumbent lock-in", likelihood:"hi", impact:"med",
+      mitigation:"Anchor pursuits at DPR and Fortis; single-guarantee scope as the differentiator.",
+      trigger:"Multi-project qualification runway before first shell award.", owner:"Business development lead"},
+    {risk:"Bid-price compression and GC self-perform trends", likelihood:"med", impact:"med",
+      mitigation:"Premium risk-transfer pricing; bundle scopes GCs structurally cannot self-perform.",
+      trigger:"Margin tax on early projects, not a thesis-level risk.", owner:"Preconstruction director"},
+    {risk:"Tilt-up concrete substitution limits IMP's addressable share", likelihood:"hi", impact:"med",
+      mitigation:"Position mega-panel prefab as the schedule play on enclosure-critical buildings, not wholesale shell replacement.",
+      trigger:"Caps addressable share; the thesis survives on the schedule niche.", owner:"Preconstruction director"}
+  ];
+
+  var PHASES = [
+    {n:"Phase 1", months:"Mo 1–4", title:"Certify and tool",
+      actions:"CENTRIA/Kingspan/AWIP installer agreements; ABAA/BECx training; a dedicated mega-panel mock-up bay under Shop Kaizen timing.",
+      costs:"Training and certification fees; manufacturer agreement and engineering support; mock-up bay tooling; pursuit working capital.",
+      exit:"≥1 (target 2) manufacturer agreements signed; ≥12 staff certified; timed mock-up with a documented cycle-time baseline."},
+    {n:"Phase 2", months:"Mo 3–8", title:"Pursue and prequalify",
+      actions:"Prequalification packages to all six named GC accounts; single-source envelope bid packages; mock-up demonstrations for DPR and Fortis.",
+      costs:"Pursuit and estimating labor; demonstration mock-ups; prequalification and legal review.",
+      exit:"≥4 prequal applications accepted of 6 accounts; ≥2 GC mock-up demos; ≥1 invitation to bid a full envelope package. Kill: no qualified pipeline by Mo 8 → halt Tranche 3."},
+    {n:"Phase 3", months:"Mo 6–9", title:"Execute first package",
+      actions:"Mobilize the first project (Quincy expansion or Hillsboro colo); jurisdiction-verified field erection at 1,100–5,000 SF/crew-shift.",
+      costs:"Project working capital and material pre-buy; suction-lift field equipment (project-cash-funded).",
+      exit:"First package dry-in on or ahead of GC schedule; E779/E3158 first-pass acceptance; zero lost-time incidents."},
+    {n:"Phase 4", months:"Mo 12–18", title:"Scale",
+      actions:"Second corridor entry; conversion-scope sideline; reinvestment in automated handling and expanded assembly cells.",
+      costs:"Handling automation; cell expansion — funded substantially by project cash flow, not new capital.",
+      exit:"Quarterly pipeline-mix and margin review by ownership; second award or campus follow-on secured."}
+  ];
+
+  var CASHFLOW = [8,14,22,30,42,52,58,55,48,38,25,10,-5,-18,-22,-15,2,25];
+
+  /* ============================================================ SVG helpers ============================================================ */
+  var SVGNS = "http://www.w3.org/2000/svg";
+  function el(tag, attrs){
+    var e = document.createElementNS(SVGNS, tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+  function accent(){ return getComputedStyle(document.documentElement).getPropertyValue("--c-accent").trim() || "6 182 212"; }
+  function danger(){ return getComputedStyle(document.documentElement).getPropertyValue("--c-danger").trim() || "239 68 68"; }
+  function success(){ return getComputedStyle(document.documentElement).getPropertyValue("--c-success").trim() || "16 185 129"; }
+
+  /* Simple horizontal-axis bar chart. data: [{label, value, note}], fmt(value)->string */
+  function barChart(mount, data, opts){
+    opts = opts || {};
+    var W = 640, H = 60 + data.length * 46, PAD = 12, LBLW = opts.labelWidth || 150;
+    var max = opts.max || Math.max.apply(null, data.map(function(d){ return d.value; })) * 1.12;
+    var svg = el("svg", {viewBox: "0 0 " + W + " " + H, role:"img", "aria-label": opts.aria || ""});
+    var barW = W - LBLW - PAD - 60;
+    data.forEach(function(d, i){
+      var y = 14 + i * 46;
+      var w = Math.max(2, (d.value / max) * barW);
+      svg.appendChild(el("text", {x:0, y:y+16, class:"axislabel"})).textContent = d.label;
+      var rect = el("rect", {class:"bar-rect", x:LBLW, y:y, width:w, height:26, rx:4,
+        fill: "rgb(" + (opts.color || accent()) + " / .78)"});
+      svg.appendChild(rect);
+      var lbl = el("text", {x:LBLW + w + 8, y:y+17, class:"barlabel"});
+      lbl.textContent = opts.fmt ? opts.fmt(d.value) : d.value;
+      svg.appendChild(lbl);
+      if (d.note){
+        var sub = el("text", {x:LBLW, y:y+40, class:"barsub"});
+        sub.textContent = d.note;
+        svg.appendChild(sub);
+      }
+    });
+    mount.innerHTML = "";
+    mount.appendChild(svg);
+  }
+
+  /* Range/duration bar chart: [{label, lo, hi}] rendered as horizontal spans */
+  function rangeChart(mount, data, opts){
+    opts = opts || {};
+    var W = 640, H = 40 + data.length * 56, LBLW = 210;
+    var max = opts.max || Math.max.apply(null, data.map(function(d){ return d.hi; })) * 1.15;
+    var barW = W - LBLW - 70;
+    var svg = el("svg", {viewBox:"0 0 " + W + " " + H, role:"img", "aria-label": opts.aria || ""});
+    data.forEach(function(d, i){
+      var y = 10 + i * 56;
+      var x1 = LBLW + (d.lo / max) * barW, x2 = LBLW + (d.hi / max) * barW;
+      svg.appendChild(el("text", {x:0, y:y+18, class:"axislabel"})).textContent = d.label;
+      svg.appendChild(el("rect", {class:"bar-rect", x:x1, y:y+2, width:Math.max(4, x2-x1), height:26, rx:5,
+        fill:"rgb(" + (i===0 ? "148 163 184" : accent()) + " / .7)"}));
+      var lbl = el("text", {x:x2+8, y:y+19, class:"barlabel"});
+      lbl.textContent = d.lo + "–" + d.hi + " mo";
+      svg.appendChild(lbl);
+    });
+    mount.innerHTML = "";
+    mount.appendChild(svg);
+  }
+
+  /* IMP R-value vs thickness, with WSEC threshold lines */
+  function impChartRender(mount){
+    var W = 640, H = 300, PAD = 44, LBLW = 90;
+    var max = 55;
+    var barW = W - LBLW - PAD;
+    var svg = el("svg", {viewBox:"0 0 " + W + " " + H, role:"img", "aria-label":"IMP R-value vs panel thickness against WSEC wall requirements"});
+    IMP.forEach(function(d, i){
+      var y = 14 + i * 62;
+      var w = (d.rvalue / max) * barW;
+      var clears = d.clearsMetal && d.clearsSteel;
+      var col = clears ? success() : (d.clearsMetal ? accent() : danger());
+      svg.appendChild(el("text", {x:0, y:y+16, class:"axislabel"})).textContent = d.label;
+      svg.appendChild(el("rect", {class:"bar-rect", x:LBLW, y:y, width:Math.max(2,w), height:26, rx:4, fill:"rgb(" + col + " / .78)"}));
+      var lbl = el("text", {x:LBLW + w + 8, y:y+17, class:"barlabel"});
+      lbl.textContent = "R-" + d.rvalue;
+      svg.appendChild(lbl);
+      var sub = el("text", {x:LBLW, y:y+40, class:"barsub"});
+      sub.textContent = clears ? "clears both WSEC wall requirements" : (d.clearsMetal ? "clears metal-building only" : "misses both requirements");
+      svg.appendChild(sub);
+    });
+    var totalH = 14 + IMP.length * 62;
+    [["metal", WSEC.metal, success()], ["steel", WSEC.steel, "245 158 11"]].forEach(function(t){
+      var tx = LBLW + (t[1] / max) * barW;
+      svg.appendChild(el("line", {class:"threshold", x1:tx, y1:0, x2:tx, y2:totalH, stroke:"rgb(" + t[2] + ")"}));
+      var lbl = el("text", {x:tx, y:totalH+16, class:"barsub", "text-anchor":"middle"});
+      lbl.textContent = "WSEC " + t[0] + " R-" + t[1];
+      svg.appendChild(lbl);
+    });
+    svg.setAttribute("viewBox", "0 0 " + W + " " + (totalH + 30));
+    mount.innerHTML = "";
+    mount.appendChild(svg);
+  }
+
+  /* Sparkline-style area chart for the illustrative cash flow */
+  function cashflowRender(mount){
+    var W = 640, H = 200, PAD = 20;
+    var vals = CASHFLOW;
+    var max = Math.max.apply(null, vals), min = Math.min.apply(null, vals);
+    var range = max - min;
+    var stepX = (W - PAD*2) / (vals.length - 1);
+    var zeroY = PAD + (max / range) * (H - PAD*2);
+    var pts = vals.map(function(v, i){
+      var x = PAD + i * stepX;
+      var y = PAD + ((max - v) / range) * (H - PAD*2);
+      return [x, y];
+    });
+    var svg = el("svg", {viewBox:"0 0 " + W + " " + H, role:"img", "aria-label":"Illustrative cumulative cash-flow profile across the four tranches"});
+    svg.appendChild(el("line", {x1:PAD, y1:zeroY, x2:W-PAD, y2:zeroY, class:"gridline"}));
+    var path = "M " + pts.map(function(p){ return p[0] + " " + p[1]; }).join(" L ");
+    svg.appendChild(el("path", {d:path, fill:"none", stroke:"rgb(" + accent() + ")", "stroke-width":2.5}));
+    var fillPath = path + " L " + pts[pts.length-1][0] + " " + zeroY + " L " + pts[0][0] + " " + zeroY + " Z";
+    svg.appendChild(el("path", {d:fillPath, fill:"rgb(" + accent() + " / .12)", stroke:"none"}));
+    svg.appendChild(el("text", {x:PAD, y:14, class:"barsub"})).textContent = "Certification + pursuit (T1–T2)";
+    svg.appendChild(el("text", {x:W-PAD, y:14, class:"barsub", "text-anchor":"end"})).textContent = "Scale, cash-funded (T4)";
+    svg.appendChild(el("text", {x:PAD, y:H-6, class:"barsub"})).textContent = "Month 1";
+    svg.appendChild(el("text", {x:W-PAD, y:H-6, class:"barsub", "text-anchor":"end"})).textContent = "Month 18";
+    mount.innerHTML = "";
+    mount.appendChild(svg);
+  }
+
+  /* ============================================================ render: hero stats ============================================================ */
+  var heroMount = document.getElementById("heroStats");
+  HERO_STATS.forEach(function(s){
+    var btn = document.createElement("button");
+    btn.className = "statcell";
+    btn.innerHTML = '<div class="v">' + s.v + '</div><div class="l">' + s.l + '</div>';
+    btn.addEventListener("click", function(){
+      document.getElementById(s.jump).scrollIntoView({behavior: mq.matches !== undefined ? "smooth" : "auto"});
+    });
+    heroMount.appendChild(btn);
+  });
+
+  /* legacy stats + submarket table */
+  var legacyMount = document.getElementById("legacyStats");
+  LEGACY_STATS.forEach(function(s){
+    var d = document.createElement("div");
+    d.className = "card";
+    d.innerHTML = '<div style="font:700 1.6rem/1 ui-monospace,Menlo,monospace;color:rgb(var(--c-text-code))">' + s.v +
+      '</div><div style="margin-top:8px;font-size:13px;color:rgb(var(--c-text-secondary))">' + s.l + '</div>';
+    legacyMount.appendChild(d);
+  });
+  var subBody = document.getElementById("submarketBody");
+  SUBMARKETS.forEach(function(s){
+    var tr = document.createElement("tr");
+    tr.innerHTML = "<td>" + s.name + "</td><td class=\"tabular\">" + s.vac + "</td><td>" + s.val + "</td>";
+    subBody.appendChild(tr);
+  });
+
+  barChart(document.getElementById("maturityChart"), MATURITY, {
+    aria: "CRE debt maturing 2025 to 2027, in billions of dollars",
+    fmt: function(v){ return "$" + v + "B"; }
+  });
+
+  /* target stats + capex + rotation + bear table */
+  var targetMount = document.getElementById("targetStats");
+  TARGET_STATS.forEach(function(s){
+    var d = document.createElement("div");
+    d.className = "card";
+    d.innerHTML = '<div style="font:700 1.6rem/1 ui-monospace,Menlo,monospace;color:rgb(var(--c-text-code))">' + s.v +
+      '</div><div style="margin-top:8px;font-size:13px;color:rgb(var(--c-text-secondary))">' + s.l + '</div>';
+    targetMount.appendChild(d);
+  });
+  barChart(document.getElementById("capexChart"), CAPEX, {aria:"Big-4 hyperscaler capex, 2024 to 2026 guided", fmt:function(v){ return "$" + v + "B"; }});
+  barChart(document.getElementById("rotationChart"), ROTATION, {aria:"Data center vs office construction spending, April 2026", fmt:function(v){ return "$" + v + "B"; }, labelWidth:150});
+
+  var bearBody = document.getElementById("bearBody");
+  BEAR.forEach(function(b){
+    var tr = document.createElement("tr");
+    tr.innerHTML = "<td>" + b.risk + "</td><td style=\"color:rgb(var(--c-text-secondary))\">" + b.answer + "</td>";
+    bearBody.appendChild(tr);
+  });
+
+  /* corridor toggle */
+  var corridorToggle = document.getElementById("corridorToggle");
+  var corridorPanels = document.getElementById("corridorPanels");
+  CORRIDORS.forEach(function(c, i){
+    var btn = document.createElement("button");
+    btn.setAttribute("role", "tab");
+    btn.setAttribute("aria-selected", i === 0 ? "true" : "false");
+    btn.dataset.panel = c.key;
+    btn.textContent = c.name;
+    corridorToggle.appendChild(btn);
+    var panel = document.createElement("div");
+    panel.className = "card toggle3-panel" + (i === 0 ? " open" : "");
+    panel.id = "corridor-" + c.key;
+    panel.innerHTML =
+      '<div class="grid2"><div><div class="src" style="margin-top:0"><b style="color:rgb(var(--c-text-primary))">Anchor demand</b></div><p style="margin:4px 0 0;color:rgb(var(--c-text-secondary))">' + c.anchor + '</p>' +
+      '<div class="src"><b style="color:rgb(var(--c-text-primary))">Power position</b></div><p style="margin:4px 0 0;color:rgb(var(--c-text-secondary))">' + c.power + '</p></div>' +
+      '<div><div class="src" style="margin-top:0"><b style="color:rgb(var(--c-text-primary))">Market tightness</b></div><p style="margin:4px 0 0;color:rgb(var(--c-text-secondary))">' + c.tight + '</p>' +
+      '<div class="src"><b style="color:rgb(var(--c-text-primary))">Distance from Mukilteo</b></div><p style="margin:4px 0 0;color:rgb(var(--c-text-secondary))">' + c.dist + '</p></div></div>';
+    corridorPanels.appendChild(panel);
+  });
+  corridorToggle.addEventListener("click", function(e){
+    var btn = e.target.closest("button[data-panel]"); if (!btn) return;
+    Array.prototype.forEach.call(corridorToggle.querySelectorAll("button"), function(b){ b.setAttribute("aria-selected", String(b === btn)); });
+    Array.prototype.forEach.call(corridorPanels.querySelectorAll(".toggle3-panel"), function(p){ p.classList.toggle("open", p.id === "corridor-" + btn.dataset.panel); });
+  });
+
+  var powerData = CORRIDORS.filter(function(c){ return c.committed > 0; }).map(function(c){
+    return {label: c.name.split(" (")[0].split(" / ")[0], value: c.queue, note: c.committed + " MW committed / contracted"};
+  });
+  barChart(document.getElementById("powerGapChart"), powerData, {aria:"Power queue vs committed capacity per corridor", fmt:function(v){ return v + " MW queue"; }, labelWidth:170});
+
+  impChartRender(document.getElementById("impChart"));
+  rangeChart(document.getElementById("scheduleChart"), SCHEDULE, {aria:"Conventional vs modular data center delivery schedule in months"});
+
+  /* GC table + filter */
+  var gcBody = document.getElementById("gcBody");
+  function renderGC(){
+    gcBody.innerHTML = "";
+    GC.forEach(function(g){
+      var tr = document.createElement("tr");
+      tr.className = "gc-row";
+      tr.dataset.corridor = g.corridor;
+      tr.innerHTML = "<td style=\"font-weight:600\">" + g.name + "</td><td>" + g.corridorLabel +
+        "</td><td style=\"color:rgb(var(--c-text-secondary))\">" + g.why + "</td><td style=\"color:rgb(var(--c-text-secondary))\">" + g.scope + "</td>";
+      gcBody.appendChild(tr);
+    });
+  }
+  renderGC();
+  document.querySelector(".filters").addEventListener("click", function(e){
+    var b = e.target.closest("button[data-f]"); if (!b) return;
+    Array.prototype.forEach.call(this.querySelectorAll("button"), function(x){ x.setAttribute("aria-pressed", String(x === b)); });
+    var f = b.dataset.f;
+    Array.prototype.forEach.call(gcBody.querySelectorAll(".gc-row"), function(row){
+      row.hidden = f !== "all" && row.dataset.corridor !== f;
+    });
+  });
+
+  /* risk register, expandable rows, sorted worst-first */
+  var SEV = {hi:3, med:2, lo:1};
+  var sortedRisks = RISKS.slice().sort(function(a,b){ return (SEV[b.likelihood]+SEV[b.impact]) - (SEV[a.likelihood]+SEV[a.impact]); });
+  var riskBody = document.getElementById("riskBody");
+  function pill(level){
+    var label = {hi:"High", med:"Med", lo:"Low"}[level];
+    return '<span class="pill ' + level + '">' + label + '</span>';
+  }
+  sortedRisks.forEach(function(r, i){
+    var tr = document.createElement("tr");
+    tr.className = "risk-row";
+    tr.tabIndex = 0;
+    tr.setAttribute("role", "button");
+    tr.setAttribute("aria-expanded", "false");
+    tr.innerHTML = '<td><span class="chev">▸</span></td><td>' + r.risk + '</td><td>' + pill(r.likelihood) + '</td><td>' + pill(r.impact) + '</td><td style="color:rgb(var(--c-text-secondary))">' + r.owner + '</td>';
+    var detail = document.createElement("tr");
+    detail.className = "risk-detail";
+    detail.id = "risk-detail-" + i;
+    detail.innerHTML = '<td colspan="5"><b style="color:rgb(var(--c-text-primary))">Mitigation:</b> ' + r.mitigation +
+      '<br><b style="color:rgb(var(--c-text-primary))">Kill / release trigger:</b> ' + r.trigger + '</td>';
+    function toggle(){
+      var open = detail.classList.toggle("open");
+      tr.setAttribute("aria-expanded", String(open));
+    }
+    tr.addEventListener("click", toggle);
+    tr.addEventListener("keydown", function(e){ if (e.key === "Enter" || e.key === " "){ e.preventDefault(); toggle(); } });
+    riskBody.appendChild(tr);
+    riskBody.appendChild(detail);
+  });
+
+  /* roadmap phases */
+  var phaseRail = document.getElementById("phaseRail");
+  var phasePanels = document.getElementById("phasePanels");
+  PHASES.forEach(function(p, i){
+    var btn = document.createElement("button");
+    btn.className = "phase-btn";
+    btn.setAttribute("role", "tab");
+    btn.setAttribute("aria-selected", i === 0 ? "true" : "false");
+    btn.dataset.phase = i;
+    btn.innerHTML = '<div class="pn">' + p.n + ' · ' + p.months + '</div><div class="pm">' + p.title + '</div>';
+    phaseRail.appendChild(btn);
+    var panel = document.createElement("div");
+    panel.className = "card phase-panel" + (i === 0 ? " open" : "");
+    panel.id = "phase-" + i;
+    panel.innerHTML =
+      '<h3>' + p.n + ': ' + p.title + '</h3>' +
+      '<p style="margin:9px 0 0;color:rgb(var(--c-text-secondary))"><b style="color:rgb(var(--c-text-primary))">Actions:</b> ' + p.actions + '</p>' +
+      '<p style="margin:9px 0 0;color:rgb(var(--c-text-secondary))"><b style="color:rgb(var(--c-text-primary))">Cost buckets:</b> ' + p.costs + '</p>' +
+      '<p style="margin:9px 0 0;color:rgb(var(--c-text-secondary))"><b style="color:rgb(var(--c-text-primary))">Exit criteria:</b> ' + p.exit + '</p>';
+    phasePanels.appendChild(panel);
+  });
+  phaseRail.addEventListener("click", function(e){
+    var btn = e.target.closest("button[data-phase]"); if (!btn) return;
+    Array.prototype.forEach.call(phaseRail.querySelectorAll("button"), function(b){ b.setAttribute("aria-selected", String(b === btn)); });
+    Array.prototype.forEach.call(phasePanels.querySelectorAll(".phase-panel"), function(p){ p.classList.toggle("open", p.id === "phase-" + btn.dataset.phase); });
+  });
+
+  cashflowRender(document.getElementById("cashflowChart"));
+
+  /* decision 3-way toggle */
+  var decisionToggle = document.getElementById("decisionToggle");
+  decisionToggle.addEventListener("click", function(e){
+    var btn = e.target.closest("button[data-panel]"); if (!btn) return;
+    Array.prototype.forEach.call(decisionToggle.querySelectorAll("button"), function(b){ b.setAttribute("aria-selected", String(b === btn)); });
+    Array.prototype.forEach.call(document.querySelectorAll("#panel-wrong, #panel-right, #panel-wait"), function(p){
+      p.classList.toggle("open", p.dataset.panel === btn.dataset.panel);
+    });
+  });
+
+  /* section nav: active-link highlighting on scroll */
+  var navLinks = Array.prototype.slice.call(document.querySelectorAll("#navrail a"));
+  var sections = navLinks.map(function(a){ return document.querySelector(a.getAttribute("href")); }).filter(Boolean);
+  function updateActiveNav(){
+    var y = window.scrollY + 140;
+    var current = sections[0];
+    sections.forEach(function(s){ if (s.offsetTop <= y) current = s; });
+    navLinks.forEach(function(a){ a.classList.toggle("active", a.getAttribute("href") === "#" + current.id); });
+  }
+  window.addEventListener("scroll", updateActiveNav, {passive:true});
+  updateActiveNav();
+
+  /* re-render theme-dependent charts on theme toggle so bar colors update */
+  themeBtn.addEventListener("click", function(){
+    setTimeout(function(){
+      barChart(document.getElementById("maturityChart"), MATURITY, {fmt:function(v){ return "$" + v + "B"; }});
+      barChart(document.getElementById("capexChart"), CAPEX, {fmt:function(v){ return "$" + v + "B"; }});
+      barChart(document.getElementById("rotationChart"), ROTATION, {fmt:function(v){ return "$" + v + "B"; }, labelWidth:150});
+      barChart(document.getElementById("powerGapChart"), powerData, {fmt:function(v){ return v + " MW queue"; }, labelWidth:170});
+      impChartRender(document.getElementById("impChart"));
+      cashflowRender(document.getElementById("cashflowChart"));
+    }, 10);
+  });
+
+  /* expose data + render fns for the headless test harness */
+  window.__DC_CASE__ = {
+    HERO_STATS: HERO_STATS, LEGACY_STATS: LEGACY_STATS, SUBMARKETS: SUBMARKETS, MATURITY: MATURITY,
+    TARGET_STATS: TARGET_STATS, CAPEX: CAPEX, ROTATION: ROTATION, BEAR: BEAR, CORRIDORS: CORRIDORS,
+    IMP: IMP, WSEC: WSEC, SCHEDULE: SCHEDULE, GC: GC, RISKS: RISKS, PHASES: PHASES, CASHFLOW: CASHFLOW
+  };
+})();
+</script>
+</body>
+</html>

@@ -118,5 +118,12 @@ ok(new RegExp('href="' + DECK_REL.replace(/\./g, '\\.') + '"').test(src),
   'the page links to ' + DECK_REL);
 ok(fs.existsSync(DECK_REL), 'the linked deck file actually exists in the repo at ' + DECK_REL);
 
+/* Interactive HTML rebuild (added same day, on TJ's actual ask -- he meant convert-to-interactive-
+   HTML, not just publish the raw deck file). This is now the PRIMARY link; the pptx stays as the
+   secondary "or the slide deck" option. */
+const HTML_REL = 'dc-investment-case.html';
+ok(new RegExp('href="' + HTML_REL + '"').test(src), 'the page links to the interactive ' + HTML_REL + ' version');
+ok(fs.existsSync(HTML_REL), 'the linked interactive page actually exists in the repo at ' + HTML_REL);
+
 console.log(fail ? '\nFAILED ' + fail : '\nall ok');
 process.exit(fail ? 1 : 0);
