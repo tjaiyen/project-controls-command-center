@@ -1,7 +1,16 @@
 .DS_Store
 node_modules/
-.claude/
 .impeccable/
+
+# Claude Code project config IS shared/versioned (CLAUDE.md, .claude/settings.json, hooks/,
+# skills/) -- (/stress-test finding, independent reviewer, 2026-09-03): a blanket `.claude/` line
+# here since before this session started (2026-09-03) silently ignored EVERY file added today
+# (settings.json, the pre-push hook, the project-scoped stress-test skill) with zero prior
+# investigation of why -- defeating their whole stated purpose ("closes that hole for any push
+# made from inside a Claude Code session") for anyone but this one local machine. Only the genuine
+# per-user local override file is excluded, the standard Claude Code convention (same pattern
+# ruflo-runtime's own .gitignore already uses for its 2 machine-generated .claude/ files).
+.claude/settings.local.json
 *.log
 __pycache__/
 *.pyc

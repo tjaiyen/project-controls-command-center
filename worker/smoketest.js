@@ -369,6 +369,24 @@ async function run() {
       "list_facade_risks returns id/name/probability/exposure for every risk", JSON.stringify(listResult));
   }
 
+  // Self-check: this file's own final assertion count matches docs/HANDOFF.md's prose (/stress-test
+  // finding, independent session, 2026-09-03) -- found the exact same unguarded-count class D62 in
+  // ../stress.cjs was built to close, just in a second, separate test process: docs/HANDOFF.md cited
+  // this harness's count FOUR different, mutually-inconsistent ways (28 in one place, 25 in three
+  // others) while the real, live count was 39 -- nobody had ever tied either figure to a live check.
+  // Runs last, same reason as stress.cjs's own D62: `pass` here is every check before this one; this
+  // check becomes one more, so the prose must cite pass+1, not pass.
+  const fs = require("fs");
+  const path = require("path");
+  const handoffSrc = fs.readFileSync(path.join(__dirname, "..", "docs", "HANDOFF.md"), "utf8");
+  const expected = String(pass + 1);
+  ok(
+    handoffSrc.includes(expected + ", all passing — a 3rd, independent test harness") &&
+    handoffSrc.includes(expected + "-assertion Node test harness") &&
+    (handoffSrc.match(new RegExp("\\(" + expected + " assertions\\)", "g")) || []).length === 2,
+    "docs/HANDOFF.md's worker/smoketest.js assertion-count citations (4 total) match the real final count " + expected
+  );
+
   console.log("\n" + pass + " passed, " + fail + " failed");
   process.exit(fail ? 1 : 0);
 }

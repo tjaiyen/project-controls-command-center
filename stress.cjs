@@ -9970,5 +9970,27 @@ console.log("== D61. Schedule risk composite (brainstorm-mode addition, 2026-09-
     "schema.yml declares guardrail tests for all three new/changed models");
 }
 
+console.log("== D62. Self-check: this file's own final assertion count matches README/HANDOFF prose ==");
+{
+  // /stress-test finding, independent session, 2026-09-03: the pipeline-check-count (65->103)
+  // has real, live drift protection via LIVE_PIPELINE_CHECKS above; this file's OWN total-
+  // assertion-count prose ("3,997 tests passing" etc., 4 citations across README.md/
+  // docs/HANDOFF.md) had none, and silently drifted 3,997->4,019 the same session a round of
+  // fixes to OTHER stale counts landed. Runs LAST, deliberately: `pass` here is the exact count
+  // of every check before this one; this check becomes one more passing assertion, so the prose
+  // must cite pass+1, not pass -- the same off-by-one this mechanism exists to prevent.
+  const readmeSrc2 = fs.readFileSync(DIR + "README.md", "utf8");
+  const handoffSrc2 = fs.readFileSync(DIR + "docs/HANDOFF.md", "utf8");
+  const expected = (pass + 1).toLocaleString("en-US");
+  ok(
+    readmeSrc2.includes(expected + " tests passing") &&
+    readmeSrc2.includes(expected + " assertions across structure") &&
+    handoffSrc2.includes(expected + ", all passing") &&
+    handoffSrc2.includes(expected + " assertions, all passing"),
+    "README.md's and docs/HANDOFF.md's stress.cjs assertion-count citations (4 total) match the real final count",
+    `expected "${expected}"`
+  );
+}
+
 console.log("\n" + pass + " passed, " + fail + " failed");
 process.exit(fail ? 1 : 0);
