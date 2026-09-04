@@ -4032,7 +4032,9 @@ ok(/\.finished\.then\(/.test(indexSrc) && !/\.onfinish=/.test(indexSrc),
   // anomaly section's own "How this is actually computed" math explainer).
   // 17 as of the dashboard-upgrade round (2026-08-26) -- 1 new panel added (the Operating
   // Framework tab's "Why each threshold is set here" escalation-rationale accordion).
-  ok(detailsCount === 17, "exactly 17 details.dbox panels exist for this to wire", String(detailsCount));
+  // 18 as of the stakeholder-readiness round (2026-09-03) -- 1 new panel added (the AI & Data
+  // tab's "The six forces, per agency" raw-score disclosure).
+  ok(detailsCount === 18, "exactly 18 details.dbox panels exist for this to wire", String(detailsCount));
 }
 
 // Extended growup/draw-in (2026-08-19) — source-level only, same stub limitation as above;
@@ -9112,14 +9114,18 @@ console.log("== V. UX/UI upgrade round (brainstorm-mode, 2026-08-26) ==");
   const detailsOpens = (aiTabSrc.match(/<details class="sec-details" open>/g) || []).length;
   const summaries = (aiTabSrc.match(/<summary class="sec-h"/g) || []).length;
   const detailsCloses = (aiTabSrc.match(/<\/details>/g) || []).length;
-  ok(detailsOpens === 10, "AI & Data tab carries exactly 10 collapsible sections, all starting open (unchanged default appearance)", String(detailsOpens));
-  ok(summaries === 10, "every collapsible section has exactly one summary.sec-h header", String(summaries));
+  // 10 -> 11 (stakeholder-readiness round, 2026-09-03): 1 new sec-details section added
+  // ("Stakeholder data-readiness — the political layer above the pipeline").
+  ok(detailsOpens === 11, "AI & Data tab carries exactly 11 collapsible sections, all starting open (unchanged default appearance)", String(detailsOpens));
+  ok(summaries === 11, "every collapsible section has exactly one summary.sec-h header", String(summaries));
   // detailsCloses also counts the pre-existing <details> elements that already lived on this tab
   // before this round: the anchor-rail at the top (1) and the .dbox "How this is actually
-  // computed" panels nested inside 3 of the new sections (zscore/ewma/multianomaly). Pre-
+  // computed" panels nested inside the new sections. Pre-
   // registered this as 10+3=13 first; the probe contradicted that (came back 14) -- the
   // anchor-rail <details> was the miscounted 4th, not a bug in this round's own markup (B35).
-  ok(detailsCloses === 14, "closing </details> count matches 10 new sec-details wrappers + 1 pre-existing anchor-rail + 3 pre-existing nested .dbox panels, properly balanced", String(detailsCloses));
+  // 14 -> 16 (stakeholder-readiness round, 2026-09-03): +1 new sec-details wrapper, +1 new nested
+  // .dbox panel ("The six forces, per agency").
+  ok(detailsCloses === 16, "closing </details> count matches 11 new sec-details wrappers + 1 pre-existing anchor-rail + 4 nested .dbox panels, properly balanced", String(detailsCloses));
   ok(indexSrc.includes("details.sec-details[open]>summary.sec-h::before{transform:rotate(45deg)}"), "the disclosure-chevron CSS rotates on the real [open] attribute, native browser state, not a custom JS class toggle");
   ok(indexSrc.includes('id="aiSystemCard"'), "the AI System Card section keeps its real id (now on the summary tag) -- the Executive Command tab's Ask AI jump-link and the aisystemcard glossary entry both still resolve to it");
 }
@@ -10030,6 +10036,68 @@ console.log("== D63. Progress Verification -- GC-claimed vs. ledger-verified (br
     "the citation names the real, verified authors and PMID, not a fabricated or placeholder attribution");
   ok(!indexSrc.includes("Mahwapi") && !indexSrc.includes("Musonda"),
     "the earlier fabricated author names never made it into the shipped file");
+}
+
+console.log("== D64. Stakeholder Data-Readiness -- Wang's six forces + Carnegie next-play mapping (brainstorm-mode round, 2026-09-03) ==");
+{
+  ok(P.stakeholderAgencies.length === 6, "sanity: 6 real external stakeholder agencies modeled", String(P.stakeholderAgencies.length));
+  ok(P.wangForces.length === 6, "sanity: Wang's model carries exactly 6 named forces", String(P.wangForces.length));
+
+  // Independent re-derivation: composite is a plain average of the 6 forces, computed here from
+  // the raw per-agency scores, not read back from the same helper that produced it.
+  P.stakeholderAgencies.forEach((a) => {
+    const vals = P.wangForces.map((f) => a.forces[f]);
+    const indep = vals.reduce((s, v) => s + v, 0) / vals.length;
+    ok(Math.abs(P.agencyComposite(a) - indep) < 1e-9, a.id + " composite readiness matches an independent re-derivation from its 6 raw force scores", String(P.agencyComposite(a)));
+    ok(vals.every((v) => v >= 0 && v <= 1), a.id + "'s 6 force scores are all within [0,1]");
+    const w = P.agencyWeakest(a);
+    ok(vals.every((v) => v >= w.v), a.id + "'s reported weakest force really is the minimum of its 6 scores, independently re-checked");
+  });
+
+  // The deliberate "Carnegie's ceiling" case: the State Environmental & Regulatory Agency's real
+  // blocker is legalPower, not willingness -- confirm the data actually tells that story (not
+  // asserted as a label with no numbers behind it) and that the play lookup correctly returns
+  // the no-principle ceiling case rather than a fabricated persuasion tactic.
+  const envAgency = P.stakeholderAgencies.find((a) => a.name.includes("Environmental"));
+  ok(!!envAgency, "the State Environmental & Regulatory Agency exists in the register");
+  if (envAgency) {
+    const w = P.agencyWeakest(envAgency);
+    ok(w.k === "legalPower", "the Environmental Agency's real weakest force is legalPower, on its own real scored numbers, not just narrated as such", w.k);
+    ok(P.carnegiePlay.legalPower.principle === null, "legalPower's play deliberately carries no Carnegie principle -- Carnegie's book has no fix for a real legal blocker");
+    ok(P.carnegiePlay.legalPower.why.includes("MOU"), "the legalPower play names the real fix (a formal MOU), not silence or a persuasion tactic dressed up as one");
+  }
+
+  // Every OTHER force maps to a real, distinct Carnegie principle -- confirmed each is a genuine,
+  // non-empty string (catches an accidental duplicate/missing mapping) and that no two forces
+  // share the identical principle text (each force gets its own tactic, not a copy-paste).
+  const nonCeiling = P.wangForces.filter((f) => f !== "legalPower");
+  nonCeiling.forEach((f) => {
+    ok(typeof P.carnegiePlay[f].principle === "string" && P.carnegiePlay[f].principle.length > 5,
+      f + " maps to a real, non-empty Carnegie principle");
+  });
+  const principles = nonCeiling.map((f) => P.carnegiePlay[f].principle);
+  ok(new Set(principles).size === principles.length, "all 5 non-ceiling forces map to DISTINCT Carnegie principles, not one tactic reused everywhere");
+
+  // Card rendering: full 6-row picture + the raw-score disclosure table.
+  const cardHtml = G.stakeholderReadinessCard._html;
+  ok(cardHtml.includes("Stakeholder data-readiness"), "the dedicated card rendered a real heading, not blank");
+  P.stakeholderAgencies.forEach((a) => {
+    ok(cardHtml.includes(a.name), "stakeholderReadinessCard lists " + a.name);
+  });
+  ok(cardHtml.includes("Environmental") && cardHtml.includes("Carnegie's ceiling"),
+    "the Environmental Agency's row visibly names Carnegie's ceiling, not a generic play");
+  const mathHtml = G.stakeholderReadinessMath._html;
+  ok(mathHtml.includes("SA-01") && mathHtml.includes("SA-06"), "the raw-score disclosure table lists all 6 agencies by id");
+
+  // Citations: real authors/years/journal, no fabricated attribution.
+  ok(indexSrc.includes("Wang, F. (2018)") && indexSrc.includes("Government") && indexSrc.includes("Information Quarterly") && indexSrc.includes("536"),
+    "the six-forces model cites the real Wang (2018) source, not a vague or invented one");
+  ok(indexSrc.includes("Williams, P. (2002)") && indexSrc.includes("boundary spanner") && indexSrc.includes("Public Administration"),
+    "the boundary-spanner framing cites the real Williams (2002) source");
+  ok(indexSrc.includes("Fedorowicz") && indexSrc.includes("Gogan") && indexSrc.includes("Culnan") && indexSrc.includes("2010"),
+    "the MOU/legal-fix citation names the real Fedorowicz, Gogan & Culnan (2010) authors");
+  ok(indexSrc.includes("How to Win Friends and Influence People") && indexSrc.includes("not peer-reviewed research"),
+    "Carnegie's book is explicitly framed as a practitioner classic, not peer-reviewed research -- honesty discipline, not silent citation-dropping");
 }
 
 console.log("== D62. Self-check: this file's own final assertion count matches README/HANDOFF prose ==");

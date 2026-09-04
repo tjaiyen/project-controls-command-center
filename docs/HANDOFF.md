@@ -46,7 +46,9 @@ anywhere in this repository. The method is the content, not the numbers.
 | Risks | 7 (added R-07, extreme-weather exposure, 2026-08-26) |
 | Delay events | 4 |
 | Other 2026-08-26 proactive-mechanism additions (§8) | `OWNER_DECISIONS` (3), `SUB_HEALTH` (3), `LABOR_MOBILIZATION` (3), `CARBON_DISCLOSURE` (3), `AUDIT_LOG` (session-only, unbounded fact — see §8) |
-| `stress.cjs` test assertions | 4,043, all passing |
+| Progress-verification packages (`CLAIMED_PROGRESS`, GC-claimed vs. ledger-verified, AI & Data tab) | 8, 1 genuinely flagged today on real computed figures (GUARDS #30) |
+| Stakeholder data-readiness agencies (`STAKEHOLDER_AGENCIES`, Wang's 6-force model + Carnegie next-play, AI & Data tab) | 6 real external agencies, added 2026-09-03 |
+| `stress.cjs` test assertions | 4,086, all passing |
 | `worker/smoketest.js` assertions (Ask AI backend, §10) | 40, all passing — a 3rd, independent test harness, Node-only, no real network/Cloudflare runtime |
 | Companion pages | `otak.html` (fit brief, 449 lines), `architecture.html` (static pipeline map, 598 lines), `walters-wolf.html` (second-audience fit brief) + `facade.html` (unitized curtain-wall controls dashboard) — added 2026-09-02, merged to `main` 2026-09-03; see their own `README.md` rows and `verify-walters-wolf.cjs`/`verify-facade.cjs` harnesses (not written up in §13 yet — flagged in §18). Also `dc-investment-case.html` (interactive data-center investment case, added 2026-09-03, linked from `walters-wolf.html`) + `docs/Data_Center_Investment_Case_Walters_Wolf.pptx` (companion deck) + `verify-dc-investment-case.cjs` — same §13/§18 gap |
 | Companion backend (never deployed — see §10) | `worker/` — a Cloudflare Worker for the Ask AI feature; `ASK_AI_WORKER_URL` in `index.html` is still the `REPLACE-ME` placeholder |
@@ -496,7 +498,7 @@ key — `index.html` is fully static/public and can never hold it. Guardrails, m
 
 ## 11. Testing & verification
 
-**`stress.cjs`** (4,043 assertions, all passing) — stubs the DOM, loads `index.html`'s script
+**`stress.cjs`** (4,086 assertions, all passing) — stubs the DOM, loads `index.html`'s script
 verbatim into that stub, and exercises it exactly like a user would: every tab switch, every
 filter, every drawer, every slider drag, every keyboard interaction. 92 labeled sections (fresh
 `grep -c 'console.log("=='` count, this pass):

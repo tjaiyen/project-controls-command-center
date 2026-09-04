@@ -1850,6 +1850,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
       <summary>Jump to section</summary>
       <nav aria-label="Section anchors">
         <a href="#arch">Pipeline DAG</a>
+        <a href="#stakeholderReadinessCard">Stakeholder Readiness</a>
         <a href="#aiGuards">Integrity Gate</a>
         <a href="#carbonDisclosureCard">Carbon Disclosure</a>
         <a href="#envisionCard">Envision Rating</a>
@@ -1931,6 +1932,39 @@ join dim_control_account b using (package_id)</pre></div>
                                            # inputs are broken,
                                            # not the project</pre></div>
       </div>
+
+      </details>
+      <details class="sec-details" open>
+      <summary class="sec-h" style="margin-top:30px"><h3>Stakeholder data-readiness &mdash; the political layer above the pipeline</h3></summary>
+      <p class="lede">The pipeline above assumes the raw rows exist to synthesize from. In a real
+        multi-agency capital program, most of them don't start that way &mdash; they start as a
+        relationship with an agency that has no reporting line to this program and no obligation
+        to share anything. This register scores each real external stakeholder against six named
+        forces that decide whether an agency actually hands over data (Wang, 2018, cited below),
+        and names one concrete next move per agency &mdash; drawn from Dale Carnegie's
+        <i>How to Win Friends and Influence People</i> (1936) where persuasion is the real lever,
+        and flagged plainly as outside persuasion's reach where it isn't.</p>
+      <p class="lede" style="font-size:12.5px;color:rgb(var(--c-mut))">Carnegie's book is a
+        practitioner classic, not peer-reviewed research &mdash; treated here as a tactics
+        library, not a proven model. The six scored forces are Wang, F. (2018), &ldquo;Understanding
+        the dynamic mechanism of interagency government data sharing,&rdquo; <i>Government
+        Information Quarterly</i>, 35(4), 536&ndash;546. The real academic term for this program's
+        own role &mdash; the person who crosses organizational boundaries to pull the data
+        together &mdash; is a &ldquo;boundary spanner.&rdquo; Williams, P. (2002), &ldquo;The
+        Competent Boundary Spanner,&rdquo; <i>Public Administration</i>, 80(1), 103&ndash;124:
+        his finding was that the role runs on relational trust, not org-chart authority &mdash;
+        independently arriving at Carnegie's central claim from a different literature, 66 years
+        later. Where an agency's real blocker is legal authority rather than willingness, the fix
+        is a formal data-sharing agreement addressing liability (Fedorowicz, J., Gogan, J.L. &amp;
+        Culnan, M.J., 2010, &ldquo;Barriers to Interorganizational Information Sharing in
+        e-Government: A Stakeholder Analysis,&rdquo; <i>The Information Society</i>, 26(5),
+        315&ndash;329), not more charm &mdash; this register says so explicitly rather than
+        pretending persuasion covers every case.</p>
+      <div class="card" style="margin-top:12px" id="stakeholderReadinessCard"></div>
+      <details class="dbox" style="margin-top:10px">
+        <summary>The six forces, per agency &mdash; the raw scores behind the composite</summary>
+        <div id="stakeholderReadinessMath"></div>
+      </details>
 
       </details>
       <details class="sec-details" open>
@@ -8361,6 +8395,40 @@ function renderContracts(){
   }
   renderContractDrill(cs);
 }
+// Composite-score bands (stated, illustrative thresholds -- same honesty standard as
+// CLAIMED_PROGRESS_FLAG_PCT elsewhere on this page, not calibrated against real outcome data).
+function stakeholderBand(c){ return c>=0.65?"g":c>=0.45?"a":"r"; }
+function renderStakeholderReadiness(){
+  var el=document.getElementById("stakeholderReadinessCard"); if(!el) return;
+  el.innerHTML=
+    '<h3>Stakeholder data-readiness — '+STAKEHOLDER_AGENCIES.length+' real external agencies, scored against Wang\'s six forces</h3>'+
+    '<p class="lede" style="font-size:12.5px;margin-top:5px">Composite is a plain average of the '+
+    'six forces below (stated, illustrative — not calibrated against real outcome data). The '+
+    'recommended play targets each agency\'s single weakest force, not a generic pitch.</p>'+
+    '<table><thead><tr><th scope="col">Agency</th><th scope="col">Status</th>'+
+    '<th scope="col">Readiness</th><th scope="col">Weakest force</th><th scope="col">Recommended next move</th></tr></thead><tbody>'+
+    STAKEHOLDER_AGENCIES.map(function(a){
+      var c=agencyComposite(a), band=stakeholderBand(c), w=agencyWeakest(a), play=CARNEGIE_PLAY[w.k];
+      return '<tr><th scope="row">'+a.name+'<div style="font-size:11px;font-weight:400;color:rgb(var(--c-mut));margin-top:2px">'+a.role+'</div></th>'+
+        '<td style="font-size:12px">'+a.status+'</td>'+
+        '<td>'+severityIcon(band)+'<span class="pill '+band+'">'+pct(c,0)+'</span></td>'+
+        '<td style="font-size:12px">'+WANG_FORCE_LABEL[w.k]+' ('+pct(w.v,0)+')</td>'+
+        '<td style="font-size:12px;max-width:280px;white-space:normal">'+
+          (play.principle? '<b style="color:rgb(var(--c-ink))">'+play.principle+'</b> — '+play.section+'. '+play.why
+                          : '<b style="color:rgb(var(--c-bad))">'+play.section+'</b> — '+play.why)+
+        '</td></tr>';
+    }).join("")+
+    '</tbody></table>';
+  var mEl=document.getElementById("stakeholderReadinessMath"); if(!mEl) return;
+  mEl.innerHTML='<table><thead><tr><th scope="col">Agency</th>'+
+    WANG_FORCES.map(function(f){ return '<th scope="col" style="font-size:10.5px">'+WANG_FORCE_LABEL[f]+'</th>'; }).join("")+
+    '</tr></thead><tbody>'+
+    STAKEHOLDER_AGENCIES.map(function(a){
+      return '<tr><th scope="row" style="font-size:11.5px">'+a.id+'</th>'+
+        WANG_FORCES.map(function(f){ return '<td class="tab-num mono" style="font-size:11.5px">'+pct(a.forces[f],0)+'</td>'; }).join("")+
+        '</tr>';
+    }).join("")+'</tbody></table>';
+}
 function renderSubHealth(){
   var el=document.getElementById("subHealthTable");
   if(!el) return;
@@ -9498,6 +9566,69 @@ var OWNER_DECISIONS=[
    highest combined approved-CO + pending-trends exposure -- CONTRACTS' own real fields, not an
    arbitrary pick; verified by stress.cjs against a fresh independent sort, not just asserted
    here -- on a standing 90-day check cycle. */
+/* Stakeholder Data-Readiness register (brainstorm-mode round, 2026-09-03) -- Wang, F. (2018),
+   "Understanding the dynamic mechanism of interagency government data sharing," Government
+   Information Quarterly, 35(4), 536-546, names six real forces that decide whether an agency
+   shares data: administrative pressure, legal power, department capacity, department interest,
+   risk & accountability, information demand. Scored here 0-1 per agency, ALL SIX ORIENTED THE
+   SAME DIRECTION -- higher always means more favorable to this program actually getting the
+   data, including riskAccountability (scored as "how much accountability structures currently
+   HELP rather than hinder sharing," not raw exposure) -- so the weakest-force lookup below is a
+   plain argmin, no per-force sign-flipping to get wrong.
+   Six deliberately different stories, not six uniform scores: FTA is the model case (a real
+   federal mandate + established reporting infra); the State Environmental Agency is the
+   deliberate "Carnegie's ceiling" case -- its real blocker is legal authority, not willingness,
+   and the recommended play below says so instead of prescribing more charm. Composite readiness
+   is a plain average -- a STATED, illustrative weighting, not calibrated against real outcome
+   data, same honesty standard MATERIAL_ESCALATION_BASELINE_PCT already sets elsewhere on this
+   page. All data synthetic, matching the rest of this program. */
+var WANG_FORCES=["adminPressure","legalPower","deptCapacity","deptInterest","riskAccountability","infoDemand"];
+var WANG_FORCE_LABEL={adminPressure:"Administrative pressure", legalPower:"Legal power",
+  deptCapacity:"Department capacity", deptInterest:"Department interest",
+  riskAccountability:"Risk & accountability", infoDemand:"Information demand"};
+var STAKEHOLDER_AGENCIES=[
+ {id:"SA-01", name:"FTA (Federal Transit Administration)",
+  role:"Federal funding oversight — PMOC quarterly reporting", status:"Live feed",
+  forces:{adminPressure:0.90, legalPower:0.85, deptCapacity:0.80, deptInterest:0.90, riskAccountability:0.85, infoDemand:0.90}},
+ {id:"SA-02", name:"State DOT — Right-of-Way & Permitting",
+  role:"Corridor coordination, permit approvals", status:"MOU signed, feed stalled",
+  forces:{adminPressure:0.50, legalPower:0.70, deptCapacity:0.60, deptInterest:0.35, riskAccountability:0.60, infoDemand:0.55}},
+ {id:"SA-03", name:"City Utilities & Permitting Dept",
+  role:"Utility relocation & ROW encroachment permits", status:"Informal contact",
+  forces:{adminPressure:0.40, legalPower:0.60, deptCapacity:0.25, deptInterest:0.55, riskAccountability:0.50, infoDemand:0.45}},
+ {id:"SA-04", name:"Regional Utility Company (electric/gas)",
+  role:"Relocation scheduling, outage-window coordination", status:"Informal contact",
+  forces:{adminPressure:0.45, legalPower:0.55, deptCapacity:0.75, deptInterest:0.28, riskAccountability:0.50, infoDemand:0.35}},
+ {id:"SA-05", name:"State Environmental & Regulatory Agency",
+  role:"Environmental compliance monitoring", status:"Not started — legal review pending",
+  forces:{adminPressure:0.60, legalPower:0.25, deptCapacity:0.55, deptInterest:0.50, riskAccountability:0.40, infoDemand:0.45}},
+ {id:"SA-06", name:"Adjacent Municipality — City Council liaison",
+  role:"Community-impact data, local ordinance compliance", status:"Informal contact",
+  forces:{adminPressure:0.30, legalPower:0.70, deptCapacity:0.60, deptInterest:0.55, riskAccountability:0.60, infoDemand:0.25}}
+];
+// legalPower has no Carnegie play by design -- a low score there means the real blocker is legal
+// authority, which persuasion tactics can't fix (Fedorowicz et al. 2010's actual finding: this
+// needs a formal MOU addressing liability, not more charm). The other five map to a specific,
+// real Carnegie principle (verified against the primary text, not paraphrased from memory).
+var CARNEGIE_PLAY={
+  adminPressure:{principle:"Arouse in the other person an eager want", section:"Fundamental Techniques in Handling People, #3",
+    why:"No mandate compels this agency to share — lean on genuine want, not a directive that doesn't exist."},
+  deptInterest:{principle:"Talk in terms of the other person's interests", section:"Six Ways to Make People Like You, #4",
+    why:"Reframe the ask around what THEIR agency gets back, not what this program needs from them."},
+  deptCapacity:{principle:"Make the other person happy about doing the thing you suggest", section:"Nine Ways to Be a Leader, #9",
+    why:"The blocker is bandwidth, not resistance — offer to build or automate the export yourself."},
+  infoDemand:{principle:"Dramatize your ideas", section:"Twelve Ways to Win People to Your Way of Thinking, #11",
+    why:"They don't yet see the urgency — make the cost of today's data gap concrete, not abstract."},
+  riskAccountability:{principle:"Let the other person save face", section:"Nine Ways to Be a Leader, #5",
+    why:"Their real fear is exposure if shared data is later used to assign blame — structure the handoff so it protects them."},
+  legalPower:{principle:null, section:"Carnegie's ceiling",
+    why:"A real legal/regulatory constraint, not a persuasion problem — pursue a formal data-sharing MOU (Fedorowicz et al., 2010) instead of more charm."}
+};
+function agencyForceList(a){ return WANG_FORCES.map(function(f){ return {k:f, v:a.forces[f]}; }); }
+function agencyComposite(a){ var vs=agencyForceList(a).map(function(x){return x.v;});
+  return vs.reduce(function(s,v){return s+v;},0)/vs.length; }
+function agencyWeakest(a){ return agencyForceList(a).slice().sort(function(x,y){return x.v-y.v;})[0]; }
+
 var SUB_HEALTH_CYCLE_DAYS=90;
 var SUB_HEALTH=[
  {contractId:"CTE-BB-02", lastCheck:"2026-05-15", status:"green", note:"Bonding capacity and current ratio both confirmed against the tunnel package's remaining commitment"},
@@ -14174,7 +14305,7 @@ renderMcRiskFilter();
 document.getElementById("mcDistTri").setAttribute("aria-pressed", String(state.mcDist==="triangular"));
 document.getElementById("mcDistPert").setAttribute("aria-pressed", String(state.mcDist==="pert"));
 syncMcView(); renderMcMath(); renderPertPlay(); renderGaltonStatic(); renderScen(); renderPrint();
-renderArch(); renderGuards(); renderGaoCredibility(); renderProgressVerify(); renderCarbonDisclosure(); renderEnvision(); renderAuditLog(); renderStatControl(); renderZscoreMath(); renderEwmaControl(); renderEwmaMath(); renderHotellingT2(); renderMultiAnomaly(); renderMultiAnomalyMath(); renderIngestGuards();
+renderArch(); renderStakeholderReadiness(); renderGuards(); renderGaoCredibility(); renderProgressVerify(); renderCarbonDisclosure(); renderEnvision(); renderAuditLog(); renderStatControl(); renderZscoreMath(); renderEwmaControl(); renderEwmaMath(); renderHotellingT2(); renderMultiAnomaly(); renderMultiAnomalyMath(); renderIngestGuards();
 renderGlossCatBar();
 renderGlossary("");
 renderDomainMap();
@@ -14241,6 +14372,9 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   gloss:GLOSS,findGloss:findGloss,globalSearchIndex:globalSearchIndex,renderGlobalSearch:renderGlobalSearch,
   miles:MILES,delays:DELAYS,spark:SPARK,baseline:BASELINE,baseSteps:baseSteps,veSandboxCalc:veSandboxCalc,renderBaseline:renderBaseline,
   pfBand:pfBand,cascadeStepContent:cascadeStepContent,renderPfArc:renderPfArc,renderCascade:renderCascade,renderDelivery:renderDelivery,guards:GUARDS,renderGuards:renderGuards,escPat:ESC_PAT,
+  stakeholderAgencies:STAKEHOLDER_AGENCIES,wangForces:WANG_FORCES,carnegiePlay:CARNEGIE_PLAY,
+  agencyComposite:agencyComposite,agencyWeakest:agencyWeakest,stakeholderBand:stakeholderBand,
+  renderStakeholderReadiness:renderStakeholderReadiness,
   fepCheckpoints:FEP_CHECKPOINTS,fepStatus:FEP_STATUS,fepCompletenessPct:fepCompletenessPct,fepPortfolioAvgPct:fepPortfolioAvgPct,renderFep:renderFep,
   aaceClasses:AACE_CLASSES,pkgEstimateClass:PKG_ESTIMATE_CLASS,aaceClassOf:aaceClassOf,renderEstClass:renderEstClass,
   hotellingT2:hotellingT2,t2Chi2Df2Alpha05:T2_CHI2_DF2_ALPHA05,renderHotellingT2:renderHotellingT2,
