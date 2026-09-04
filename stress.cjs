@@ -10089,6 +10089,22 @@ console.log("== D64. Stakeholder Data-Readiness -- Wang's six forces + Carnegie 
   const mathHtml = G.stakeholderReadinessMath._html;
   ok(mathHtml.includes("SA-01") && mathHtml.includes("SA-06"), "the raw-score disclosure table lists all 6 agencies by id");
 
+  // stakeholderBand() coverage (/stress-test finding, independent reviewer, 2026-09-03): this
+  // pure function previously had ZERO test coverage -- caught by grep, not assumed. Unit-tested
+  // directly across all 3 bands (not just via whichever composite the live dataset happens to
+  // produce), since a threshold function is exactly the kind of thing that should be tested at
+  // its boundaries, independent of today's data.
+  ok(P.stakeholderBand(0.70) === "g" && P.stakeholderBand(0.65) === "g", "stakeholderBand: >=0.65 is green");
+  ok(P.stakeholderBand(0.50) === "a" && P.stakeholderBand(0.45) === "a", "stakeholderBand: 0.45-0.64 is amber");
+  ok(P.stakeholderBand(0.30) === "r" && P.stakeholderBand(0) === "r", "stakeholderBand: <0.45 is red");
+  // HONEST GAP, stated not hidden: no agency in today's illustrative dataset actually lands in
+  // the red band (lowest composite is City Utilities at ~46%) -- the failing/red visual state of
+  // this whole register is real, reachable code, but not exercised by today's live data. Same
+  // disclosure pattern as the Carnegie-play coverage gap above -- flagged here explicitly rather
+  // than silently leaving stress.cjs to imply a red state was ever actually demonstrated.
+  ok(P.stakeholderAgencies.every((a) => P.stakeholderBand(P.agencyComposite(a)) !== "r"),
+    "sanity: no agency currently lands in the red band on today's data -- the red band is unit-tested above but not demonstrated live, an accepted limitation of this illustrative dataset");
+
   // Citations: real authors/years/journal, no fabricated attribution.
   ok(indexSrc.includes("Wang, F. (2018)") && indexSrc.includes("Government") && indexSrc.includes("Information Quarterly") && indexSrc.includes("536"),
     "the six-forces model cites the real Wang (2018) source, not a vague or invented one");
@@ -10098,6 +10114,23 @@ console.log("== D64. Stakeholder Data-Readiness -- Wang's six forces + Carnegie 
     "the MOU/legal-fix citation names the real Fedorowicz, Gogan & Culnan (2010) authors");
   ok(indexSrc.includes("How to Win Friends and Influence People") && indexSrc.includes("not peer-reviewed research"),
     "Carnegie's book is explicitly framed as a practitioner classic, not peer-reviewed research -- honesty discipline, not silent citation-dropping");
+
+  // docs/HANDOFF.md's §5 Data Model and §7 tab-by-tab tables (/stress-test finding, this same
+  // session): both this round's own build AND the Progress Verification round before it updated
+  // README.md's tab bullets and HANDOFF.md's §2 At-a-glance table, but missed these two OTHER
+  // prose surfaces entirely -- a real, repeated gap, not a one-off. Closing the gate hole here
+  // (verify.md discipline) rather than just fixing the two instances: these are new, targeted
+  // assertions tying HANDOFF.md's §5/§7 content to the real, current feature set, so the NEXT
+  // feature added to this tab has something to fail against if the same two sections get missed
+  // again.
+  ok(handoffSrc.includes("| `GUARDS` | 30 |"),
+    "HANDOFF.md's §5 Data Model table states the real, current GUARDS count (30), not a stale 29");
+  ok(handoffSrc.includes("`CLAIMED_PROGRESS`") && handoffSrc.includes("`STAKEHOLDER_AGENCIES`"),
+    "HANDOFF.md's §5 Data Model table lists both new data arrays added this session, not just the At-a-glance summary");
+  ok(handoffSrc.includes("a live 30-check integrity gate"),
+    "HANDOFF.md's §7 tab-by-tab AI & Data row states the real, current integrity-gate count (30), not a stale 29");
+  ok(handoffSrc.includes("stakeholder data-readiness register"),
+    "HANDOFF.md's §7 tab-by-tab AI & Data row names the Stakeholder Data-Readiness feature, not silently omitted");
 }
 
 console.log("== D62. Self-check: this file's own final assertion count matches README/HANDOFF prose ==");

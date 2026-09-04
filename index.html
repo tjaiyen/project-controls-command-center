@@ -9575,13 +9575,20 @@ var OWNER_DECISIONS=[
    data, including riskAccountability (scored as "how much accountability structures currently
    HELP rather than hinder sharing," not raw exposure) -- so the weakest-force lookup below is a
    plain argmin, no per-force sign-flipping to get wrong.
-   Six deliberately different stories, not six uniform scores: FTA is the model case (a real
-   federal mandate + established reporting infra); the State Environmental Agency is the
-   deliberate "Carnegie's ceiling" case -- its real blocker is legal authority, not willingness,
-   and the recommended play below says so instead of prescribing more charm. Composite readiness
-   is a plain average -- a STATED, illustrative weighting, not calibrated against real outcome
-   data, same honesty standard MATERIAL_ESCALATION_BASELINE_PCT already sets elsewhere on this
-   page. All data synthetic, matching the rest of this program. */
+   Six agencies, not six uniform scores: FTA is the model case (a real federal mandate +
+   established reporting infra); the State Environmental Agency is the deliberate "Carnegie's
+   ceiling" case -- its real blocker is legal authority, not willingness, and the recommended
+   play below says so instead of prescribing more charm. HONEST GAP (found by this feature's own
+   /stress-test round, 2026-09-03): only 4 of the 6 forces (deptCapacity, deptInterest,
+   legalPower, infoDemand) are ever any agency's actual weakest force on today's scores --
+   adminPressure and riskAccountability are comfortably scored across all 6 and never surface as
+   a "weakest force" recommendation, so those two CARNEGIE_PLAY entries are correct and tested
+   (stress.cjs confirms every entry is a real, distinct, non-empty principle) but never actually
+   rendered in a live row today. Not hidden: stated here plainly rather than claiming a
+   demonstrated diversity the current dataset doesn't back up. Composite readiness is a plain
+   average -- a STATED, illustrative weighting, not calibrated against real outcome data, same
+   honesty standard MATERIAL_ESCALATION_BASELINE_PCT already sets elsewhere on this page. All
+   data synthetic, matching the rest of this program. */
 var WANG_FORCES=["adminPressure","legalPower","deptCapacity","deptInterest","riskAccountability","infoDemand"];
 var WANG_FORCE_LABEL={adminPressure:"Administrative pressure", legalPower:"Legal power",
   deptCapacity:"Department capacity", deptInterest:"Department interest",
@@ -9609,11 +9616,18 @@ var STAKEHOLDER_AGENCIES=[
 // legalPower has no Carnegie play by design -- a low score there means the real blocker is legal
 // authority, which persuasion tactics can't fix (Fedorowicz et al. 2010's actual finding: this
 // needs a formal MOU addressing liability, not more charm). The other five map to a specific,
-// real Carnegie principle (verified against the primary text, not paraphrased from memory).
+// real Carnegie principle -- cross-checked against multiple independent web summaries of the
+// primary text, NOT a copy of the 1936 book itself (none exists in this repo or was read here).
+// CORRECTED (/stress-test round, 2026-09-03, independent reviewer): that process still shipped
+// one wrong section number -- deptInterest's play was originally mis-cited as "Six Ways ... #4"
+// when the real position is #5 -- caught by a second, targeted search, not the first pass. The
+// method reduces error, it doesn't eliminate it; an overclaimed "verified against the primary
+// text" here would have been exactly the kind of confidence this file's own rule elsewhere
+// warns against.
 var CARNEGIE_PLAY={
   adminPressure:{principle:"Arouse in the other person an eager want", section:"Fundamental Techniques in Handling People, #3",
     why:"No mandate compels this agency to share — lean on genuine want, not a directive that doesn't exist."},
-  deptInterest:{principle:"Talk in terms of the other person's interests", section:"Six Ways to Make People Like You, #4",
+  deptInterest:{principle:"Talk in terms of the other person's interests", section:"Six Ways to Make People Like You, #5",
     why:"Reframe the ask around what THEIR agency gets back, not what this program needs from them."},
   deptCapacity:{principle:"Make the other person happy about doing the thing you suggest", section:"Nine Ways to Be a Leader, #9",
     why:"The blocker is bandwidth, not resistance — offer to build or automate the export yourself."},
