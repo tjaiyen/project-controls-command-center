@@ -35,9 +35,9 @@ anywhere in this repository. The method is the content, not the numbers.
 | Tabs | 13, grouped into 5 altitudes on the tab rail (Executive · Program Performance · Field & Assurance · Governance & Execution · Reference) |
 | KPIs (with formula/threshold/phase/source/play each) | 20 |
 | KPI families (`KPI_FAMILIES` — Cost/Schedule/Risk/Change/Delivery/Compliance) | 6, each with its own operational question + why-it-matters card on Overview |
-| JS integrity-gate checks (`GUARDS`) | 29, re-run on every page load |
+| JS integrity-gate checks (`GUARDS`) | 30, re-run on every page load |
 | Ingestion-validation checks (`INGEST_GUARDS`) | 2 |
-| SQL/DuckDB parity checks (`pipeline/run_pipeline.py`) | 103, independently re-run and verified this pass. `stress.cjs` now live-verifies this count itself (2026-08-27, "resolve all limitations") when `pipeline/.venv` exists — create it once via `python3 -m venv pipeline/.venv && pipeline/.venv/bin/pip install duckdb`; without it, the check degrades to a loudly-flagged text-presence check rather than a silent one |
+| SQL/DuckDB parity checks (`pipeline/run_pipeline.py`) | 122, independently re-run and verified this pass. `stress.cjs` now live-verifies this count itself (2026-08-27, "resolve all limitations") when `pipeline/.venv` exists — create it once via `python3 -m venv pipeline/.venv && pipeline/.venv/bin/pip install duckdb`; without it, the check degrades to a loudly-flagged text-presence check rather than a silent one |
 | Escalation-matrix rules (`ESCALATION`) | 12, each with a named owner, a clock, and (added 2026-08-26) a stated rationale for why its threshold sits where it does |
 | Glossary terms (each with a live-computed worked example) | 76 |
 | Actions/RAID register items | 17 (6 Issue, 10 Task, 1 Decision) |
@@ -46,7 +46,7 @@ anywhere in this repository. The method is the content, not the numbers.
 | Risks | 7 (added R-07, extreme-weather exposure, 2026-08-26) |
 | Delay events | 4 |
 | Other 2026-08-26 proactive-mechanism additions (§8) | `OWNER_DECISIONS` (3), `SUB_HEALTH` (3), `LABOR_MOBILIZATION` (3), `CARBON_DISCLOSURE` (3), `AUDIT_LOG` (session-only, unbounded fact — see §8) |
-| `stress.cjs` test assertions | 4,020, all passing |
+| `stress.cjs` test assertions | 4,043, all passing |
 | `worker/smoketest.js` assertions (Ask AI backend, §10) | 40, all passing — a 3rd, independent test harness, Node-only, no real network/Cloudflare runtime |
 | Companion pages | `otak.html` (fit brief, 449 lines), `architecture.html` (static pipeline map, 598 lines), `walters-wolf.html` (second-audience fit brief) + `facade.html` (unitized curtain-wall controls dashboard) — added 2026-09-02, merged to `main` 2026-09-03; see their own `README.md` rows and `verify-walters-wolf.cjs`/`verify-facade.cjs` harnesses (not written up in §13 yet — flagged in §18). Also `dc-investment-case.html` (interactive data-center investment case, added 2026-09-03, linked from `walters-wolf.html`) + `docs/Data_Center_Investment_Case_Walters_Wolf.pptx` (companion deck) + `verify-dc-investment-case.cjs` — same §13/§18 gap |
 | Companion backend (never deployed — see §10) | `worker/` — a Cloudflare Worker for the Ask AI feature; `ASK_AI_WORKER_URL` in `index.html` is still the `REPLACE-ME` placeholder |
@@ -287,8 +287,8 @@ Everything below is a real DOM interaction, independently covered by `stress.cjs
   - **Pipeline architecture** (AI & Data) — 12 nodes (6 sources + dbt staging + marts + integrity
     gate + 3 outputs); each source node names the *specific* live field/downstream tab it feeds
     (e.g. the cost ledger names `PKGS[].ac` and the z-score/EWMA controls it feeds), and the
-    integrity-gate node clarifies the dbt-side 103-check count vs. this tab's own live
-    `GUARDS.length` (29) — two independently-run stacks, not one gate wearing two names.
+    integrity-gate node clarifies the dbt-side 122-check count vs. this tab's own live
+    `GUARDS.length` (30) — two independently-run stacks, not one gate wearing two names.
 - **7 hover/click tooltips on `bars()`-rendered charts** (EAC trend, float, CPLI, schedule drift,
   float erosion, productivity, crew cost-per-hour) plus the risk heat map — each shows the real
   underlying numbers, not just a highlight.
@@ -428,7 +428,7 @@ Everything below is a real DOM interaction, independently covered by `stress.cjs
 
 Three layers, each catching a different failure mode:
 
-1. **`GUARDS`** (29 checks, JS, re-run on every page load, AI & Data tab) — reconciliation: does
+1. **`GUARDS`** (30 checks, JS, re-run on every page load, AI & Data tab) — reconciliation: does
    the portfolio BAC equal the sum of package budgets? Does SPI/CPI recompute to the same value
    shown elsewhere? Does the risk exposure equal `Σ P_BAND[p] × cost`? Does every control account
    map to exactly one contract? Does every "current period" figure shown in a trend series read
@@ -446,7 +446,7 @@ Three layers, each catching a different failure mode:
    actual cost, no package with EV > BAC. A different failure class than `GUARDS` (a record that's
    internally consistent but individually implausible vs. one that's inconsistent with the rest of
    the ledger).
-3. **`pipeline/run_pipeline.py`** (103 checks, SQL/DuckDB, offline) — the same ledger built twice,
+3. **`pipeline/run_pipeline.py`** (122 checks, SQL/DuckDB, offline) — the same ledger built twice,
    independently, in two different languages. See §12.
 
 ---
@@ -496,7 +496,7 @@ key — `index.html` is fully static/public and can never hold it. Guardrails, m
 
 ## 11. Testing & verification
 
-**`stress.cjs`** (4,020 assertions, all passing) — stubs the DOM, loads `index.html`'s script
+**`stress.cjs`** (4,043 assertions, all passing) — stubs the DOM, loads `index.html`'s script
 verbatim into that stub, and exercises it exactly like a user would: every tab switch, every
 filter, every drawer, every slider drag, every keyboard interaction. 92 labeled sections (fresh
 `grep -c 'console.log("=='` count, this pass):
@@ -566,7 +566,7 @@ portfolio: {'bac': 1240.0, 'pv': 847.0, 'ev': 819.7, 'ac': 857.6}
 ALL CHECKS PASSED
 ```
 
-103 PASS, 0 FAIL — matching both `index.html`'s own "103 checks" prose and `README.md`'s claim
+122 PASS, 0 FAIL — matching both `index.html`'s own "122 checks" prose and `README.md`'s claim
 exactly, and the portfolio totals match the JS-side tie-out in §2 to the decimal. Requires
 `pip install duckdb`; no other dependency, no network access, no credentials. (Count grew from 54
 to 64 on 2026-08-21, `/stress-test` round: `schema.yml` declared 10 guardrail tests — claim_id
@@ -577,7 +577,10 @@ mislabeled check() string that printed "ev <= pv" for what was actually testing 
 64→65, on 2026-08-25 (a temporal-fence guardrail added to `schema.yml`); 65→101, on 2026-09-02, when
 the schedule-risk composite feature added `fct_schedule_risk`/`stg_risk_register` guardrails; then
 101→103 the same day, when a `/stress-test` finding on that same feature forced the risk-to-package
-link through a real `stg_actions` join instead of a hand-authored column, adding 2 more.)
+link through a real `stg_actions` join instead of a hand-authored column, adding 2 more; then
+103→122 on 2026-09-03, when the progress-verification feature added `fct_progress_verify`/
+`stg_claimed_progress` — 3 parse checks, 8 rows + 8 per-package parity checks + 1 threshold check,
+and 6 schema.yml-mirroring guardrails.)
 The raw claim rows are synthesized to sum back to the dashboard's own PV/EV/AC totals by
 construction (a residual-cents plug, see `run_pipeline.py`'s own `distribute()` comment) — so this
 proof covers the SQL aggregation/formula layer agreeing with the JS layer, not an independently-
@@ -598,8 +601,8 @@ more than a synthetic single-source demo can prove.
   diagram, distinct from `index.html`'s own interactive `#arch` diagram (§8). The README already
   flags this distinction explicitly ("A verified snapshot, not a live render"). The diagram's own
   *drawing* still has no automated check tying it to `index.html`'s `#arch` diagram — if the
-  pipeline architecture changes again, update both by hand. Its **prose counts** (20 KPIs, 29
-  guards, 103 SQL checks, 17 actions) are a different story: `stress.cjs`'s `E.1. architecture.html
+  pipeline architecture changes again, update both by hand. Its **prose counts** (20 KPIs, 30
+  guards, 122 SQL checks, 17 actions) are a different story: `stress.cjs`'s `E.1. architecture.html
   sync` section now reads this file's own source the same way it already read `otak.html`'s, and
   asserts those counts against `index.html`'s live arrays — added 2026-08-21 after a live, 3rd
   stale "twenty-seven" instance was found in this file's own `aria-label` (§18 gap #3/#9), and

@@ -1947,6 +1947,8 @@ join dim_control_account b using (package_id)</pre></div>
 
       <div class="card" style="margin-top:12px" id="gaoCredibilityCard"></div>
 
+      <div class="card" style="margin-top:12px" id="progressVerifyCard"></div>
+
       </details>
       <details class="sec-details" open>
       <summary class="sec-h" style="margin-top:30px"><h3>Embodied-carbon disclosure readiness</h3></summary>
@@ -2172,6 +2174,15 @@ join dim_control_account b using (package_id)</pre></div>
       <div class="sec-h" style="margin-top:34px"><h3>Escalation matrix</h3></div>
       <p class="lede">Thresholds are worthless without a named consequence. Every breach below has an owner
         and a clock. <button type="button" class="btn" data-jump-tab="act" data-jump-el="actFilters">See who owes what, today, on the Actions tab &rarr;</button></p>
+      <p class="lede" style="font-size:12.5px;color:rgb(var(--c-mut))">This isn't just good practice —
+        it's built against a named, studied failure mode. Project-management research calls it the
+        <b style="color:rgb(var(--c-ink))">"mum effect"</b>: a documented reluctance to report a troubled
+        project's real status, driven by organizational, personal, and situational factors — the exact
+        thing a threshold-triggered matrix with a named owner and clock exists to defeat, by making
+        escalation automatic rather than dependent on someone's individual willingness to speak up.
+        (Maseko, Zhou &amp; Tsokota, <i>Education and Information Technologies</i>, Springer, 2020 —
+        a peer-reviewed framework for managing bad-news-reporting reluctance on troubled projects,
+        PMID 32837230.)</p>
       <div class="tw"><table id="escTable" style="min-width:720px"></table></div>
       <details class="dbox" style="margin-top:10px">
         <summary>Why each threshold is set here — for a new team member</summary>
@@ -2613,6 +2624,24 @@ var PKGS = [
  {id:"CP-601",n:"Third-party utilities relocation", bac: 54.0,pv: 45.9,ev: 41.8,ac: 48.3,commit: 51.1,float:-22,cpRem:180,actsP: 79,actsD: 66,ernH: 74000,actH: 83000},
  {id:"CP-701",n:"Systems integration &amp; testing",bac: 46.0,pv: 13.8,ev: 13.1,ac: 13.5,commit: 15.0,float:  0,cpRem:300,actsP: 42,actsD: 34,ernH: 26000,actH: 27000}
 ];
+
+/* Progress Verification (brainstorm-mode addition, 2026-09-03) — claimedPct is a genuinely
+   SEPARATE data source from the ledger above: in reality this comes from GC pay-application
+   (Schedule of Values) submissions, not the owner's own ERP/EVM system, which is exactly why it's
+   attached as its own array rather than a field on PKGS[] itself — a real GC self-report, kept
+   structurally distinct from what the ledger independently verifies. Compares against each
+   package's own ev/bac (the ledger's already-computed, earned/verified % complete) via
+   progressGap in derive() below. CP-501 is the deliberate story: it's the healthiest package on
+   every OTHER metric (best float, best CPLI) — the realistic case for where an inflated claim is
+   easiest to miss, not another problem stacked on an already-flagged package. Method: Cost Value
+   Reconciliation (CVR) plus independent physical-progress verification via site visits — the real,
+   standard construction-industry practice for catching exactly this claimed-vs-verified gap. */
+var CLAIMED_PROGRESS = {
+  "CP-101": 0.730, "CP-102": 0.775, "CP-201": 0.600, "CP-301": 0.720,
+  "CP-401": 0.485, "CP-501": 0.910, "CP-601": 0.785, "CP-701": 0.295
+};
+var CLAIMED_PROGRESS_FLAG_PCT = 0.05; // stated, illustrative threshold — same honesty class as
+                                       // MATERIAL_ESCALATION_BASELINE_PCT elsewhere in this file
 
 /* Front-End Planning completeness (research-backed upgrade, 2026-08-27) -- modeled on the
    Construction Industry Institute's Project Definition Rating Index (PDRI) methodology, NOT a
@@ -3272,9 +3301,13 @@ function derive(p){
      as CPLI=1 (neutral/on-track) rather than dividing by zero; the raw ratio is undefined
      the instant there's nothing left to divide by, not "infinitely healthy" or NaN. */
   var cpli = p.cpRem>0 ? (p.cpRem+p.float)/p.cpRem : 1;
+  // claimedPct comes from CLAIMED_PROGRESS (a separate GC-pay-application data source, not the
+  // ledger) — progressGap is claimed minus verified/earned, the exact discrepancy CVR exists to catch.
+  var claimedPct = CLAIMED_PROGRESS[p.id];
   return {spi:spi, cpi:cpi, eac:eac, vac:p.bac-eac, sv:p.ev-p.pv, cv:p.ev-p.ac,
           pct:p.ev/p.bac, cpli:cpli, bei:p.actsD/p.actsP,
-          pf:p.ernH/p.actH, commitRatio:p.commit/p.bac};
+          pf:p.ernH/p.actH, commitRatio:p.commit/p.bac,
+          claimedPct:claimedPct, progressGap:claimedPct-(p.ev/p.bac)};
 }
 var rows = PKGS.map(function(p){ var d=derive(p); return Object.assign({},p,d); });
 
@@ -10707,7 +10740,17 @@ var GUARDS=[
  {n:"No closed Quality NCR lacks a logged root cause", run:function(){
    var ncrs=ACTIONS.filter(function(a){ return a.src&&a.src.indexOf("Quality NCR")>=0; });
    var bad=ncrs.filter(function(a){ return a.done&&(!a.root||!a.root.trim()); });
-   return [bad.length===0, bad.length+" of "+ncrs.length+" closed without a root cause"];}}
+   return [bad.length===0, bad.length+" of "+ncrs.length+" closed without a root cause"];}},
+ // Progress Verification (brainstorm-mode round, 2026-09-03) -- the CVR/independent-progress-
+ // verification check this dashboard didn't have: is any package's GC-claimed progress
+ // (CLAIMED_PROGRESS[], a separate self-report array, never the ledger itself) materially ahead of
+ // what the ledger's own ev/bac independently supports? Currently fails, deliberately -- CP-501
+ // (the healthiest package on every other metric) really does carry a 9.3pt gap in this synthetic
+ // data, exactly the "looks fine everywhere else" case a claims-verification check exists to catch,
+ // same honest-fail-today discipline as the Contingency Breach guard elsewhere on this page.
+ {n:"No package's claimed progress exceeds verified progress by more than "+pct(CLAIMED_PROGRESS_FLAG_PCT,0), run:function(){
+   var bad=rows.filter(function(r){ return r.progressGap>CLAIMED_PROGRESS_FLAG_PCT; });
+   return [bad.length===0, bad.length+" of "+rows.length+" packages over threshold"+(bad.length?" ("+bad.map(function(r){return r.id;}).join(", ")+")":"")];}}
 ];
 function renderGuards(){
   var res=GUARDS.map(function(g){ var r=g.run(); return {n:g.n,pass:r[0],detail:r[1],src:g.run}; });
@@ -10759,7 +10802,7 @@ function gaoCredibilityChecklist(){
    {characteristic:"Well-documented",status:"pass",
     evidence:"Every one of "+KPIS.length+" KPIs carries a real formula, threshold, source and play field ("+(kpiComplete?"verified, none missing":"gap found")+") — the same invariant GUARDS' own \"KPI registry complete\" check re-confirms on every page load."},
    {characteristic:"Accurate",status:"pass",
-    evidence:"Independently re-derived through a SEPARATE SQL/DuckDB stack — 103 parity checks, all passing, the same ledger proven twice in two languages, to the decimal."},
+    evidence:"Independently re-derived through a SEPARATE SQL/DuckDB stack — 122 parity checks, all passing, the same ledger proven twice in two languages, to the decimal."},
    {characteristic:"Credible",status:"pass",
     evidence:MC.n.toLocaleString("en-US")+"-run Monte Carlo simulation plus "+RISKS.length+" priced risks in an expected-monetary-value register, with a real sensitivity ranking (this tab's own tornado chart) — not a single deterministic number presented as certain."}
   ];
@@ -10781,6 +10824,40 @@ function renderGaoCredibility(){
       return '<tr><th scope="row">'+r.characteristic+'</th>'+
         '<td><span class="pill '+statusCls[r.status]+'">'+statusLabel[r.status]+'</span></td>'+
         '<td style="font-size:12px;color:rgb(var(--c-mut))">'+r.evidence+'</td></tr>';
+    }).join("")+
+    '</tbody></table>';
+}
+/* Progress Verification card (brainstorm-mode addition, 2026-09-03) -- the dedicated, full-picture
+   companion to the single pass/fail line the new GUARDS check above already adds. That check only
+   says whether ANY package breached the threshold; this card shows all 8, side by side, so the
+   real story (CP-501 healthiest-on-every-other-metric, still 9.3pt over) is visible even when the
+   gate is green for every other package. Same table+pill idiom as renderGaoCredibility() directly
+   above -- reused, not a new visual mechanism. claimedPct/progressGap already computed once in
+   derive() and carried on `rows` -- no re-derivation here. */
+function renderProgressVerify(){
+  var el=document.getElementById("progressVerifyCard"); if(!el) return;
+  var bad=rows.filter(function(r){ return r.progressGap>CLAIMED_PROGRESS_FLAG_PCT; });
+  el.innerHTML=
+    '<h3>Progress verification &mdash; GC-claimed vs. ledger-verified</h3>'+
+    '<p class="lede" style="font-size:12.5px;margin-top:5px">Claimed percent complete comes from '+
+    'the GC\'s own pay-application (Schedule of Values) submission &mdash; a genuinely separate '+
+    'source from the earned-value ledger above it, which is derived independently from owner-side '+
+    'quantities. Method: Cost Value Reconciliation (CVR) plus independent physical-progress '+
+    'verification via site visits. A gap beyond '+pct(CLAIMED_PROGRESS_FLAG_PCT,0)+' is flagged '+
+    'regardless of which other metrics on a package look healthy &mdash; '+
+    (bad.length? bad.map(function(r){return r.id;}).join(", ")+" "+(bad.length===1?"is":"are")+
+      " over threshold today, on real computed figures, not a staged example."
+      : "none are over threshold today.")+
+    '</p>'+
+    '<table><thead><tr><th scope="col">Package</th><th scope="col">Claimed</th>'+
+    '<th scope="col">Verified (EV/BAC)</th><th scope="col">Gap</th><th scope="col">Status</th></tr></thead><tbody>'+
+    rows.map(function(r){
+      var over=r.progressGap>CLAIMED_PROGRESS_FLAG_PCT;
+      return '<tr><th scope="row">'+r.id+'</th>'+
+        '<td class="tab-num mono">'+pct(r.claimedPct,1)+'</td>'+
+        '<td class="tab-num mono">'+pct(r.pct,1)+'</td>'+
+        '<td class="tab-num mono">'+pct(r.progressGap,1)+'</td>'+
+        '<td><span class="pill '+(over?"r":"g")+'">'+(over?"FLAGGED":"OK")+'</span></td></tr>';
     }).join("")+
     '</tbody></table>';
 }
@@ -14097,7 +14174,7 @@ renderMcRiskFilter();
 document.getElementById("mcDistTri").setAttribute("aria-pressed", String(state.mcDist==="triangular"));
 document.getElementById("mcDistPert").setAttribute("aria-pressed", String(state.mcDist==="pert"));
 syncMcView(); renderMcMath(); renderPertPlay(); renderGaltonStatic(); renderScen(); renderPrint();
-renderArch(); renderGuards(); renderGaoCredibility(); renderCarbonDisclosure(); renderEnvision(); renderAuditLog(); renderStatControl(); renderZscoreMath(); renderEwmaControl(); renderEwmaMath(); renderHotellingT2(); renderMultiAnomaly(); renderMultiAnomalyMath(); renderIngestGuards();
+renderArch(); renderGuards(); renderGaoCredibility(); renderProgressVerify(); renderCarbonDisclosure(); renderEnvision(); renderAuditLog(); renderStatControl(); renderZscoreMath(); renderEwmaControl(); renderEwmaMath(); renderHotellingT2(); renderMultiAnomaly(); renderMultiAnomalyMath(); renderIngestGuards();
 renderGlossCatBar();
 renderGlossary("");
 renderDomainMap();

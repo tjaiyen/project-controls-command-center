@@ -21,6 +21,7 @@ ROOT = Path(__file__).resolve().parent.parent
 INDEX = ROOT / "index.html"
 MODEL = ROOT / "pipeline" / "models" / "fct_control_account.sql"
 SCHED_MODEL = ROOT / "pipeline" / "models" / "fct_schedule_risk.sql"
+PROGRESS_MODEL = ROOT / "pipeline" / "models" / "fct_progress_verify.sql"
 MONTHS = 22          # months elapsed, mirrors PROGRAM.monthsElapsed
 DATA_DATE = "2026-07-31"
 
@@ -105,6 +106,18 @@ check("exactly 1 of those 4 actions carries a real pkg (only R-01's does, today)
 co_re = re.search(r'coCycleDays:\s*(\d+),\s*coCycleTarget:\s*(\d+)', src)
 check("parsed PROGRAM.coCycleDays/coCycleTarget from index.html", co_re is not None)
 CO_CYCLE_DAYS, CO_CYCLE_TARGET = (int(co_re.group(1)), int(co_re.group(2))) if co_re else (0, 0)
+
+# Progress verification (brainstorm-mode round, 2026-09-03): regex-parsed straight out of
+# index.html's own CLAIMED_PROGRESS object/threshold literal, same discipline as PKGS/RISKS/
+# ACTIONS above -- no hand-retyped copy of the 8 values to silently drift from the JS source.
+claimed_re = re.search(r'var CLAIMED_PROGRESS\s*=\s*\{(.*?)\};', src, re.S)
+check("parsed CLAIMED_PROGRESS object from index.html", claimed_re is not None)
+CLAIMED_PROGRESS = {m.group(1): float(m.group(2))
+                     for m in re.finditer(r'"(CP-\d+)":\s*([\d.]+)', claimed_re.group(1))} if claimed_re else {}
+check("parsed 8 claimed-progress values from index.html", len(CLAIMED_PROGRESS) == 8, f"got {len(CLAIMED_PROGRESS)}")
+flag_re = re.search(r'var CLAIMED_PROGRESS_FLAG_PCT\s*=\s*([\d.]+);', src)
+check("parsed CLAIMED_PROGRESS_FLAG_PCT from index.html", flag_re is not None)
+CLAIMED_PROGRESS_FLAG_PCT = float(flag_re.group(1)) if flag_re else 0.05
 
 P_BAND = {1: 0.10, 2: 0.30, 3: 0.50, 4: 0.70, 5: 0.90}  # must match index.html's P_BAND verbatim
 
@@ -240,15 +253,16 @@ for p in PKGS:
 # only 4 of schema.yml's declared tests were actually implemented (and one of those 4 had a
 # mislabeled check() string, "ev <= pv" printed for what was actually an ev<=bac test — fixed
 # below too), silently understating what README/HANDOFF's "enforces the guardrails in
-# models/schema.yml" claim promised. All 23 checks below map 1:1 to a schema.yml test declaration.
+# models/schema.yml" claim promised. All 29 checks below map 1:1 to a schema.yml test declaration.
 # (/stress-test finding, 2026-08-22: this comment itself still said "10" after later rounds grew
 # the real count to 14 — the exact class of drift this comment already exists to warn against.
 # 2026-08-26: grew to 15 with the claim_month temporal-fence check below.
 # 2026-09-02: grew to 21 with the 6 fct_schedule_risk/stg_risk_register guardrails below (schema.yml's
 # schedule-risk block), then to 23 with 2 stg_actions guardrails added the same day when a
 # /stress-test finding forced the risk-to-package link to route through a real stg_actions join
-# instead of a hand-authored column -- update this count again the next time a check is added, or
-# this becomes the same stale-number bug it warns about.)
+# instead of a hand-authored column. 2026-09-03: grew to 29 with the 6 stg_claimed_progress/
+# fct_progress_verify guardrails below (progress-verification feature) -- update this count again
+# the next time a check is added, or this becomes the same stale-number bug it warns against.)
 con.execute("create table fct_control_account as " + MODEL.read_text())
 
 # fct_control_account model-level invariants (schema.yml's 3 dbt_utils.expression_is_true tests)
@@ -316,6 +330,52 @@ act_null = con.execute("select count(*) from stg_actions where id is null").fetc
 check("guardrail: stg_actions.id unique", act_dup == 0, f"{act_dup} duplicates")
 check("guardrail: stg_actions.id not null", act_null == 0, f"{act_null} nulls")
 
+# fct_progress_verify + stg_claimed_progress (progress verification, 2026-09-03) -- claimed_pct
+# is a genuinely separate source from the earned-value ledger (fct_control_account, already
+# materialized above), same "two independent numbers, one join" shape as everything else in this
+# section. fct_progress_verify.sql is a real mart-on-mart reference (joins the already-materialized
+# fct_control_account table), not an inline re-derivation.
+con.execute("create table stg_claimed_progress(package_id varchar primary key, claimed_pct double)")
+con.executemany("insert into stg_claimed_progress values (?,?)", list(CLAIMED_PROGRESS.items()))
+con.execute("create table fct_progress_verify as " + PROGRESS_MODEL.read_text())
+pv_rows = con.execute("select * from fct_progress_verify").fetchall()
+pv_cols = [d[0] for d in con.description]
+pv_by_id = {r[0]: dict(zip(pv_cols, r)) for r in pv_rows}
+check("fct_progress_verify returned 8 rows", len(pv_rows) == 8, f"got {len(pv_rows)}")
+
+# Parity: SQL's progress_gap == claimed_pct minus the SAME verified pct fct_control_account already
+# proved correct in section 4 above (by_id[...]["pct_complete"]) -- an independent Python
+# recomputation, not a second read of the same SQL result.
+for pkg_id, claimed in CLAIMED_PROGRESS.items():
+    verified = by_id[pkg_id]["pct_complete"]
+    py_gap = claimed - verified
+    sql_gap = pv_by_id[pkg_id]["progress_gap"]
+    check(f"{pkg_id} progress_gap: SQL == independent Python", abs(sql_gap - py_gap) < 1e-9,
+          f"sql={sql_gap:.4f} py={py_gap:.4f}")
+
+# Threshold check mirrors index.html's own GUARDS entry exactly (same CLAIMED_PROGRESS_FLAG_PCT,
+# parsed above, not hand-retyped) -- proves the two independently-run stacks agree on WHICH
+# package(s) breach it, not just that the raw numbers match.
+flagged = [pid for pid, r in pv_by_id.items() if r["progress_gap"] > CLAIMED_PROGRESS_FLAG_PCT]
+check(f"exactly 1 package exceeds the {CLAIMED_PROGRESS_FLAG_PCT:.0%} claimed-vs-verified threshold, matching index.html's GUARDS check",
+      len(flagged) == 1 and flagged[0] == "CP-501", f"flagged={flagged}")
+
+# fct_progress_verify / stg_claimed_progress guardrails (schema.yml's progress-verification block)
+claimed_dup   = con.execute("select count(*) - count(distinct package_id) from stg_claimed_progress").fetchone()[0]
+claimed_null  = con.execute("select count(*) from stg_claimed_progress where package_id is null").fetchone()[0]
+claimed_orphan = con.execute("""select count(*) from stg_claimed_progress s
+                                 left join dim_control_account d on s.package_id = d.package_id
+                                 where d.package_id is null""").fetchone()[0]
+claimed_bad   = con.execute("select count(*) from stg_claimed_progress where claimed_pct not between 0 and 1").fetchone()[0]
+pv_dup        = con.execute("select count(*) - count(distinct package_id) from fct_progress_verify").fetchone()[0]
+pv_null       = con.execute("select count(*) from fct_progress_verify where package_id is null").fetchone()[0]
+check("guardrail: stg_claimed_progress.package_id unique", claimed_dup == 0, f"{claimed_dup} duplicates")
+check("guardrail: stg_claimed_progress.package_id not null", claimed_null == 0, f"{claimed_null} nulls")
+check("guardrail: stg_claimed_progress.package_id relationships to dim_control_account", claimed_orphan == 0, f"{claimed_orphan} orphaned rows")
+check("guardrail: stg_claimed_progress.claimed_pct within [0, 1]", claimed_bad == 0, f"{claimed_bad} violations")
+check("guardrail: fct_progress_verify.package_id unique", pv_dup == 0, f"{pv_dup} duplicates")
+check("guardrail: fct_progress_verify.package_id not null", pv_null == 0, f"{pv_null} nulls")
+
 # --- 6. Emit the proof artifact --------------------------------------------
 # checks{} added (/stress-test finding, 2026-08-27): index.html's own "65 parity checks" claim
 # (the GAO-credibility-checklist card, the architecture-diagram card) previously had no live
@@ -333,6 +393,7 @@ out = {
         "ac":  round(sum(by_id[p["id"]]["ac"] for p in PKGS), 2),
     },
     "schedule_risk": sched_by_id,
+    "progress_verify": pv_by_id,
     "checks": {
         "total": total_checks,
         "passed": total_checks - len(failures),

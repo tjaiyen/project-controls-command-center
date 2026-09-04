@@ -75,3 +75,23 @@ models:
     columns:
       - name: package_id
         tests: [unique, not_null]
+
+  - name: stg_claimed_progress
+    columns:
+      - name: package_id
+        tests:
+          - unique
+          - not_null
+          - relationships:
+              to: ref('dim_control_account')
+              field: package_id
+      - name: claimed_pct
+        tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0
+              max_value: 1        # a claim can't exceed 100% complete
+
+  - name: fct_progress_verify
+    columns:
+      - name: package_id
+        tests: [unique, not_null]

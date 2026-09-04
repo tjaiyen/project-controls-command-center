@@ -36,7 +36,7 @@ function livePipelineCheckCount() {
   // `SKIP_LIVE_PIPELINE=1 node stress.cjs` skips it (loudly, same as the other degraded paths),
   // falling back to the text-presence-only check.
   if (process.env.SKIP_LIVE_PIPELINE) {
-    console.log("  [degraded] SKIP_LIVE_PIPELINE set — skipping the live SQL/DuckDB parity-check verification by request. The '103 parity checks' assertions below fall back to a text-presence-only check.");
+    console.log("  [degraded] SKIP_LIVE_PIPELINE set — skipping the live SQL/DuckDB parity-check verification by request. The '122 parity checks' assertions below fall back to a text-presence-only check.");
     return null;
   }
   // Accepted, stated gap (/stress-test finding, independent reviewer, 2026-08-27): this assumes a
@@ -46,7 +46,7 @@ function livePipelineCheckCount() {
   // rule calls a lie of omission when left unstated. Stated here, not silently left as unknown.
   const venvPy = DIR + "pipeline/.venv/bin/python3";
   if (!fs.existsSync(venvPy)) {
-    console.log("  [degraded] pipeline/.venv not found — skipping the live SQL/DuckDB parity-check verification (run `python3 -m venv pipeline/.venv && pipeline/.venv/bin/pip install duckdb` once to enable it, or set SKIP_LIVE_PIPELINE=1 to silence this note). The '103 parity checks' assertions below fall back to a text-presence-only check.");
+    console.log("  [degraded] pipeline/.venv not found — skipping the live SQL/DuckDB parity-check verification (run `python3 -m venv pipeline/.venv && pipeline/.venv/bin/pip install duckdb` once to enable it, or set SKIP_LIVE_PIPELINE=1 to silence this note). The '122 parity checks' assertions below fall back to a text-presence-only check.");
     return null;
   }
   try {
@@ -1781,9 +1781,14 @@ const guardFails = (G.aiGuards._html.match(/>FAIL</g) || []).length;
 // independent re-derivation of that specific row.
 // 28->29 (brainstorm-mode round, 2026-08-26): the QA/QC-to-critical-path closure gate (item #3)
 // added one new real check.
-ok(guardPasses === 29 && guardFails === 0, "integrity gate: 29 PASS, 0 FAIL",
+// 29->30 (brainstorm-mode round, 2026-09-03): the progress-verification check (claimed vs.
+// ledger-verified) added -- and it genuinely FAILS on real data (CP-501's real 9.3pt gap), so the
+// gate is no longer all-green before the demo toggle is even touched. Not a bug: this is the same
+// honest-not-sanitized posture the rest of the page holds to -- see the dedicated
+// progressVerifyCard for the full per-package picture behind this one line.
+ok(guardPasses === 29 && guardFails === 1, "integrity gate: 29 PASS, 1 FAIL (the progress-verification check, genuinely red on real data)",
    guardPasses + " pass / " + guardFails + " fail");
-has("aiGuards", "GREEN", "gate shows GREEN");
+has("aiGuards", "1 FAILING", "gate shows 1 FAILING (not GREEN) -- the progress-verification check is a real, standing finding, not a demo artifact");
 // the header's own stated count must equal what actually rendered — a stray trailing comma in
 // the GUARDS array literal previously created a silent array hole (GUARDS.length said 28, only
 // 27 checks actually ran/rendered) that no prior assertion caught since it only checked the pill
@@ -4340,7 +4345,7 @@ console.log("== D16. tab-rail hover-preview mini-drawer (brainstorm-mode nav rou
     port: { q: "How is this program doing against the rest of the agency's portfolio?",
       note: "Agency-level rollup across 4 lines of business — one line read live off this program's own totals, three shown as summaries only." },
     ai: { q: "Can the numbers on every other tab be trusted?",
-      note: "Pipeline architecture, the SQL model, a live 29-check integrity gate, and control charts on the one series with genuine variance." },
+      note: "Pipeline architecture, the SQL model, a live 30-check integrity gate, and control charts on the one series with genuine variance." },
     fw: { q: "What governance does this program actually run on?",
       note: "Phase playbook, WBS/CBS/OBS/ABS mapping, phase-gate governance with a live Gate 5 hard stop, and the full KPI reference library." },
     act: { q: "What's open, who owns it, and what's gone stale?",
@@ -5023,9 +5028,10 @@ console.log("== D25. whole-repo /stress-test round -- pipeline comment + dead CS
   // 2026-09-02: grew 15 -> 21 with the fct_schedule_risk/stg_risk_register guardrails (schedule-risk
   // composite addition), then 21 -> 23 with 2 stg_actions guardrails the same day, when a
   // /stress-test finding forced the risk-to-package link through a real join instead of a
-  // hand-authored column.
-  ok(realCheckCount === 23, "sanity: the pipeline really does have 23 real guardrail checks", String(realCheckCount));
-  ok(pipelineSrc.indexOf("All 23 checks below") >= 0, "the pipeline's own comment states the real, current check count, not a stale earlier one");
+  // hand-authored column. 2026-09-03: grew 23 -> 29 with the stg_claimed_progress/
+  // fct_progress_verify guardrails (progress-verification feature).
+  ok(realCheckCount === 29, "sanity: the pipeline really does have 29 real guardrail checks", String(realCheckCount));
+  ok(pipelineSrc.indexOf("All 29 checks below") >= 0, "the pipeline's own comment states the real, current check count, not a stale earlier one");
   ok(indexSrc.indexOf(".inf{color:var(--c-pill-i)}") === -1, "the dead .inf CSS rule (zero markup/JS usages, confirmed by a full-file word-boundary sweep) has been removed");
   ok(indexSrc.indexOf("--c-pill-i") >= 0, "the underlying --c-pill-i token itself is still used elsewhere (.pill.i/.ticon.i/RAG.i) -- only the unused .inf shorthand was dead, not the color");
 }
@@ -6255,33 +6261,36 @@ console.log("== D41. Change-pipeline/contract-register upgrade -- inline reconci
 
 console.log("== D42. Integrity-gate failure demo -- 'Try it' toggle shows a real FAIL, not a screenshot of one (2026-08-24) ==");
 {
-  // sanity: default (toggle off) state is genuinely all-green -- D40's own guardPasses/guardFails
-  // assertion already proves this at page-init; re-confirm here that the new toggle didn't change
-  // default behavior at all
+  // sanity: default (toggle off) state -- D40's own guardPasses/guardFails assertion already
+  // proves this at page-init; re-confirm here that the new toggle didn't change default behavior.
+  // No longer all-green (2026-09-03): the progress-verification check (D-round, same date) is a
+  // real, standing failure on real data (CP-501's genuine 9.3pt claimed-vs-verified gap), not a
+  // demo artifact -- so the honest baseline here is 29 PASS / 1 FAIL, same as D40 established.
   ok(P.state.guardsDemo === false, "sanity: guardsDemo starts false -- the real, unmodified gate");
-  ok((G.aiGuards._html.match(/>FAIL</g) || []).length === 0, "sanity: gate is genuinely all-green before the demo toggle is touched");
+  ok((G.aiGuards._html.match(/>FAIL</g) || []).length === 1, "sanity: gate carries exactly the one standing progress-verification failure before the demo toggle is touched");
 
   // flip the toggle the same way a real click on #guardsDemoToggle would (its change listener just
   // sets state.guardsDemo and calls renderGuards() -- exercised directly here since fire() drives
   // click/keydown, not a checkbox's own change event)
   P.state.guardsDemo = true; P.renderGuards();
   const html = G.aiGuards._html;
-  ok((html.match(/>FAIL</g) || []).length === 1, "exactly 1 of the 29 checks now genuinely fails, not a fabricated count");
+  ok((html.match(/>FAIL</g) || []).length === 2, "toggle adds exactly 1 more genuine failure on top of the standing one -- 2 of 30 checks, not a fabricated count");
   ok((html.match(/>PASS</g) || []).length === 28, "the other 28 checks are untouched and still genuinely pass");
-  ok(html.includes("1 FAILING"), "gate header pill flips to '1 FAILING', reusing the same real pass/fail count logic as the always-green case");
-  ok(!html.includes("GREEN"), "gate header no longer claims GREEN once a real check disagrees");
+  ok(html.includes("2 FAILING"), "gate header pill flips to '2 FAILING', reusing the same real pass/fail count logic as the standing-failure case");
+  ok(!html.includes("GREEN"), "gate header does not claim GREEN once real checks disagree");
   // the simulated detail value is what actually disagreed -- computed here from the real T.bac,
   // not hand-typed, so this fails honestly if the real BAC ever changes
   ok(html.includes(m(T.bac - 0.5)), "the failing row shows the real simulated-wrong value ($0.5M off T.bac), not a placeholder", m(T.bac - 0.5));
   ok(idsA.includes("guardsDemoToggle"), "the 'Try it' checkbox markup exists");
 
-  // toggling back off restores the exact original all-green state -- proves this is a real swap-
-  // and-restore, not a one-way mutation of GUARDS/PKGS/T
+  // toggling back off restores the exact original 1-failure baseline -- proves this is a real
+  // swap-and-restore of the ONE demo check, not a one-way mutation of GUARDS/PKGS/T, and not a
+  // side effect on the separate, always-real progress-verification failure
   P.state.guardsDemo = false; P.renderGuards();
   const restored = G.aiGuards._html;
-  ok((restored.match(/>FAIL</g) || []).length === 0 && (restored.match(/>PASS</g) || []).length === 29,
-    "toggling off restores all 29 PASS, 0 FAIL -- the underlying PKGS/T.bac were never actually touched");
-  has("aiGuards", "GREEN", "gate reads GREEN again after toggling the demo back off");
+  ok((restored.match(/>FAIL</g) || []).length === 1 && (restored.match(/>PASS</g) || []).length === 29,
+    "toggling off restores 29 PASS, 1 FAIL -- the underlying PKGS/T.bac were never actually touched, and the standing progress-verification failure is unaffected");
+  has("aiGuards", "1 FAILING", "gate still reads 1 FAILING (not GREEN) after toggling the demo back off");
 }
 
 console.log("== D43. UX upgrade round -- 4 more anchor rails, standardized drill-down close buttons, table overflow-wrap/scope=col fixes, sCoMix label fix, RAG glossary entry (brainstorm-mode round, 2026-08-24) ==");
@@ -8185,9 +8194,9 @@ ok(archSrc.includes("20 metrics, 6 families") && archSrc.includes("20 metrics ac
 ok(P.kpis.length === 20, "index.html's live KPIS array actually has 20 entries, matching architecture.html's claim", String(P.kpis.length));
 // 66-check -> 101-check (schedule-risk composite, 2026-09-02) -- kept in sync with the
 // LIVE_PIPELINE_CHECKS-driven checks above rather than left as a stale static literal.
-ok(archSrc.includes("29 live checks (browser)") && archSrc.includes("29 browser checks plus a separate 103-check SQL pipeline"),
-  "architecture.html's '29 checks' prose is present in both the diagram box and the legend table -- 28->29, brainstorm-mode round, 2026-08-26 (item #3's QA/QC closure gate)");
-ok(P.guards.length === 29, "index.html's live GUARDS array actually has 29 entries, matching architecture.html's claim", String(P.guards.length));
+ok(archSrc.includes("30 live checks (browser)") && archSrc.includes("30 browser checks plus a separate 122-check SQL pipeline"),
+  "architecture.html's '30 checks' prose is present in both the diagram box and the legend table -- 29->30, progress-verification round, 2026-09-03");
+ok(P.guards.length === 30, "index.html's live GUARDS array actually has 30 entries, matching architecture.html's claim", String(P.guards.length));
 // 64 -> 65 (docs-currency /stress-test round, 2026-08-26): the temporal-fence guardrail added to
 // pipeline/run_pipeline.py in commit 2e52f5f (Aug 25 -- a real, live pipeline check, not just a
 // prose count) bumped the total check() count by one. Confirmed by ACTUALLY installing duckdb
@@ -8197,8 +8206,8 @@ if (LIVE_PIPELINE_CHECKS) {
   ok(archSrc.includes("+ " + LIVE_PIPELINE_CHECKS.total + "-check SQL pipeline") && LIVE_PIPELINE_CHECKS.failed === 0,
     "architecture.html's SQL-pipeline check count matches a LIVE run of pipeline/run_pipeline.py this session (resolved -- no longer a static-only assumption)", JSON.stringify(LIVE_PIPELINE_CHECKS));
 } else {
-  ok(archSrc.includes("+ 103-check SQL pipeline"),
-    "architecture.html cites the 103-check SQL pipeline figure (degraded: no local pipeline/.venv found, text-presence check only -- see console note above)");
+  ok(archSrc.includes("+ 122-check SQL pipeline"),
+    "architecture.html cites the 122-check SQL pipeline figure (degraded: no local pipeline/.venv found, text-presence check only -- see console note above)");
 }
 // README.md/docs/HANDOFF.md added to this live-count sweep (/stress-test finding, independent
 // reviewer, 2026-09-03): both cited a stale "66"/"65-check" figure with ZERO test coverage tying
@@ -8215,10 +8224,10 @@ if (LIVE_PIPELINE_CHECKS) {
   ok(handoffSrc.includes("dbt-side " + LIVE_PIPELINE_CHECKS.total + "-check count"),
     "docs/HANDOFF.md's pipeline check count matches a LIVE run of pipeline/run_pipeline.py this session");
 } else {
-  ok(readmeSrc.includes("(103 checks,") && readmeSrc.includes("103 parity checks"),
-    "README.md cites the 103-check pipeline figure (degraded: no local pipeline/.venv found, text-presence check only)");
-  ok(handoffSrc.includes("dbt-side 103-check count"),
-    "docs/HANDOFF.md cites the 103-check pipeline figure (degraded: no local pipeline/.venv found, text-presence check only)");
+  ok(readmeSrc.includes("(122 checks,") && readmeSrc.includes("122 parity checks"),
+    "README.md cites the 122-check pipeline figure (degraded: no local pipeline/.venv found, text-presence check only)");
+  ok(handoffSrc.includes("dbt-side 122-check count"),
+    "docs/HANDOFF.md cites the 122-check pipeline figure (degraded: no local pipeline/.venv found, text-presence check only)");
 }
 ok(archSrc.includes("17 tracked items"), "architecture.html's '17 tracked items' prose is present");
 ok(P.actions.length === 17, "index.html's live ACTIONS array actually has 17 entries, matching architecture.html's claim", String(P.actions.length));
@@ -8347,8 +8356,13 @@ ok(!/twelve[\s-]?input/i.test(indexSrc) && !/twelve[\s-]?input/i.test(fs.readFil
   // field (computed from cpli/RISKS/PROGRAM by scheduleRiskScore(), same as spi/cpi/eac/etc.
   // already excluded here), not a 12th raw input -- the 11-raw-inputs invariant is correctly
   // unchanged by this addition, not bumped.
+  // claimedPct/progressGap added to the exclude list (progress-verification, 2026-09-03):
+  // claimedPct is a genuinely separate raw input in reality (GC pay-app data), but in THIS
+  // dashboard's synthetic dataset it's still keyed straight off CLAIMED_PROGRESS[p.id] inside
+  // derive(), same mechanism as every other derived field here -- progressGap is unambiguously
+  // derived (claimedPct minus pct). Neither bumps the 11-raw-inputs count.
   const pkgKeys = Object.keys(P.rows[0]).filter(k => !["id", "n", "spi", "cpi", "eac", "vac", "sv", "cv",
-    "pct", "cpli", "bei", "pf", "commitRatio", "schedRisk"].includes(k));
+    "pct", "cpli", "bei", "pf", "commitRatio", "schedRisk", "claimedPct", "progressGap"].includes(k));
   ok(pkgKeys.length === 11, "control-account ledger record genuinely carries 11 raw inputs",
     pkgKeys.join(","));
 }
@@ -9665,7 +9679,7 @@ console.log("== D56. GAO cost-estimate credibility checklist (research-backed up
     ok(accurate.evidence.includes(LIVE_PIPELINE_CHECKS.total + " parity checks") && LIVE_PIPELINE_CHECKS.failed === 0,
       "Accurate's evidence cites a count that matches a LIVE run of pipeline/run_pipeline.py this session (resolved -- no longer a static-only assumption)", JSON.stringify(LIVE_PIPELINE_CHECKS));
   } else {
-    ok(accurate.evidence.includes("103 parity checks"), "Accurate's evidence cites the real SQL/DuckDB parity-check count (degraded: no local pipeline/.venv found, text-presence check only -- see console note above)");
+    ok(accurate.evidence.includes("122 parity checks"), "Accurate's evidence cites the real SQL/DuckDB parity-check count (degraded: no local pipeline/.venv found, text-presence check only -- see console note above)");
   }
   const credible = rows.find((r) => r.characteristic === "Credible");
   ok(credible.evidence.includes(P.mc.n.toLocaleString("en-US")) && credible.evidence.includes(String(P.risks.length)), "Credible's evidence cites the real Monte Carlo run count and real risk-register size, not hardcoded numbers");
@@ -9830,10 +9844,10 @@ console.log("== D59. UX/UI upgrade round -- interactivity infrastructure reuse (
   });
   has("libTable", "See it live", "libTable's per-row jump links carry the real, consistent label text");
 
-  // Item 4: "how this is actually computed" disclosures on all 29 integrity-gate checks --
+  // Item 4: "how this is actually computed" disclosures on all 30 integrity-gate checks --
   // independently verified the disclosed source IS each check's own real run function, not a
   // hand-authored paraphrase that could drift from what actually ran.
-  ok(P.guards.length === 29, "sanity: still 29 real guards", String(P.guards.length));
+  ok(P.guards.length === 30, "sanity: still 30 real guards", String(P.guards.length));
   P.guards.forEach((g) => {
     const src = g.run.toString();
     ok(G.aiGuards._html.includes(escHtmlIndependent(src)), "the integrity-gate disclosure for \"" + g.n + "\" shows its own real run() source, verbatim");
@@ -9968,6 +9982,54 @@ console.log("== D61. Schedule risk composite (brainstorm-mode addition, 2026-09-
   const schemaYml = fs.readFileSync(DIR + "pipeline/models/schema.yml", "utf8");
   ok(schemaYml.includes("fct_schedule_risk") && schemaYml.includes("stg_risk_register") && schemaYml.includes("stg_actions"),
     "schema.yml declares guardrail tests for all three new/changed models");
+}
+
+console.log("== D63. Progress Verification -- GC-claimed vs. ledger-verified (brainstorm-mode round, 2026-09-03) ==");
+{
+  // GUARDS: the new 30th check is real, generically rendered (no bespoke wiring needed -- confirmed
+  // by directly reading renderGuards()'s own loop over GUARDS[] before this round started), and it
+  // genuinely fails today on real data. Derive the expected flagged set from P.rows itself rather
+  // than hand-typing "CP-501" -- if the underlying synthetic data ever changes, this assertion
+  // follows it instead of silently asserting a stale package id.
+  const flagged = P.rows.filter(r => r.progressGap > 0.05);
+  const ok8 = P.rows.length === 8;
+  ok(ok8, "sanity: still 8 control accounts in the ledger (progressGap threshold assumed 8 rows)", String(P.rows.length));
+  ok(flagged.length === 1 && flagged[0].id === "CP-501",
+    "exactly one package (CP-501) is genuinely over the 5% claimed-vs-verified threshold on real computed figures, not a fabricated example",
+    flagged.map(r => r.id + ":" + (r.progressGap * 100).toFixed(1) + "%").join(","));
+  ok(P.rows.every(r => r.claimedPct > 0 && r.claimedPct <= 1), "every package carries a claimedPct in (0,1]");
+  ok(P.rows.every(r => Math.abs(r.progressGap - (r.claimedPct - r.pct)) < 1e-9),
+    "progressGap is exactly claimedPct minus verified pct (EV/BAC) for every package, independently re-derived here");
+
+  const guardEntry = P.guards.find(g => g.n.includes("claimed progress"));
+  ok(!!guardEntry, "the new GUARDS entry's name is present and findable by content, not just by array position");
+  if (guardEntry) {
+    const [pass, detail] = guardEntry.run();
+    ok(pass === false, "the progress-verification GUARDS check genuinely returns fail today (not a hand-typed FAIL badge)");
+    ok(detail.includes("CP-501"), "the check's own detail string names the real offending package", detail);
+  }
+
+  // Dedicated card: full 8-row picture, independent of the single pass/fail GUARDS line above.
+  // Rendered once at page-init (same as gaoCredibilityCard beside it) -- read directly, no re-render.
+  const cardHtml = G.progressVerifyCard._html;
+  ok(cardHtml.includes("Progress verification"), "the dedicated Progress Verification card rendered a real heading, not blank");
+  ok(cardHtml.includes("Cost Value Reconciliation") && cardHtml.includes("CVR"),
+    "the card cites the real methodology (Cost Value Reconciliation / CVR), not an invented one");
+  P.rows.forEach(r => {
+    ok(cardHtml.includes(r.id), "progressVerifyCard lists " + r.id);
+  });
+  ok(cardHtml.includes("FLAGGED"), "at least one row shows the FLAGGED status pill (matches the genuinely-failing GUARDS check above)");
+  ok((cardHtml.match(/>OK</g) || []).length === 7, "exactly 7 of 8 packages show OK status, matching the one genuine flag", String((cardHtml.match(/>OK</g) || []).length));
+
+  // Escalation Matrix: the mum-effect citation is static markup (a lede paragraph), not
+  // JS-rendered -- confirmed present + names the real, verified authors (Maseko, Zhou & Tsokota,
+  // PMID 32837230), not the fabricated "Mahwapi & Musonda" name this session caught and corrected
+  // itself on before it ever reached the file.
+  ok(indexSrc.includes('"mum effect"'), "Escalation Matrix cites the real, named 'mum effect' research pattern");
+  ok(indexSrc.includes("Maseko, Zhou") && indexSrc.includes("Tsokota") && indexSrc.includes("32837230"),
+    "the citation names the real, verified authors and PMID, not a fabricated or placeholder attribution");
+  ok(!indexSrc.includes("Mahwapi") && !indexSrc.includes("Musonda"),
+    "the earlier fabricated author names never made it into the shipped file");
 }
 
 console.log("== D62. Self-check: this file's own final assertion count matches README/HANDOFF prose ==");
