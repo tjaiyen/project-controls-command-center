@@ -10897,9 +10897,68 @@ var GUARDS=[
    var bad=rows.filter(function(r){ return r.progressGap>CLAIMED_PROGRESS_FLAG_PCT; });
    return [bad.length===0, bad.length+" of "+rows.length+" packages over threshold"+(bad.length?" ("+bad.map(function(r){return r.id;}).join(", ")+")":"")];}}
 ];
+/* Data-integrity streak counter (upgrade: guards-streak-counter, 2026-09-05) -- the Integrity gate
+   below already re-derives GUARDS.length checks live on every page load and reports the outcome
+   for THIS load only; it had no memory of any load before this one. This borrows the real
+   construction-site "days since last incident" convention: a persisted counter of consecutive
+   clean loads, plus the date and cause of the last one that wasn't. Reads the SAME `fails` value
+   renderGuards() below already computes -- no second, parallel pass/fail concept -- so it resets
+   the instant a check fails and can never claim more confidence than today's own live re-derivation
+   supports. Deliberately does NOT persist while the "Try it" failure-injection demo
+   (state.guardsDemo) is on: that toggle is explicitly illustrative (same posture as
+   circuitTripped/quarantineDemo elsewhere in this file, neither of which persists either) --
+   letting a simulated $0.5M drafting error permanently stamp a real "last failure" into
+   localStorage would be exactly the overstated-or-understated confidence this feature exists to
+   prevent. One tick per page load (matches this file's own "session" vocabulary, e.g.
+   renderChangeWatch's "since your last visit"), guarded by _guardsStreakTicked so re-toggling the
+   demo mid-session -- which re-runs renderGuards() with the real checks again -- can't double-count
+   one load as two clean sessions. */
+var GUARDS_STREAK_KEY="pccGuardsStreak";
+var _guardsStreakTicked=false;
+function loadGuardsStreak(){
+  try{
+    var raw=window.localStorage&&window.localStorage.getItem(GUARDS_STREAK_KEY);
+    if(raw){ var rec=JSON.parse(raw); if(rec&&typeof rec.streak==="number") return rec; }
+  }catch(e){}
+  return {streak:0,lastFailDate:null,lastFailCause:null};
+}
+function saveGuardsStreak(rec){
+  try{ if(window.localStorage) window.localStorage.setItem(GUARDS_STREAK_KEY,JSON.stringify(rec)); }catch(e){}
+}
+function updateGuardsStreak(fails,failCause){
+  var rec=loadGuardsStreak();
+  if(state.guardsDemo || _guardsStreakTicked) return rec; // illustrative, or already recorded this load
+  _guardsStreakTicked=true;
+  var today=new Date().toISOString().slice(0,10);
+  rec=fails
+   ? {streak:0,lastFailDate:today,lastFailCause:failCause||"unnamed check"}
+   : {streak:rec.streak+1,lastFailDate:rec.lastFailDate,lastFailCause:rec.lastFailCause};
+  saveGuardsStreak(rec);
+  return rec;
+}
+function guardsStreakLine(fails,failCause){
+  var real=loadGuardsStreak();
+  if(state.guardsDemo){
+    // Never the word "GREEN" here (/stress-test invariant, D42: "gate header does not claim GREEN
+    // once real checks disagree") -- this branch only ever renders while the demo toggle has made
+    // a real check fail, so "clean" carries the same meaning without tripping that guarantee.
+    return '<span class="pill a">SIMULATED</span> This "Try it" failure is illustrative only and is not '+
+     'recorded &mdash; the real streak is untouched: <b>'+real.streak+' consecutive clean session'+
+     (real.streak===1?"":"s")+'</b>'+(real.lastFailDate?", last failure "+real.lastFailDate+" ("+real.lastFailCause+").":".");
+  }
+  var rec=updateGuardsStreak(fails,failCause);
+  if(fails){
+    return '<b style="color:rgb(var(--c-bad))">Streak reset today</b> &mdash; last failure: '+
+     rec.lastFailDate+", cause: "+rec.lastFailCause+".";
+  }
+  return '<b>GREEN for '+rec.streak+' consecutive session'+(rec.streak===1?"":"s")+'</b>'+
+   (rec.lastFailDate? " &mdash; last failure: "+rec.lastFailDate+", cause: "+rec.lastFailCause+"."
+     : " &mdash; no failures recorded since tracking began.");
+}
 function renderGuards(){
   var res=GUARDS.map(function(g){ var r=g.run(); return {n:g.n,pass:r[0],detail:r[1],src:g.run}; });
   var fails=res.filter(function(r){return !r.pass;}).length;
+  var firstFail=res.filter(function(r){return !r.pass;})[0];
   var ledeCount=document.getElementById("guardCountLede");
   if(ledeCount) ledeCount.textContent=GUARDS.length; // was a hardcoded "27" in static prose — a
     // /stress-test finding (2026-08-19): correct THEN (GUARDS.length was 27 at the time), but a
@@ -10909,6 +10968,7 @@ function renderGuards(){
   document.getElementById("aiGuards").innerHTML=
    '<div class="gate"><b>Integrity gate &middot; '+GUARDS.length+' checks</b>'+
    '<span class="pill '+(fails?"r":"g")+'">'+(fails? fails+" FAILING":"GREEN — all "+GUARDS.length+" passing")+'</span></div>'+
+   '<p class="lede" style="font-size:12px;margin:4px 0 12px">'+guardsStreakLine(fails,firstFail&&firstFail.n)+'</p>'+
    // "How this is actually computed" per check (UX upgrade round, 2026-08-27 -- /stress-test
    // finding, independent reviewer: this is the site's single biggest trust-building artifact,
    // and the one 29-item list that never got the disclosure pattern used pervasively elsewhere).
@@ -14386,6 +14446,8 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   gloss:GLOSS,findGloss:findGloss,globalSearchIndex:globalSearchIndex,renderGlobalSearch:renderGlobalSearch,
   miles:MILES,delays:DELAYS,spark:SPARK,baseline:BASELINE,baseSteps:baseSteps,veSandboxCalc:veSandboxCalc,renderBaseline:renderBaseline,
   pfBand:pfBand,cascadeStepContent:cascadeStepContent,renderPfArc:renderPfArc,renderCascade:renderCascade,renderDelivery:renderDelivery,guards:GUARDS,renderGuards:renderGuards,escPat:ESC_PAT,
+  guardsStreakKey:GUARDS_STREAK_KEY,loadGuardsStreak:loadGuardsStreak,saveGuardsStreak:saveGuardsStreak,
+  updateGuardsStreak:updateGuardsStreak,guardsStreakLine:guardsStreakLine,
   stakeholderAgencies:STAKEHOLDER_AGENCIES,wangForces:WANG_FORCES,carnegiePlay:CARNEGIE_PLAY,
   agencyComposite:agencyComposite,agencyWeakest:agencyWeakest,stakeholderBand:stakeholderBand,
   renderStakeholderReadiness:renderStakeholderReadiness,

@@ -10133,6 +10133,98 @@ console.log("== D64. Stakeholder Data-Readiness -- Wang's six forces + Carnegie 
     "HANDOFF.md's §7 tab-by-tab AI & Data row names the Stakeholder Data-Readiness feature, not silently omitted");
 }
 
+console.log("== D65. Data-integrity streak counter (upgrade: guards-streak-counter, 2026-09-05) ==");
+{
+  // This feature landed with ZERO test coverage (/stress-test finding, 2026-09-05) -- it was
+  // applied directly to index.html by an autonomous code-generation agent as part of a UX-upgrade
+  // workflow, outside this repo's own established "every feature ships with real stress.cjs
+  // coverage" discipline. Closing that gap here, against the REAL shipped implementation (read
+  // from the live file, not the agent's draft text).
+  ok(!!P.guardsStreakLine && !!P.loadGuardsStreak && !!P.updateGuardsStreak,
+    "the streak-counter functions are exposed on __PCC__ for testing");
+  ok(P.guardsStreakKey === "pccGuardsStreak", "the real localStorage key matches what's documented");
+
+  // NOT asserting an exact zero-state default here -- confirmed (B35, contradicted prediction)
+  // that by this point in file execution, an EARLIER, unrelated test's runPage(indexSrc, lsSeed)
+  // call (the changeWatch snapshot test, ~line 8470) has reassigned global.window with a real
+  // localStorage mock, and this shared P's closures resolve the bare `window` identifier
+  // dynamically at call time (not snapshotted when the page first evaluated) -- so P's functions
+  // now see THAT window's localStorage, a pre-existing cross-test coupling quirk in this harness,
+  // not a bug in loadGuardsStreak() itself. Asserting shape/validity instead of an exact value.
+  const defaultRec = P.loadGuardsStreak();
+  ok(typeof defaultRec.streak === "number" && defaultRec.streak >= 0,
+    "loadGuardsStreak() always returns a valid non-negative streak, whatever localStorage state is live at call time",
+    JSON.stringify(defaultRec));
+  ok(defaultRec.lastFailDate === null || /^\d{4}-\d{2}-\d{2}$/.test(defaultRec.lastFailDate),
+    "loadGuardsStreak()'s lastFailDate is either null or a real ISO date, never malformed",
+    JSON.stringify(defaultRec));
+
+  // Real, live behavior: page init already called renderGuards() once, with the REAL GUARDS array
+  // -- which genuinely has 1 standing failure today (the progress-verification check, GUARDS #30,
+  // D63's own CP-501 finding). Pre-registered: the aiGuards card's already-rendered HTML must
+  // reflect that real failure, not a fabricated or empty state.
+  const cardHtml = G.aiGuards._html;
+  ok(cardHtml.includes("Streak reset today"), "the real page-init render shows the streak reset (a genuine standing failure exists today)");
+  ok(cardHtml.includes("No package's claimed progress exceeds verified progress by more than"),
+    "the recorded failure cause names the real failing check (GUARDS #30), not a placeholder");
+  ok(/last failure: \d{4}-\d{2}-\d{2}/.test(cardHtml), "the recorded failure date is today's real ISO date, not a fabricated one");
+
+  // Demo mode: the D42 "Try it" toggle simulates a SECOND, illustrative failure on top of the
+  // real one. Pre-registered per this file's own D42 invariant (line ~6299, "gate header does not
+  // claim GREEN once real checks disagree"): the streak line's demo branch must never contain the
+  // literal word "GREEN" -- the shipped code's own integration notes say a first draft broke this
+  // exact invariant and had to be fixed; re-confirming that fix holds, not just trusting the notes.
+  P.state.guardsDemo = true;
+  const demoLine = P.guardsStreakLine(2, "simulated check");
+  ok(demoLine.includes("SIMULATED"), "demo mode shows the SIMULATED pill");
+  ok(demoLine.includes("not") && demoLine.includes("recorded"), "demo mode states plainly that the simulated failure is not recorded");
+  ok(!demoLine.includes("GREEN"), "demo mode never claims GREEN, matching the D42 invariant this file already enforces elsewhere");
+  P.state.guardsDemo = false; // reset -- do not leak into later test blocks
+
+  // Once-per-load guard: _guardsStreakTicked is a module-level flag, so a second call within the
+  // SAME page load (this shared P/G instance already ticked once at init) must return the exact
+  // same record rather than re-incrementing -- calling it again here with a DIFFERENT fails value
+  // (0, simulating a hypothetical clean re-render) must NOT flip the already-recorded failure.
+  const secondCall = P.guardsStreakLine(0, undefined);
+  ok(secondCall.includes("GREEN for 0 consecutive session"),
+    "a second same-load call doesn't re-tick -- with no localStorage persisting the real first tick, it re-reads the same untouched default rather than fabricating a new count",
+    secondCall);
+
+  // Pure-logic extraction (same technique used elsewhere in this file's own /stress-test rounds
+  // for isolating a function from full-page side effects): eval just the 5 function definitions
+  // in a fresh, isolated scope with a real, controllable localStorage mock, so the actual
+  // increment/reset arithmetic can be exercised across multiple simulated "sessions" without the
+  // shared instance's one-tick-per-load ceiling.
+  const fnSrc = indexSrc.slice(indexSrc.indexOf('var GUARDS_STREAK_KEY='), indexSrc.indexOf('function renderGuards(){'));
+  ok(fnSrc.length > 200, "the 5 streak-counter function definitions were found in the live source for isolated extraction");
+  function freshStreakModule(seed) {
+    const store = Object.assign({}, seed);
+    const sandboxWindow = { localStorage: { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); } } };
+    const sandboxState = { guardsDemo: false };
+    const ns = {};
+    // eslint-disable-next-line no-new-func
+    new Function("window", "state", fnSrc + "\nthis.loadGuardsStreak=loadGuardsStreak;this.updateGuardsStreak=updateGuardsStreak;this.guardsStreakLine=guardsStreakLine;")
+      .call(ns, sandboxWindow, sandboxState);
+    return { ns, store };
+  }
+  const fresh1 = freshStreakModule();
+  const afterFirstClean = fresh1.ns.updateGuardsStreak(0, undefined);
+  ok(afterFirstClean.streak === 1, "isolated module: first clean session ticks streak from 0 to 1", JSON.stringify(afterFirstClean));
+  ok(JSON.parse(fresh1.store.pccGuardsStreak).streak === 1, "isolated module: the tick actually persisted to the mock localStorage, not just the return value");
+
+  const fresh2 = freshStreakModule({ pccGuardsStreak: JSON.stringify({ streak: 5, lastFailDate: "2026-08-01", lastFailCause: "an old check" }) });
+  const afterSecondClean = fresh2.ns.updateGuardsStreak(0, undefined);
+  ok(afterSecondClean.streak === 6 && afterSecondClean.lastFailDate === "2026-08-01",
+    "isolated module: a pre-existing streak of 5 increments to 6 on a clean session, preserving the old last-failure record",
+    JSON.stringify(afterSecondClean));
+
+  const fresh3 = freshStreakModule({ pccGuardsStreak: JSON.stringify({ streak: 12, lastFailDate: "2026-08-01", lastFailCause: "an old check" }) });
+  const afterFailure = fresh3.ns.updateGuardsStreak(1, "a brand new failing check");
+  ok(afterFailure.streak === 0 && afterFailure.lastFailCause === "a brand new failing check",
+    "isolated module: a genuine failure resets a 12-session streak to 0 and records the new cause, not the old one",
+    JSON.stringify(afterFailure));
+}
+
 console.log("== D62. Self-check: this file's own final assertion count matches README/HANDOFF prose ==");
 {
   // /stress-test finding, independent session, 2026-09-03: the pipeline-check-count (65->103)
