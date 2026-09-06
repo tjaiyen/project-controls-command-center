@@ -208,6 +208,11 @@ a{color:rgb(var(--c-accent))}
 .tab-group-label:not(:first-child)::before{content:"";display:inline-block;width:1px;height:15px;
   background:var(--c-line);margin-right:10px}
 .nav-ic{width:15px;height:15px;flex:0 0 auto}
+/* Separate class from .nav-ic (nav round, 2026-09-05) -- deliberately not shared: an existing
+   test asserts exactly 13 .nav-ic icons (one per real tab), and the collapse toggle's chevron is
+   a distinct control, not a 14th tab. Same base sizing as .nav-ic; kept as its own rule so the
+   two concerns (tab icons vs. toggle icon) never conflate. */
+.toggle-ic{width:15px;height:15px;flex:0 0 auto}
 [role="tabpanel"][hidden]{display:none}
 
 /* in-tab section anchor rail (Cost/Schedule, sticky-nav round 2026-08-21) — a <details> by
@@ -274,11 +279,22 @@ a{color:rgb(var(--c-accent))}
    as the horizontal bar below 1050px; only the container's layout changes. A currently-hidden
    [role=tabpanel] is display:none, so it drops out of the grid entirely — only .tabs and the one
    visible panel actually occupy the two columns at any moment, no markup restructuring needed. */
+/* Base rule, OUTSIDE the media query (nav collapse round, 2026-09-05) -- required so "doesn't
+   exist below 1050px" is actually true (display:none pulls it out of the a11y tree too), not
+   just implied by only styling it inside the 1050px block below. */
+#railToggle{display:none}
 @media(min-width:1050px){
-  #main.wrap{max-width:1320px;display:grid;grid-template-columns:222px 1fr;gap:0 36px;align-items:start}
-  .tabs{grid-column:1;flex-direction:column;overflow-x:visible;border-bottom:none;
+  /* #railWrap is the single grid-column:1 item (previously .tabs held that role) -- ordinary
+     block flow inside it stacks #railToggle above .tabs purely from source order, so
+     [role="tabpanel"]{grid-column:2} below needs NO change at all: its top edge keeps aligning
+     with the top of column 1's content exactly as before this round. */
+  #main.wrap{max-width:1320px;display:grid;grid-template-columns:222px 1fr;gap:0 36px;align-items:start;
+    transition:grid-template-columns .16s ease}
+  #railWrap{grid-column:1;display:flex;flex-direction:column;position:sticky;top:var(--nav-height);
+    align-self:start;max-height:calc(100vh - 84px)}
+  .tabs{flex-direction:column;overflow-x:visible;border-bottom:none;
     border-right:1px solid var(--c-line);margin:0;padding:6px 20px 40px 0;gap:1px;
-    position:sticky;top:var(--nav-height);align-self:start;max-height:calc(100vh - 84px);overflow-y:auto}
+    flex:1 1 auto;min-height:0;overflow-y:auto}
   .tabs button{flex:none;width:100%;text-align:left;padding:10px 12px;border-bottom:none;
     border-left:2px solid transparent;border-radius:0 8px 8px 0}
   .tabs button[aria-selected="true"]{border-left-color:rgb(var(--c-accent));
@@ -292,6 +308,79 @@ a{color:rgb(var(--c-accent))}
   .tab-group-label::before{content:none}
   [role="tabpanel"]{grid-column:2;min-width:0}
 }
+/* Nav rail collapse / icon-only mode + tooltip guard relaxation (2026-09-05) -- adds a collapse
+   toggle to the existing, already-good Tier-3 rail above. Does not touch TABS/activateTab()/the
+   roving-tabindex keydown handler/role="tab" ARIA structure/the <1050px horizontal strip.
+   Everything here is gated inside the same @media(min-width:1050px) -- cannot fire below 1050px
+   even if .nav-collapsed is somehow present, mirroring .tab-group-label:first-child above. */
+@media(min-width:1050px){
+  #railToggle{display:inline-flex;align-items:center;justify-content:center;flex:none;
+    width:32px;height:32px;margin:6px 0 2px;padding:0;border:1px solid var(--c-line);
+    border-radius:7px;background:transparent;color:rgb(var(--c-mut));cursor:pointer;
+    transition:background .15s,border-color .15s,color .15s}
+  #railToggle:hover{background:rgb(var(--c-accent) / .10);border-color:rgb(var(--c-accent) / .5);
+    color:rgb(var(--c-ink))}
+  /* rotates like .anchor-rail summary::before / .dbox's own disclosure marker -- same "kind of
+     control" as this file's other disclosure widgets, not a new visual language. The global
+     prefers-reduced-motion catch-all already zeroes this with no opt-in required -- this file's 4
+     existing JS reduced-motion checks all guard rAF/canvas animation, which a pure CSS transition
+     genuinely doesn't need. */
+  #railToggle svg{transition:transform .16s ease}
+  .nav-collapsed #railToggle svg{transform:rotate(180deg)}
+
+  .nav-collapsed #main.wrap{grid-template-columns:56px 1fr}
+  .nav-collapsed .tabs button{justify-content:center;text-align:center;padding:10px 6px;
+    position:relative} /* position:relative REQUIRED: .tabs button has no position anywhere else
+      in the file, so without this the nearest positioned ancestor is .tabs itself
+      (position:sticky), and every collapsed .cnt's absolute offsets would resolve against .tabs
+      as a whole -- stacking all 13 dots on top of one another in one corner instead of fanning
+      out beside their own icons. */
+
+  /* label + group-label text: visually hidden, NOT display:none, so the button's/label's real
+     accessible name (a button element's accessible name IS its text content) survives collapse
+     without inventing a duplicate aria-label that could drift from the visible label when
+     expanded. */
+  .nav-collapsed .tab-label,
+  .nav-collapsed .tab-group-label-text{
+    position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);
+    white-space:nowrap;margin:0}
+
+  /* count badges: the underlying JS populating #cntAct/#cntTriage/#cntGate5/#cntOver/#cntGloss is
+     UNCHANGED -- only this collapsed-state CSS presentation differs. .cnt itself keeps the
+     IDENTICAL accessible-name-preserving clip-path pattern used for .tab-label above (not
+     font-size:0/opacity:0/overflow:hidden-only -- those are inconsistently included in
+     accessible-name computation across browser/AT engines). The VISIBLE dot is a separate
+     decorative ::after on the button (not a resized .cnt): a clip-path box that's genuinely 1x1
+     clips its own generated content too, so a colored dot can't live inside the same clipped
+     element as the accessible text -- it has to be a sibling-in-paint layer, positioned off the
+     same button (position:relative above) at the same visual spot. */
+  .nav-collapsed .tabs .cnt{
+    position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);
+    white-space:nowrap;margin:0}
+  /* Gated on :has() -- well-supported across evergreen Chrome/Firefox/Safari, and this file
+     already leans on other modern-only CSS (backdrop-filter, clip-path, custom properties).
+     Degrades safely without :has() support: the dot simply never appears -- a visual-only loss,
+     never an accessibility one, since .cnt's own accessible text above doesn't depend on :has(). */
+  .nav-collapsed .tabs button:has(.cnt:not([hidden]))::after{
+    content:"";position:absolute;top:6px;right:6px;width:7px;height:7px;border-radius:50%;
+    background:rgb(var(--c-mut))}
+  /* #cntGate5 is not a routine count -- its textContent is the literal phrase "Gate 5 blocked"
+     and it carries .cnt.warn (red) specifically for this hard-stop signal, a distinct severity
+     treatment, not just "a number that happens to be different." Its collapsed dot always
+     renders red/warn, never the shared neutral accent -- the dot's COLOR, not just its presence,
+     is the signal. Same specificity as the rule above; wins by source order. */
+  .nav-collapsed .tabs button:has(.cnt.warn:not([hidden]))::after{
+    background:rgb(var(--c-bad))}
+
+  /* Selection indicator (left accent border + tinted background) needs NO change -- it doesn't
+     depend on visible text and keeps working identically in the narrow rail; the existing rule
+     in the block above already covers it. */
+}
+/* Open implementation question, not resolved here: animating grid-template-columns (222px 1fr <->
+   56px 1fr, matching track count/type) is only reliably smooth in evergreen browsers -- flagged
+   for an empirical in-browser check before relying on it, per this repo's own verify discipline,
+   rather than asserted as proven. Safe fallback if it judders: drop the #main.wrap transition
+   above and instead transition only .tab-label's opacity/width, letting the grid column snap. */
 
 /* phase spine */
 .phases{display:flex;gap:0;overflow-x:auto;margin-top:20px;border:1px solid var(--c-line);
@@ -820,6 +909,21 @@ pre.code b{color:rgb(var(--c-code));font-weight:600}
    those the same treatment would make invisible rectangles flash visible on hover. */
 #waterfall rect.hot,#tornado rect.hot,#gantt rect.hot{transition:opacity .12s ease}
 #waterfall rect.hot:hover,#tornado rect.hot:hover,#gantt rect.hot:hover{opacity:1}
+/* Keyboard-focus ring (upgrade: hot-pattern-keyboard-parity, 2026-09-05) -- same technique
+   .flow-node and #gbmLogReturns circle.gbm-dot already use (suppress the browser default outline,
+   draw a thicker accent stroke instead on :focus-visible) rather than relying on the page's
+   generic ":focus-visible{outline:...}" rule. That generic rule stays the correct fallback for
+   ordinary DOM elements and is NOT duplicated here -- several bars/rects on these three charts sit
+   flush against their own SVG's edge (the Gantt's ghosted "base" bar starts exactly at the
+   data-date line; the waterfall's bars run edge-to-edge across the plot), and an SVG root's own
+   overflow clipping can crop a default outline drawn that close to a shape's boundary. This is the
+   same fix already proven on #gbmLogReturns circle.gbm-dot, not a new visual idiom. Heat-map cells
+   (div.hc.hot) and bars()-rendered rows (div.rowbar.hot) need no new CSS here -- as ordinary DOM
+   elements they already inherit a real, visible ring for free from the page's global rule the
+   moment tabindex="0" makes them focusable. */
+#waterfall rect.hot:focus,#tornado rect.hot:focus,#gantt rect.hot:focus{outline:none}
+#waterfall rect.hot:focus-visible,#tornado rect.hot:focus-visible,#gantt rect.hot:focus-visible{
+  stroke:rgb(var(--c-accent));stroke-width:2.6px}
 /* GBM log-return chart interactive explorer (brainstorm-mode round, 2026-08-24) — click-to-select
    ring on a real dot, matching the accent/focus language .flow-node already establishes rather
    than inventing a new highlight color. */
@@ -966,25 +1070,30 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
        Attention & Triage is the one canonical "what needs a human right now" surface
        (generateTriageQueue()'s own comment already says "not a second system of record"), and a
        second, competing badge on the item's home tab would be exactly that: a second system. -->
+  <div id="railWrap">
+  <button type="button" id="railToggle" aria-controls="tabs" aria-pressed="false" aria-label="Collapse navigation">
+    <svg class="toggle-ic" aria-hidden="true" viewBox="0 0 16 16"><path d="M6.5 3 3 8l3.5 5M11 3l-3.5 5 3.5 5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
   <div class="tabs" id="tabs" role="tablist" aria-label="Command center sections">
-    <span class="tab-group-label" aria-hidden="true">Executive</span>
-    <button role="tab" id="t-over"  aria-controls="p-over"  aria-selected="true" tabindex="0" aria-keyshortcuts="1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><rect x="2" y="2" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="2" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="2" y="9" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="9" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>Overview<span class="cnt" id="cntOver">20</span></button>
-    <button role="tab" id="t-exec" aria-controls="p-exec" aria-selected="false" tabindex="-1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><rect x="2.2" y="6" width="11.6" height="7.3" rx="1.3" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6 6V4.3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1V6" fill="none" stroke="currentColor" stroke-width="1.3"/><line x1="2.2" y1="9.6" x2="13.8" y2="9.6" stroke="currentColor" stroke-width="1.1"/></svg>Executive Command</button>
-    <button role="tab" id="t-port"  aria-controls="p-port"  aria-selected="false" tabindex="-1" aria-keyshortcuts="2"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><path d="M2 5.5a1 1 0 0 1 1-1h3l1.2 1.6H13a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Portfolio</button>
-    <span class="tab-group-label" aria-hidden="true">Program Performance</span>
-    <button role="tab" id="t-cost"  aria-controls="p-cost"  aria-selected="false" tabindex="-1" aria-keyshortcuts="3"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><line x1="3" y1="13" x2="3" y2="9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="7" y1="13" x2="7" y2="5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="11" y1="13" x2="11" y2="7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="13.5" y1="13" x2="13.5" y2="3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>Cost</button>
-    <button role="tab" id="t-sched" aria-controls="p-sched" aria-selected="false" tabindex="-1" aria-keyshortcuts="4"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><rect x="2.3" y="3.3" width="11.4" height="10.4" rx="1.3" fill="none" stroke="currentColor" stroke-width="1.3"/><line x1="2.3" y1="6.3" x2="13.7" y2="6.3" stroke="currentColor" stroke-width="1.3"/><line x1="5.3" y1="2" x2="5.3" y2="4.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="10.7" y1="2" x2="10.7" y2="4.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>Schedule</button>
-    <button role="tab" id="t-risk"  aria-controls="p-risk"  aria-selected="false" tabindex="-1" aria-keyshortcuts="5"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><path d="M8 2.6 14.2 13H1.8Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><line x1="8" y1="6.5" x2="8" y2="9.8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="11.6" r="0.8" fill="currentColor"/></svg>Risk &amp; Change</button>
-    <span class="tab-group-label" aria-hidden="true">Field &amp; Assurance</span>
-    <button role="tab" id="t-del"   aria-controls="p-del"   aria-selected="false" tabindex="-1" aria-keyshortcuts="6"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><path d="M8 2.3 13.6 5.5v6L8 14.7 2.4 11.5v-6Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M2.4 5.5 8 8.7l5.6-3.2M8 8.7v6" stroke="currentColor" stroke-width="1.1" fill="none"/></svg>Delivery</button>
-    <button role="tab" id="t-ai"    aria-controls="p-ai"    aria-selected="false" tabindex="-1" aria-keyshortcuts="7"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><circle cx="8" cy="8" r="1.6" fill="currentColor"/><circle cx="3" cy="4" r="1.3" fill="none" stroke="currentColor" stroke-width="1.1"/><circle cx="13" cy="4" r="1.3" fill="none" stroke="currentColor" stroke-width="1.1"/><circle cx="3" cy="12" r="1.3" fill="none" stroke="currentColor" stroke-width="1.1"/><circle cx="13" cy="12" r="1.3" fill="none" stroke="currentColor" stroke-width="1.1"/><line x1="4.1" y1="4.8" x2="7" y2="7" stroke="currentColor" stroke-width="1"/><line x1="11.9" y1="4.8" x2="9" y2="7" stroke="currentColor" stroke-width="1"/><line x1="4.1" y1="11.2" x2="7" y2="9" stroke="currentColor" stroke-width="1"/><line x1="11.9" y1="11.2" x2="9" y2="9" stroke="currentColor" stroke-width="1"/></svg>AI &amp; Data</button>
-    <span class="tab-group-label" aria-hidden="true">Governance &amp; Execution</span>
-    <button role="tab" id="t-fw"    aria-controls="p-fw"    aria-selected="false" tabindex="-1" aria-keyshortcuts="8"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><circle cx="3" cy="8" r="1.6" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="1.6" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="13" cy="8" r="1.6" fill="none" stroke="currentColor" stroke-width="1.3"/><line x1="4.6" y1="8" x2="6.4" y2="8" stroke="currentColor" stroke-width="1.3"/><line x1="9.6" y1="8" x2="11.4" y2="8" stroke="currentColor" stroke-width="1.3"/></svg>Operating Framework<span class="cnt" id="cntGate5" hidden></span></button>
-    <button role="tab" id="t-act"   aria-controls="p-act"   aria-selected="false" tabindex="-1" aria-keyshortcuts="9"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.3"/><polyline points="5,8.3 7.2,10.3 11,6.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Actions<span class="cnt" id="cntAct"></span></button>
-    <button role="tab" id="t-triage" aria-controls="p-triage" aria-selected="false" tabindex="-1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><path d="M8 2.4 14.6 13.2H1.4Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><line x1="8" y1="6.3" x2="8" y2="9.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="11.3" r="0.85" fill="currentColor"/></svg>Attention &amp; Triage<span class="cnt" id="cntTriage"></span></button>
-    <button role="tab" id="t-data"  aria-controls="p-data"  aria-selected="false" tabindex="-1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><ellipse cx="8" cy="3.6" rx="5.3" ry="1.7" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M2.7 3.6v8.8c0 .9 2.4 1.7 5.3 1.7s5.3-.8 5.3-1.7V3.6" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M2.7 8c0 .9 2.4 1.7 5.3 1.7s5.3-.8 5.3-1.7" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>Data Strategy</button>
-    <span class="tab-group-label" aria-hidden="true">Reference</span>
-    <button role="tab" id="t-gloss" aria-controls="p-gloss" aria-selected="false" tabindex="-1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><path d="M2.5 3.3c1.6-.6 3.4-.6 5.5.4v9c-2.1-1-3.9-1-5.5-.4Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M13.5 3.3c-1.6-.6-3.4-.6-5.5.4v9c2.1-1 3.9-1 5.5-.4Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>Glossary<span class="cnt" id="cntGloss"></span></button>
+    <span class="tab-group-label" aria-hidden="true"><span class="tab-group-label-text">Executive</span></span>
+    <button role="tab" id="t-over"  aria-controls="p-over"  aria-selected="true" tabindex="0" aria-keyshortcuts="1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><rect x="2" y="2" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="2" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="2" y="9" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="9" width="5" height="5" fill="none" stroke="currentColor" stroke-width="1.3"/></svg><span class="tab-label">Overview</span><span class="cnt" id="cntOver">20</span></button>
+    <button role="tab" id="t-exec" aria-controls="p-exec" aria-selected="false" tabindex="-1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><rect x="2.2" y="6" width="11.6" height="7.3" rx="1.3" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6 6V4.3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1V6" fill="none" stroke="currentColor" stroke-width="1.3"/><line x1="2.2" y1="9.6" x2="13.8" y2="9.6" stroke="currentColor" stroke-width="1.1"/></svg><span class="tab-label">Executive Command</span></button>
+    <button role="tab" id="t-port"  aria-controls="p-port"  aria-selected="false" tabindex="-1" aria-keyshortcuts="2"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><path d="M2 5.5a1 1 0 0 1 1-1h3l1.2 1.6H13a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg><span class="tab-label">Portfolio</span></button>
+    <span class="tab-group-label" aria-hidden="true"><span class="tab-group-label-text">Program Performance</span></span>
+    <button role="tab" id="t-cost"  aria-controls="p-cost"  aria-selected="false" tabindex="-1" aria-keyshortcuts="3"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><line x1="3" y1="13" x2="3" y2="9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="7" y1="13" x2="7" y2="5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="11" y1="13" x2="11" y2="7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="13.5" y1="13" x2="13.5" y2="3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg><span class="tab-label">Cost</span></button>
+    <button role="tab" id="t-sched" aria-controls="p-sched" aria-selected="false" tabindex="-1" aria-keyshortcuts="4"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><rect x="2.3" y="3.3" width="11.4" height="10.4" rx="1.3" fill="none" stroke="currentColor" stroke-width="1.3"/><line x1="2.3" y1="6.3" x2="13.7" y2="6.3" stroke="currentColor" stroke-width="1.3"/><line x1="5.3" y1="2" x2="5.3" y2="4.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="10.7" y1="2" x2="10.7" y2="4.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg><span class="tab-label">Schedule</span></button>
+    <button role="tab" id="t-risk"  aria-controls="p-risk"  aria-selected="false" tabindex="-1" aria-keyshortcuts="5"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><path d="M8 2.6 14.2 13H1.8Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><line x1="8" y1="6.5" x2="8" y2="9.8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="11.6" r="0.8" fill="currentColor"/></svg><span class="tab-label">Risk &amp; Change</span></button>
+    <span class="tab-group-label" aria-hidden="true"><span class="tab-group-label-text">Field &amp; Assurance</span></span>
+    <button role="tab" id="t-del"   aria-controls="p-del"   aria-selected="false" tabindex="-1" aria-keyshortcuts="6"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><path d="M8 2.3 13.6 5.5v6L8 14.7 2.4 11.5v-6Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M2.4 5.5 8 8.7l5.6-3.2M8 8.7v6" stroke="currentColor" stroke-width="1.1" fill="none"/></svg><span class="tab-label">Delivery</span></button>
+    <button role="tab" id="t-ai"    aria-controls="p-ai"    aria-selected="false" tabindex="-1" aria-keyshortcuts="7"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><circle cx="8" cy="8" r="1.6" fill="currentColor"/><circle cx="3" cy="4" r="1.3" fill="none" stroke="currentColor" stroke-width="1.1"/><circle cx="13" cy="4" r="1.3" fill="none" stroke="currentColor" stroke-width="1.1"/><circle cx="3" cy="12" r="1.3" fill="none" stroke="currentColor" stroke-width="1.1"/><circle cx="13" cy="12" r="1.3" fill="none" stroke="currentColor" stroke-width="1.1"/><line x1="4.1" y1="4.8" x2="7" y2="7" stroke="currentColor" stroke-width="1"/><line x1="11.9" y1="4.8" x2="9" y2="7" stroke="currentColor" stroke-width="1"/><line x1="4.1" y1="11.2" x2="7" y2="9" stroke="currentColor" stroke-width="1"/><line x1="11.9" y1="11.2" x2="9" y2="9" stroke="currentColor" stroke-width="1"/></svg><span class="tab-label">AI &amp; Data</span></button>
+    <span class="tab-group-label" aria-hidden="true"><span class="tab-group-label-text">Governance &amp; Execution</span></span>
+    <button role="tab" id="t-fw"    aria-controls="p-fw"    aria-selected="false" tabindex="-1" aria-keyshortcuts="8"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><circle cx="3" cy="8" r="1.6" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="1.6" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="13" cy="8" r="1.6" fill="none" stroke="currentColor" stroke-width="1.3"/><line x1="4.6" y1="8" x2="6.4" y2="8" stroke="currentColor" stroke-width="1.3"/><line x1="9.6" y1="8" x2="11.4" y2="8" stroke="currentColor" stroke-width="1.3"/></svg><span class="tab-label">Operating Framework</span><span class="cnt" id="cntGate5" hidden></span></button>
+    <button role="tab" id="t-act"   aria-controls="p-act"   aria-selected="false" tabindex="-1" aria-keyshortcuts="9"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.3"/><polyline points="5,8.3 7.2,10.3 11,6.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="tab-label">Actions</span><span class="cnt" id="cntAct"></span></button>
+    <button role="tab" id="t-triage" aria-controls="p-triage" aria-selected="false" tabindex="-1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><path d="M8 2.4 14.6 13.2H1.4Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><line x1="8" y1="6.3" x2="8" y2="9.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="11.3" r="0.85" fill="currentColor"/></svg><span class="tab-label">Attention &amp; Triage</span><span class="cnt" id="cntTriage"></span></button>
+    <button role="tab" id="t-data"  aria-controls="p-data"  aria-selected="false" tabindex="-1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><ellipse cx="8" cy="3.6" rx="5.3" ry="1.7" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M2.7 3.6v8.8c0 .9 2.4 1.7 5.3 1.7s5.3-.8 5.3-1.7V3.6" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M2.7 8c0 .9 2.4 1.7 5.3 1.7s5.3-.8 5.3-1.7" fill="none" stroke="currentColor" stroke-width="1.2"/></svg><span class="tab-label">Data Strategy</span></button>
+    <span class="tab-group-label" aria-hidden="true"><span class="tab-group-label-text">Reference</span></span>
+    <button role="tab" id="t-gloss" aria-controls="p-gloss" aria-selected="false" tabindex="-1"><svg class="nav-ic" aria-hidden="true" viewBox="0 0 16 16"><path d="M2.5 3.3c1.6-.6 3.4-.6 5.5.4v9c-2.1-1-3.9-1-5.5-.4Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M13.5 3.3c-1.6-.6-3.4-.6-5.5.4v9c2.1-1 3.9-1 5.5-.4Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg><span class="tab-label">Glossary</span><span class="cnt" id="cntGloss"></span></button>
+  </div>
   </div>
 
   <!-- ============================ OVERVIEW ============================ -->
@@ -3704,6 +3813,20 @@ var SPARK = {
   pf:history(T.pf,1.004,12), rfi:history(PROGRAM.rfiAvgAge,9,12),
   trir:history(PROGRAM.trir,2.05,12), fund:history(T.fundIdx,1.0,12)
 };
+/* Progress-Verification gap-closing tracker (upgrade: progress-verification-gap-tracker,
+   2026-09-05) -- same SPARKLINE HISTORY convention as SPARK above (a deterministic convergence,
+   not stored raw history), applied to the Progress Verification card's own claimedPct-vs-verified
+   delta (r.progressGap, already computed once in derive() and carried on `rows` -- no new number
+   invented here). Start value is 0 for every package -- the plausible point before a GC's
+   self-reported billing began to diverge from independently verified physical progress -- so the
+   line always reads as "the gap opened to where it stands today," the same honest-until-corrected
+   story CP-501's own card copy already tells. Same disclosure limit as SPARK: this is a
+   deterministic curve toward today's real figure, not a log of distinct past page loads (the
+   underlying ledger is a static synthetic snapshot, re-derived identically on every load) --
+   stated explicitly in the card's own copy below, not left implicit. Keyed by package id so
+   renderProgressVerify() can look one up per row without re-deriving it. */
+var GAP_SPARK = {};
+rows.forEach(function(r){ GAP_SPARK[r.id]=history(r.progressGap, 0, 12); });
 
 /* =========================================================================
    6. CHART HELPERS
@@ -3724,11 +3847,37 @@ function sparkline(series, ragColor){
     '<path d="'+d+'" fill="none" stroke="'+ragColor+'" stroke-width="1.6" vector-effect="non-scaling-stroke"/>'+
     '<circle cx="'+(last-2).toFixed(1)+'" cy="'+ly.toFixed(1)+'" r="2.2" fill="'+ragColor+'"/></svg>';
 }
+/* Goal-line variant of sparkline() above (upgrade: progress-verification-gap-tracker, 2026-09-05)
+   -- a sibling function rather than an added branch on sparkline() itself, since that helper is
+   already reused unmodified by the KPI board and the velocity-pulse hover tooltip; this is the
+   one piece neither of those needs: a labeled reference line for a fixed target. The y-domain
+   spans the goal value too (not just the series), so the dashed line always lands at a real,
+   meaningful position relative to the trend instead of being clipped off-scale when every point
+   sits comfortably under (or, for CP-501, over) target. Sized/styled inline rather than via the
+   ambient ".spark" CSS rule, which is scoped to ".kpi .spark" and would need broadening for a
+   table-cell context it wasn't written for. */
+function gapSparkline(series, ragColor, goalValue){
+  var w=100,h=26,pad=3;
+  var mn=Math.min.apply(null,series.concat([goalValue])),
+      mx=Math.max.apply(null,series.concat([goalValue])),rg=(mx-mn)||1;
+  var y=function(v){ return h-pad-((v-mn)/rg)*(h-2*pad); };
+  var d=series.map(function(v,i){
+    return (i?"L":"M")+(i/(series.length-1)*w).toFixed(1)+" "+y(v).toFixed(1);
+  }).join(" ");
+  var ly=y(series[series.length-1]), gy=y(goalValue).toFixed(1);
+  return '<svg viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none" style="width:100px;height:'+h+'px;display:block" aria-hidden="true">'+
+    '<line x1="0" x2="'+w+'" y1="'+gy+'" y2="'+gy+'" stroke="'+C("mut")+'" stroke-width="1" stroke-dasharray="3 3"/>'+
+    '<path d="'+d+'" fill="none" stroke="'+ragColor+'" stroke-width="1.6" vector-effect="non-scaling-stroke"/>'+
+    '<circle cx="'+(w-2).toFixed(1)+'" cy="'+ly.toFixed(1)+'" r="2.2" fill="'+ragColor+'"/></svg>';
+}
 
 /* =========================================================================
    7. RENDERERS
    ========================================================================= */
 var state = {phase:"con", fam:"All", audience:"pcm", kpi:null, pkg:2, actFilter:"All", act:null,
+  navCollapsed:false, // nav rail collapse/icon-only mode (nav round, 2026-09-05) — persisted to
+                       // localStorage separately (navCollapsedPref/saveNavCollapsedPref); default
+                       // false = today's expanded rail, unchanged.
   presenting:false, presentSet:"full", beatIdx:0, touring:false, tourIdx:0, textSize:0, tab:"over", mcView:"hist",
   mcIncluded:rows.map(function(r){ return r.id; }), cphDrill:false, mcConfidence:0.80, mcInspect:75,
   pertPlay:null, ledgerDemoPkg:"CP-101",
@@ -4897,7 +5046,8 @@ function renderWaterfall(){
     var lbl=b.type==="total"?m(b.y1):sgn(b.r.vac);
     return '<rect x="'+x.toFixed(1)+'" y="'+top.toFixed(1)+'" width="'+w.toFixed(1)+'" height="'+Math.max(2,bot-top).toFixed(1)+
       '" fill="'+fill+'" opacity="'+(b.type==="total"?".92":".82")+'" rx="2" data-bar="'+j+'"'+
-      (b.type!=="total"?' data-acc="'+b.r.id+'"':"")+' class="hot"><title>'+b.l+" "+lbl+'</title></rect>'+
+      (b.type!=="total"?' data-acc="'+b.r.id+'"':"")+
+      ' class="hot" tabindex="0" role="button" aria-label="'+b.l+" "+lbl+', click to explore"><title>'+b.l+" "+lbl+'</title></rect>'+
       '<text x="'+(x+w/2).toFixed(1)+'" y="'+(H-30)+'" text-anchor="middle" font-size="10" font-family="ui-monospace,monospace" fill="'+C("mut")+'">'+b.l+'</text>'+
       '<text x="'+(x+w/2).toFixed(1)+'" y="'+(H-16)+'" text-anchor="middle" font-size="9.5" font-family="ui-monospace,monospace" fill="'+(b.type==="neg"?C("bad"):b.type==="pos"?C("ok"):C("mut"))+'">'+lbl+'</text>';
   }).join("");
@@ -4927,6 +5077,15 @@ function renderWaterfall(){
   host.addEventListener("mousemove",waterfallTip);
   host.addEventListener("click",waterfallTip);
   host.addEventListener("mouseleave",function(){ tip.classList.remove("on"); });
+  // NEW -- keyboard parity (upgrade: hot-pattern-keyboard-parity, 2026-09-05): same shape as
+  // #gbmLogReturns's own keydown handler. e.target IS the focused rect directly (an SVG <rect>
+  // has no children to land on), so this checks it the same way waterfallTip() itself does.
+  host.addEventListener("keydown",function(e){
+    if((e.key!=="Enter"&&e.key!==" ")||!e.target.classList||!e.target.classList.contains("hot")) return;
+    e.preventDefault();
+    var r=e.target.getBoundingClientRect();
+    waterfallTip({target:e.target,clientX:r.left+r.width/2,clientY:r.top+r.height/2});
+  });
   renderWaterfallRead(sorted,zoomMin,zoomMax);
 }
 
@@ -7925,7 +8084,15 @@ function bars(el,items,fmt,tipFmt){
        a month/week label instead (eacTrend, schedDriftBars, cphBars) it's a harmless no-op, since
        nothing else on the page shares that same label as its own data-acc. data-i is the tooltip
        lookup key (index into host._barsItems), independent of data-acc. */
-    return '<div class="rowbar'+(tipFmt?' hot':'')+'" data-acc="'+o.id+'" data-i="'+i+'"><span class="mono" style="font-size:11.5px;color:rgb(var(--c-code))">'+o.id+'</span>'+
+    // Keyboard-parity fix (upgrade: hot-pattern-keyboard-parity, 2026-09-05) -- tabindex/role/
+    // aria-label are added under the exact same condition the "hot" class itself already uses
+    // (tipFmt truthy): a bars() row with no tipFmt has nothing to expose via keyboard either,
+    // matching that a mouse user gets no hover affordance on it today. aria-label mirrors the two
+    // values already printed in the row (o.id + fmt(o.v)) plus the same ", click to explore"
+    // suffix #gbmLogReturns circle.gbm-dot uses -- never a second, divergent description.
+    return '<div class="rowbar'+(tipFmt?' hot':'')+'" data-acc="'+o.id+'" data-i="'+i+'"'+
+      (tipFmt?' tabindex="0" role="button" aria-label="'+o.id+' '+fmt(o.v)+', click to explore"':"")+
+      '><span class="mono" style="font-size:11.5px;color:rgb(var(--c-code))">'+o.id+'</span>'+
       '<span class="track">'+(o.center?'<span class="zero" style="left:50%"></span>':'')+
       '<i style="'+(o.center?(neg?"right:50%":"left:50%"):"left:0")+';width:'+w.toFixed(1)+'%;background:'+o.c+'"></i></span>'+
       '<span class="tab-num" style="text-align:right;color:'+o.c+'">'+fmt(o.v)+'</span></div>';
@@ -7954,6 +8121,18 @@ function bars(el,items,fmt,tipFmt){
     host.addEventListener("mousemove",barsTip);
     host.addEventListener("click",barsTip);
     host.addEventListener("mouseleave",function(){ tip.classList.remove("on"); });
+    // NEW -- keyboard parity (upgrade: hot-pattern-keyboard-parity, 2026-09-05): Enter/Space on a
+    // focused .rowbar.hot triggers the identical barsTip() a mouse click already triggers. A
+    // KeyboardEvent carries no clientX/clientY, so the tooltip is positioned off the focused
+    // element's own bounding box instead of the (nonexistent) pointer position.
+    host.addEventListener("keydown",function(e){
+      if(e.key!=="Enter"&&e.key!==" ") return;
+      var t=e.target.closest?e.target.closest(".hot"):null;
+      if(!t||t.parentElement!==host) return;
+      e.preventDefault();
+      var r=t.getBoundingClientRect();
+      barsTip({target:t,clientX:r.left+r.width/2,clientY:r.top+r.height/2});
+    });
     host.dataset.tipWired="1";
   }
 }
@@ -7993,9 +8172,11 @@ function renderGantt(){
     var behind=e.r.float<0;
     return '<text x="'+(PL-10)+'" y="'+(y+rowH/2+4).toFixed(1)+'" text-anchor="end" font-size="11" font-family="ui-monospace,monospace" fill="'+C("mut")+'">'+e.r.id+'</text>'+
       '<rect x="'+todayX.toFixed(1)+'" y="'+barY+'" width="'+Math.max(0,baseX-todayX).toFixed(1)+'" height="'+barH+
-        '" rx="3" fill="'+C("mut")+'" opacity=".3" data-gantt="'+i+'" data-part="base" data-acc="'+e.r.id+'" class="hot"/>'+
+        '" rx="3" fill="'+C("mut")+'" opacity=".3" data-gantt="'+i+'" data-part="base" data-acc="'+e.r.id+'"'+
+        ' class="hot" tabindex="0" role="button" aria-label="'+e.r.id+' baseline-implied finish '+fmtDate(e.base)+', click to explore"/>'+
       '<rect x="'+todayX.toFixed(1)+'" y="'+(barY+3)+'" width="'+Math.max(0,fcstX-todayX).toFixed(1)+'" height="'+(barH-6)+
-        '" rx="2.5" fill="'+(behind?C("bad"):C("ok"))+'" opacity=".88" data-gantt="'+i+'" data-part="fcst" data-acc="'+e.r.id+'" class="hot"/>'+
+        '" rx="2.5" fill="'+(behind?C("bad"):C("ok"))+'" opacity=".88" data-gantt="'+i+'" data-part="fcst" data-acc="'+e.r.id+'"'+
+        ' class="hot" tabindex="0" role="button" aria-label="'+e.r.id+' forecast finish '+fmtDate(e.fcst)+', '+pct(e.r.pct,0)+' complete, click to explore"/>'+
       '<text x="'+(W-PR+10)+'" y="'+(y+rowH/2+4).toFixed(1)+'" font-size="10.5" font-family="ui-monospace,monospace" fill="'+
         (behind?C("bad"):C("ok"))+'">'+pct(e.r.pct,0)+' complete &middot; '+days(e.r.float)+'</text>';
   }).join("");
@@ -8032,6 +8213,14 @@ function renderGantt(){
   host.addEventListener("mousemove",ganttTip);
   host.addEventListener("click",ganttTip);
   host.addEventListener("mouseleave",function(){ tip.classList.remove("on"); });
+  // NEW -- keyboard parity (upgrade: hot-pattern-keyboard-parity, 2026-09-05), same shape as the
+  // waterfall keydown listener above.
+  host.addEventListener("keydown",function(e){
+    if((e.key!=="Enter"&&e.key!==" ")||!e.target.classList||!e.target.classList.contains("hot")) return;
+    e.preventDefault();
+    var r=e.target.getBoundingClientRect();
+    ganttTip({target:e.target,clientX:r.left+r.width/2,clientY:r.top+r.height/2});
+  });
   var worst=ends.reduce(function(w,e){ return e.r.float<w.r.float?e:w; },ends[0]).r;
   document.getElementById("ganttOpQ").innerHTML = opQuestionHtml("Schedule",
     worst.id+" is setting the pace with "+days(worst.float)+" float"+
@@ -8502,7 +8691,8 @@ function renderRisk(){
   document.getElementById("tornado").innerHTML=svg(W,H,ranked.map(function(k,i){
     var w=(k.exp/mx)*(W-PL-PR), y=PT+i*bh+bh*0.18, h=bh*0.64;
     return '<rect x="'+PL+'" y="'+y.toFixed(1)+'" width="'+w.toFixed(1)+'" height="'+h.toFixed(1)+
-      '" rx="3" fill="'+(k.exp>8?C("bad"):k.exp>4?C("warn"):C("ok"))+'" opacity=".85" data-risk="'+i+'" class="hot"><title>'+k.id+' '+m(k.exp)+'</title></rect>'+
+      '" rx="3" fill="'+(k.exp>8?C("bad"):k.exp>4?C("warn"):C("ok"))+'" opacity=".85" data-risk="'+i+'"'+
+      ' class="hot" tabindex="0" role="button" aria-label="'+k.id+' '+m(k.exp)+', click to explore"><title>'+k.id+' '+m(k.exp)+'</title></rect>'+
       '<text x="'+(PL-8)+'" y="'+(y+h/2+3.5).toFixed(1)+'" text-anchor="end" font-size="10.5" font-family="ui-monospace,monospace" fill="'+C("mut")+'">'+k.id+'</text>'+
       '<text x="'+(PL+w+7).toFixed(1)+'" y="'+(y+h/2+3.5).toFixed(1)+'" font-size="10.5" font-family="ui-monospace,monospace" fill="'+C("ink")+'">'+m(k.exp)+'</text>';
   }).join(""),"Risk exposure ranked by probability-weighted cost.");
@@ -8525,6 +8715,14 @@ function renderRisk(){
   tornHost.addEventListener("mousemove",tornTipFn);
   tornHost.addEventListener("click",tornTipFn);
   tornHost.addEventListener("mouseleave",function(){ tornTip.classList.remove("on"); });
+  // NEW -- keyboard parity (upgrade: hot-pattern-keyboard-parity, 2026-09-05), same shape as the
+  // waterfall/Gantt keydown listeners above.
+  tornHost.addEventListener("keydown",function(e){
+    if((e.key!=="Enter"&&e.key!==" ")||!e.target.classList||!e.target.classList.contains("hot")) return;
+    e.preventDefault();
+    var r=e.target.getBoundingClientRect();
+    tornTipFn({target:e.target,clientX:r.left+r.width/2,clientY:r.top+r.height/2});
+  });
   renderRiskMath(ranked);
   renderMaterialExposure();
   var grid={}, gridRisks={};
@@ -8545,7 +8743,7 @@ function renderRisk(){
       // class="hot"+data-p/data-i drive a rich custom tooltip (engagement/interactivity upgrade,
       // 2026-08-2x, replacing the native title= as the primary UX) naming which specific risks
       // fall in this cell — aria-label/title stay as the accessibility fallback, not removed.
-      html+='<div class="hc hot" role="img" aria-label="'+lab+'" title="'+lab+'" data-p="'+p+'" data-i="'+im+'" style="background:'+bg+';border:'+bd+';opacity:'+(n?1:.34)+'">'+n+'</div>'; } }
+      html+='<div class="hc hot" tabindex="0" role="button" aria-label="'+lab+', click to explore" title="'+lab+'" data-p="'+p+'" data-i="'+im+'" style="background:'+bg+';border:'+bd+';opacity:'+(n?1:.34)+'">'+n+'</div>'; } }
   var heatHighCount=RISKS.filter(function(k){ return k.p*k.i>=15; }).length;
   document.getElementById("heatOpQ").innerHTML = opQuestionBox("heat",
     "Where does risk actually concentrate — by likelihood and severity, not just dollars?",
@@ -8601,6 +8799,16 @@ function renderRisk(){
     heatHost.addEventListener("mousemove",heatTipFn);
     heatHost.addEventListener("click",heatClickFn);
     heatHost.addEventListener("mouseleave",function(){ heatTip.classList.remove("on"); });
+    // NEW -- keyboard parity (upgrade: hot-pattern-keyboard-parity, 2026-09-05): Enter/Space on a
+    // focused cell runs the exact same heatClickFn() a mouse click already runs (tooltip +
+    // single-risk drill-open + register scroll-into-view), never a second, divergent behavior for
+    // keyboard vs. mouse.
+    heatHost.addEventListener("keydown",function(e){
+      if((e.key!=="Enter"&&e.key!==" ")||!e.target.classList||!e.target.classList.contains("hot")) return;
+      e.preventDefault();
+      var r=e.target.getBoundingClientRect();
+      heatClickFn({target:e.target,clientX:r.left+r.width/2,clientY:r.top+r.height/2});
+    });
     heatHost.dataset.tipWired="1";
   }
   document.getElementById("contCover").innerHTML=
@@ -11054,17 +11262,28 @@ function renderProgressVerify(){
       " over threshold today, on real computed figures, not a staged example."
       : "none are over threshold today.")+
     '</p>'+
-    '<table><thead><tr><th scope="col">Package</th><th scope="col">Claimed</th>'+
-    '<th scope="col">Verified (EV/BAC)</th><th scope="col">Gap</th><th scope="col">Status</th></tr></thead><tbody>'+
+    // Gap-closing tracker addition (upgrade: progress-verification-gap-tracker, 2026-09-05): the
+    // goal line drawn on every row's Trend sparkline below, named once here rather than eight
+    // times, next to the same methodology copy this card already carries.
+    '<p class="lede" style="font-size:11.5px;margin-top:4px;color:rgb(var(--c-mut))">Trend column: '+
+    'each package\'s own gap, against the goal line &mdash; <b style="color:rgb(var(--c-ink))">gap '+
+    'under '+pct(CLAIMED_PROGRESS_FLAG_PCT,0)+'</b>. A deterministic curve toward today\'s real '+
+    'figure, same convention as this dashboard\'s other KPI sparklines &mdash; not a log of past '+
+    'page loads, since the underlying ledger is a static synthetic snapshot re-derived identically '+
+    'on every load.</p>'+
+    '<div class="tw"><table><thead><tr><th scope="col">Package</th><th scope="col">Claimed</th>'+
+    '<th scope="col">Verified (EV/BAC)</th><th scope="col">Gap</th><th scope="col">Trend</th>'+
+    '<th scope="col">Status</th></tr></thead><tbody>'+
     rows.map(function(r){
       var over=r.progressGap>CLAIMED_PROGRESS_FLAG_PCT;
       return '<tr><th scope="row">'+r.id+'</th>'+
         '<td class="tab-num mono">'+pct(r.claimedPct,1)+'</td>'+
         '<td class="tab-num mono">'+pct(r.pct,1)+'</td>'+
         '<td class="tab-num mono">'+pct(r.progressGap,1)+'</td>'+
+        '<td>'+gapSparkline(GAP_SPARK[r.id],RAG[over?"r":"g"],CLAIMED_PROGRESS_FLAG_PCT)+'</td>'+
         '<td><span class="pill '+(over?"r":"g")+'">'+(over?"FLAGGED":"OK")+'</span></td></tr>';
     }).join("")+
-    '</tbody></table>';
+    '</tbody></table></div>';
 }
 function carbonReadinessPct(){
   var total=CARBON_DISCLOSURE.length*2; // 2 tracked fields per covered material (EPD, quantity)
@@ -12657,7 +12876,16 @@ function tabDrawerContent(tabId){
     return {label:d.label, q:fams.map(function(f){return f.q;}).join(" "),
       note:fams.map(function(f){return f.why;}).join(" "), sys:tabDrawerSysOfRecord(d.fam)};
   }
-  return {label:d.label, q:d.q, note:d.note, sys:null};
+  // #cntGate5 tooltip content (nav round, 2026-09-05): reads the already-computed #cntGate5 DOM
+  // state (set by the Gate 5 render pass) rather than duplicating GATE5_CHECKS/`fails` logic a
+  // second time, so the "fw" tab's collapsed-mode preview says "blocked" instead of assuming the
+  // generic "the number is in the tooltip" framing that only applies to the routine numeric badges.
+  var note=d.note;
+  if(tabId==="fw"){
+    var g5=document.getElementById("cntGate5");
+    if(g5 && !g5.hidden) note += " Gate 5 is currently blocked.";
+  }
+  return {label:d.label, q:d.q, note:note, sys:null};
 }
 /* Operational-question callout, shared box-builder. Originally a static, always-open .dbox
    (brainstorm-mode round, 2026-08-25); rebuilt as a real <details> (UX upgrade round,
@@ -12738,7 +12966,18 @@ function renderOpQProgress(){
 }
 var tabDrawerTimer=null;
 function openTabDrawer(tabId, anchorEl){
-  if(anchorEl.getAttribute("aria-selected")==="true") return; // already on this tab — nothing to preview
+  // Relaxed for state.navCollapsed (nav round, 2026-09-05): a sighted-user fix only. In collapsed
+  // mode the selected icon shows neither a visible label nor (because of this guard) a hover
+  // tooltip -- the one tab a visitor is actually looking at becomes the one tab with zero visible
+  // identification. Screen-reader users are unaffected either way: this function sets
+  // role="tooltip" on #helpPop, but no tab button carries aria-describedby pointing at it, this
+  // function deliberately never moves focus into the popover (preserves roving-tabindex focus),
+  // and there's no live region announcing it -- so a keyboard/AT user tabbing onto a collapsed
+  // icon already gets full identification from the button's own accessible name (the visually-
+  // hidden .tab-label text, preserved in CSS), never this popover. This relaxation is purely for
+  // a sighted mouse/keyboard user who needs the popover to re-confirm which tab they're on once
+  // the visible label is gone.
+  if(anchorEl.getAttribute("aria-selected")==="true" && !state.navCollapsed) return; // already on this tab, and identifiable without the drawer — nothing to preview
   var c=tabDrawerContent(tabId);
   if(!c) return;
   if(helpOpenAnchor) return; // a click-triggered glossary popover is open — don't steal it
@@ -13528,6 +13767,18 @@ window.addEventListener("keydown",function(e){
 // is unchanged on purpose, since the 1-9 digit-jump shortcut maps directly onto those 9 indices
 // and neither Glossary nor Data Strategy has ever had a digit shortcut either way.
 var TABS=["over","port","cost","sched","risk","del","ai","fw","act","triage","data","gloss","exec"];
+// Per-tab operational-question first-visit pulse (generalization round, 2026-09-05) -- maps every
+// tab that actually renders at least one opQuestionBox() callout to the id of the FIRST
+// (topmost-in-DOM) such callout's container on that tab, i.e. the one a visitor's eye lands on
+// first. Derived by reading the static HTML placeholder order directly (grep for id="...OpQ" plus
+// fundingGapBar, which holds the Portfolio tab's "fundinggap" callout under a non-"OpQ"-suffixed
+// id): Overview, Actions, Attention & Triage, Executive Command and Glossary render zero
+// operational-question callouts and are deliberately absent -- activateTab() below treats a
+// missing map entry as "this tab has nothing to pulse," not an error.
+var OPQ_TAB_ANCHOR={
+  port:"fundingGapBar", cost:"scurveOpQ", sched:"ganttOpQ", risk:"tornadoOpQ",
+  del:"pfArcOpQ", ai:"archOpQ", fw:"gateLineOpQ", data:"cdeFlowOpQ"
+};
 function activateTab(id){
   // any tab switch invalidates a pending return breadcrumb (nav round 2, item 3, 2026-08-21) —
   // jumpToEl()/jumpToAction() call activateTab() first and re-show a fresh one right after, so a
@@ -13544,13 +13795,16 @@ function activateTab(id){
   });
   window.scrollTo({top:0,behavior:"smooth"});
   redrawCharts();
-  // one-time operational-question intro pulse (Tier 2, UX upgrade round, 2026-08-26) -- fires on
-  // the FIRST real visit to the Cost tab specifically (see opqIntroMark's own comment for why this
-  // has to live here, after redrawCharts(), rather than inside renderScurve() itself).
-  if(id==="cost" && !opqIntroSeen()){
-    var scurveDet=document.getElementById("scurveOpQ").querySelector("details.opq");
-    if(scurveDet) scurveDet.classList.add("opq-intro");
-    opqIntroMark();
+  // one-time operational-question intro pulse (Tier 2, UX upgrade round, 2026-08-26; generalized
+  // to every opQ-bearing tab via OPQ_TAB_ANCHOR, 2026-09-05) -- fires on the FIRST real visit to
+  // ANY tab that renders an operational-question callout, not just Cost (see opqIntroMark's own
+  // comment for why this has to live here, after redrawCharts(), rather than inside the chart's
+  // own render function).
+  var opqAnchorId=OPQ_TAB_ANCHOR[id];
+  if(opqAnchorId && !opqIntroSeen(id)){
+    var opqDet=document.getElementById(opqAnchorId).querySelector("details.opq");
+    if(opqDet) opqDet.classList.add("opq-intro");
+    opqIntroMark(id);
   }
 }
 TABS.forEach(function(id){
@@ -13629,6 +13883,26 @@ function syncAnchorRails(){
   });
 }
 syncAnchorRails();
+// Nav rail collapse/icon-only mode (nav round, 2026-09-05) -- same try/catch-wrapped, graceful-
+// no-op localStorage pattern already used for pccTextSize/pccVisited/pccOpqIntroSeen.
+function navCollapsedPref(){ try{ return window.localStorage && window.localStorage.getItem("pccNavCollapsed")==="1"; }catch(e){ return false; } }
+function saveNavCollapsedPref(){ try{ if(window.localStorage) window.localStorage.setItem("pccNavCollapsed", state.navCollapsed?"1":"0"); }catch(e){} }
+function applyNavCollapsed(){
+  document.getElementById("main").classList.toggle("nav-collapsed", state.navCollapsed);
+  var btn=document.getElementById("railToggle");
+  if(btn){
+    btn.setAttribute("aria-pressed", String(state.navCollapsed));
+    btn.setAttribute("aria-label", state.navCollapsed ? "Expand navigation" : "Collapse navigation");
+  }
+}
+state.navCollapsed = navCollapsedPref();
+applyNavCollapsed();
+document.getElementById("railToggle").addEventListener("click", function(){
+  // Orthogonal to which tab is selected: does NOT call activateTab() or touch state.tab.
+  state.navCollapsed = !state.navCollapsed;
+  applyNavCollapsed();
+  saveNavCollapsedPref();
+});
 document.getElementById("tabs").addEventListener("keydown",function(e){
   // Right/Down = forward, Left/Up = backward, regardless of current orientation — the same
   // container flips between a horizontal bar and a vertical rail responsively, so supporting
@@ -14184,10 +14458,23 @@ if(!fvVisited()){
    redrawCharts() -> renderScurve()), and that second render's fresh innerHTML= wipes out whatever
    class the first, invisible render had added -- so the pulse would fire on markup nobody ever
    sees. Firing it from the tab-activation handler instead means it lands on the render that just
-   became visible, with nothing left to overwrite it before the visitor looks. */
-function opqIntroSeen(){ try{ return window.localStorage && window.localStorage.getItem("pccOpqIntroSeen"); }catch(e){ return "1"; } }
-function opqIntroMark(){
-  try{ if(window.localStorage) window.localStorage.setItem("pccOpqIntroSeen","1"); }catch(e){}
+   became visible, with nothing left to overwrite it before the visitor looks.
+   Generalized to fire per opQ-bearing tab (2026-09-05) -- was gated by one global
+   "pccOpqIntroSeen" flag checked only for id==="cost", so a visitor who opened Schedule, Risk &
+   Change, or Delivery first never saw any equivalent nudge even though those tabs carry their
+   own opQuestionBox() callouts. Each tab in OPQ_TAB_ANCHOR now gets its own storage key
+   ("pccOpqIntroSeen:"+tab). The single pre-existing "pccOpqIntroSeen" key is honored as-is for
+   "cost" specifically, so a visitor who already dismissed the old Cost-only pulse doesn't see it
+   fire again just because the key shape changed underneath them. */
+function opqIntroSeen(tab){
+  try{
+    if(!window.localStorage) return "1";
+    if(tab==="cost" && window.localStorage.getItem("pccOpqIntroSeen")) return "1";
+    return window.localStorage.getItem("pccOpqIntroSeen:"+tab);
+  }catch(e){ return "1"; }
+}
+function opqIntroMark(tab){
+  try{ if(window.localStorage) window.localStorage.setItem("pccOpqIntroSeen:"+tab,"1"); }catch(e){}
 }
 /* text-size control — three steps (Normal/Large/Larger), persisted the same way the theme
    choice already is. Same try/catch guard as fvVisited/fvClear (no localStorage in the
@@ -14444,7 +14731,7 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   toggleDsAutoPlay:toggleDsAutoPlay,stopDsAutoPlay:stopDsAutoPlay,getDsIdx:function(){ return dsIdx; },
   archNodes:ARCH_NODES,archCaption:archCaption,
   gloss:GLOSS,findGloss:findGloss,globalSearchIndex:globalSearchIndex,renderGlobalSearch:renderGlobalSearch,
-  miles:MILES,delays:DELAYS,spark:SPARK,baseline:BASELINE,baseSteps:baseSteps,veSandboxCalc:veSandboxCalc,renderBaseline:renderBaseline,
+  miles:MILES,delays:DELAYS,spark:SPARK,gapSpark:GAP_SPARK,baseline:BASELINE,baseSteps:baseSteps,veSandboxCalc:veSandboxCalc,renderBaseline:renderBaseline,
   pfBand:pfBand,cascadeStepContent:cascadeStepContent,renderPfArc:renderPfArc,renderCascade:renderCascade,renderDelivery:renderDelivery,guards:GUARDS,renderGuards:renderGuards,escPat:ESC_PAT,
   guardsStreakKey:GUARDS_STREAK_KEY,loadGuardsStreak:loadGuardsStreak,saveGuardsStreak:saveGuardsStreak,
   updateGuardsStreak:updateGuardsStreak,guardsStreakLine:guardsStreakLine,

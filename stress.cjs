@@ -833,7 +833,11 @@ ok(Math.abs(trueMin.cpli - T.cpli) < 1e-9,
 const wfSum = 1240 + rows.reduce((s, r) => s + (-(r.bac - r.eac)), 0);
 ok(Math.abs(wfSum - T.eac) < 0.01, "waterfall closes: BAC + steps = EAC", wfSum.toFixed(2) + " vs " + T.eac.toFixed(2));
 // heat map accounts for all six risks
-const heatNums = (G.heat._html.match(/role="img"/g) || []).length;
+// role changed img -> button (upgrade: hot-pattern-keyboard-parity, 2026-09-05) -- these cells
+// have carried a real click action (riskDrillToggle / scroll-to-register, added 2026-08-27) since
+// before this fix, so "img" was already the semantically wrong role for what the cell does on
+// click; tabindex="0" now makes that existing action keyboard-reachable too.
+const heatNums = (G.heat._html.match(/role="button"/g) || []).length;
 ok(heatNums === 25, "heat map renders 25 cells", String(heatNums));
 
 // Risk exposure math explainer + tornado hover (2026-08-19)
@@ -4348,8 +4352,11 @@ console.log("== D16. tab-rail hover-preview mini-drawer (brainstorm-mode nav rou
       note: "Agency-level rollup across 4 lines of business — one line read live off this program's own totals, three shown as summaries only." },
     ai: { q: "Can the numbers on every other tab be trusted?",
       note: "Pipeline architecture, the SQL model, a live 30-check integrity gate, and control charts on the one series with genuine variance." },
+    // note gains a live-conditional suffix (nav round, 2026-09-05, tabDrawerContent()'s new
+    // #cntGate5 check) -- Gate 5 genuinely IS blocked in this program's real synthetic data today,
+    // so the suffix is expected to be present, not a hand-typed guess.
     fw: { q: "What governance does this program actually run on?",
-      note: "Phase playbook, WBS/CBS/OBS/ABS mapping, phase-gate governance with a live Gate 5 hard stop, and the full KPI reference library." },
+      note: "Phase playbook, WBS/CBS/OBS/ABS mapping, phase-gate governance with a live Gate 5 hard stop, and the full KPI reference library. Gate 5 is currently blocked." },
     act: { q: "What's open, who owns it, and what's gone stale?",
       note: "A RAID/CAPA register with proactive staleness detection and an owner-accountability rollup." },
     // note derived from the live P.gloss.length, not a hand-typed count (/stress-test finding,
@@ -4509,7 +4516,11 @@ console.log("== D18. altitude-grouped tab rail + Gate 5 status pill (nav round 2
   // not reference material; Risk & Change is priced/commercial, not field telemetry), so this
   // guards the CORRECTED order, not the proposal's literal one.
   const tabsBlock = indexSrc.slice(indexSrc.indexOf('id="tabs"'), indexSrc.indexOf("</div>", indexSrc.indexOf('id="tabs"')));
-  const labelOrder = [...tabsBlock.matchAll(/tab-group-label" aria-hidden="true">([^<]+)</g)].map(m => m[1]);
+  // Label text moved one level deeper (nav-collapse round, 2026-09-05): the group label is now
+  // wrapped in a nested <span class="tab-group-label-text"> so its text can be visually hidden
+  // independent of the outer aria-hidden span's own layout role -- matches the same wrapping
+  // already applied to .tab-label on every tab button.
+  const labelOrder = [...tabsBlock.matchAll(/tab-group-label-text">([^<]+)</g)].map(m => m[1]);
   ok(JSON.stringify(labelOrder) === JSON.stringify(["Executive", "Program Performance", "Field &amp; Assurance", "Governance &amp; Execution", "Reference"]),
     "tab rail group labels appear in the corrected order", JSON.stringify(labelOrder));
   // Data Strategy moved ahead of Glossary in both the tab rail markup and the TABS array
@@ -4558,7 +4569,11 @@ console.log("== D19. in-tab sticky anchor rail, Cost/Schedule (nav round 2, 2026
   // the same custom property, rather than two separately-hardcoded 64px literals that could drift
   // apart from each other.
   ok(/--nav-height:64px/.test(indexSrc), "--nav-height custom property is defined");
-  ok(/\.tabs\{grid-column:1[^}]*top:var\(--nav-height\)/.test(indexSrc.replace(/\n\s*/g, "")), "the vertical tab rail's sticky offset reads --nav-height, not a separate hardcoded literal");
+  // grid-column:1/position:sticky/top:var(--nav-height) moved from .tabs onto #railWrap (nav
+  // collapse round, 2026-09-05) -- #railWrap is now the single grid-column:1 item so the
+  // collapse toggle can sit above .tabs from source order alone; [role="tabpanel"] needed no
+  // change either way, confirmed unaffected by a separate check elsewhere in this file.
+  ok(/#railWrap\{grid-column:1[^}]*top:var\(--nav-height\)/.test(indexSrc.replace(/\n\s*/g, "")), "the vertical tab rail's sticky offset reads --nav-height, not a separate hardcoded literal");
   ok(/\.anchor-rail\{position:sticky;top:var\(--nav-height\)/.test(indexSrc), "the anchor rail's sticky offset reads the same --nav-height var");
 
   // Visible scroll affordance (visual-inspection finding, 2026-08-24): gateLine/arch/cdeFlow's own
@@ -10223,6 +10238,212 @@ console.log("== D65. Data-integrity streak counter (upgrade: guards-streak-count
   ok(afterFailure.streak === 0 && afterFailure.lastFailCause === "a brand new failing check",
     "isolated module: a genuine failure resets a 12-session streak to 0 and records the new cause, not the old one",
     JSON.stringify(afterFailure));
+}
+
+console.log("== D66. Per-tab operational-question first-visit pulse (upgrade: per-tab-opq-first-visit-pulse, 2026-09-05) ==");
+{
+  // The SHARED P/G instance (const R = runPage(indexSrc), no lsSeed) has no window.localStorage at
+  // all, so opqIntroSeen() short-circuits to "1" (already seen) on every call there and this
+  // feature never actually fires against it -- same reason the theme/textSize persistence tests
+  // elsewhere in this file already use their own isolated runPage(indexSrc, lsSeed) instances
+  // instead of the shared one. Two fresh instances here, same technique.
+  const Rq = runPage(indexSrc, {});
+  const Gq = Rq.registry;
+  const store = Rq.win.localStorage._store;
+
+  // Derived from OPQ_TAB_ANCHOR's own real key set (read directly from source), not hand-typed --
+  // if a future round adds/removes an opQ-bearing tab, this list follows it instead of silently
+  // going stale.
+  const anchorSrc = indexSrc.slice(indexSrc.indexOf("var OPQ_TAB_ANCHOR="), indexSrc.indexOf("function activateTab(id){"));
+  const OPQ_TABS = [...anchorSrc.matchAll(/(\w+):"/g)].map(m => m[1]);
+  ok(OPQ_TABS.length === 8, "OPQ_TAB_ANCHOR maps exactly 8 tabs to their first opQ callout", OPQ_TABS.join(","));
+  const NON_OPQ_TABS = ["over", "exec", "act", "triage", "gloss"];
+
+  OPQ_TABS.forEach(t => {
+    ok(!(("pccOpqIntroSeen:" + t) in store), "before any visit, tab " + t + " carries no pulse-seen key yet");
+    fire(Gq["t-" + t], "click");
+    ok(store["pccOpqIntroSeen:" + t] === "1",
+      "first visit to tab " + t + " marks its own independent pulse-seen key, not a shared/global one",
+      JSON.stringify(store));
+  });
+
+  // Revisiting is a no-op: re-clicking an already-pulsed tab must not throw and must leave its key
+  // untouched (never re-written to some other value).
+  fire(Gq["t-cost"], "click");
+  ok(store["pccOpqIntroSeen:cost"] === "1", "revisiting an already-pulsed tab is a no-op -- key unchanged");
+
+  NON_OPQ_TABS.forEach(t => fire(Gq["t-" + t], "click"));
+  ok(NON_OPQ_TABS.every(t => !(("pccOpqIntroSeen:" + t) in store)),
+    "tabs with zero operational-question callouts never write a pulse-seen key at all",
+    Object.keys(store).join(","));
+
+  // Migration: a visitor who already dismissed the OLD, Cost-only "pccOpqIntroSeen" flag must not
+  // see the new Cost pulse fire again just because the storage shape changed underneath them -- but
+  // that old flag must NOT leak into suppressing any of the other 7 newly-pulsing tabs.
+  const Rm = runPage(indexSrc, { pccOpqIntroSeen: "1" });
+  const Gm = Rm.registry;
+  const storeM = Rm.win.localStorage._store;
+  fire(Gm["t-cost"], "click");
+  ok(!("pccOpqIntroSeen:cost" in storeM),
+    "an old-format global flag suppresses Cost's pulse without ever writing a new per-tab key for it",
+    Object.keys(storeM).join(","));
+  fire(Gm["t-sched"], "click");
+  ok(storeM["pccOpqIntroSeen:sched"] === "1",
+    "the old-format flag does NOT leak into a different opQ-bearing tab -- Schedule still pulses normally");
+}
+
+console.log("== D67. Progress-verification gap tracker: Trend sparkline + goal line (upgrade: progress-verification-gap-tracker, 2026-09-05) ==");
+{
+  // Pure data shape -- independent of rendering, checked against the real live rows/GAP_SPARK on
+  // the shared P instance (no localStorage dependency, safe against the window-reassignment quirk
+  // documented in D65 above).
+  ok(P.rows.every(r => Array.isArray(P.gapSpark[r.id]) && P.gapSpark[r.id].length === 12),
+    "every package's GAP_SPARK series has exactly 12 points", JSON.stringify(Object.keys(P.gapSpark).map(k => P.gapSpark[k].length)));
+  ok(P.rows.every(r => P.gapSpark[r.id][0] === 0),
+    "every gap-spark series starts at 0 (a deterministic curve toward today's real gap, not a random walk or a snapshot history)");
+  ok(P.rows.every(r => Math.abs(P.gapSpark[r.id][P.gapSpark[r.id].length - 1] - r.progressGap) < 1e-9),
+    "every gap-spark series converges exactly to its row's real, current progressGap, independently re-derived here");
+
+  // Rendered card -- renderProgressVerify() already ran once at page-init (D63 reads the same
+  // container for its own, earlier assertions); read directly, no re-render needed.
+  const cardHtml = G.progressVerifyCard._html;
+  ok(cardHtml.includes(">Trend<"), "progressVerifyCard's table header includes a Trend column");
+  ok(cardHtml.includes("goal line"), "the card's lede explicitly names the goal line drawn on each sparkline, not left unexplained");
+  const svgCount = (cardHtml.match(/<svg viewBox="0 0 100 26"/g) || []).length;
+  ok(svgCount === P.rows.length,
+    "exactly one gap-sparkline <svg> per package row, matching the real row count", svgCount + " vs " + P.rows.length);
+  const dashCount = (cardHtml.match(/stroke-dasharray="3 3"/g) || []).length;
+  ok(dashCount === P.rows.length, "every row's sparkline draws its own dashed goal line, not a shared/omitted one", String(dashCount));
+}
+
+console.log("== D68. Hot-pattern keyboard parity (upgrade: hot-pattern-keyboard-parity, 2026-09-05) ==");
+{
+  // Static: one shared focus-visible ring rule covers all three SVG rect surfaces (waterfall/
+  // tornado/gantt), reusing the exact technique #gbmLogReturns circle.gbm-dot already established
+  // rather than inventing a new visual idiom -- see this rule's own comment for why the generic
+  // page-wide :focus-visible rule isn't enough here (SVG-edge clipping).
+  ok(indexSrc.includes('#waterfall rect.hot:focus,#tornado rect.hot:focus,#gantt rect.hot:focus{outline:none}'),
+    "the three SVG rect surfaces suppress the default focus outline in favor of the custom ring");
+  ok(indexSrc.includes('#waterfall rect.hot:focus-visible,#tornado rect.hot:focus-visible,#gantt rect.hot:focus-visible'),
+    "the three SVG rect surfaces share one focus-visible ring rule");
+
+  // Runtime: every hot element in each surface's already-rendered, live markup (shared P/G
+  // instance, rendered at page init) carries tabindex="0" role="button" and the shared ", click to
+  // explore" affordance text -- not merely present somewhere in the source string.
+  const surfaces = [
+    { name: "waterfall bars", html: G.waterfall._html, count: P.rows.length + 2 }, // +2 for the BAC/EAC total bars
+    { name: "tornado bars", html: G.tornado._html, count: P.risks.length },
+    { name: "gantt bars", html: G.gantt._html, count: P.rows.length * 2 }, // baseline + forecast rect per row
+    { name: "floats bars() rowbars", html: G.floats._html, count: P.rows.length }, // bars() only adds tabindex/role when its tipFmt arg is truthy -- "floats" always passes one
+  ];
+  surfaces.forEach(s => {
+    const tabCount = (s.html.match(/tabindex="0"/g) || []).length;
+    const roleCount = (s.html.match(/role="button"/g) || []).length;
+    ok(tabCount === s.count, s.name + ": every hot element carries tabindex=\"0\" (" + tabCount + "/" + s.count + ")");
+    ok(roleCount === s.count, s.name + ": every hot element carries role=\"button\" (" + roleCount + "/" + s.count + ")");
+    ok(s.html.includes("click to explore"), s.name + ": aria-label carries the shared ', click to explore' affordance text");
+  });
+  // Heat-map cells: role="button" count (25, a 5x5 grid) is already asserted in section A above
+  // (the /stress-test finding that updated this exact regex when role changed from "img"); this
+  // adds the keyboard-parity-specific piece that check doesn't cover.
+  ok((G.heat._html.match(/tabindex="0"/g) || []).length === 25, "risk heat-map: every one of the 25 cells carries tabindex=\"0\"");
+  ok(G.heat._html.includes("click to explore"), "risk heat-map cells carry the shared ', click to explore' affordance text");
+
+  // Full behavioral parity, not just markup: firing a synthetic Enter keydown on a bars()-rendered
+  // rowbar must run the IDENTICAL barsTip() a mouse click runs -- same tooltip content, not a
+  // second, divergent keyboard-only code path. Uses "floats" (real tipFmt, wired once at page-init).
+  const floatsHost = G.floats;
+  const fakeRowbar = {
+    classList: { contains: () => true },
+    dataset: { i: "0" },
+    parentElement: floatsHost,
+    getBoundingClientRect: () => ({ left: 0, top: 0, width: 10, height: 10 }),
+    closest(sel) { return sel === ".hot" ? this : null; },
+  };
+  fire(floatsHost, "keydown", { key: "Enter", target: fakeRowbar, preventDefault(){} });
+  ok(G.tip._html.includes(P.rows[0].id) && G.tip._html.includes("Total float"),
+    "Enter on a focused rowbar renders the same tooltip content a mouse click on it would (real row data, not a stub)",
+    G.tip._html);
+
+  // Same behavioral parity on a classList-based (non-bars()) surface: the tornado chart's keydown
+  // listener checks e.target.classList.contains("hot") directly rather than via closest().
+  const fakeTornadoRect = {
+    classList: { contains: () => true },
+    dataset: { risk: "0" },
+    getBoundingClientRect: () => ({ left: 0, top: 0, width: 10, height: 10 }),
+  };
+  fire(G.tornado, "keydown", { key: "Enter", target: fakeTornadoRect, preventDefault(){} });
+  // dataset.risk="0" indexes into renderRisk()'s own exposure-DESCENDING-sorted `ranked` array, not
+  // the raw P.risks order -- independently re-derived here the same way renderRisk() computes it,
+  // rather than assuming P.risks[0] happens to be the top-ranked risk.
+  const rankedTop = P.risks.map(k => Object.assign({}, k, { exp: P.pBand[k.p] * k.cost })).sort((a, b) => b.exp - a.exp)[0];
+  ok(G.tip._html.includes(rankedTop.id) && G.tip._html.includes("exposure"),
+    "Enter on a focused tornado bar renders the same tooltip content a mouse click on it would (the real top-ranked risk, independently re-derived)",
+    G.tip._html);
+}
+
+console.log("== D69. Nav rail collapse / icon-only mode (upgrade: nav-collapse, 2026-09-05) ==");
+{
+  // Markup: every tab label and group label is wrapped for the CSS clip-path hiding technique
+  // collapsed mode relies on -- counted against the real tab/group counts already established
+  // elsewhere in this file (13 tabs, 5 groups), not hand-typed.
+  const tabLabelCount = (indexSrc.match(/<span class="tab-label">/g) || []).length;
+  const groupLabelCount = (indexSrc.match(/<span class="tab-group-label-text">/g) || []).length;
+  ok(tabLabelCount === 13, "all 13 nav-rail tab buttons wrap their text in .tab-label", String(tabLabelCount));
+  ok(groupLabelCount === 5, "all 5 nav-rail group headers wrap their text in .tab-group-label-text", String(groupLabelCount));
+  ok(indexSrc.includes('id="railToggle"') && indexSrc.includes('aria-controls="tabs"'),
+    "the collapse toggle button exists and names the tablist it controls via aria-controls");
+
+  // Runtime: a FRESH isolated instance, not the shared P/G one -- pre-registered expectation
+  // (B35), CONTRADICTED on first attempt: by this point in file execution several earlier isolated
+  // runPage() calls (this file's own changeWatch test, plus D66 above) have already reassigned
+  // global.document, and applyNavCollapsed()'s own document.getElementById(...) calls resolve that
+  // identifier DYNAMICALLY at call time -- the same quirk D65 above already documented for
+  // `window`, now confirmed (empirically, via a temporary debug print, not assumed) to also apply
+  // to `document`. Testing DOM-attribute writes against G.railToggle after any later runPage() call
+  // silently reads/writes the WRONG instance's registry -- state.navCollapsed itself still toggled
+  // correctly (a closure-captured local, not a dynamically-resolved global), but the two
+  // setAttribute() calls landed on a different instance's button entirely. A fresh instance,
+  // exercised immediately with nothing else running a runPage() call in between, sidesteps this.
+  const Rt = runPage(indexSrc, {});
+  const Gt = Rt.registry;
+  const Pt = Rt.win.__PCC__;
+  ok(Pt.state.navCollapsed === false, "state.navCollapsed starts false with no persisted preference (a real boolean, now that a real, empty localStorage mock is present)");
+  ok(Gt.railToggle.getAttribute("aria-pressed") === "false", "railToggle starts aria-pressed=false, matching state");
+  ok(Gt.railToggle.getAttribute("aria-label") === "Collapse navigation", "railToggle's initial label offers to collapse");
+  fire(Gt.railToggle, "click");
+  ok(Pt.state.navCollapsed === true, "clicking the toggle flips state.navCollapsed to true");
+  ok(Gt.railToggle.getAttribute("aria-pressed") === "true", "railToggle's aria-pressed flips to true in lock-step");
+  ok(Gt.railToggle.getAttribute("aria-label") === "Expand navigation", "railToggle's label flips to offer expanding, once collapsed");
+  fire(Gt.railToggle, "click");
+  ok(Pt.state.navCollapsed === false, "clicking the toggle again restores state.navCollapsed to false");
+  ok(Gt.railToggle.getAttribute("aria-pressed") === "false", "railToggle's aria-pressed restores to false");
+
+  // openTabDrawer() guard relaxation: in collapsed mode, hovering the ALREADY-selected tab must
+  // still open the identifying popover (a sighted user has no visible label to read otherwise) --
+  // in expanded mode the original early-return (no popover on the already-selected tab) stays.
+  ok(indexSrc.includes('if(anchorEl.getAttribute("aria-selected")==="true" && !state.navCollapsed) return;'),
+    "openTabDrawer()'s already-selected early-return is relaxed specifically for collapsed mode, not removed outright");
+
+  // Gate-5 tooltip content addition: tabDrawerContent()'s Operating Framework note names the real,
+  // live blocked state when #cntGate5 is showing -- confirmed against this file's own established
+  // fact (D63/GUARDS: the progress-verification check is the one standing failure today; Gate 5's
+  // own blocked badge is a separate, pre-existing real condition, asserted here by content only).
+  ok(indexSrc.includes('" Gate 5 is currently blocked."'),
+    "the Operating Framework tab's hover-preview note names the real Gate-5-blocked condition when it applies");
+
+  // Persistence, isolated instance: a pre-existing pccNavCollapsed="1" preference starts the page
+  // already collapsed -- same isolated-instance technique as D66 above (window gets reassigned by
+  // each runPage(..., lsSeed) call, so this runs last in this block, after every shared-P/G check).
+  const Rn = runPage(indexSrc, { pccNavCollapsed: "1" });
+  ok(Rn.win.__PCC__.state.navCollapsed === true,
+    "on init, a pre-existing pccNavCollapsed=1 preference starts state.navCollapsed true");
+  ok(Rn.registry.railToggle.getAttribute("aria-pressed") === "true",
+    "the toggle button's own aria-pressed reflects that persisted collapsed state immediately on load, not just after a click");
+
+  const Rx = runPage(indexSrc, { pccNavCollapsed: "0" });
+  ok(Rx.win.__PCC__.state.navCollapsed === false,
+    "an explicit pccNavCollapsed=0 preference starts state.navCollapsed false");
 }
 
 console.log("== D62. Self-check: this file's own final assertion count matches README/HANDOFF prose ==");
