@@ -8258,6 +8258,40 @@ ok(!archSrc.includes("twenty-seven") && !archSrc.includes("twenty-eight plus six
 ok(archSrc.includes("twenty-nine plus sixty-five check integrity gate"),
   "the #archSvg aria-label states the integrity gate count correctly (twenty-nine/sixty-five, 28->29 for item #3's QA/QC gate), matching every other count in the file");
 
+console.log("== D70b. WCAG AA contrast fix, architecture.html's own .pill.g (same defect class as D70, found sweeping the site's live pages, 2026-09-06) ==");
+{
+  // architecture.html is a standalone file -- it never had index.html's --c-pill-* tokens or its
+  // palette-comment rule, so this is a distinct instance of the same defect class, not a copy of
+  // D70's fix: .pill.g{background:rgb(var(--c-ok) / .15);color:rgb(var(--c-ok))} used the raw
+  // --c-ok hue as text on a 10.5px bold pill -- same math as D70 (identical RGB triples for
+  // --c-ok/--c-card in both files), same failure.
+  function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+  function relLum(rgb) { return 0.2126 * lin(rgb[0]) + 0.7152 * lin(rgb[1]) + 0.0722 * lin(rgb[2]); }
+  function contrastRatio(rgb1, rgb2) { const L1 = relLum(rgb1), L2 = relLum(rgb2), hi = Math.max(L1, L2), lo = Math.min(L1, L2); return (hi + 0.05) / (lo + 0.05); }
+  const DARK = { card: [30, 41, 59], ok: [16, 185, 129], pillG: [52, 211, 153] };
+  const LIGHT = { card: [255, 255, 255], ok: [5, 150, 105], pillG: [6, 95, 70] };
+
+  // Pre-registered before the fix: raw --c-ok text on --c-card fails AA in LIGHT theme (3.77:1,
+  // same number D70 found for this exact pairing in index.html -- both files share identical
+  // --c-ok/--c-card RGB triples). Contradicted prediction, caught by running the probe rather than
+  // assuming symmetry with D70 (B35): DARK theme actually clears AA already (5.77:1 >= 4.5) --
+  // this pill's dark-theme rendering was never broken, only its light-theme one was.
+  ok(Math.abs(contrastRatio(LIGHT.ok, LIGHT.card) - 3.77) < 0.01, "pre-registered: raw --c-ok text on --c-card in light theme measured ~3.77:1, below the 4.5:1 AA minimum for normal-size text", contrastRatio(LIGHT.ok, LIGHT.card).toFixed(2));
+  ok(contrastRatio(DARK.ok, DARK.card) >= 4.5, "pre-registered (contradicts the dark-theme-also-fails assumption): raw --c-ok text on --c-card in dark theme already clears AA at 5.77:1 -- only the light-theme rendering was actually broken", contrastRatio(DARK.ok, DARK.card).toFixed(2));
+
+  // .pill.g's real composited background: the table it renders in (line ~120: `table{...
+  // background:rgb(var(--c-card))}`) is the only background in the chain -- .pill itself sets no
+  // background-color property beyond .pill.g's own tint, and .pill.g's tint IS the background
+  // being composited against here, matching D70's index.html reasoning.
+  ok(contrastRatio(DARK.pillG, DARK.card) >= 4.5 && contrastRatio(LIGHT.pillG, LIGHT.card) >= 4.5, "fixed: architecture.html's --c-pill-g as text on --c-card clears WCAG AA (4.5:1) in both themes", contrastRatio(DARK.pillG, DARK.card).toFixed(2) + " dark / " + contrastRatio(LIGHT.pillG, LIGHT.card).toFixed(2) + " light");
+
+  ok(!archSrc.includes("color:rgb(var(--c-ok))"), "architecture.html no longer sets the raw --c-ok hue directly as inline text color anywhere");
+  ok(archSrc.includes(".pill.g{background:rgb(var(--c-ok) / .15);color:var(--c-pill-g)}"), "architecture.html's .pill.g rule now uses --c-pill-g for text, tinted background unchanged");
+  ok(archSrc.includes("--c-pill-g:#34D399;") && archSrc.includes("--c-pill-g:#065F46;"), "architecture.html defines its own --c-pill-g token (dark + light values) rather than referencing an undefined variable");
+  // .pill.a{color:rgb(var(--c-warn))} at the line right above has the same defect and is NOT
+  // fixed here -- out of scope of this finding, flagged separately (Surgical Changes).
+}
+
 // /stress-test finding (2026-08-26, docs-currency sweep requested by TJ): architecture.html and
 // otak.html hadn't been touched since 2026-08-21, but index.html gained 2 tabs (Attention & Triage,
 // Executive Command) and a 2nd escalation rule pair in the 5 days since -- 2 real, live, previously

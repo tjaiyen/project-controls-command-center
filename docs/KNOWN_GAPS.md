@@ -1263,3 +1263,28 @@ disclosure readiness, shadow-ledger framing, and the session activity/audit trai
   (removed the exact-count-1 check and its now-obsolete "is it .ph.done" check, added the blanket
   absence check and the new location-specific contrast check): 4,223→4,224; README.md/
   docs/HANDOFF.md citations updated, `D62`'s self-check confirms the match.
+
+## 2026-09-06 second follow-up: same defect class in `architecture.html`
+
+- **A live-page sweep found a 3rd file with the same raw-`--c-ok`-as-text defect**: checking that
+  all of the repo's published pages (`index.html`, `otak.html`, `walters-wolf.html`,
+  `architecture.html`, `dc-investment-case.html`, `facade.html`) were live on GitHub Pages also
+  surfaced `architecture.html:130` — `.pill.g{background:rgb(var(--c-ok) / .15);color:rgb(var(--c-ok))}`
+  — the same defect class as the two fixes above, in a page that was never part of either. Unlike
+  `index.html`, `architecture.html` had no `--c-pill-*` tokens or palette-comment rule at all (it's
+  a standalone file, not built from the same lineage), so the fix added just the one token it
+  needed (`--c-pill-g:#34D399` dark / `#065F46` light, to all 4 of its palette blocks) rather than
+  importing the full `--c-pill-r`/`-a`/`-i` set unused by this file. Pre-registering the expected
+  failure caught a real mistake before it shipped (B35): the initial assumption that raw `--c-ok`
+  text on `--c-card` fails AA in both themes (extrapolating from D70's index.html numbers) was
+  wrong — `architecture.html`'s dark theme already clears AA at 5.77:1; only light theme, at
+  3.77:1, was actually broken. Fixed to `color:var(--c-pill-g)`; post-fix both themes clear AA at
+  7.6-7.7:1. `stress.cjs` gained its own `D70b` section (6 new assertions: the corrected dark/light
+  pre-registration, the post-fix contrast check, a blanket absence check, a source-string check on
+  the fixed rule, and a check that the new token is actually defined) rather than reusing D70's —
+  a different file, different pre-existing state, needed its own probe, not a copied assumption.
+  **Left alone, flagged separately**: `.pill.a{color:rgb(var(--c-warn))}` on the line directly
+  above has the identical defect (raw `--c-warn` as text) and was not touched — noticed while
+  fixing `.pill.g`, out of scope of what was asked, surfaced rather than silently expanded into
+  (Surgical Changes). 6 new assertions: 4,224→4,230; README.md/docs/HANDOFF.md citations updated,
+  `D62`'s self-check confirms the match.
