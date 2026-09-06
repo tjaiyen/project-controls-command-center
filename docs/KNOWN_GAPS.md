@@ -1283,8 +1283,24 @@ disclosure readiness, shadow-ledger framing, and the session activity/audit trai
   pre-registration, the post-fix contrast check, a blanket absence check, a source-string check on
   the fixed rule, and a check that the new token is actually defined) rather than reusing D70's —
   a different file, different pre-existing state, needed its own probe, not a copied assumption.
-  **Left alone, flagged separately**: `.pill.a{color:rgb(var(--c-warn))}` on the line directly
-  above has the identical defect (raw `--c-warn` as text) and was not touched — noticed while
-  fixing `.pill.g`, out of scope of what was asked, surfaced rather than silently expanded into
-  (Surgical Changes). 6 new assertions: 4,224→4,230; README.md/docs/HANDOFF.md citations updated,
-  `D62`'s self-check confirms the match.
+  Flagged separately rather than folded in: `.pill.a{color:rgb(var(--c-warn))}` on the line
+  directly above looked like the identical defect — noticed while fixing `.pill.g`, out of scope
+  of what was asked, surfaced instead of silently expanded into (Surgical Changes). 6 new
+  assertions: 4,224→4,230; README.md/docs/HANDOFF.md citations updated, `D62`'s self-check
+  confirms the match.
+- **`.pill.a`, fixed on request — but it wasn't actually the same defect**: asked to fix `.pill.a`
+  too, on the (reasonable, but unverified) assumption it shared `.pill.g`'s WCAG failure since the
+  source pattern looked identical. Running the same contrast probe before touching the code (B35)
+  found otherwise: raw `--c-warn` (245,158,11 dark / 180,83,9 light) on `--c-card` already clears
+  AA in *both* themes — 6.81:1 dark, 5.02:1 light — because `--c-warn`'s orange is high-luminance
+  enough that neither theme's pairing ever failed. `.pill.a` was a convention bypass (not routed
+  through `--c-pill-*`, like every other status pill in this file now is), not a contrast bug.
+  Fixed anyway, as asked, for consistency: added `--c-pill-a:#F59E0B` dark / `#92400E` light (the
+  same hex pair `index.html` already uses for its own `--c-pill-a`) to all 4 palette blocks, and
+  `.pill.a` now reads `color:var(--c-pill-a)`. `stress.cjs`'s `D70b` section grew 5 more
+  assertions distinguishing this explicitly from the real fix above — a pre-registered check that
+  the OLD raw-hue pairing already passed AA (proving this wasn't a bug), the post-fix pairing
+  still passing, the blanket absence check, the source-string check, and the token-definition
+  check. Reported to TJ as a correction to the initial characterization, not silently fixed under
+  the same "WCAG bug" framing as `.pill.g`. 5 new assertions: 4,230→4,235; README.md/
+  docs/HANDOFF.md citations updated, `D62`'s self-check confirms the match.

@@ -8258,7 +8258,7 @@ ok(!archSrc.includes("twenty-seven") && !archSrc.includes("twenty-eight plus six
 ok(archSrc.includes("twenty-nine plus sixty-five check integrity gate"),
   "the #archSvg aria-label states the integrity gate count correctly (twenty-nine/sixty-five, 28->29 for item #3's QA/QC gate), matching every other count in the file");
 
-console.log("== D70b. WCAG AA contrast fix, architecture.html's own .pill.g (same defect class as D70, found sweeping the site's live pages, 2026-09-06) ==");
+console.log("== D70b. architecture.html's own .pill.g/.pill.a raw-hue-as-text (found sweeping the site's live pages, 2026-09-06) ==");
 {
   // architecture.html is a standalone file -- it never had index.html's --c-pill-* tokens or its
   // palette-comment rule, so this is a distinct instance of the same defect class, not a copy of
@@ -8288,8 +8288,20 @@ console.log("== D70b. WCAG AA contrast fix, architecture.html's own .pill.g (sam
   ok(!archSrc.includes("color:rgb(var(--c-ok))"), "architecture.html no longer sets the raw --c-ok hue directly as inline text color anywhere");
   ok(archSrc.includes(".pill.g{background:rgb(var(--c-ok) / .15);color:var(--c-pill-g)}"), "architecture.html's .pill.g rule now uses --c-pill-g for text, tinted background unchanged");
   ok(archSrc.includes("--c-pill-g:#34D399;") && archSrc.includes("--c-pill-g:#065F46;"), "architecture.html defines its own --c-pill-g token (dark + light values) rather than referencing an undefined variable");
-  // .pill.a{color:rgb(var(--c-warn))} at the line right above has the same defect and is NOT
-  // fixed here -- out of scope of this finding, flagged separately (Surgical Changes).
+
+  // .pill.a{color:rgb(var(--c-warn))}, flagged alongside .pill.g above as the same convention
+  // bypass, turned out on probing NOT to be the same defect (B35 -- state what the probe actually
+  // found, don't assume symmetry with .pill.g just because the source pattern looks identical):
+  // raw --c-warn on --c-card already clears AA in both themes. Fixed anyway, for consistency with
+  // the --c-pill-* convention .pill.g now follows -- a cosmetic/consistency change, not a contrast
+  // bug fix, and reported to TJ as such rather than folded silently into the WCAG framing above.
+  const DARK_WARN = { card: [30, 41, 59], warn: [245, 158, 11], pillA: [245, 158, 11] };
+  const LIGHT_WARN = { card: [255, 255, 255], warn: [180, 83, 9], pillA: [146, 64, 14] };
+  ok(contrastRatio(DARK_WARN.warn, DARK_WARN.card) >= 4.5 && contrastRatio(LIGHT_WARN.warn, LIGHT_WARN.card) >= 4.5, "pre-registered: raw --c-warn text on --c-card already clears WCAG AA in both themes BEFORE the fix -- unlike .pill.g, .pill.a was never a real contrast failure", contrastRatio(DARK_WARN.warn, DARK_WARN.card).toFixed(2) + " dark / " + contrastRatio(LIGHT_WARN.warn, LIGHT_WARN.card).toFixed(2) + " light");
+  ok(contrastRatio(DARK_WARN.pillA, DARK_WARN.card) >= 4.5 && contrastRatio(LIGHT_WARN.pillA, LIGHT_WARN.card) >= 4.5, "fixed: architecture.html's --c-pill-a as text on --c-card still clears WCAG AA in both themes after the consistency fix", contrastRatio(DARK_WARN.pillA, DARK_WARN.card).toFixed(2) + " dark / " + contrastRatio(LIGHT_WARN.pillA, LIGHT_WARN.card).toFixed(2) + " light");
+  ok(!archSrc.includes("color:rgb(var(--c-warn))"), "architecture.html no longer sets the raw --c-warn hue directly as inline text color anywhere");
+  ok(archSrc.includes(".pill.a{background:rgb(var(--c-warn) / .16);color:var(--c-pill-a)}"), "architecture.html's .pill.a rule now uses --c-pill-a for text, tinted background unchanged");
+  ok(archSrc.includes("--c-pill-a:#F59E0B;") && archSrc.includes("--c-pill-a:#92400E;"), "architecture.html defines its own --c-pill-a token (dark + light values) rather than referencing an undefined variable");
 }
 
 // /stress-test finding (2026-08-26, docs-currency sweep requested by TJ): architecture.html and
