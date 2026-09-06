@@ -4038,7 +4038,10 @@ ok(/\.finished\.then\(/.test(indexSrc) && !/\.onfinish=/.test(indexSrc),
   // Framework tab's "Why each threshold is set here" escalation-rationale accordion).
   // 18 as of the stakeholder-readiness round (2026-09-03) -- 1 new panel added (the AI & Data
   // tab's "The six forces, per agency" raw-score disclosure).
-  ok(detailsCount === 18, "exactly 18 details.dbox panels exist for this to wire", String(detailsCount));
+  // 19 as of the manufacturing-project-controls-doc verification round (2026-09-06) -- 1 new panel
+  // added (the Glossary tab's "A cross-domain research finding: watch for borrowed regulated-
+  // industry vocabulary" note).
+  ok(detailsCount === 19, "exactly 19 details.dbox panels exist for this to wire", String(detailsCount));
 }
 
 // Extended growup/draw-in (2026-08-19) — source-level only, same stub limitation as above;
@@ -8726,6 +8729,57 @@ console.log("== L. Subcontractor financial-health watch (brainstorm-mode round, 
     const item = queue.find((it) => it.id === "subhealth-" + s.contractId);
     ok(!!item === shouldFire, s.contractId + "'s triage presence matches the pre-registered fire/dormant expectation", String(shouldFire));
   });
+}
+
+console.log("== L2. Long-lead equipment Procurement Watch (manufacturing-project-controls-doc verification round, 2026-09-06) ==");
+{
+  // A downloaded "AI research" document on manufacturing project controls proposed FAT/SAT
+  // milestone-payment gating, dual-source coverage, and a supplier scorecard as real, verified
+  // practices -- this section closes the one genuine gap SUB_HEALTH (subcontractor solvency) and
+  // MATERIAL_INDEX_REAL (commodity risk) don't cover: equipment-supplier milestone/dual-source
+  // tracking. Pre-registered expectations computed independently via Node before this test was
+  // written, not copied from the app's own arithmetic.
+  const pw = P.procurementWatch;
+  ok(Array.isArray(pw) && pw.length === 3, "exactly 3 long-lead equipment packages are watched", String(pw && pw.length));
+  ok(P.fatReleasePct === 20 && P.satReleasePct === 12, "FAT/SAT release percentages match the real, cited range (Terra Insight defense-contract example: 20% FAT / 12% SAT, within the documented 15-25%/10-15% norms)", P.fatReleasePct + "/" + P.satReleasePct);
+
+  const EXPECTED = { "PW-01": { fat: 0.840, sat: 0.504, final: 2.856 }, "PW-02": { fat: 0.520, sat: 0.312, final: 1.768 }, "PW-03": { fat: 1.780, sat: 1.068, final: 6.052 } };
+  pw.forEach((p) => {
+    const exp = EXPECTED[p.id];
+    ok(Math.abs(P.pwFatReleaseM(p) - exp.fat) < 1e-9, p.id + "'s FAT release $ matches the independently pre-registered golden value (contractValueM * 20%)", String(P.pwFatReleaseM(p)));
+    ok(Math.abs(P.pwSatReleaseM(p) - exp.sat) < 1e-9, p.id + "'s SAT release $ matches the independently pre-registered golden value (contractValueM * 12%)", String(P.pwSatReleaseM(p)));
+    ok(Math.abs(P.pwFinalReleaseM(p) - exp.final) < 1e-9, p.id + "'s final-acceptance release $ matches the independently pre-registered golden value (contractValueM * 68%)", String(P.pwFinalReleaseM(p)));
+    // Internal consistency: the three release tranches must sum back to the full contract value --
+    // this would catch a typo'd percentage split that each individual check above couldn't.
+    ok(Math.abs((P.pwFatReleaseM(p) + P.pwSatReleaseM(p) + P.pwFinalReleaseM(p)) - p.contractValueM) < 1e-9, p.id + "'s three release tranches (FAT+SAT+final) sum back to the full contract value, not a mis-split", String(P.pwFatReleaseM(p) + P.pwSatReleaseM(p) + P.pwFinalReleaseM(p)));
+  });
+
+  // Dual-source coverage -- independently re-filtered, not read back from a stored percentage.
+  const dualCount = pw.filter((p) => p.dualSourced).length;
+  ok(dualCount === 1, "pre-registered: exactly 1 of 3 watched packages is dual-sourced today (the train-control/signaling package)", String(dualCount));
+  ok(Math.abs(P.pwDualSourceCoveragePct() - (1 / 3) * 100) < 1e-9, "dual-source coverage % matches the independently re-derived golden value (1/3)", String(P.pwDualSourceCoveragePct()));
+
+  // "VPI" fabrication guard, specific to this feature: the correction this feature exists to make
+  // (VPI is not a standardized metric) must be traceable in the real page text, not just asserted
+  // here -- and the CORRECT metric names (OTIF/PPM/billing variance) must be what's actually used.
+  // Checks the Glossary tab's own VISIBLE text (not a code comment a real visitor would never see)
+  // -- the Procurement Watch footnote below points a reader here for the explanation, so the
+  // explanation has to actually be there, not just documented in source.
+  ok(indexSrc.includes('id="borrowedVocabBox"') && indexSrc.includes("Vendor Performance Indexing (VPI)") && indexSrc.includes("was found NOT to be a standardized named"), "the Glossary tab's own visible cross-domain research note names and corrects the VPI claim -- not just a source comment a reader would never see");
+  pw.forEach((p) => {
+    ok(typeof p.otifPct === "number" && typeof p.defectPpm === "number" && typeof p.billingVariancePct === "number", p.id + "'s supplier scorecard uses the correctly-named metrics (OTIF %, Defect PPM, Billing Variance %), not a fabricated \"VPI\" field");
+  });
+
+  // Rendered table -- real content, same pattern as the SUB_HEALTH table check above.
+  const tblHtml = G.procurementWatchTable._html;
+  pw.forEach((p) => {
+    ok(tblHtml.includes(p.item), p.id + "'s package name renders in the real table");
+    ok(tblHtml.includes(p.otifPct.toFixed(1) + "%"), p.id + "'s OTIF % renders in the real table");
+    ok(tblHtml.includes(String(p.defectPpm)), p.id + "'s Defect PPM renders in the real table");
+  });
+  const footText = G.procurementWatchFoot.textContent;
+  ok(footText.includes(P.pwDualSourceCoveragePct().toFixed(1) + "%"), "the rendered footnote's dual-source coverage % matches the real computed value, not a stale hand-typed number", footText);
+  ok(footText.includes("Not \"VPI\""), "the rendered footnote itself carries the VPI correction, visible to a reader who never opens the Glossary tab", footText);
 }
 
 console.log("== M. Escalation rationale ('why') -- item #20, knowledge-transfer artifact (2026-08-26) ==");

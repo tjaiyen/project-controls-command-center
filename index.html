@@ -1841,6 +1841,15 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--c-line);font-
         the highest-exposure contracts, not a surprise when a subcontractor can't perform.</p>
       <div class="tw stagger"><table id="subHealthTable" style="min-width:640px"></table></div>
 
+      <div class="sec-h" style="margin-top:24px"><h3>Long-lead equipment procurement watch</h3></div>
+      <p class="lede">FAT/SAT milestone-payment gating and dual-source coverage for the program's
+        long-lead equipment packages — a real gap neither the subcontractor-health watch above nor
+        the material-price-exposure tracker covers, surfaced verifying a downloaded manufacturing-
+        project-controls document (see the Glossary tab's cross-domain research note for what that
+        document got right and wrong).</p>
+      <div class="tw stagger"><table id="procurementWatchTable" style="min-width:640px"></table></div>
+      <p class="lede" id="procurementWatchFoot" style="margin-top:9px;font-size:12.5px"></p>
+
       <div class="sec-h" style="margin-top:34px"><h2>Change &amp; claims</h2><span class="tag">commercial</span></div>
       <p class="lede">Change order rate against original contract value is one of the strongest, most
         closely tracked predictors of a troubled program. Cycle time is the one you can actually control.</p>
@@ -2514,6 +2523,37 @@ join dim_control_account b using (package_id)</pre></div>
       <details class="dbox" style="margin-bottom:14px" id="domainMapBox">
         <summary>How this maps to the real credentialing world</summary>
         <div id="domainMapBody"></div>
+      </details>
+      <!-- Borrowed-vocabulary note (2026-09-06) -- a portable methodological finding, not a claim
+           about this program's own terminology. It surfaced verifying a downloaded "AI research"
+           document on MANUFACTURING project controls (a genuinely different domain from this
+           construction program) -- kept here because the pattern generalizes, while the specific
+           manufacturing standards it names (PPAP, IQ/OQ/PQ) do NOT belong in this program's own
+           glossary above, which only lists terms this construction dashboard actually uses. See
+           ~/dev/manufacturing-project-controls-command-center for the full verification and the
+           live corrections built into calculators for that domain. -->
+      <details class="dbox" style="margin-bottom:14px" id="borrowedVocabBox">
+        <summary>A cross-domain research finding: watch for borrowed regulated-industry vocabulary</summary>
+        <div style="font-size:12.5px;color:rgb(var(--c-mut))">
+          <p>Verifying a separate, manufacturing-focused "AI research" document surfaced a pattern
+            worth naming even though it doesn't apply to this construction program: three
+            independent research passes, on unrelated sections of that document, each found
+            compliance vocabulary borrowed from <em>one</em> regulated industry and applied broadly
+            to "mission-critical manufacturing" without caveat — automotive AIAG's PPAP presented as
+            if it covered aerospace (which actually uses the distinct AS9145 standard), and FDA/
+            pharma's IQ/OQ/PQ presented as if it applied to general industrial commissioning (which
+            actually uses Commissioning &amp; Qualification, C&amp;Q). Neither PPAP nor IQ/OQ/PQ are
+            real terms in <em>this</em> program's own vocabulary, so they don't belong as entries in
+            the glossary above — but the underlying discipline generalizes to any domain review:
+            when a document's vocabulary sounds precisely regulatory, check which regulator actually
+            governs it before repeating the term. A second, related finding from the same research
+            pass DOES touch this program directly: "Vendor Performance Indexing (VPI)" — the
+            document's proposed supplier scorecard metric — was found NOT to be a standardized named
+            metric at all; it turns up as an unrelated proprietary term in property-management
+            vendor scoring, confirming it's reinvented per-organization, not an industry standard.
+            The Procurement Watch on the Risk &amp; Change tab uses the correctly-named metrics
+            instead: OTIF %, Defect PPM, Billing Variance %.</p>
+        </div>
       </details>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
         <button type="button" class="btn" id="quizToggleBtn" aria-pressed="false">Quiz me &rarr;</button>
@@ -9872,6 +9912,61 @@ function subHealthOverdue(s){ return actDays(s.lastCheck)-SUB_HEALTH_CYCLE_DAYS;
 // currently carry, so nothing on the live page changes today.
 function subHealthTier(s){ var d=subHealthOverdue(s); return (s.status==="red"||d>=30)?1:(s.status==="amber"||d>=7)?2:3; }
 
+/* Long-lead equipment Procurement Watch (2026-09-06) -- a genuine, verified gap this program didn't
+   yet track anywhere: SUB_HEALTH watches subcontractor SOLVENCY and MATERIAL_INDEX_REAL watches
+   commodity-price risk, but neither tracks equipment-supplier MILESTONE-PAYMENT gating or dual-
+   source coverage for long-lead capital items. Surfaced verifying a downloaded "AI research"
+   document on manufacturing project controls -- most of that document's real methodology (EVM,
+   DCMA-14, Monte Carlo risk) is already built here in more depth, but FAT/SAT milestone gating and
+   dual-source tracking genuinely weren't, and both apply to a construction capital program just as
+   much as a factory (this program buys long-lead equipment and manages suppliers too).
+   FAT/SAT (Factory/Site Acceptance Testing) are real, codified terms (IEC 62381:2024, ISA-105);
+   typical contractual payment splits are 15-25% released at FAT, 10-15% at SAT -- a defense-contract
+   example (Terra Insight) cites 20%/12%, used here. "Vendor Performance Indexing (VPI)" was checked
+   during that same research pass and found NOT to be a standardized named metric -- it turns up as
+   an unrelated proprietary term in property-management vendor scoring -- so this watch uses the
+   correctly-named metrics instead: OTIF %, Defect PPM, Billing Variance %. Tracks 3 real long-lead
+   equipment packages under CTE-SYS-04 (Systems & Testing Contract) -- escalators, elevators, and
+   train-control/signaling equipment are standard transit-capital-program long-lead items requiring
+   witnessed factory acceptance before shipment. All figures synthetic, matching the rest of this
+   program. */
+var FAT_RELEASE_PCT=20, SAT_RELEASE_PCT=12; // real range 15-25% FAT / 10-15% SAT; this program uses the Terra Insight defense-contract example's specific split
+var PROCUREMENT_WATCH=[
+ {id:"PW-01", item:"Escalators (6 units, 3 stations)", contractId:"CTE-SYS-04", contractValueM:4.2,
+  fatStatus:"passed", satStatus:"scheduled", dualSourced:false, otifPct:88.5, defectPpm:410, billingVariancePct:1.8},
+ {id:"PW-02", item:"Elevators/lifts (4 units, 2 stations)", contractId:"CTE-SYS-04", contractValueM:2.6,
+  fatStatus:"scheduled", satStatus:"pending", dualSourced:false, otifPct:91.2, defectPpm:260, billingVariancePct:0.9},
+ {id:"PW-03", item:"Train control & signaling equipment", contractId:"CTE-SYS-04", contractValueM:8.9,
+  fatStatus:"passed", satStatus:"passed", dualSourced:true, otifPct:96.0, defectPpm:85, billingVariancePct:0.3}
+];
+function pwFatReleaseM(p){ return p.contractValueM*FAT_RELEASE_PCT/100; }
+function pwSatReleaseM(p){ return p.contractValueM*SAT_RELEASE_PCT/100; }
+function pwFinalReleaseM(p){ return p.contractValueM*(100-FAT_RELEASE_PCT-SAT_RELEASE_PCT)/100; }
+function pwDualSourceCoveragePct(){
+  var dual=PROCUREMENT_WATCH.filter(function(p){ return p.dualSourced; }).length;
+  return dual/PROCUREMENT_WATCH.length*100;
+}
+function pwStatusCls(status){ return status==="passed"?"g":status==="scheduled"?"a":"r"; } // pending = not yet scheduled, the least-progressed state
+function renderProcurementWatch(){
+  var el=document.getElementById("procurementWatchTable"); if(!el) return;
+  el.innerHTML=
+    '<caption class="tw-caption">Long-lead equipment procurement watch — '+PROCUREMENT_WATCH.length+' packages under '+
+      (CONTRACTS.filter(function(c){ return c.id==="CTE-SYS-04"; })[0]||{}).title+', FAT/SAT milestone-payment gating ('+
+      FAT_RELEASE_PCT+'% at FAT, '+SAT_RELEASE_PCT+'% at SAT) and dual-source coverage.</caption>'+
+    '<thead><tr><th scope="col">Package</th><th scope="col">Contract value</th><th scope="col">FAT</th><th scope="col">SAT</th>'+
+    '<th scope="col">Dual-sourced</th><th scope="col">OTIF</th><th scope="col">Defect PPM</th><th scope="col">Billing var.</th></tr></thead><tbody>'+
+    PROCUREMENT_WATCH.map(function(p){
+      return '<tr><td>'+p.item+'</td><td class="mono">'+m(p.contractValueM*1e6)+'</td>'+
+        '<td><span class="pill '+pwStatusCls(p.fatStatus)+'">'+p.fatStatus.charAt(0).toUpperCase()+p.fatStatus.slice(1)+'</span></td>'+
+        '<td><span class="pill '+pwStatusCls(p.satStatus)+'">'+p.satStatus.charAt(0).toUpperCase()+p.satStatus.slice(1)+'</span></td>'+
+        '<td>'+(p.dualSourced?'<span class="pill g">Yes</span>':'<span class="pill r">No — single source</span>')+'</td>'+
+        '<td class="mono">'+p.otifPct.toFixed(1)+'%</td><td class="mono">'+p.defectPpm+'</td><td class="mono">'+p.billingVariancePct.toFixed(1)+'%</td></tr>';
+    }).join("")+'</tbody>';
+  var foot=document.getElementById("procurementWatchFoot");
+  if(foot) foot.textContent="Dual-source coverage: "+pwDualSourceCoveragePct().toFixed(1)+"% of watched packages ("+
+    PROCUREMENT_WATCH.filter(function(p){return p.dualSourced;}).length+" of "+PROCUREMENT_WATCH.length+"). Not \"VPI\" — verified non-standard; see the Glossary tab's cross-domain research note.";
+}
+
 // Positive = days past the neededBy date (overdue); negative = days remaining. Same arithmetic
 // direction as actionStatus()'s own d=actDays(a.due) — one sign convention across both registers.
 function odDaysOverdue(o){ return actDays(o.neededBy); }
@@ -14654,7 +14749,7 @@ document.getElementById("mcInspect").value=String(state.mcInspect);
 document.getElementById("vInspect").textContent="P"+state.mcInspect;
 renderWaterfall(); renderWaterfallMath(); renderBaseline(); renderFep(); renderEstClass(); renderVeSandbox(); renderLcca(); renderEac(); renderCont(); renderTable(); renderFtaScc(); renderCostCodes(); renderCostCodePareto();
 renderEacTrend(); renderFcastTable(); renderGbmDiffusion(); renderGbmLogReturns(); renderGbmMathUnlocked(); renderGbmVsEvm(); renderCashflow();
-renderGantt(); renderSchedule(); renderRisk(); renderSoundTransitLessons(); renderDrbEmv(); renderContracts(); renderSubHealth(); renderDelivery(); renderFramework(); renderActions(); renderActionsMath(); renderOverrunTaxonomy(); renderTriage(); renderExec();
+renderGantt(); renderSchedule(); renderRisk(); renderSoundTransitLessons(); renderDrbEmv(); renderContracts(); renderSubHealth(); renderProcurementWatch(); renderDelivery(); renderFramework(); renderActions(); renderActionsMath(); renderOverrunTaxonomy(); renderTriage(); renderExec();
 document.getElementById("sDrbP").value=DRB_ASSUMPTIONS.pOwnerWins;
 document.getElementById("sDrbLegal").value=DRB_ASSUMPTIONS.legalCost;
 renderDrbSlider();
@@ -14691,6 +14786,9 @@ window.__PCC__={rows:rows,totals:T,kpis:KPIS,audiences:AUDIENCES,program:PROGRAM
   generateTriageQueue:generateTriageQueue,renderTriage:renderTriage,triageEscMeta:TRIAGE_ESC_META,triageClockTier:TRIAGE_CLOCK_TIER,
   ownerDecisions:OWNER_DECISIONS,odTier:odTier,odDaysOverdue:odDaysOverdue,odDaysOpen:odDaysOpen,odRiskRef:odRiskRef,
   subHealth:SUB_HEALTH,subHealthOverdue:subHealthOverdue,subHealthTier:subHealthTier,renderSubHealth:renderSubHealth,
+  procurementWatch:PROCUREMENT_WATCH,fatReleasePct:FAT_RELEASE_PCT,satReleasePct:SAT_RELEASE_PCT,
+  pwFatReleaseM:pwFatReleaseM,pwSatReleaseM:pwSatReleaseM,pwFinalReleaseM:pwFinalReleaseM,
+  pwDualSourceCoveragePct:pwDualSourceCoveragePct,renderProcurementWatch:renderProcurementWatch,
   laborMobilization:LABOR_MOBILIZATION,laborMobGapDays:laborMobGapDays,laborMobStatus:laborMobStatus,
   materialIndexReal:MATERIAL_INDEX_REAL,materialEscalationBaselinePct:MATERIAL_ESCALATION_BASELINE_PCT,
   materialEscalationMultiple:materialEscalationMultiple,materialUnabsorbedExposure:materialUnabsorbedExposure,
