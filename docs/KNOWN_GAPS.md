@@ -1183,3 +1183,63 @@ disclosure readiness, shadow-ledger framing, and the session activity/audit trai
   *and* discover an older, unrelated instance nobody had ever caught — the fix has to be structural
   (a live check per process), not "be more careful," and "we already fixed this class of bug" is
   not evidence there isn't a second, older instance still sitting undetected somewhere else.
+
+## 2026-09-06 additions (/stress-test audit fix round)
+
+- **Procurement Watch's Contract-value column rendered 1,000,000x too large**: `renderProcurementWatch()`
+  formatted each package's contract value with `m(p.contractValueM*1e6)`. `contractValueM` (4.2, 2.6,
+  8.9) is already expressed in millions, matching every other dollar figure in this file's own
+  convention — `m()` itself assumes its argument is already in millions and appends the "M" suffix,
+  and `pwFatReleaseM()`/`pwSatReleaseM()` right next to the bug correctly use `contractValueM`
+  un-scaled. Multiplying by `1e6` first rendered "$4,200,000.0M" / "$2,600,000.0M" / "$8,900,000.0M"
+  instead of $4.2M / $2.6M / $8.9M. Fixed to `m(p.contractValueM)`. `stress.cjs`'s own L2 assertions
+  (added the day before, 2026-09-05) checked `pwFatReleaseM`/`pwSatReleaseM`/item name/OTIF%/defect-PPM
+  rendering but never asserted the Contract value cell's actual text — the exact "green test proves
+  nothing about a fact it never checked" gap this project's own `verify.md`/`reconcile.md` warn about.
+  Closed with 2 new checks per package (the correct un-scaled figure renders; the old 1e6-scaled one
+  does not).
+- **Fabricated "Terra Insight" citation — SAT release cited as 12%, real source states 10%**: the same
+  Procurement Watch feature's `SAT_RELEASE_PCT=12`, with a comment naming Terra Insight's defense-
+  contract example as the source. Fetching that source page directly
+  (terra-insight.com/insights/defence-milestone-payment-reconciliation-india/) found its real
+  worked payment-milestone table reads "M3 — Type approval / FAT" = 20% and "M6 — SAT / Final
+  acceptance" = **10%**, not 12% — the string "12%" appears nowhere on the page. Not cosmetic: the
+  wrong number drove `pwSatReleaseM()`'s live computed dollar releases and the on-page caption text
+  shown to every visitor as sourced fact. Compounding it, `stress.cjs`'s own passing assertion
+  restated the same wrong claim in its description text, certifying the fabrication as verified
+  instead of catching it. Fixed: `SAT_RELEASE_PCT` is now `10`; `FAT_RELEASE_PCT=20` was correct and
+  unchanged; the three release-tranche golden values (FAT/SAT/final) were independently
+  re-derived and updated to match (e.g. PW-01: $0.84M/$0.42M/$2.94M, summing back to the real $4.2M
+  contract value).
+- **WCAG AA contrast failures where raw status-hue variables were used as text color, contradicting
+  this file's own documented palette rule**: the palette comment near the top of `index.html`
+  (~line 13-16) states status TEXT should use `--c-pill-*`, not the raw `--c-bad`/`--c-ok` hues (tuned
+  for chart strokes, measuring 3.1-4.0:1 as small text — under AA). 8 real-prose locations violated
+  it: the baseline-bridge "crossed above progress" and GBM-diffusion "Don't bet the farm" callouts
+  (Cost tab), the Triage tab's "All clear" banner, the Executive Command "Target:"/"Real expectation:"
+  labels, the Ask AI error text, the Stakeholder-readiness escalation text, and the GUARDS streak
+  "Streak reset today" label. Independently computed WCAG relative-luminance contrast confirmed real
+  failures in this dashboard's own default/first-visible theme — e.g. raw `--c-bad` text on `--c-card`
+  in dark theme measured 3.89:1 (below the 4.5:1 AA floor for normal-size text), raw `--c-ok` text on
+  `--c-card` in light theme measured 3.77:1, and the Triage banner's raw `--c-ok` text on its own
+  tinted background measured 4.42:1 dark / 3.10:1 light. Fixed by routing all 8 locations through
+  `--c-pill-r`/`--c-pill-g` (the file's own prescribed fix, already the convention every `.pill`/
+  `.ticon` CSS rule uses) — text-only; none of the tinted backgrounds changed. Post-fix contrast
+  clears AA with real margin everywhere (7.6-8.3:1 on cards, 5.8-6.3:1 on the Triage banner). One
+  out-of-scope 9th occurrence (`.ph.done .n{color:rgb(var(--c-ok))}`, a tiny 9.5px monospace label,
+  not one of the 8 named locations) was deliberately left alone per this project's Surgical Changes
+  discipline and flagged separately rather than folded into this fix.
+- **Ask AI placeholder rotation ignored `prefers-reduced-motion` and had no pause control**:
+  `wireAskAiPlaceholderRotation()` started an unconditional `setInterval(...,4000)` at page load,
+  rewriting the Ask AI input's placeholder forever, with neither the `matchMedia` guard
+  `galtonStart()`/`tweenNum()` both use nor the user-facing Play/Pause toggle `toggleDsAutoPlay()`
+  uses — the one continuous auto-starting timer in the file built to neither of its own established
+  conventions. Fixed by adding the same `prefers-reduced-motion` check as `galtonStart()`/`tweenNum()`:
+  the timer never starts at all when reduced motion is on, closing the WCAG 2.2.2 (Pause, Stop, Hide)
+  gap directly. `stress.cjs` gained a function-scoped regex check (matching the pre-existing
+  `wireDetailsAnimation()` pattern) confirming the guard sits inside this specific function, not
+  merely present somewhere else in the file.
+- **Assertion-count citations updated, structurally checked**: these 4 fixes added 17 new `stress.cjs`
+  assertions (4,206→4,223); `D62`'s self-check (added 2026-09-03, see above) caught all 4 README.md/
+  docs/HANDOFF.md citations needing the update and they were corrected in the same pass — the
+  structural fix from the prior round doing exactly the job it was built for.

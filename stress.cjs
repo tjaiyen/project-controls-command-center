@@ -8741,14 +8741,18 @@ console.log("== L2. Long-lead equipment Procurement Watch (manufacturing-project
   // written, not copied from the app's own arithmetic.
   const pw = P.procurementWatch;
   ok(Array.isArray(pw) && pw.length === 3, "exactly 3 long-lead equipment packages are watched", String(pw && pw.length));
-  ok(P.fatReleasePct === 20 && P.satReleasePct === 12, "FAT/SAT release percentages match the real, cited range (Terra Insight defense-contract example: 20% FAT / 12% SAT, within the documented 15-25%/10-15% norms)", P.fatReleasePct + "/" + P.satReleasePct);
+  // Fixed (/stress-test finding, 2026-09-06): SAT_RELEASE_PCT was 12, attributed by name to the
+  // Terra Insight defense-contract example -- fetched that source page directly and its real
+  // payment-milestone table reads "M6 -- SAT / Final acceptance" = 10% (not 12%; "12%" appears
+  // nowhere on the page). 20% FAT was correct and is unchanged.
+  ok(P.fatReleasePct === 20 && P.satReleasePct === 10, "FAT/SAT release percentages match the real, cited range (Terra Insight defense-contract example: 20% FAT / 10% SAT, within the documented 15-25%/10-15% norms -- corrected from a fabricated 12% SAT figure)", P.fatReleasePct + "/" + P.satReleasePct);
 
-  const EXPECTED = { "PW-01": { fat: 0.840, sat: 0.504, final: 2.856 }, "PW-02": { fat: 0.520, sat: 0.312, final: 1.768 }, "PW-03": { fat: 1.780, sat: 1.068, final: 6.052 } };
+  const EXPECTED = { "PW-01": { fat: 0.84, sat: 0.42, final: 2.94 }, "PW-02": { fat: 0.52, sat: 0.26, final: 1.82 }, "PW-03": { fat: 1.78, sat: 0.89, final: 6.23 } };
   pw.forEach((p) => {
     const exp = EXPECTED[p.id];
     ok(Math.abs(P.pwFatReleaseM(p) - exp.fat) < 1e-9, p.id + "'s FAT release $ matches the independently pre-registered golden value (contractValueM * 20%)", String(P.pwFatReleaseM(p)));
-    ok(Math.abs(P.pwSatReleaseM(p) - exp.sat) < 1e-9, p.id + "'s SAT release $ matches the independently pre-registered golden value (contractValueM * 12%)", String(P.pwSatReleaseM(p)));
-    ok(Math.abs(P.pwFinalReleaseM(p) - exp.final) < 1e-9, p.id + "'s final-acceptance release $ matches the independently pre-registered golden value (contractValueM * 68%)", String(P.pwFinalReleaseM(p)));
+    ok(Math.abs(P.pwSatReleaseM(p) - exp.sat) < 1e-9, p.id + "'s SAT release $ matches the independently pre-registered golden value (contractValueM * 10%)", String(P.pwSatReleaseM(p)));
+    ok(Math.abs(P.pwFinalReleaseM(p) - exp.final) < 1e-9, p.id + "'s final-acceptance release $ matches the independently pre-registered golden value (contractValueM * 70%)", String(P.pwFinalReleaseM(p)));
     // Internal consistency: the three release tranches must sum back to the full contract value --
     // this would catch a typo'd percentage split that each individual check above couldn't.
     ok(Math.abs((P.pwFatReleaseM(p) + P.pwSatReleaseM(p) + P.pwFinalReleaseM(p)) - p.contractValueM) < 1e-9, p.id + "'s three release tranches (FAT+SAT+final) sum back to the full contract value, not a mis-split", String(P.pwFatReleaseM(p) + P.pwSatReleaseM(p) + P.pwFinalReleaseM(p)));
@@ -8783,6 +8787,14 @@ console.log("== L2. Long-lead equipment Procurement Watch (manufacturing-project
     ok(tblHtml.includes(p.item), p.id + "'s package name renders in the real table");
     ok(tblHtml.includes(p.otifPct.toFixed(1) + "%"), p.id + "'s OTIF % renders in the real table");
     ok(tblHtml.includes(String(p.defectPpm)), p.id + "'s Defect PPM renders in the real table");
+    // Fixed (/stress-test finding, 2026-09-06): the cell rendered m(p.contractValueM*1e6) --
+    // contractValueM is already expressed in millions (same convention as pwFatReleaseM/
+    // pwSatReleaseM above, which correctly use it un-scaled), so multiplying by 1e6 before calling
+    // m() (which itself appends "M" assuming its argument is already in millions) produced a value
+    // six orders of magnitude too large ("$4,200,000.0M" instead of "$4.2M"). Independently
+    // re-derived via this file's own m() reimplementation above, not the app's m().
+    ok(tblHtml.includes(m(p.contractValueM)), p.id + "'s Contract value cell renders the real un-scaled millions figure (" + m(p.contractValueM) + "), not contractValueM mistakenly multiplied by 1e6 first");
+    ok(!tblHtml.includes(m(p.contractValueM * 1e6)), p.id + "'s Contract value cell does NOT render the old six-orders-of-magnitude-too-large figure");
   });
   // The rendered caption hardcodes a literal contract-id title rather than deriving it from each
   // item's own p.contractId -- today all 3 agree, but nothing previously caught future drift (e.g.
@@ -8791,6 +8803,68 @@ console.log("== L2. Long-lead equipment Procurement Watch (manufacturing-project
   const footText = (G.procurementWatchFoot && G.procurementWatchFoot.textContent) || "";
   ok(footText.includes(P.pwDualSourceCoveragePct().toFixed(1) + "%"), "the rendered footnote's dual-source coverage % matches the real computed value, not a stale hand-typed number", footText);
   ok(footText.includes("Not \"VPI\""), "the rendered footnote itself carries the VPI correction, visible to a reader who never opens the Glossary tab", footText);
+}
+
+console.log("== D70. WCAG AA contrast fix (raw status-hue text -> --c-pill-*) + Ask AI placeholder reduced-motion guard (/stress-test audit findings, 2026-09-06) ==");
+{
+  // Finding A: the palette comment near the top of this file (~line 13-16) promises "Status TEXT
+  // uses --c-pill-* rather than the raw status hues: the raw hues ... measure 3.1-4.0:1 as small
+  // text, under WCAG AA." 8 real-prose locations broke that rule by using the raw hue directly as
+  // inline text color. WCAG relative-luminance contrast, independently re-implemented below (not
+  // copied from any tool or from index.html, which doesn't compute contrast itself) confirms both
+  // that they were genuinely failing AA and that routing them through --c-pill-* (the file's own
+  // prescribed fix) clears AA with real margin in both themes.
+  function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+  function relLum(rgb) { return 0.2126 * lin(rgb[0]) + 0.7152 * lin(rgb[1]) + 0.0722 * lin(rgb[2]); }
+  function contrastRatio(rgb1, rgb2) { const L1 = relLum(rgb1), L2 = relLum(rgb2), hi = Math.max(L1, L2), lo = Math.min(L1, L2); return (hi + 0.05) / (lo + 0.05); }
+  function alphaOver(fg, bg, a) { return [0, 1, 2].map((i) => fg[i] * a + bg[i] * (1 - a)); }
+  // Exact RGB triples as literally defined in index.html's :root and its light-theme override --
+  // re-typed here independently, matching this file's own m()-reimplementation discipline.
+  const DARK = { card: [30, 41, 59], bad: [239, 68, 68], ok: [16, 185, 129], pillR: [252, 165, 165], pillG: [52, 211, 153] };
+  const LIGHT = { card: [255, 255, 255], bad: [220, 38, 38], ok: [5, 150, 105], pillR: [153, 27, 27], pillG: [6, 95, 70] };
+
+  // Pre-registered BEFORE the fix (hand-computed, matching the audit finding's own numbers): the
+  // raw hue as text genuinely fails AA (< 4.5:1) on its real composited background in both themes.
+  ok(Math.abs(contrastRatio(DARK.bad, DARK.card) - 3.89) < 0.01, "pre-registered: raw --c-bad text on --c-card in dark theme measured ~3.89:1, below the 4.5:1 AA minimum for normal-size text", contrastRatio(DARK.bad, DARK.card).toFixed(2));
+  ok(Math.abs(contrastRatio(LIGHT.ok, LIGHT.card) - 3.77) < 0.01, "pre-registered: raw --c-ok text on --c-card in light theme measured ~3.77:1, below the 4.5:1 AA minimum for normal-size text", contrastRatio(LIGHT.ok, LIGHT.card).toFixed(2));
+  const dBanner = alphaOver(DARK.ok, DARK.card, 0.16), lBanner = alphaOver(LIGHT.ok, LIGHT.card, 0.16);
+  ok(Math.abs(contrastRatio(DARK.ok, dBanner) - 4.42) < 0.01, "pre-registered: the Triage 'All clear' banner's raw --c-ok text on its own --c-ok/.16 tinted background measured ~4.42:1 in dark theme, failing AA for its 11.5px non-bold size", contrastRatio(DARK.ok, dBanner).toFixed(2));
+  ok(Math.abs(contrastRatio(LIGHT.ok, lBanner) - 3.10) < 0.01, "pre-registered: the same banner measured ~3.10:1 in light theme, also failing AA", contrastRatio(LIGHT.ok, lBanner).toFixed(2));
+
+  // After the fix -- --c-pill-r / --c-pill-g in place of the raw hue as TEXT color only (the
+  // banner's tinted background is unchanged, matching every other .pill/.ticon rule in this file's
+  // own CSS) -- every affected pairing now clears AA with real margin in both themes.
+  ok(contrastRatio(DARK.pillR, DARK.card) >= 4.5 && contrastRatio(LIGHT.pillR, LIGHT.card) >= 4.5, "fixed: --c-pill-r as text on --c-card clears WCAG AA (4.5:1) in both themes", contrastRatio(DARK.pillR, DARK.card).toFixed(2) + " dark / " + contrastRatio(LIGHT.pillR, LIGHT.card).toFixed(2) + " light");
+  ok(contrastRatio(DARK.pillG, DARK.card) >= 4.5 && contrastRatio(LIGHT.pillG, LIGHT.card) >= 4.5, "fixed: --c-pill-g as text on --c-card clears WCAG AA (4.5:1) in both themes", contrastRatio(DARK.pillG, DARK.card).toFixed(2) + " dark / " + contrastRatio(LIGHT.pillG, LIGHT.card).toFixed(2) + " light");
+  ok(contrastRatio(DARK.pillG, dBanner) >= 4.5 && contrastRatio(LIGHT.pillG, lBanner) >= 4.5, "fixed: the 'All clear' banner's --c-pill-g text on its own unchanged --c-ok/.16 tinted background clears WCAG AA in both themes", contrastRatio(DARK.pillG, dBanner).toFixed(2) + " dark / " + contrastRatio(LIGHT.pillG, lBanner).toFixed(2) + " light");
+
+  // Source-level regression guard, scoped to the real fix rather than the math above (which would
+  // stay green even if index.html itself regressed back to the raw hue). --c-bad is never
+  // legitimately used as inline TEXT color anywhere in this file (only chart strokes / tinted
+  // backgrounds use the raw hue), so a blanket absence check is safe for all 6 fixed locations;
+  // --c-ok has exactly one remaining legitimate, out-of-scope use (the pre-existing .ph.done .n
+  // CSS rule, not one of this finding's 8 named locations, so deliberately left alone per Surgical
+  // Changes), so that one is checked by exact count instead of blanket absence.
+  ok(!indexSrc.includes("color:rgb(var(--c-bad))"), "no inline text color anywhere in the file still sets the raw --c-bad hue directly -- all 6 real-prose locations this finding names now use --c-pill-r");
+  const rawOkTextCount = (indexSrc.match(/color:rgb\(var\(--c-ok\)\)/g) || []).length;
+  ok(rawOkTextCount === 1, "exactly 1 raw --c-ok-as-text occurrence remains in the file", String(rawOkTextCount));
+  ok(indexSrc.includes(".ph.done .n{color:rgb(var(--c-ok))}"), "the one remaining raw --c-ok-as-text occurrence is specifically the out-of-scope .ph.done .n rule (flagged separately, not silently left unfixed as if it were part of this finding)");
+
+  // Finding B: wireAskAiPlaceholderRotation() started an unconditional setInterval at page load
+  // with no prefers-reduced-motion check and no pause control -- inconsistent with every other
+  // continuous/auto-starting timer in this file (galtonStart()/tweenNum() both check matchMedia
+  // and settle immediately; toggleDsAutoPlay()'s timer is instead user-initiated via an explicit
+  // Play/Pause toggle). Source-level check, matching the established wireDetailsAnimation() pattern
+  // above (function-scoped regex, not a file-wide match that could pass on an unrelated occurrence
+  // of the same string elsewhere). A behavioral (fresh runPage()) check was deliberately NOT added
+  // here: this file's P/G objects hold live closures that resolve the bare `window`/`document`
+  // identifiers dynamically at call time (documented elsewhere in this file, ~line 8757's comment)
+  // -- a second runPage(indexSrc) call this late would reassign global.window/document again and
+  // change what a LATER test's call into the ORIGINAL P sees, which is exactly the kind of
+  // cross-test coupling this file's own comments already warn about, not a risk worth taking for
+  // one more assertion when the source-level check already pins the real, load-bearing line.
+  ok(/wireAskAiPlaceholderRotation\(\)\{[\s\S]{0,450}prefers-reduced-motion/.test(indexSrc),
+    "wireAskAiPlaceholderRotation checks prefers-reduced-motion before starting its timer, matching galtonStart()/tweenNum()'s established convention");
 }
 
 console.log("== M. Escalation rationale ('why') -- item #20, knowledge-transfer artifact (2026-08-26) ==");

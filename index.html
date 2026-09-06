@@ -5566,7 +5566,7 @@ function renderCont(){
     // anything. Today's real numbers (57.6% drawn at 66.1% complete) stay on the healthy side, but
     // this now reads that live, not asserts it.
     (T.contDrawn>T.pct?
-      ', <b style="color:rgb(var(--c-bad))">crossed above progress</b> — reserve consumption is now '+
+      ', <b style="color:var(--c-pill-r)">crossed above progress</b> — reserve consumption is now '+
       'outpacing value earned, the earliest reliable signal of an impending reset.'
       :', still trailing progress. That half is healthy.')+
     ' The problem is the level: '+
@@ -5630,7 +5630,7 @@ function renderGbmDiffusion(){
     // unexplained numbers in the same paragraph (n=6 counts the 6 raw AC levels; g.n=5 counts the
     // log-returns derived from them, the number every OTHER mention on this card actually uses).
     // Fixed to consistently read g.n throughout, matching TJ's own "5 data points" framing.
-    '<p style="margin:0 0 12px;font-size:12.5px"><b style="color:rgb(var(--c-bad))">Don&rsquo;t bet '+
+    '<p style="margin:0 0 12px;font-size:12.5px"><b style="color:var(--c-pill-r)">Don&rsquo;t bet '+
     'the farm on '+g.n+' data points.</b> <span style="color:rgb(var(--c-mut))">These numbers come '+
     'from only '+g.n+' real past monthly cost jumps &mdash; too small a sample to trust as an '+
     'official forecast. The 90% confidence interval below shows exactly how wide that uncertainty '+
@@ -7148,7 +7148,7 @@ function renderTriage(){
             'aria-label="Filter to '+TIER_META[t].label+' ('+counts[t]+')" title="'+TIER_META[t].label+': '+counts[t]+'"></button>';
         }).join("")+
       '</div>'
-    : '<div style="height:26px;border-radius:6px;background:rgb(var(--c-ok) / .16);display:flex;align-items:center;padding:0 10px;font-size:11.5px;color:rgb(var(--c-ok))">All clear — nothing needs attention right now</div>';
+    : '<div style="height:26px;border-radius:6px;background:rgb(var(--c-ok) / .16);display:flex;align-items:center;padding:0 10px;font-size:11.5px;color:var(--c-pill-g)">All clear — nothing needs attention right now</div>';
   document.getElementById("triageFilterRail").innerHTML=
     distHtml+
     '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
@@ -7371,8 +7371,8 @@ function renderExecQuadrants(){
 
   var q2=
     '<div class="card stagger" style="animation-delay:60ms"><h3>⏱️ The time story</h3>'+
-    '<p style="margin-top:10px;font-size:12.5px"><b style="color:rgb(var(--c-ok))">Target:</b> '+rev.base+
-    ' &nbsp;&rarr;&nbsp; <b style="color:rgb(var(--c-bad))">Real expectation:</b> '+rev.fc+' ('+days(rev.d)+')</p>'+
+    '<p style="margin-top:10px;font-size:12.5px"><b style="color:var(--c-pill-g)">Target:</b> '+rev.base+
+    ' &nbsp;&rarr;&nbsp; <b style="color:var(--c-pill-r)">Real expectation:</b> '+rev.fc+' ('+days(rev.d)+')</p>'+
     '<p style="margin-top:8px;font-size:12.5px">We are running '+Math.abs(rev.d)+' days '+(rev.d>0?"late":"early")+
     '. <button type="button" class="btn" data-exec-drawer="time" style="min-height:auto;padding:1px 8px;font-size:12px;vertical-align:baseline">Why</button> '+
     'traces back to the same tunnel package driving the cost story above — other parts of the '+
@@ -7607,6 +7607,11 @@ function askAiStartersHtml(){
 var ASK_AI_PLACEHOLDERS=["Are we going to open on time?","What's blocking Gate 5?","What's our biggest risk right now?","How much of the overrun is one package?"];
 var askAiPlaceholderIdx=0;
 function wireAskAiPlaceholderRotation(){
+  // WCAG 2.2.2 (Pause, Stop, Hide) -- same reduced-motion convention as galtonStart()/tweenNum():
+  // skip starting the auto-updating timer entirely rather than adding a Play/Pause control (this
+  // is decorative placeholder-hint text, not the meaningful step-through state toggleDsAutoPlay()
+  // gates with a user-facing toggle instead).
+  if(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   setInterval(function(){
     askAiPlaceholderIdx=(askAiPlaceholderIdx+1)%ASK_AI_PLACEHOLDERS.length;
     var input=document.getElementById("askAiInput");
@@ -7622,7 +7627,7 @@ function renderAskAiPanel(){
     return '<div '+(i===0?'class="stagger" ':'')+'style="'+(i===0?"animation-delay:0ms;":"")+'margin-top:12px;padding-top:12px;border-top:1px solid var(--c-line)">'+
       '<p style="font-size:12.5px;margin:0"><b>Q:</b> '+escHtml(h.q)+'</p>'+
       (h.error
-        ? '<p style="font-size:12.5px;margin:6px 0 0;color:rgb(var(--c-bad))">'+escHtml(h.error)+'</p>'
+        ? '<p style="font-size:12.5px;margin:6px 0 0;color:var(--c-pill-r)">'+escHtml(h.error)+'</p>'
         : '<p style="font-size:.95rem;margin:6px 0 0">'+escHtml(h.answer)+'</p>'+
           askAiVerifiedReadout(h)+
           (jumpChips?'<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">'+jumpChips+'</div>':"")+
@@ -8644,7 +8649,7 @@ function renderStakeholderReadiness(){
         '<td style="font-size:12px">'+WANG_FORCE_LABEL[w.k]+' ('+pct(w.v,0)+')</td>'+
         '<td style="font-size:12px;max-width:280px;white-space:normal">'+
           (play.principle? '<b style="color:rgb(var(--c-ink))">'+play.principle+'</b> — '+play.section+'. '+play.why
-                          : '<b style="color:rgb(var(--c-bad))">'+play.section+'</b> — '+play.why)+
+                          : '<b style="color:var(--c-pill-r)">'+play.section+'</b> — '+play.why)+
         '</td></tr>';
     }).join("")+
     '</tbody></table>';
@@ -9922,7 +9927,7 @@ function subHealthTier(s){ var d=subHealthOverdue(s); return (s.status==="red"||
    much as a factory (this program buys long-lead equipment and manages suppliers too).
    FAT/SAT (Factory/Site Acceptance Testing) are real, codified terms (IEC 62381:2024, ISA-105);
    typical contractual payment splits are 15-25% released at FAT, 10-15% at SAT -- a defense-contract
-   example (Terra Insight) cites 20%/12%, used here. "Vendor Performance Indexing (VPI)" was checked
+   example (Terra Insight) cites 20%/10%, used here. "Vendor Performance Indexing (VPI)" was checked
    during that same research pass and found NOT to be a standardized named metric -- it turns up as
    an unrelated proprietary term in property-management vendor scoring -- so this watch uses the
    correctly-named metrics instead: OTIF %, Defect PPM, Billing Variance %. Tracks 3 real long-lead
@@ -9930,7 +9935,7 @@ function subHealthTier(s){ var d=subHealthOverdue(s); return (s.status==="red"||
    train-control/signaling equipment are standard transit-capital-program long-lead items requiring
    witnessed factory acceptance before shipment. All figures synthetic, matching the rest of this
    program. */
-var FAT_RELEASE_PCT=20, SAT_RELEASE_PCT=12; // real range 15-25% FAT / 10-15% SAT; this program uses the Terra Insight defense-contract example's specific split
+var FAT_RELEASE_PCT=20, SAT_RELEASE_PCT=10; // real range 15-25% FAT / 10-15% SAT; this program uses the Terra Insight defense-contract example's specific split (verified against the source page directly: M3/FAT=20%, M6/SAT=10% -- fixed 2026-09-06, was mistyped 12%)
 var PROCUREMENT_WATCH=[
  {id:"PW-01", item:"Escalators (6 units, 3 stations)", contractId:"CTE-SYS-04", contractValueM:4.2,
   fatStatus:"passed", satStatus:"scheduled", dualSourced:false, otifPct:88.5, defectPpm:410, billingVariancePct:1.8},
@@ -9956,7 +9961,7 @@ function renderProcurementWatch(){
     '<thead><tr><th scope="col">Package</th><th scope="col">Contract value</th><th scope="col">FAT</th><th scope="col">SAT</th>'+
     '<th scope="col">Dual-sourced</th><th scope="col">OTIF</th><th scope="col">Defect PPM</th><th scope="col">Billing var.</th></tr></thead><tbody>'+
     PROCUREMENT_WATCH.map(function(p){
-      return '<tr><td>'+p.item+'</td><td class="mono">'+m(p.contractValueM*1e6)+'</td>'+
+      return '<tr><td>'+p.item+'</td><td class="mono">'+m(p.contractValueM)+'</td>'+
         '<td><span class="pill '+pwStatusCls(p.fatStatus)+'">'+p.fatStatus.charAt(0).toUpperCase()+p.fatStatus.slice(1)+'</span></td>'+
         '<td><span class="pill '+pwStatusCls(p.satStatus)+'">'+p.satStatus.charAt(0).toUpperCase()+p.satStatus.slice(1)+'</span></td>'+
         '<td>'+(p.dualSourced?'<span class="pill g">Yes</span>':'<span class="pill r">No — single source</span>')+'</td>'+
@@ -11251,7 +11256,7 @@ function guardsStreakLine(fails,failCause){
   }
   var rec=updateGuardsStreak(fails,failCause);
   if(fails){
-    return '<b style="color:rgb(var(--c-bad))">Streak reset today</b> &mdash; last failure: '+
+    return '<b style="color:var(--c-pill-r)">Streak reset today</b> &mdash; last failure: '+
      rec.lastFailDate+", cause: "+rec.lastFailCause+".";
   }
   return '<b>GREEN for '+rec.streak+' consecutive session'+(rec.streak===1?"":"s")+'</b>'+
