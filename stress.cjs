@@ -8771,13 +8771,24 @@ console.log("== L2. Long-lead equipment Procurement Watch (manufacturing-project
   });
 
   // Rendered table -- real content, same pattern as the SUB_HEALTH table check above.
-  const tblHtml = G.procurementWatchTable._html;
+  // Guarded (unlike that pre-existing pattern): if renderProcurementWatch() ever regressed to a
+  // no-op, G.procurementWatchTable/.procurementWatchFoot would be undefined (the stub only
+  // auto-vivifies an id once getElementById is actually called on it) -- an unguarded ._html /
+  // .textContent access would then throw and abort the ENTIRE multi-thousand-check suite instead
+  // of failing just this one assertion with a readable message.
+  ok(!!G.procurementWatchTable, "procurementWatchTable was actually populated -- renderProcurementWatch() ran and called getElementById on it");
+  ok(!!G.procurementWatchFoot, "procurementWatchFoot was actually populated -- renderProcurementWatch() ran and called getElementById on it");
+  const tblHtml = (G.procurementWatchTable && G.procurementWatchTable._html) || "";
   pw.forEach((p) => {
     ok(tblHtml.includes(p.item), p.id + "'s package name renders in the real table");
     ok(tblHtml.includes(p.otifPct.toFixed(1) + "%"), p.id + "'s OTIF % renders in the real table");
     ok(tblHtml.includes(String(p.defectPpm)), p.id + "'s Defect PPM renders in the real table");
   });
-  const footText = G.procurementWatchFoot.textContent;
+  // The rendered caption hardcodes a literal contract-id title rather than deriving it from each
+  // item's own p.contractId -- today all 3 agree, but nothing previously caught future drift (e.g.
+  // a 4th package added under a different contract while the caption still names only one).
+  ok(pw.every((p) => p.contractId === "CTE-SYS-04"), "every watched package's own contractId still agrees with the caption's hardcoded 'CTE-SYS-04' -- would fail the moment that stops being true, instead of silently going stale", JSON.stringify(pw.map((p) => p.contractId)));
+  const footText = (G.procurementWatchFoot && G.procurementWatchFoot.textContent) || "";
   ok(footText.includes(P.pwDualSourceCoveragePct().toFixed(1) + "%"), "the rendered footnote's dual-source coverage % matches the real computed value, not a stale hand-typed number", footText);
   ok(footText.includes("Not \"VPI\""), "the rendered footnote itself carries the VPI correction, visible to a reader who never opens the Glossary tab", footText);
 }
