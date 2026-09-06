@@ -8839,16 +8839,27 @@ console.log("== D70. WCAG AA contrast fix (raw status-hue text -> --c-pill-*) + 
   ok(contrastRatio(DARK.pillG, dBanner) >= 4.5 && contrastRatio(LIGHT.pillG, lBanner) >= 4.5, "fixed: the 'All clear' banner's --c-pill-g text on its own unchanged --c-ok/.16 tinted background clears WCAG AA in both themes", contrastRatio(DARK.pillG, dBanner).toFixed(2) + " dark / " + contrastRatio(LIGHT.pillG, lBanner).toFixed(2) + " light");
 
   // Source-level regression guard, scoped to the real fix rather than the math above (which would
-  // stay green even if index.html itself regressed back to the raw hue). --c-bad is never
-  // legitimately used as inline TEXT color anywhere in this file (only chart strokes / tinted
-  // backgrounds use the raw hue), so a blanket absence check is safe for all 6 fixed locations;
-  // --c-ok has exactly one remaining legitimate, out-of-scope use (the pre-existing .ph.done .n
-  // CSS rule, not one of this finding's 8 named locations, so deliberately left alone per Surgical
-  // Changes), so that one is checked by exact count instead of blanket absence.
+  // stay green even if index.html itself regressed back to the raw hue). Neither --c-bad nor
+  // --c-ok is ever legitimately used as inline TEXT color anywhere in this file (only chart
+  // strokes / tinted backgrounds use the raw hue), so a blanket absence check is safe for both.
+  // --c-ok's one remaining occurrence after the original 8-location fix was the pre-existing
+  // .ph.done .n CSS rule -- deliberately left alone THEN (not one of that finding's named
+  // locations, per Surgical Changes), fixed as its own follow-up here (2026-09-06), so the
+  // blanket check now covers all 9 --c-ok-as-text locations (the 2 originally named + this one).
   ok(!indexSrc.includes("color:rgb(var(--c-bad))"), "no inline text color anywhere in the file still sets the raw --c-bad hue directly -- all 6 real-prose locations this finding names now use --c-pill-r");
-  const rawOkTextCount = (indexSrc.match(/color:rgb\(var\(--c-ok\)\)/g) || []).length;
-  ok(rawOkTextCount === 1, "exactly 1 raw --c-ok-as-text occurrence remains in the file", String(rawOkTextCount));
-  ok(indexSrc.includes(".ph.done .n{color:rgb(var(--c-ok))}"), "the one remaining raw --c-ok-as-text occurrence is specifically the out-of-scope .ph.done .n rule (flagged separately, not silently left unfixed as if it were part of this finding)");
+  ok(!indexSrc.includes("color:rgb(var(--c-ok))"), "no inline text color anywhere in the file still sets the raw --c-ok hue directly -- all 9 locations (the 2 originally named + the .ph.done .n follow-up) now use --c-pill-g");
+  ok(indexSrc.includes(".ph.done .n{color:var(--c-pill-g)}"), "the former out-of-scope .ph.done .n rule now matches every other .pill/.ticon/.ok rule's --c-pill-g pattern");
+
+  // .ph.done .n's real composited background: .ph itself sets background:none (transparent) and
+  // has no .ph.done-specific background override (confirmed -- only one ".ph.done" rule exists in
+  // the file, the .n color rule above), so it sits directly on .phases's own background:
+  // rgb(var(--c-card)) (line 387) -- the same plain-card pairing already proven >= 4.5:1 above.
+  // (A phase can carry .done and aria-pressed="true" together if the user is viewing an earlier,
+  // already-complete phase -- that swaps the composited background for the lighter
+  // rgb(var(--c-accent)/.13) tint, which is strictly higher-luminance against this dark-ink text
+  // in both themes and so cannot fail where the plain --c-card background already clears AA;
+  // not separately computed here for that reason.)
+  ok(contrastRatio(DARK.pillG, DARK.card) >= 4.5 && contrastRatio(LIGHT.pillG, LIGHT.card) >= 4.5, "fixed: .ph.done .n's --c-pill-g text on its real composited background (--c-card, via .phases -- .ph itself is transparent) clears WCAG AA (4.5:1) in both themes", contrastRatio(DARK.pillG, DARK.card).toFixed(2) + " dark / " + contrastRatio(LIGHT.pillG, LIGHT.card).toFixed(2) + " light");
 
   // Finding B: wireAskAiPlaceholderRotation() started an unconditional setInterval at page load
   // with no prefers-reduced-motion check and no pause control -- inconsistent with every other

@@ -1243,3 +1243,23 @@ disclosure readiness, shadow-ledger framing, and the session activity/audit trai
   assertions (4,206→4,223); `D62`'s self-check (added 2026-09-03, see above) caught all 4 README.md/
   docs/HANDOFF.md citations needing the update and they were corrected in the same pass — the
   structural fix from the prior round doing exactly the job it was built for.
+
+## 2026-09-06 follow-up: the deliberately out-of-scope `.ph.done .n` occurrence, fixed
+
+- **9th raw-`--c-ok`-as-text occurrence closed**: the WCAG contrast fix above (this same date)
+  named 8 locations and left `.ph.done .n{color:rgb(var(--c-ok))}` — a 9.5px bold monospace phase-
+  spine label (`.ph .n`, `index.html` ~line 394) — deliberately alone, since the audit finding that
+  prompted that fix named only the 8 locations and this project's Surgical Changes discipline says
+  not to silently expand scope mid-fix. Flagged instead of folded in. Closed now as its own
+  follow-up: `.ph.done .n{color:rgb(var(--c-ok))}` → `.ph.done .n{color:var(--c-pill-g)}`, matching
+  every other `.pill`/`.ticon`/`.ok` rule in the file. `.ph.done .n`'s real composited background is
+  `--c-card` (`.ph` itself sets `background:none`; `.phases`, its only ancestor with a background,
+  sets `rgb(var(--c-card))` at line 387) — the same pairing already measured 7.6-8.3:1 in the prior
+  fix, so this occurrence clears AA too, not just matches the file's convention cosmetically.
+  `stress.cjs`'s D70 regression guard, which previously asserted this was the exactly-1 legitimate
+  remaining raw-`--c-ok`-as-text occurrence, is now simplified to the same blanket
+  `!indexSrc.includes("color:rgb(var(--c-ok))")` absence check already used for `--c-bad`, plus a
+  location-specific WCAG check for `.ph.done .n`'s own composited background. Net +1 assertion
+  (removed the exact-count-1 check and its now-obsolete "is it .ph.done" check, added the blanket
+  absence check and the new location-specific contrast check): 4,223→4,224; README.md/
+  docs/HANDOFF.md citations updated, `D62`'s self-check confirms the match.
