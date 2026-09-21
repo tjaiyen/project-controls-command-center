@@ -114,9 +114,9 @@ ok(!/\b40%/.test(flat),
    the repo -- same discipline as every other "prove it" check in this harness. */
 console.log('\n== Deck link (2026-09-03) ==');
 const DECK_REL = 'docs/Data_Center_Investment_Case_Walters_Wolf.pptx';
-ok(new RegExp('href="' + DECK_REL.replace(/\./g, '\\.') + '"').test(src),
-  'the page links to ' + DECK_REL);
-ok(fs.existsSync(DECK_REL), 'the linked deck file actually exists in the repo at ' + DECK_REL);
+ok(!src.includes(DECK_REL),
+  'the page does NOT link ' + DECK_REL + ' (deck removed 2026-09-20)');
+ok(!fs.existsSync(DECK_REL), 'the deck file is no longer in the repo at ' + DECK_REL);
 
 /* Interactive HTML rebuild (added same day, on TJ's actual ask -- he meant convert-to-interactive-
    HTML, not just publish the raw deck file). This is now the PRIMARY link; the pptx stays as the

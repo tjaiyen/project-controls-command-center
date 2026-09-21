@@ -1,0 +1,15 @@
+# GitHub Pages (legacy Jekyll build): keep test harnesses, docs and repo notes out of the served site.
+# They remain in the repository; they are just not published at tjaiyen.github.io/...
+exclude:
+  - README.md
+  - CLAUDE.md
+  - docs
+  - stress.cjs
+  - verify.cjs
+  - verify-facade.cjs
+  - verify-walters-wolf.cjs
+  - verify-dc-investment-case.cjs
+  - worker
+  - pipeline
+  - .claude
+  - .github

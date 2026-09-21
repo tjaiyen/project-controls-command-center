@@ -62,8 +62,8 @@ ok(sectionIds.every(s => navHrefs.includes(s)), "every section has a nav link (n
 
 /* The deck link must point at a file that actually exists (same "provable, not asserted"
    discipline as verify-walters-wolf.cjs's equivalent check). */
-ok(/href="docs\/Data_Center_Investment_Case_Walters_Wolf\.pptx"/.test(src), "links to the corrected deck");
-ok(fs.existsSync("docs/Data_Center_Investment_Case_Walters_Wolf.pptx"), "the linked deck file actually exists in the repo");
+ok(!/Data_Center_Investment_Case_Walters_Wolf\.pptx/.test(src), "does NOT link the removed employer-named deck (removed 2026-09-20)");
+ok(!fs.existsSync("docs/Data_Center_Investment_Case_Walters_Wolf.pptx"), "the employer-named deck file is no longer in the repo (removed 2026-09-20)");
 
 /* /stress-test fixes (2026-09-03, both confirmed live via browser execution before trusting them):
 

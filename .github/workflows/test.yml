@@ -41,6 +41,12 @@ jobs:
       - name: node verify-walters-wolf.cjs
         run: node verify-walters-wolf.cjs
 
+      - name: node verify-dc-investment-case.cjs
+        run: node verify-dc-investment-case.cjs
+
+      - name: node verify-exposure.cjs
+        run: node verify-exposure.cjs
+
       - name: node stress.cjs
         run: node stress.cjs
 

@@ -9630,7 +9630,7 @@ function renderCphMath(c,last){
 var PRESENT_BEATS_QUICK=[
  {label:"Portfolio",tab:"port",notes:[
    "One line is the full ground-truth build, three are summary-only — same idea as a Board rollup.",
-   "Do NOT cite the real $34.5B figure — this tab's own footnote says it isn't trying to reproduce that number.",
+   "This tab's own footnote says it does not try to reproduce the real $34.5B figure.",
    "If it comes up: “this computes its own portfolio funding gap, same variance math, different number, same idea.”",
    "New: funding-tier column — modeled on the real tiering exercise Sound Transit's board ran on ST3 in May 2026, not a reproduction of their criteria."]},
  {label:"Cost — EAC + Monte Carlo",tab:"cost",notes:[
@@ -9648,8 +9648,8 @@ var PRESENT_BEATS_QUICK=[
 ];
 var PRESENT_BEATS_FULL=[
  {label:"Open — their problem",tab:"over",notes:[
-   "Lead with Dave's own words (paraphrase, not verbatim): “amazing variety of data, levels within levels.”",
-   "Frame it as universal, not Otak-specific.",
+   "Open with the audience's problem: a wide variety of data at many levels of the organization.",
+   "Frame it as a general capital-program problem rather than one organization's.",
    "One sentence on what this is — a synthetic capital-transit program, built the way I'd actually run one."]},
  {label:"Architecture & phase selector",tab:"over",notes:[
    "Eleven raw inputs per control account drive twenty derived KPIs — nothing else is typed.",
@@ -9658,7 +9658,7 @@ var PRESENT_BEATS_FULL=[
  {label:"Portfolio rollup",tab:"port",notes:[
    "One line is the full ground-truth build, three are summary-only, clearly labeled.",
    "This program's own numbers roll up into the portfolio view live — not a hand-typed slide.",
-   "Signals Manager-level thinking, not analyst-level.",
+   "Shows portfolio-level thinking, not only account-level.",
    "New: funding-tier column — modeled on the real ST3 board tiering exercise (May 2026), not a reproduction."]},
  {label:"The tunnel story (Cost)",tab:"cost",notes:[
    "Follow CP-201 all the way through: ground conditions worse than baseline, CPI breach, negative float.",
@@ -9675,10 +9675,10 @@ var PRESENT_BEATS_FULL=[
    "One root cause — CP-201 tunnel ground conditions — shows up in five instruments.",
    "Risk register (R-01) + quality NCR (NCR-2026-014) + crew cost-per-hour + float erosion rate + schedule forecast drift.",
    "Not six reports that disagree — one story told five ways."]},
- {label:"Own the gap",tab:"fw",notes:[
-   "Say it before they ask: no live CPM schedule ownership during execution.",
+ {label:"Scope note",tab:"fw",notes:[
+   "State the scope plainly: this covers no live CPM schedule ownership during execution.",
    "Schedule experience is upstream — bid-stage duration modeling, not years running P6.",
-   "Said once, plainly, then move on. Over-explaining makes it bigger than it is."]},
+   "State it once, plainly, then move on."]},
  {label:"Close — ask them something back",tab:"over",notes:[
    "“I didn't tell you I could do this. I built the instrument.”",
    "End with a real question for them, not just “any questions for me” — e.g. how are you currently",
@@ -11083,11 +11083,11 @@ var GUARDS=[
    var t=(document.body&&document.body.textContent)||"";
    // Same approved-exception allowlist as the repository-level stress.cjs sweep (FAB_APPROVED)
    // — real, cited content (the Schedule tab's Sound Transit spec citation naming its contractors'
-   // required scheduling tool; otak.html's quote of Otak's own site about its own delivery
+   // required scheduling tool; a fit-brief page's quote of a company's own site about its own delivery
    // method), not a claim about TJ's own experience. This live guard had no allowlist at all
    // until this fix, so it always failed on the real page — same /stress-test visual pass,
    // 2026-08-2x.
-   // stress.cjs's 4th FAB_APPROVED entry (the otak.html delivery-method quote) lives in a
+   // stress.cjs's 4th FAB_APPROVED entry (a fit-brief page's delivery-method quote) lives in a
    // separate document this guard's own document.body never contains — not needed here. (Note
    // for future edits to this block: document.body.textContent includes this whole script
    // block's own source text, comments included — the fragment-assembly above exists for
